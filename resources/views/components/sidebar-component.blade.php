@@ -39,11 +39,13 @@
                                 Hàng</a>
                         </li>
                         <li>
-                            <a href="suppliers.html" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhà Cung
+                        <a href="{{ asset('suppliers') }}"
+                                 class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhà Cung
                                 Cấp</a>
                         </li>
                         <li>
-                            <a href="employees.html" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhân
+                        <a href="{{ asset('employees') }}"
+                         class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhân
                                 Viên</a>
                         </li>
                         <li>
@@ -75,6 +77,7 @@
             </li>
             <li>
                 <div class="dropdown">
+                    <a href="{{ asset('testing') }}">
                     <button onclick="toggleDropdown('testing')"
                         class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                         <div class="flex items-center">
@@ -82,6 +85,7 @@
                             <span class="nav-text">Kiểm Thử</span>
                         </div>
                     </button>
+                    </a>
                 </div>
             </li>
             <li>
@@ -96,13 +100,13 @@
                     </button>
                     <ul id="operations" class="dropdown-content pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhập Kho</a>
+                            <a href="{{ asset('inventory-imports') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhập Kho</a>
                         </li>
                         <li>
                             <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Xuất Kho</a>
                         </li>
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
+                            <a href="{{ asset('warehouse-transfers') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
                         </li>
                         <li>
                             <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Sửa chữa - bảo
@@ -127,11 +131,11 @@
                     </button>
                     <ul id="projects" class="dropdown-content pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản Lý Dự
+                            <a href="{{ asset('projects') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản Lý Dự
                                 Án</a>
                         </li>
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản Lý Cho
+                        <a href="{{ asset('rentals') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản Lý Cho
                                 Thuê</a>
                         </li>
                     </ul>
@@ -149,18 +153,14 @@
                 </div>
             </li>
             <li>
-                <div class="dropdown">
-                    <button onclick="toggleDropdown('software')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-laptop-code mr-3"></i>
-                            <span class="nav-text">Phần mềm</span>
-                        </div>
-                    </button>
-                </div>
+                <a href="{{ asset('software') }}" class="nav-item flex items-center px-4 py-3 rounded-lg hover:bg-gray-700">
+                    <i class="fas fa-laptop-code mr-3"></i>
+                    <span class="nav-text">Phần mềm</span>
+                </a>
             </li>
             <li>
                 <div class="dropdown">
+                <a href="{{ asset('requests') }}">
                     <button onclick="toggleDropdown('requestForm')"
                         class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                         <div class="flex items-center">
@@ -168,6 +168,7 @@
                             <span class="nav-text">Gửi phiếu yêu cầu</span>
                         </div>
                     </button>
+                    </a>
                 </div>
             </li>
             <li>
