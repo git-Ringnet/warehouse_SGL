@@ -10,6 +10,18 @@ Route::get('/assemble', function () {
     return view('assemble.index');
 });
 //khách hàng
+Route::get('/assemble/create', function () {
+    return view('assemble.create');
+});
+
+Route::get('/assemble/show', function () {
+    return view('assemble.show');
+});
+
+Route::get('/assemble/edit', function () {
+    return view('assemble.edit');
+});
+
 Route::get('/customers', function () {
     return view('customers.index');
 });
@@ -42,6 +54,10 @@ Route::delete('/customers/{id}', function ($id) {
     // Xử lý xóa khách hàng
     return redirect('/customers');
 });
+
+
+
+//Materials
 Route::get('/materials', function () {
     return view('materials.index');
 });
@@ -52,6 +68,121 @@ Route::get('/materials/create', function () {
 
 Route::get('/materials/show', function () {
     return view('materials.show');
+});
+
+Route::get('/materials/edit', function () {
+    return view('materials.edit');
+});
+
+//Products
+Route::get('/products', function () {
+    return view('products.index');
+});
+
+Route::get('/products/create', function () {
+    return view('products.create');
+});
+
+Route::get('/products/show', function () {
+    return view('products.show');
+});
+
+Route::get('/products/edit', function () {
+    return view('products.edit');
+});
+
+//warehouses
+Route::get('/warehouses', function () {
+    return view('warehouses.index');
+});
+
+Route::get('/warehouses/create', function () {
+    return view('warehouses.create');
+});
+
+Route::get('/warehouses/show', function () {
+    return view('warehouses.show');
+});
+
+Route::get('/warehouses/edit', function () {
+    return view('warehouses.edit');
+});
+
+//Warranties
+Route::get('/warranties', function () {
+    return view('warranties.index');
+});
+
+Route::get('/warranties/create', function () {
+    return view('warranties.create');
+});
+
+Route::get('/warranties/show', function () {
+    return view('warranties.show');
+});
+
+Route::get('/warranties/edit', function () {
+    return view('warranties.edit');
+});
+
+Route::get('/warranties/activate', function () {
+    return view('warranties.activate');
+});
+
+Route::get('/warranties/verify', function () {
+    return view('warranties.verify');
+});
+
+//repair
+Route::get('/warranties/repair', function () {
+    return view('warranties.repair');
+});
+
+Route::get('/warranties/repair_list', function () {
+    return view('warranties.repair_list');
+});
+
+Route::get('/warranties/repair_detail', function () {
+    return view('warranties.repair_detail');
+});
+
+Route::get('/warranties/repair_edit', function () {
+    return view('warranties.repair_edit');
+});
+
+//inventory
+Route::get('/inventory', function () {
+    return view('inventory.index');
+});
+
+Route::get('/inventory/dispatch', function () {
+    return view('inventory.dispatch');
+});
+
+Route::get('/inventory/dispatch_detail', function () {
+    return view('inventory.dispatch_detail');
+});
+
+Route::get('/inventory/dispatch_edit', function () {
+    return view('inventory.dispatch_edit');
+});
+
+//change_log
+Route::get('/change_log', function () {
+    return view('changelog.index');
+});
+
+//report
+Route::get('/report', function () {
+    return view('reports.index');
+});
+
+Route::get('/report/inventory_import', function () {
+    return view('reports.inventory_import');
+});
+
+Route::get('/report/testing_verification', function () {
+    return view('reports.testing_verification');
 });
 
 

@@ -17,7 +17,7 @@
         </div>
         <ul class="space-y-2">
             <li>
-                <a href="{{asset('')}}" class="nav-item flex items-center px-4 py-3 rounded-lg active">
+                <a href="{{ asset('') }}" class="nav-item flex items-center px-4 py-3 rounded-lg active">
                     <i class="fas fa-tachometer-alt mr-3"></i>
                     <span class="nav-text">Tổng Quan</span>
                 </a>
@@ -49,14 +49,15 @@
                                 Viên</a>
                         </li>
                         <li>
-                            <a href="{{ asset('materials') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Vật Tư</a>
+                            <a href="{{ asset('materials') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Vật
+                                Tư</a>
                         </li>
                         <li>
-                            <a href="products.html" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Thành
+                            <a href="{{ asset('products') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Thành
                                 Phẩm</a>
                         </li>
                         <li>
-                            <a href="warehouses.html" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Kho
+                            <a href="{{ asset('warehouses') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Kho
                                 Hàng</a>
                         </li>
                     </ul>
@@ -103,17 +104,21 @@
                             <a href="{{ asset('inventory-imports') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhập Kho</a>
                         </li>
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Xuất Kho</a>
+                            <a href="{{ asset('inventory') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Xuất
+                                Kho</a>
                         </li>
                         <li>
                             <a href="{{ asset('warehouse-transfers') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
                         </li>
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Sửa chữa - bảo
-                                hành</a>
+                            <a href="{{ asset('warranties/repair_list') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Sửa chữa - bảo hành
+                            </a>
                         </li>
                         <li>
-                            <a href="#" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Bảo hành điện
+                            <a href="{{ asset('warranties') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Bảo
+                                hành điện
                                 tử</a>
                         </li>
                     </ul>
@@ -143,13 +148,15 @@
             </li>
             <li>
                 <div class="dropdown">
-                    <button onclick="toggleDropdown('changeLog')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-history mr-3"></i>
-                            <span class="nav-text">Nhật Ký Thay Đổi</span>
-                        </div>
-                    </button>
+                    <a href="{{ asset('change_log') }}">
+                        <button onclick="toggleDropdown('changeLog')"
+                            class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                            <div class="flex items-center">
+                                <i class="fas fa-history mr-3"></i>
+                                <span class="nav-text">Nhật Ký Thay Đổi</span>
+                            </div>
+                        </button>
+                    </a>
                 </div>
             </li>
             <li>
@@ -179,9 +186,55 @@
                             <i class="fas fa-chart-bar mr-3"></i>
                             <span class="nav-text">Báo Cáo</span>
                         </div>
+                        <i class="fas fa-chevron-down text-xs"></i>
                     </button>
+                    <ul id="reports" class="dropdown-content pl-4 mt-1 space-y-1">
+                        <li>
+                            <a href="{{ asset('report') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo
+                                cáo tổng quan</a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/inventory_import') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo thông kê chi tiết vật tư nhập</a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/testing_verification') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo thông kê chi tiết vật tư kiểm thử cài đặt nghiệm thu</a>
+                        </li>
+                    </ul>
                 </div>
             </li>
         </ul>
     </div>
 </div>
+<script>
+    // Dropdown Menus
+    function toggleDropdown(id) {
+        const dropdown = document.getElementById(id);
+        const allDropdowns = document.querySelectorAll(".dropdown-content");
+
+        // Close all other dropdowns
+        allDropdowns.forEach((d) => {
+            if (d.id !== id) {
+                d.classList.remove("show");
+            }
+        });
+
+        // Toggle current dropdown
+        dropdown.classList.toggle("show");
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener("click", (e) => {
+        if (!e.target.closest(".dropdown")) {
+            document.querySelectorAll(".dropdown-content").forEach((dropdown) => {
+                dropdown.classList.remove("show");
+            });
+        }
+    });
+
+    // Prevent dropdown from closing when clicking inside
+    document.querySelectorAll(".dropdown-content").forEach((dropdown) => {
+        dropdown.addEventListener("click", (e) => {
+            e.stopPropagation();
+        });
+    });
+</script>

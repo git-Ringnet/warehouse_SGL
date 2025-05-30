@@ -12,16 +12,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
 </head>
+
 <body class="bg-gray-50">
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area ml-64">
-        <header class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
+        <header
+            class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý lắp ráp</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm phiếu lắp ráp..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
+                    <input type="text" placeholder="Tìm kiếm phiếu lắp ráp..."
+                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
+                    <select
+                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
                         <option value="">Tất cả trạng thái</option>
                         <option value="pending">Chờ xử lý</option>
                         <option value="inprogress">Đang xử lý</option>
@@ -29,9 +33,12 @@
                         <option value="cancelled">Đã hủy</option>
                     </select>
                 </div>
-                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                    <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
-                </button>
+                <a href="{{ asset('assemble/create') }}">
+                    <button
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
+                        <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
+                    </button>
+                </a>
             </div>
         </header>
         <main class="p-6">
@@ -39,15 +46,33 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã Phiếu</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sản Phẩm</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial Linh Kiện</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày Tạo</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người Phụ Trách</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng Thái</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                STT</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Mã Phiếu</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Loại</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Sản Phẩm</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Serial Linh Kiện</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Ngày Tạo</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Người Phụ Trách</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Trạng Thái</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Hành động</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
@@ -60,16 +85,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nguyễn Văn A</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn thành</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                    thành</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -83,16 +120,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">02/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Trần Thị B</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang xử lý</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang
+                                    xử lý</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -106,16 +155,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">03/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Lê Văn C</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn thành</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                    thành</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -129,16 +190,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">04/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Phạm Thị D</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang xử lý</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang
+                                    xử lý</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -152,16 +225,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">05/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Ngô Văn E</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn thành</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                    thành</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -175,16 +260,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">06/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Trịnh Văn F</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã hủy</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã
+                                    hủy</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -198,16 +295,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">07/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vũ Thị G</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Chờ xử lý</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Chờ
+                                    xử lý</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -221,16 +330,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">08/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nguyễn Văn H</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn thành</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                    thành</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -244,16 +365,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">09/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Trần Thị I</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang xử lý</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang
+                                    xử lý</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -267,16 +400,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Lê Văn K</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn thành</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                    thành</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -290,16 +435,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">11/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Phạm Thị L</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã hủy</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã
+                                    hủy</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -313,16 +470,28 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">12/06/2023</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Ngô Văn M</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn thành</span>
+                                <span
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                    thành</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <a href="{{ asset('assemble/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('assemble/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button
+                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                    title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -339,9 +508,9 @@
         const sidebar = document.getElementById('sidebar');
         const content = document.getElementById('content');
         const mobileMenuButton = document.getElementById('mobileMenuButton');
-        
+
         let isCollapsed = false;
-        
+
         toggleSidebar.addEventListener('click', function() {
             isCollapsed = !isCollapsed;
             if (isCollapsed) {
@@ -354,7 +523,7 @@
                 content.classList.add('content-full');
             }
         });
-        
+
         // Mobile menu toggle
         mobileMenuButton.addEventListener('click', function() {
             sidebar.classList.toggle('sidebar-mobile-hidden');
@@ -454,14 +623,14 @@
         function toggleDropdown(id) {
             const dropdown = document.getElementById(id);
             const allDropdowns = document.querySelectorAll('.dropdown-content');
-            
+
             // Close all other dropdowns
             allDropdowns.forEach(d => {
                 if (d.id !== id) {
                     d.classList.remove('show');
                 }
             });
-            
+
             // Toggle current dropdown
             dropdown.classList.toggle('show');
         }
@@ -483,4 +652,5 @@
         });
     </script>
 </body>
-</html> 
+
+</html>

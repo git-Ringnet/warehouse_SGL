@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
 </head>
 
 <body>
@@ -29,12 +30,20 @@
                         <option value="inactive">Hết hàng</option>
                     </select>
                 </div>
-                <a href="{{ asset('materials/create') }}">
-                    <button
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                        <i class="fas fa-plus mr-2"></i> Thêm vật tư
-                    </button>
-                </a>
+                <div class="flex gap-2">
+                    <a href="{{ asset('materials/create') }}">
+                        <button
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
+                            <i class="fas fa-plus mr-2"></i> Thêm vật tư
+                        </button>
+                    </a>
+                    <a href="#">
+                        <button
+                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
+                            <i class="fas fa-file-import mr-2"></i> Import Data
+                        </button>
+                    </a>
+                </div>
             </div>
         </header>
         <main class="p-6">
@@ -78,17 +87,21 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <button onclick="openDeleteModal(1, 'VT-0001')"
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
@@ -107,16 +120,20 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
@@ -136,16 +153,20 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
@@ -165,16 +186,20 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
@@ -195,16 +220,20 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
@@ -226,16 +255,20 @@
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
@@ -255,16 +288,20 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
@@ -284,16 +321,20 @@
                                     class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                    title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                    title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
+                                <a href="{{ asset('materials/show') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                        title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                <a href="{{ asset('materials/edit') }}">
+                                    <button
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                        title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">

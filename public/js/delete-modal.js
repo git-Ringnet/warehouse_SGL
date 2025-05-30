@@ -17,7 +17,7 @@ function initDeleteModal() {
             <div class="text-center">
                 <i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>
                 <h3 class="text-lg font-bold text-gray-900 mb-2">Xác nhận xóa</h3>
-                <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa khách hàng <span id="customerNameToDelete" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
+                <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa <span id="customerNameToDelete" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
             </div>
             
             <div class="flex justify-center space-x-4">
