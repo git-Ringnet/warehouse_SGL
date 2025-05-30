@@ -17,7 +17,7 @@
         </div>
         <ul class="space-y-2">
             <li>
-                <a href="#" class="nav-item flex items-center px-4 py-3 rounded-lg active">
+                <a href="{{asset('')}}" class="nav-item flex items-center px-4 py-3 rounded-lg active">
                     <i class="fas fa-tachometer-alt mr-3"></i>
                     <span class="nav-text">Tổng Quan</span>
                 </a>
@@ -47,7 +47,7 @@
                                 Viên</a>
                         </li>
                         <li>
-                            <a href="materials.html" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Vật Tư</a>
+                            <a href="{{ asset('materials') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Vật Tư</a>
                         </li>
                         <li>
                             <a href="products.html" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Thành
