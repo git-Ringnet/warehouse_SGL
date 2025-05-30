@@ -1,0 +1,230 @@
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #1e40af;
+    --dark-color: #1e293b;
+    --light-color: #f8fafc;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+}
+
+body {
+    font-family: "Roboto", sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.dark {
+    background-color: #0f172a;
+    color: #f8fafc;
+}
+
+.sidebar {
+    background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);
+    transition: all 0.3s ease;
+}
+
+.sidebar .menu-item a {
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.sidebar .menu-item a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.sidebar .menu-item a.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-left: 4px solid #3b82f6;
+    color: #fff;
+}
+
+.sidebar .nav-item {
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.sidebar .nav-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .nav-item.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-left: 4px solid #3b82f6;
+}
+
+.sidebar .nav-item .flex {
+    color: #fff;
+}
+
+.sidebar .dropdown-content a {
+    color: #fff;
+    transition: all 0.3s ease;
+}
+
+.sidebar .dropdown-content a:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .dropdown-content a.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-left: 4px solid #3b82f6;
+    color: #fff;
+    font-weight: 500;
+}
+
+.sidebar .logo-text {
+    color: #fff;
+    font-weight: 600;
+}
+
+.sidebar .logo-icon {
+    color: #fff;
+}
+
+.sidebar .search-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e2e8f0;
+}
+
+.sidebar .search-input::placeholder {
+    color: #94a3b8;
+}
+
+.sidebar .user-info {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar .user-info p {
+    color: #e2e8f0;
+}
+
+.sidebar .user-info .role {
+    color: #94a3b8;
+}
+
+.sidebar-collapsed {
+    width: 70px;
+}
+
+.sidebar-collapsed .sidebar-text {
+    display: none;
+}
+
+.sidebar-collapsed .logo-text {
+    display: none;
+}
+
+.sidebar-collapsed .menu-item {
+    justify-content: center;
+}
+
+.content-area {
+    margin-left: 256px;
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        z-index: 1000;
+        height: 100vh;
+        width: 70px;
+    }
+
+    .content-area {
+        margin-left: 0 !important;
+    }
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.toast {
+    animation: fadeIn 0.3s, fadeOut 0.5s 2.5s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+.dropdown-content {
+    display: none;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+.chart-container-lg {
+    height: 350px;
+}
+
+.chart-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.chart-tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.chart-tab.active {
+    border-bottom-color: #3b82f6;
+    color: #3b82f6;
+    font-weight: 500;
+}
+
+.dark .chart-tabs {
+    border-bottom-color: #374151;
+}
+
+.dark .chart-tab.active {
+    border-bottom-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.progress-thin {
+    height: 6px;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
