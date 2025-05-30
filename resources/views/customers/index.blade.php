@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -157,7 +159,7 @@
                 <div class="flex gap-2 w-full md:w-auto">
                     <input type="text" placeholder="Tìm kiếm, số điện thoại, email..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
                     <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                        <option value="">Chọn lọc</option>
+                        <option value="">Bộ lọc</option>
                         <option value="name">Tên khách hàng</option>
                         <option value="phone">Số điện thoại</option>
                         <option value="email">Email</option>
@@ -430,26 +432,6 @@
         </main>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="modal-overlay">
-        <div class="modal shadow-lg p-6">
-            <div class="text-center">
-                <i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>
-                <h3 class="text-lg font-bold text-gray-900 mb-2">Xác nhận xóa</h3>
-                <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa khách hàng <span id="customerNameToDelete" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
-            </div>
-            
-            <div class="flex justify-center space-x-4">
-                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors">
-                    Hủy
-                </button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
-                    Xác nhận xóa
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // Dropdown Menus
         function toggleDropdown(id) {
@@ -482,27 +464,6 @@
                 e.stopPropagation();
             });
         });
-        
-        // Delete Modal Functions
-        function openDeleteModal(id, name) {
-            document.getElementById('customerNameToDelete').innerText = name;
-            document.getElementById('confirmDeleteBtn').setAttribute('onclick', `deleteCustomer(${id})`);
-            document.getElementById('deleteModal').classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-        
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('show');
-            document.body.style.overflow = '';
-        }
-        
-        function deleteCustomer(id) {
-            // This would normally make an AJAX request to delete the customer
-            // For UI demo purposes, we'll just close the modal and show an alert
-            closeDeleteModal();
-            alert(`Đã xóa khách hàng có ID: ${id}`);
-            // In a real app, you might redirect or reload the data
-        }
     </script>
 </body>
 </html> 
