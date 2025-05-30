@@ -110,6 +110,41 @@
         .sidebar .dropdown button .flex {
             color: #fff;
         }
+        
+        /* Modal overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal {
+            background-color: white;
+            border-radius: 0.5rem;
+            max-width: 500px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
     </style>
 </head>
 <body>
@@ -120,16 +155,18 @@
             <h1 class="text-xl font-bold text-gray-800">Quản lý khách hàng</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm khách hàng..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
+                    <input type="text" placeholder="Tìm kiếm, số điện thoại, email..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
                     <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="active">Đang hoạt động</option>
-                        <option value="inactive">Ngừng hoạt động</option>
+                        <option value="">Chọn lọc</option>
+                        <option value="name">Tên khách hàng</option>
+                        <option value="phone">Số điện thoại</option>
+                        <option value="email">Email</option>
+                        <option value="address">Địa chỉ</option>
                     </select>
                 </div>
-                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
+                <a href="{{ url('/customers/create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
                     <i class="fas fa-user-plus mr-2"></i> Thêm khách hàng
-                </button>
+                </a>
             </div>
         </header>
         <main class="p-6">
@@ -143,7 +180,6 @@
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Địa chỉ</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
@@ -155,17 +191,15 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">nguyenb@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">123 Lê Lợi, Hà Nội</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                <a href="{{ url('/customers/1') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                </a>
+                                <a href="{{ url('/customers/1/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                </a>
+                                <button onclick="openDeleteModal(1, 'Nguyễn Văn B')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -177,17 +211,15 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">tranthic@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">456 Trần Hưng Đạo, TP.HCM</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/04/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Ngừng hoạt động</span>
-                            </td>
+                            
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                <a href="{{ url('/customers/2') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                </a>
+                                <a href="{{ url('/customers/2/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                </a>
+                                <button onclick="openDeleteModal(2, 'Trần Thị C')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
@@ -199,9 +231,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">levand@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">789 Nguyễn Trãi, Đà Nẵng</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">20/03/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -221,9 +251,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">vum@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">11 Lê Lai, Hà Nội</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -243,9 +271,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">phamx@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">23 Nguyễn Huệ, Huế</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">12/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -265,9 +291,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">ngoy@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">45 Lê Lợi, Hải Phòng</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">13/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Ngừng hoạt động</span>
-                            </td>
+                            
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -287,9 +311,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">lez@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">67 Nguyễn Văn Cừ, Cần Thơ</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">14/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -309,9 +331,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">trinha1@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">89 Lê Duẩn, Đắk Lắk</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -331,9 +351,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">nguyenthib2@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">12 Nguyễn Trãi, Nam Định</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">16/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Ngừng hoạt động</span>
-                            </td>
+                            
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -353,9 +371,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">levanc3@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">34 Lê Lợi, Quảng Ngãi</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">17/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -375,9 +391,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">phamd4@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">56 Nguyễn Văn Cừ, Cần Thơ</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">18/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đang hoạt động</span>
-                            </td>
+                           
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -397,9 +411,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">ngovane5@gmail.com</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">78 Phan Đình Phùng, Quảng Ninh</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">19/07/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Ngừng hoạt động</span>
-                            </td>
+                            
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -416,6 +428,26 @@
                 </table>
             </div>
         </main>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal shadow-lg p-6">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle text-5xl text-red-500 mb-4"></i>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Xác nhận xóa</h3>
+                <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa khách hàng <span id="customerNameToDelete" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
+            </div>
+            
+            <div class="flex justify-center space-x-4">
+                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors">
+                    Hủy
+                </button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                    Xác nhận xóa
+                </button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -450,6 +482,27 @@
                 e.stopPropagation();
             });
         });
+        
+        // Delete Modal Functions
+        function openDeleteModal(id, name) {
+            document.getElementById('customerNameToDelete').innerText = name;
+            document.getElementById('confirmDeleteBtn').setAttribute('onclick', `deleteCustomer(${id})`);
+            document.getElementById('deleteModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        
+        function deleteCustomer(id) {
+            // This would normally make an AJAX request to delete the customer
+            // For UI demo purposes, we'll just close the modal and show an alert
+            closeDeleteModal();
+            alert(`Đã xóa khách hàng có ID: ${id}`);
+            // In a real app, you might redirect or reload the data
+        }
     </script>
 </body>
 </html> 
