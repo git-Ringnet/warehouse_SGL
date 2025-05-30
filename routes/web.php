@@ -42,7 +42,21 @@ Route::delete('/customers/{id}', function ($id) {
     // Xử lý xóa khách hàng
     return redirect('/customers');
 });
+Route::get('/materials', function () {
+    return view('materials.index');
+});
 
+Route::get('/materials/create', function () {
+    return view('materials.create');
+});
+
+Route::get('/materials/show', function () {
+    return view('materials.show');
+});
+
+
+
+//tu day tro xuong day
 // Nhà cung cấp
 Route::get('/suppliers', function () {
     return view('suppliers.index');
@@ -145,17 +159,6 @@ Route::delete('/inventory-imports/{id}', function ($id) {
     return redirect('/inventory-imports');
 });
 
-Route::get('/materials', function () {
-    return view('materials.index');
-});
-
-Route::get('/materials/create', function () {
-    return view('materials.create');
-});
-
-Route::get('/materials/show', function () {
-    return view('materials.show');
-});
 
 // Quản lý chuyển kho
 Route::get('/warehouse-transfers', function () {
