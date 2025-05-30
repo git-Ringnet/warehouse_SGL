@@ -17,7 +17,7 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('materials.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ asset('materials') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Thêm vật tư mới</h1>
@@ -38,7 +38,7 @@
                         <!-- Tên vật tư -->
                         <div class="col-span-1">
                             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Tên vật tư <span class="text-red-500">*</span></label>
-                            <input type="text" id="name" name="name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" id="name" name="name" placeholder="Nhập tên vật tư" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                         <!-- Loại vật tư -->
@@ -82,23 +82,6 @@
                             </select>
                         </div>
 
-                        <!-- Kho -->
-                        <div class="col-span-1">
-                            <label for="warehouse" class="block text-sm font-medium text-gray-700 mb-1">Kho <span class="text-red-500">*</span></label>
-                            <select id="warehouse" name="warehouse" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Chọn kho</option>
-                                <option value="1">Kho chính</option>
-                                <option value="2">Kho phụ</option>
-                                <option value="3">Kho linh kiện</option>
-                            </select>
-                        </div>
-
-                        <!-- Vị trí trong kho -->
-                        <div class="col-span-1">
-                            <label for="location" class="block text-sm font-medium text-gray-700 mb-1">Vị trí trong kho</label>
-                            <input type="text" id="location" name="location" placeholder="VD: Kệ A, Ngăn 3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-
                         <!-- Trạng thái -->
                         <div class="col-span-1">
                             <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái <span class="text-red-500">*</span></label>
@@ -109,44 +92,18 @@
                             </select>
                         </div>
 
-                        <!-- Hình ảnh -->
-                        <div class="col-span-2">
-                            <label for="image" class="block text-sm font-medium text-gray-700 mb-1">Hình ảnh</label>
-                            <div class="flex items-center space-x-4">
-                                <div class="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                                    <div class="text-center">
-                                        <i class="fas fa-image text-gray-400 text-2xl mb-1"></i>
-                                        <p class="text-xs text-gray-500">Chưa có ảnh</p>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label for="image" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg cursor-pointer inline-flex items-center transition-colors">
-                                        <i class="fas fa-upload mr-2"></i> Tải ảnh lên
-                                        <input type="file" id="image" name="image" accept="image/*" class="hidden">
-                                    </label>
-                                    <p class="text-xs text-gray-500 mt-1">Hỗ trợ: JPG, PNG, GIF (tối đa 2MB)</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Mô tả -->
-                        <div class="col-span-2">
-                            <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                            <textarea id="description" name="description" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                        </div>
-
                         <!-- Ghi chú -->
                         <div class="col-span-2">
                             <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                            <textarea id="notes" name="notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            <textarea id="notes" placeholder="Nhập ghi chú" name="notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
                         </div>
                     </div>
 
                     <div class="mt-8 flex justify-end space-x-3">
-                        <a href="{{ asset('materials.index') }}" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+                        <a href="{{ asset('materials') }}" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                             Hủy
                         </a>
-                        <button type="submit" class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <button type="button" class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                             <i class="fas fa-save mr-2"></i> Lưu vật tư
                         </button>
                     </div>
