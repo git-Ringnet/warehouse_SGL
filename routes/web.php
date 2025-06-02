@@ -342,6 +342,10 @@ Route::get('/requests/project', function () {
     return view('requests.project');
 });
 
+Route::get('/requests/project/create', function () {
+    return view('requests.project.create');
+});
+
 Route::post('/requests/project', function () {
     // Xử lý tạo phiếu đề xuất triển khai dự án
     return redirect('/requests');
@@ -364,6 +368,10 @@ Route::get('/requests/maintenance', function () {
     return view('requests.maintenance');
 });
 
+Route::get('/requests/maintenance/create', function () {
+    return view('requests.maintenance.create');
+});
+
 Route::post('/requests/maintenance', function () {
     // Xử lý tạo phiếu đề xuất bảo trì dự án
     return redirect('/requests');
@@ -384,6 +392,10 @@ Route::get('/requests/maintenance/{id}/preview', function ($id) {
 // Phiếu đề xuất nhập thêm linh kiện
 Route::get('/requests/components', function () {
     return view('requests.components');
+});
+
+Route::get('/requests/components/create', function () {
+    return view('requests.components.create');
 });
 
 Route::post('/requests/components', function () {

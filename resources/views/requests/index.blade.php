@@ -87,17 +87,17 @@
                     </select>
                 </div>
                 <div class="dropdown relative">
-                    <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
+                    <button id="dropdownButton" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
                         <i class="fas fa-plus-circle mr-2"></i> Tạo phiếu mới <i class="fas fa-chevron-down ml-2 text-xs"></i>
                     </button>
-                    <div class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200">
-                        <a href="{{ url('/requests/project') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
+                    <div id="dropdownMenu" class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200">
+                        <a href="{{ url('/requests/project/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
                             <i class="fas fa-project-diagram mr-2"></i> Phiếu đề xuất triển khai dự án
                         </a>
-                        <a href="{{ url('/requests/maintenance') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
+                        <a href="{{ url('/requests/maintenance/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
                             <i class="fas fa-tools mr-2"></i> Phiếu đề xuất bảo trì dự án
                         </a>
-                        <a href="{{ url('/requests/components') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
+                        <a href="{{ url('/requests/components/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
                             <i class="fas fa-microchip mr-2"></i> Phiếu đề xuất nhập linh kiện
                         </a>
                     </div>
@@ -251,18 +251,19 @@
     </div>
 
     <script>
-        // Dropdown Menus
+        // Dropdown Menus - Sửa lại để đơn giản hơn
         document.addEventListener('DOMContentLoaded', function() {
-            const dropdown = document.querySelector('.dropdown button');
-            const dropdownMenu = document.querySelector('.dropdown-menu');
+            const dropdownButton = document.getElementById('dropdownButton');
+            const dropdownMenu = document.getElementById('dropdownMenu');
             
-            dropdown.addEventListener('click', function(e) {
-                e.stopPropagation();
+            // Hiển thị dropdown khi click vào nút
+            dropdownButton.addEventListener('click', function() {
                 dropdownMenu.classList.toggle('hidden');
             });
             
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.dropdown')) {
+            // Ẩn dropdown khi click ra ngoài
+            document.addEventListener('click', function(event) {
+                if (!dropdownButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
                     dropdownMenu.classList.add('hidden');
                 }
             });
