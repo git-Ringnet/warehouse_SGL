@@ -21,6 +21,16 @@ class Material extends Model
         'unit',
         'supplier_id',
         'status',
+        'serial',
         'notes'
+    ];
+    
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'supplier_id' => 'integer',
     ];
 } 

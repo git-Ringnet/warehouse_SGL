@@ -18,7 +18,7 @@
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Quản lý sửa chữa & bảo trì</h1>
             <div class="flex items-center gap-2">
-                <a href="{{ asset('warranties/repair') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                <a href="{{ asset('repair') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-plus mr-2"></i> Thêm mới
                 </a>
             </div>
@@ -136,14 +136,14 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex space-x-2">
-                                        <a href="{{ asset('warranties/repair_detail') }}">      
+                                        <a href="{{ asset('repair_detail') }}">      
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                                 title="Xem">
                                                 <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
-                                        <a href="{{ asset('warranties/repair_edit') }}">        
+                                        <a href="{{ asset('repair_edit') }}">        
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                                 title="Sửa">
@@ -185,14 +185,14 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex space-x-2">
-                                        <a href="{{ asset('warranties/repair_detail') }}">      
+                                        <a href="{{ asset('repair_detail') }}">      
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                                 title="Xem">
                                                 <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
-                                        <a href="{{ asset('warranties/repair_edit') }}">        
+                                        <a href="{{ asset('repair_edit') }}">        
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                                 title="Sửa">
@@ -234,14 +234,14 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex space-x-2">
-                                        <a href="{{ asset('warranties/repair_detail') }}">      
+                                        <a href="{{ asset('repair_detail') }}">      
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                                 title="Xem">
                                                 <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
-                                        <a href="{{ asset('warranties/repair_edit') }}">        
+                                        <a href="{{ asset('repair_edit') }}">        
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                                 title="Sửa">

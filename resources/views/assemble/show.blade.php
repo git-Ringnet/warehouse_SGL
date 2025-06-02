@@ -107,58 +107,49 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     STT
                                 </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Mã
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tên vật tư
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Số lượng
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Serial
                                 </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Loại linh kiện
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Tên linh kiện
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Vị trí lắp đặt
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Ghi chú
                                 </th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <!-- Sample data -->
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SN001</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ xử lý</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">CPU Intel i5</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mainboard</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"></td>
+                        <tbody>
+                            @foreach($assembly->materials as $index => $material)
+                            <tr class="bg-white hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $index + 1 }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $material->material->code }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $material->material->name }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $material->quantity }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $material->serial }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $material->note }}
+                                </td>
                             </tr>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SN002</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ nhớ</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Slot RAM 1</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"></td>
-                            </tr>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">3</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SN003</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ nhớ</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Slot RAM 2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"></td>
-                            </tr>
+                            @endforeach
                         </tbody>
                     </table>
                 </div>

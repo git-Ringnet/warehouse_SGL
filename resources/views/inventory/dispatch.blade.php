@@ -35,7 +35,7 @@
                         Thông tin phiếu xuất
                     </h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="dispatch_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu xuất</label>
                             <input type="text" id="dispatch_code" name="dispatch_code" value="XK{{ date('Ymd') }}-001" readonly
@@ -45,18 +45,6 @@
                             <label for="dispatch_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày xuất <span class="text-red-500">*</span></label>
                             <input type="date" id="dispatch_date" name="dispatch_date" value="{{ date('Y-m-d') }}" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="dispatch_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại xuất <span class="text-red-500">*</span></label>
-                            <select id="dispatch_type" name="dispatch_type" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn loại xuất --</option>
-                                <option value="sale">Bán hàng</option>
-                                <option value="transfer">Chuyển kho</option>
-                                <option value="return">Trả hàng</option>
-                                <option value="warranty">Bảo hành</option>
-                                <option value="other">Khác</option>
-                            </select>
                         </div>
                     </div>
 
@@ -68,13 +56,12 @@
                                 <option value="">-- Chọn người nhận --</option>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <label for="dispatch_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                        <div class="">
+                            <label for="dispatch_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
                         <textarea id="dispatch_note" name="dispatch_note" rows="2"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Nhập ghi chú cho phiếu xuất (nếu có)"></textarea>
+                        </div>
                     </div>
                 </div>
 

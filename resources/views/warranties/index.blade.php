@@ -30,14 +30,6 @@
                         <option value="pending">Chờ kích hoạt</option>
                     </select>
                 </div>
-                <div class="flex gap-2 w-full md:w-auto">
-                    <a href="{{ asset('warranties/create') }}">
-                        <button
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                            <i class="fas fa-plus mr-2"></i> Thêm bảo hành
-                        </button>
-                    </a>
-                </div>
             </div>
         </header>
 
@@ -93,13 +85,6 @@
                                         <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
-                                <a href="{{ asset('warranties/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
                                 <button
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Hủy bảo hành">
@@ -131,13 +116,6 @@
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                         title="Xem">
                                         <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('warranties/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
                                 <button
@@ -206,13 +184,6 @@
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
                                         title="Kích hoạt">
                                         <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('warranties/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
                                 <button

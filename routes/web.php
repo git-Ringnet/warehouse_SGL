@@ -1,32 +1,25 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SupplierController;
+
 use App\Http\Controllers\EmployeeController;
+
+use App\Http\Controllers\AssemblyController;
+
 
 Route::get('/', function () {
     return view('dashboard');
 });
 
-Route::get('/assemble', function () {
-    return view('assemble.index');
-});
-//khách hàng
-Route::get('/assemble/create', function () {
-    return view('assemble.create');
-});
+Route::resource('assemble', AssemblyController::class);
 
-Route::get('/assemble/show', function () {
-    return view('assemble.show');
-});
 
-Route::get('/assemble/edit', function () {
-    return view('assemble.edit');
-});
 
 // Thay thế routes customers cũ bằng resource controller
 Route::resource('customers', CustomerController::class);
@@ -45,16 +38,8 @@ Route::get('/warranties', function () {
     return view('warranties.index');
 });
 
-Route::get('/warranties/create', function () {
-    return view('warranties.create');
-});
-
 Route::get('/warranties/show', function () {
     return view('warranties.show');
-});
-
-Route::get('/warranties/edit', function () {
-    return view('warranties.edit');
 });
 
 Route::get('/warranties/activate', function () {
@@ -66,19 +51,19 @@ Route::get('/warranties/verify', function () {
 });
 
 //repair
-Route::get('/warranties/repair', function () {
+Route::get('/repair', function () {
     return view('warranties.repair');
 });
 
-Route::get('/warranties/repair_list', function () {
+Route::get('/repair_list', function () {
     return view('warranties.repair_list');
 });
 
-Route::get('/warranties/repair_detail', function () {
+Route::get('/repair_detail', function () {
     return view('warranties.repair_detail');
 });
 
-Route::get('/warranties/repair_edit', function () {
+Route::get('/repair_edit', function () {
     return view('warranties.repair_edit');
 });
 
@@ -414,5 +399,29 @@ Route::get('/requests/components/{id}/edit', function ($id) {
 Route::get('/requests/components/{id}/preview', function ($id) {
     return view('requests.components.preview', ['id' => $id]);
 })->where('id', '[0-9]+');
+
+// Assembly routes
+Route::resource('assemblies', AssemblyController::class);
+Route::get('/assemblies/search-materials', [AssemblyController::class, 'searchMaterials'])->name('assemblies.search-materials');
+
+// Route for material search in assemblies
+Route::get('/materials/search', [App\Http\Controllers\AssemblyController::class, 'searchMaterials'])->name('materials.search');
+
+// Temporary debug route
+Route::get('/debug/materials', function () {
+    try {
+        $columns = Schema::getColumnListing('materials');
+        $sample = \App\Models\Material::first();
+        return [
+            'columns' => $columns,
+            'sample' => $sample,
+        ];
+    } catch (\Exception $e) {
+        return [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ];
+    }
+});
 
 
