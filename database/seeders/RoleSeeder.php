@@ -1,0 +1,266 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class RoleSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        // Xóa dữ liệu cũ
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        DB::table('role_permission')->truncate();
+        Role::truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        
+        // Tạo các nhóm quyền mặc định
+        $roles = [
+            // Super Admin - quản trị toàn bộ hệ thống
+            [
+                'name' => 'Super Admin',
+                'description' => 'Quản trị viên cao cấp, có toàn quyền trong hệ thống',
+                'scope' => null,
+                'is_active' => true,
+                'is_system' => true,
+            ],
+            
+            // Kho sản xuất
+            [
+                'name' => 'Kho Sản Xuất',
+                'description' => 'Nhóm quản lý thiết bị thuộc kho sản xuất',
+                'scope' => 'warehouse',
+                'is_active' => true,
+                'is_system' => false,
+            ],
+            
+            // Kho thành phẩm
+            [
+                'name' => 'Kho Thành Phẩm',
+                'description' => 'Nhóm quản lý thiết bị thành phẩm',
+                'scope' => 'warehouse',
+                'is_active' => true,
+                'is_system' => false,
+            ],
+            
+            // Kho bảo hành
+            [
+                'name' => 'Kho Bảo Hành',
+                'description' => 'Nhóm quản lý bảo hành thiết bị',
+                'scope' => 'warehouse',
+                'is_active' => true,
+                'is_system' => false,
+            ],
+            
+            // Kho phần mềm
+            [
+                'name' => 'Kho Phần Mềm',
+                'description' => 'Nhóm quản lý license, phần mềm, mã kích hoạt',
+                'scope' => 'warehouse',
+                'is_active' => true,
+                'is_system' => false,
+            ],
+            
+            // Quản lý dự án
+            [
+                'name' => 'Quản Lý Dự Án',
+                'description' => 'Nhóm quản lý thiết bị theo địa bàn dự án',
+                'scope' => 'project',
+                'is_active' => true,
+                'is_system' => false,
+            ],
+        ];
+        
+        foreach ($roles as $roleData) {
+            $role = Role::create($roleData);
+            
+            // Gán tất cả quyền cho Super Admin
+            if ($role->name === 'Super Admin') {
+                $permissions = Permission::all();
+                $role->permissions()->attach($permissions->pluck('id')->toArray());
+            }
+            
+            // Gán quyền cho các vai trò khác theo scope
+            else {
+                $this->assignDefaultPermissions($role);
+            }
+        }
+    }
+    
+    /**
+     * Gán các quyền mặc định cho từng nhóm quyền
+     */
+    private function assignDefaultPermissions(Role $role)
+    {
+        $permissionsToAssign = [];
+        
+        // Các quyền chung cho tất cả các nhóm
+        $commonPermissions = [
+            // Nhân viên - chỉ xem
+            'employees.view',
+            
+            // Khách hàng - các quyền CRUD
+            'customers.view',
+            'customers.create',
+            'customers.edit',
+            'customers.delete',
+            
+            // Nhà cung cấp - các quyền CRUD
+            'suppliers.view',
+            'suppliers.create',
+            'suppliers.edit',
+            'suppliers.delete',
+            
+            // Báo cáo - xem và xuất
+            'reports.view',
+            'reports.export',
+
+            // Phiếu yêu cầu - view và create
+            'requests.view',
+            'requests.create',
+        ];
+        
+        // Các quyền theo scope
+        switch ($role->scope) {
+            case 'warehouse':
+                $warehousePermissions = [
+                    // Kho hàng - xem
+                    'warehouses.view',
+                    
+                    // Vật tư - các quyền CRUD
+                    'materials.view',
+                    'materials.create',
+                    'materials.edit',
+                    'materials.delete',
+                    
+                    // Thành phẩm - các quyền CRUD
+                    'products.view',
+                    'products.create',
+                    'products.edit',
+                    'products.delete',
+                    
+                    // Nhập kho - các quyền CRUD
+                    'imports.view',
+                    'imports.create',
+                    'imports.edit',
+                    'imports.delete',
+                    
+                    // Xuất kho - các quyền CRUD
+                    'exports.view',
+                    'exports.create',
+                    'exports.edit',
+                    'exports.delete',
+                    
+                    // Chuyển kho - các quyền CRUD
+                    'transfers.view',
+                    'transfers.create',
+                    'transfers.edit',
+                    'transfers.delete',
+
+                    // Báo cáo tồn kho
+                    'reports.inventory',
+
+                    // Phạm vi quyền
+                    'scope.warehouse',
+                ];
+                
+                $permissionsToAssign = array_merge($commonPermissions, $warehousePermissions);
+                
+                // Thêm quyền đặc biệt theo tên nhóm
+                if ($role->name === 'Kho Sản Xuất') {
+                    $permissionsToAssign = array_merge($permissionsToAssign, [
+                        'assembly.view',
+                        'assembly.create',
+                        'assembly.edit',
+                        'assembly.delete',
+                        
+                        'testing.view',
+                        'testing.create',
+                        'testing.edit',
+                        'testing.delete',
+
+                        'reports.operations',
+                    ]);
+                }
+                
+                if ($role->name === 'Kho Bảo Hành') {
+                    $permissionsToAssign = array_merge($permissionsToAssign, [
+                        'repairs.view',
+                        'repairs.create',
+                        'repairs.edit',
+                        'repairs.delete',
+                        
+                        'warranties.view',
+                        'warranties.create',
+                        'warranties.edit',
+                        'warranties.delete',
+                    ]);
+                }
+
+                if ($role->name === 'Kho Phần Mềm') {
+                    $permissionsToAssign = array_merge($permissionsToAssign, [
+                        'software.view',
+                        'software.create',
+                        'software.edit',
+                        'software.delete',
+                        'software.download',
+                    ]);
+                }
+                
+                break;
+                
+            case 'project':
+                $projectPermissions = [
+                    // Dự án - các quyền CRUD
+                    'projects.view',
+                    'projects.create',
+                    'projects.edit',
+                    'projects.delete',
+                    
+                    // Cho thuê - các quyền CRUD
+                    'rentals.view',
+                    'rentals.create',
+                    'rentals.edit',
+                    'rentals.delete',
+                    
+                    // Kho hàng - xem
+                    'warehouses.view',
+                    
+                    // Vật tư, thành phẩm - chỉ xem
+                    'materials.view',
+                    'products.view',
+                    
+                    // Nhập xuất kho - chỉ xem
+                    'imports.view',
+                    'exports.view',
+                    'transfers.view',
+
+                    // Báo cáo dự án
+                    'reports.projects',
+
+                    // Phạm vi quyền
+                    'scope.project',
+                    'scope.region',
+
+                    // Phiếu yêu cầu - thêm quyền duyệt/từ chối
+                    'requests.edit',
+                    'requests.approve',
+                    'requests.reject',
+                ];
+                
+                $permissionsToAssign = array_merge($commonPermissions, $projectPermissions);
+                break;
+        }
+        
+        // Gán quyền
+        $permissions = Permission::whereIn('name', $permissionsToAssign)->get();
+        $role->permissions()->attach($permissions->pluck('id')->toArray());
+    }
+}

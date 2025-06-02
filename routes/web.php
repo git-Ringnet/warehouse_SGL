@@ -12,6 +12,9 @@ use App\Http\Controllers\EmployeeController;
 
 use App\Http\Controllers\AssemblyController;
 
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\UserLogController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -423,5 +426,18 @@ Route::get('/debug/materials', function () {
         ];
     }
 });
+
+// Thêm phần routes phân quyền
+// Routes cho nhóm quyền (roles)
+Route::resource('roles', RoleController::class);
+Route::put('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggle-status');
+
+// Routes cho danh sách quyền (permissions)
+Route::resource('permissions', PermissionController::class);
+
+// Routes cho nhật ký người dùng (user logs)
+Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
+Route::get('user-logs/{id}', [UserLogController::class, 'show'])->name('user-logs.show');
+Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export');
 
 

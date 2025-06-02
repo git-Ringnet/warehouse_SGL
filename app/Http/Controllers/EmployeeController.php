@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\Role;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class EmployeeController extends Controller
 {
@@ -71,7 +74,10 @@ class EmployeeController extends Controller
      */
     public function create()
     {
-        return view('employees.create');
+        // Lấy danh sách các nhóm quyền hiện có
+        $roles = Role::where('is_active', true)->orderBy('name')->get();
+        
+        return view('employees.create', compact('roles'));
     }
 
     /**
@@ -89,6 +95,9 @@ class EmployeeController extends Controller
             'hire_date' => 'required|date',
             'notes' => 'nullable|string',
             'role' => 'required|string',
+            'role_id' => 'nullable|exists:roles,id',
+            'scope_type' => 'nullable|string',
+            'scope_value' => 'nullable|string',
             'status' => 'required|string',
         ], [
             'username.required' => 'Username không được để trống',
@@ -109,9 +118,22 @@ class EmployeeController extends Controller
             'hire_date.date' => 'Ngày tuyển dụng không đúng định dạng',
             'role.required' => 'Vai trò không được để trống',
             'status.required' => 'Trạng thái không được để trống',
+            'role_id.exists' => 'Nhóm quyền không hợp lệ',
         ]);
 
-        Employee::create($request->all());
+        $employee = Employee::create($request->all());
+        
+        // Ghi nhật ký
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'employees',
+                'Tạo nhân viên: ' . $employee->name,
+                null,
+                $employee->toArray()
+            );
+        }
 
         return redirect()->route('employees.index')
             ->with('success', 'Nhân viên đã được thêm thành công.');
@@ -122,7 +144,7 @@ class EmployeeController extends Controller
      */
     public function show(string $id)
     {
-        $employee = Employee::findOrFail($id);
+        $employee = Employee::with('roleGroup')->findOrFail($id);
         return view('employees.show', compact('employee'));
     }
 
@@ -132,7 +154,11 @@ class EmployeeController extends Controller
     public function edit(string $id)
     {
         $employee = Employee::findOrFail($id);
-        return view('employees.edit', compact('employee'));
+        
+        // Lấy danh sách các nhóm quyền hiện có
+        $roles = Role::where('is_active', true)->orderBy('name')->get();
+        
+        return view('employees.edit', compact('employee', 'roles'));
     }
 
     /**
@@ -151,6 +177,9 @@ class EmployeeController extends Controller
             'hire_date' => 'required|date',
             'notes' => 'nullable|string',
             'role' => 'required|string',
+            'role_id' => 'nullable|exists:roles,id',
+            'scope_type' => 'nullable|string',
+            'scope_value' => 'nullable|string',
             'status' => 'required|string',
         ];
         
@@ -177,9 +206,12 @@ class EmployeeController extends Controller
             'hire_date.date' => 'Ngày tuyển dụng không đúng định dạng',
             'role.required' => 'Vai trò không được để trống',
             'status.required' => 'Trạng thái không được để trống',
+            'role_id.exists' => 'Nhóm quyền không hợp lệ',
         ];
 
         $request->validate($rules, $messages);
+
+        $oldData = $employee->toArray();
 
         // Cập nhật thông tin
         $data = $request->except(['password', 'password_confirmation']);
@@ -190,6 +222,18 @@ class EmployeeController extends Controller
         }
         
         $employee->update($data);
+        
+        // Ghi nhật ký
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'employees',
+                'Cập nhật thông tin nhân viên: ' . $employee->name,
+                $oldData,
+                $employee->toArray()
+            );
+        }
 
         return redirect()->route('employees.show', $id)
             ->with('success', 'Thông tin nhân viên đã được cập nhật thành công.');
@@ -201,7 +245,22 @@ class EmployeeController extends Controller
     public function destroy(string $id)
     {
         $employee = Employee::findOrFail($id);
+        $employeeName = $employee->name;
+        $employeeData = $employee->toArray();
+        
         $employee->delete();
+        
+        // Ghi nhật ký
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'delete',
+                'employees',
+                'Xóa nhân viên: ' . $employeeName,
+                $employeeData,
+                null
+            );
+        }
 
         return redirect()->route('employees.index')
             ->with('success', 'Nhân viên đã được xóa thành công.');
