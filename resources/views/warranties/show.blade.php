@@ -20,10 +20,6 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết bảo hành</h1>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ asset('warranties/edit') }}"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-edit mr-2"></i> Chỉnh sửa
-                </a>
                 <button onclick="generateQR()"
                     class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-qrcode mr-2"></i> Tạo QR Code

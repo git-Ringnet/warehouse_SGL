@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Material;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MaterialController extends Controller
 {
@@ -21,7 +22,13 @@ class MaterialController extends Controller
      */
     public function create()
     {
-        return view('materials.create');
+        // Fetch unique categories from the database
+        $categories = Material::select('category')->distinct()->pluck('category')->toArray();
+        
+        // Sort categories alphabetically
+        sort($categories);
+        
+        return view('materials.create', compact('categories'));
     }
 
     /**
@@ -56,7 +63,13 @@ class MaterialController extends Controller
      */
     public function edit(Material $material)
     {
-        return view('materials.edit', compact('material'));
+        // Fetch unique categories from the database
+        $categories = Material::select('category')->distinct()->pluck('category')->toArray();
+        
+        // Sort categories alphabetically
+        sort($categories);
+        
+        return view('materials.edit', compact('material', 'categories'));
     }
 
     /**

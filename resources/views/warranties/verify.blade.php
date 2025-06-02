@@ -16,7 +16,6 @@
         <header class="bg-white shadow-sm py-4 px-6">
             <div class="max-w-5xl mx-auto flex justify-between items-center">
                 <div class="flex items-center">
-                    <img src="{{ asset('images/logo.svg') }}" alt="SGL Logo" class="h-10 w-auto">
                     <span class="ml-3 text-xl font-bold text-gray-800">Hệ thống xác thực bảo hành</span>
                 </div>
                 <div>
@@ -115,18 +114,6 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Warranty benefits -->
-                        <div class="mt-6">
-                            <p class="text-sm text-gray-500 mb-2">Quyền lợi bảo hành</p>
-                            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                <li>Hỗ trợ kỹ thuật 24/7</li>
-                                <li>Sửa chữa miễn phí</li>
-                                <li>Thay thế linh kiện chính hãng</li>
-                                <li>Cập nhật phần mềm miễn phí</li>
-                                <li>Kiểm tra định kỳ 3 tháng/lần</li>
-                            </ul>
                         </div>
                     </div>
                 </div>
@@ -247,21 +234,6 @@
                 </div>
             </div>
         </main>
-
-        <!-- Footer -->
-        <footer class="bg-gray-800 text-white py-8">
-            <div class="max-w-5xl mx-auto px-4 sm:px-6">
-                <div class="flex flex-col md:flex-row justify-between">
-                    <div class="mb-4 md:mb-0">
-                        <img src="{{ asset('images/logo-white.svg') }}" alt="SGL Logo" class="h-8 w-auto">
-                        <p class="mt-2 text-sm text-gray-400">Công ty SGL - Chuyên cung cấp thiết bị viễn thông</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-400">&copy; 2023 SGL. Tất cả các quyền được bảo lưu.</p>
-                    </div>
-                </div>
-            </div>
-        </footer>
     </div>
 </body>
 

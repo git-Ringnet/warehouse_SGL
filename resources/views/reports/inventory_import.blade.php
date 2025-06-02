@@ -89,13 +89,13 @@
                         </select>
                     </div>
                     <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                        <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Thời gian</label>
                         <select id="status" name="status"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="all" selected>Tất cả trạng thái</option>
-                            <option value="pending">Chờ kiểm tra</option>
-                            <option value="approved">Đã kiểm tra</option>
-                            <option value="rejected">Từ chối</option>
+                            <option value="all" selected>Tất cả</option>
+                            <option value="pending">Tuần</option>
+                            <option value="approved">Tháng</option>
+                            <option value="rejected">Năm</option>
                         </select>
                     </div>
                 </div>
@@ -145,19 +145,10 @@
                                     Số lượng
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Đơn giá (₫)
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Thành tiền (₫)
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Nhà cung cấp
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Kho
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Trạng thái
                                 </th>
                             </tr>
                         </thead>
@@ -171,15 +162,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">CPU Intel Core i5-10400</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">CPU</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">50</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4,200,000</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">210,000,000</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty TNHH ABC</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hà Nội</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Đã kiểm tra
-                                    </span>
-                                </td>
                             </tr>
                             <!-- Row 2 -->
                             <tr class="hover:bg-gray-50">
@@ -190,15 +174,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4 3200MHz</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">100</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">850,000</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">85,000,000</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty TNHH ABC</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hà Nội</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Đã kiểm tra
-                                    </span>
-                                </td>
                             </tr>
                             <!-- Row 3 -->
                             <tr class="hover:bg-gray-50">
@@ -209,15 +186,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SSD 256GB SATA</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Lưu trữ</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">80</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1,200,000</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">96,000,000</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty TNHH XYZ</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hồ Chí Minh</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Đã kiểm tra
-                                    </span>
-                                </td>
                             </tr>
                             <!-- Row 4 -->
                             <tr class="hover:bg-gray-50">
@@ -228,15 +198,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bàn phím không dây</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị ngoại vi</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">30</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">450,000</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">13,500,000</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Cổ phần DEF</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hà Nội</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                        Chờ kiểm tra
-                                    </span>
-                                </td>
                             </tr>
                             <!-- Row 5 -->
                             <tr class="hover:bg-gray-50">
@@ -247,15 +210,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Chuột không dây</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị ngoại vi</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">40</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">250,000</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10,000,000</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Cổ phần DEF</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hà Nội</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                        Chờ kiểm tra
-                                    </span>
-                                </td>
                             </tr>
                         </tbody>
                     </table>

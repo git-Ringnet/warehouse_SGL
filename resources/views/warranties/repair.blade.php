@@ -17,7 +17,7 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('warranties/repair_list') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ asset('repair_list') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Sửa chữa & Bảo trì thiết bị</h1>
@@ -198,17 +198,6 @@
                     </div>
 
                     <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="repair_cost" class="block text-sm font-medium text-gray-700 mb-1">Chi phí sửa chữa</label>
-                            <div class="relative">
-                                <input type="number" id="repair_cost" name="repair_cost" min="0" 
-                                    class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="0">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-gray-500">VNĐ</span>
-                                </div>
-                            </div>
-                        </div>
                         <div>
                             <label for="next_maintenance" class="block text-sm font-medium text-gray-700 mb-1">Bảo trì tiếp theo</label>
                             <input type="date" id="next_maintenance" name="next_maintenance"

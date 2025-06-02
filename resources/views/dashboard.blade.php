@@ -196,21 +196,6 @@
 
             <!-- Secondary Chart Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <!-- Monthly Transactions Chart -->
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                            Giao dịch hàng tháng
-                        </h3>
-                        <div class="text-blue-500 dark:text-blue-300 text-sm">
-                            <i class="fas fa-calendar-alt mr-1"></i> 2023
-                        </div>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="monthlyTransactionsChart"></canvas>
-                    </div>
-                </div>
-
                 <!-- Inventory Categories Chart -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex justify-between items-center mb-4">
@@ -432,73 +417,6 @@
                     cutout: "70%",
                 },
                 plugins: [ChartDataLabels],
-            });
-
-            // Monthly Transactions Chart
-            const monthlyTransactionsCtx = document
-                .getElementById("monthlyTransactionsChart")
-                .getContext("2d");
-            const monthlyTransactionsChart = new Chart(monthlyTransactionsCtx, {
-                type: "line",
-                data: {
-                    labels: [
-                        "Tháng 1",
-                        "Tháng 2",
-                        "Tháng 3",
-                        "Tháng 4",
-                        "Tháng 5",
-                        "Tháng 6",
-                    ],
-                    datasets: [{
-                        label: "Số giao dịch",
-                        data: [65, 59, 80, 81, 56, 72],
-                        fill: false,
-                        borderColor: "#3b82f6",
-                        backgroundColor: "#3b82f6",
-                        tension: 0.4,
-                        pointBackgroundColor: "#fff",
-                        pointBorderColor: "#3b82f6",
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
-                    }, ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false,
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.dataset.label}: ${context.raw}`;
-                                },
-                            },
-                        },
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                color: gridColor,
-                                drawBorder: false,
-                            },
-                            ticks: {
-                                color: textColor,
-                            },
-                        },
-                        y: {
-                            grid: {
-                                color: gridColor,
-                                drawBorder: false,
-                            },
-                            ticks: {
-                                color: textColor,
-                            },
-                        },
-                    },
-                },
             });
 
             // Inventory Categories Chart

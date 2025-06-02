@@ -34,10 +34,6 @@
                             <i class="fas fa-plus mr-2"></i> Thêm kho hàng
                         </button>
                     </a>
-                    <button
-                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                        <i class="fas fa-file-import mr-2"></i> Import Data
-                    </button>
                 </div>
             </div>
         </header>

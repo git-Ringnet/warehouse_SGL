@@ -36,7 +36,7 @@
                         Thông tin phiếu lắp ráp
                     </h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="assembly_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu lắp ráp</label>
                             <input type="text" id="assembly_code" name="assembly_code" value="LR001" readonly
@@ -46,17 +46,6 @@
                             <label for="assembly_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp <span class="text-red-500">*</span></label>
                             <input type="date" id="assembly_date" name="assembly_date" value="2023-06-01" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <div>
-                            <label for="assembly_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại lắp ráp <span class="text-red-500">*</span></label>
-                            <select id="assembly_type" name="assembly_type" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn loại lắp ráp --</option>
-                                <option value="new" selected>Thiết bị mới</option>
-                                <option value="warranty">Bảo hành</option>
-                                <option value="repair">Sửa chữa</option>
-                                <option value="upgrade">Nâng cấp</option>
-                            </select>
                         </div>
                     </div>
 
@@ -112,6 +101,10 @@
                                 class="absolute inset-y-0 right-0 px-3 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 transition-colors">
                                 Thêm
                             </button>
+                            <!-- Dropdown results -->
+                            <div id="search_results" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
+                                <!-- Results will be populated here -->
+                            </div>
                         </div>
                     </div>
 
@@ -121,7 +114,7 @@
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Serial
+                                        Mã
                                     </th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Loại linh kiện
@@ -130,7 +123,10 @@
                                         Tên linh kiện
                                     </th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Vị trí lắp đặt
+                                        Số lượng
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Serial
                                     </th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Ghi chú
@@ -150,8 +146,13 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ xử lý</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">CPU Intel i5</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[0][position]" value="Mainboard"
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="number" min="1" name="components[0][quantity]" value="1"
+                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <input type="text" name="components[0][serial]" value="SN001"
+                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Nhập serial">
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         <input type="text" name="components[0][note]" value=""
@@ -172,8 +173,13 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ nhớ</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[1][position]" value="Slot RAM 1"
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="number" min="1" name="components[1][quantity]" value="1"
+                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <input type="text" name="components[1][serial]" value="SN002"
+                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Nhập serial">
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         <input type="text" name="components[1][note]" value=""
@@ -194,8 +200,13 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ nhớ</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[2][position]" value="Slot RAM 2"
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <input type="number" min="1" name="components[2][quantity]" value="1"
+                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <input type="text" name="components[2][serial]" value="SN003"
+                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Nhập serial">
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         <input type="text" name="components[2][note]" value=""
@@ -237,68 +248,178 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Dữ liệu mẫu cho linh kiện
             const sampleComponents = [
-                { id: 1, serial: 'SN001', type: 'Bộ xử lý', name: 'CPU Intel i5', position: 'Mainboard' },
-                { id: 2, serial: 'SN002', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', position: 'Slot RAM 1' },
-                { id: 3, serial: 'SN003', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', position: 'Slot RAM 2' },
-                { id: 4, serial: 'SN004', type: 'Lưu trữ', name: 'SSD 256GB', position: 'Khe M.2' },
-                { id: 5, serial: 'SN005', type: 'Nguồn', name: 'Nguồn 400W', position: 'Hộp nguồn' },
-                { id: 6, serial: 'SN006', type: 'Màn hình', name: 'LCD 7 inch', position: 'Mặt trước' },
-                { id: 7, serial: 'SN007', type: 'Bàn phím', name: 'Bàn phím 4x4', position: 'Mặt trước' },
-                { id: 8, serial: 'SN008', type: 'Anten', name: 'Anten 5G', position: 'Mặt sau' },
-                { id: 9, serial: 'SN009', type: 'Bo mạch', name: 'Mạch khuếch đại', position: 'Khe PCI' },
-                { id: 10, serial: 'SN010', type: 'Pin', name: 'Pin Lithium 5000mAh', position: 'Khay pin' }
+                { id: 1, code: 'VT001', serial: 'SN001', type: 'Bộ xử lý', name: 'CPU Intel i5', category: 'CPU' },
+                { id: 2, code: 'VT002', serial: 'SN002', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', category: 'RAM' },
+                { id: 3, code: 'VT003', serial: 'SN003', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', category: 'RAM' },
+                { id: 4, code: 'VT004', serial: 'SN004', type: 'Lưu trữ', name: 'SSD 256GB', category: 'SSD' },
+                { id: 5, code: 'VT005', serial: 'SN005', type: 'Nguồn', name: 'Nguồn 400W', category: 'PSU' },
+                { id: 6, code: 'VT006', serial: 'SN006', type: 'Màn hình', name: 'LCD 7 inch', category: 'Display' },
+                { id: 7, code: 'VT007', serial: 'SN007', type: 'Bàn phím', name: 'Bàn phím 4x4', category: 'Input' },
+                { id: 8, code: 'VT008', serial: 'SN008', type: 'Anten', name: 'Anten 5G', category: 'Antenna' },
+                { id: 9, code: 'VT009', serial: 'SN009', type: 'Bo mạch', name: 'Mạch khuếch đại', category: 'PCB' },
+                { id: 10, code: 'VT010', serial: 'SN010', type: 'Pin', name: 'Pin Lithium 5000mAh', category: 'Battery' }
             ];
             
             // Khởi tạo mảng linh kiện đã chọn
             let selectedComponents = [
-                { id: 1, serial: 'SN001', type: 'Bộ xử lý', name: 'CPU Intel i5', position: 'Mainboard', note: '' },
-                { id: 2, serial: 'SN002', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', position: 'Slot RAM 1', note: '' },
-                { id: 3, serial: 'SN003', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', position: 'Slot RAM 2', note: '' }
+                { id: 1, code: 'VT001', serial: 'SN001', type: 'Bộ xử lý', name: 'CPU Intel i5', quantity: 1, note: '' },
+                { id: 2, code: 'VT002', serial: 'SN002', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', quantity: 1, note: '' },
+                { id: 3, code: 'VT003', serial: 'SN003', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', quantity: 1, note: '' }
             ];
             
-            // Xử lý thêm linh kiện
+            // Xử lý tìm kiếm linh kiện khi gõ
             const componentSearchInput = document.getElementById('component_search');
             const addComponentBtn = document.getElementById('add_component_btn');
             const componentList = document.getElementById('component_list');
             const noComponentsRow = document.getElementById('no_components_row');
+            const searchResults = document.getElementById('search_results');
+            let searchTimeout = null;
+            let selectedMaterial = null;
             
-            addComponentBtn.addEventListener('click', function() {
+            componentSearchInput.addEventListener('input', function() {
                 const searchTerm = componentSearchInput.value.trim().toLowerCase();
                 
-                if (!searchTerm) {
-                    alert('Vui lòng nhập serial hoặc tên linh kiện để tìm kiếm!');
-                    return;
+                // Clear any existing timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
                 }
                 
-                // Tìm linh kiện trong dữ liệu mẫu
-                const foundComponent = sampleComponents.find(c => 
-                    c.serial.toLowerCase().includes(searchTerm) || 
-                    c.name.toLowerCase().includes(searchTerm)
-                );
-                
-                if (!foundComponent) {
-                    alert('Không tìm thấy linh kiện phù hợp!');
-                    return;
-                }
-                
-                // Kiểm tra xem linh kiện đã được thêm chưa
-                if (selectedComponents.some(c => c.id === foundComponent.id)) {
-                    alert('Linh kiện này đã được thêm vào phiếu lắp ráp!');
-                    return;
-                }
-                
-                // Thêm linh kiện vào danh sách
-                selectedComponents.push({
-                    ...foundComponent,
-                    note: ''
-                });
-                
-                // Cập nhật giao diện
-                updateComponentList();
-                
-                // Xóa nội dung tìm kiếm
-                componentSearchInput.value = '';
+                // Set a timeout to avoid too many searches while typing
+                searchTimeout = setTimeout(() => {
+                    if (searchTerm.length < 1) {
+                        searchResults.classList.add('hidden');
+                        return;
+                    }
+                    
+                    // Show loading indicator
+                    searchResults.innerHTML = '<div class="p-2 text-gray-500">Đang tìm kiếm...</div>';
+                    searchResults.classList.remove('hidden');
+                    
+                    // Call API to search materials
+                    fetch(`{{ route('materials.search') }}?term=${encodeURIComponent(searchTerm)}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.error) {
+                                searchResults.innerHTML = `<div class="p-2 text-red-500">Lỗi: ${data.message}</div>`;
+                                console.error('Search error:', data.message);
+                                return;
+                            }
+                            
+                            // If data is wrapped in a success object
+                            const materials = Array.isArray(data) ? data : (data.data || []);
+                            
+                            if (materials.length > 0) {
+                                searchResults.innerHTML = '';
+                                materials.forEach(material => {
+                                    const resultItem = document.createElement('div');
+                                    resultItem.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                    resultItem.innerHTML = `
+                                        <div class="font-medium">${material.code}: ${material.name}</div>
+                                        <div class="text-xs text-gray-500">${material.category || ''} ${material.serial ? '| ' + material.serial : ''}</div>
+                                    `;
+                                    
+                                    // Handle click on search result
+                                    resultItem.addEventListener('click', function() {
+                                        selectedMaterial = material;
+                                        componentSearchInput.value = material.code + ' - ' + material.name;
+                                        searchResults.classList.add('hidden');
+                                    });
+                                    
+                                    searchResults.appendChild(resultItem);
+                                });
+                            } else {
+                                searchResults.innerHTML = '<div class="p-2 text-gray-500">Không tìm thấy vật tư phù hợp</div>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error searching materials:', error);
+                            searchResults.innerHTML = '<div class="p-2 text-red-500">Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại sau!</div>';
+                        });
+                }, 300);
             });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!componentSearchInput.contains(event.target) && !searchResults.contains(event.target)) {
+                    searchResults.classList.add('hidden');
+                }
+            });
+            
+            addComponentBtn.addEventListener('click', function() {
+                addSelectedComponent();
+            });
+            
+            // Add selected component function
+            function addSelectedComponent() {
+                if (selectedMaterial) {
+                    // Check if already added
+                    if (selectedComponents.some(c => c.id === selectedMaterial.id)) {
+                        alert('Linh kiện này đã được thêm vào phiếu lắp ráp!');
+                        return;
+                    }
+                    
+                    // Add to selected components
+                    selectedComponents.push({
+                        id: selectedMaterial.id,
+                        code: selectedMaterial.code,
+                        name: selectedMaterial.name,
+                        type: selectedMaterial.type,
+                        serial: selectedMaterial.serial,
+                        quantity: 1,
+                        note: ''
+                    });
+                    
+                    // Update UI
+                    updateComponentList();
+                    componentSearchInput.value = '';
+                    selectedMaterial = null;
+                    searchResults.classList.add('hidden');
+                } else {
+                    const searchTerm = componentSearchInput.value.trim().toLowerCase();
+                    
+                    if (!searchTerm) {
+                        alert('Vui lòng nhập serial hoặc tên linh kiện để tìm kiếm!');
+                        return;
+                    }
+                    
+                    // Tìm linh kiện trong dữ liệu mẫu
+                    const foundComponent = sampleComponents.find(c => 
+                        c.serial.toLowerCase().includes(searchTerm) || 
+                        c.name.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    if (!foundComponent) {
+                        alert('Không tìm thấy linh kiện phù hợp!');
+                        return;
+                    }
+                    
+                    // Kiểm tra xem linh kiện đã được thêm chưa
+                    if (selectedComponents.some(c => c.id === foundComponent.id)) {
+                        alert('Linh kiện này đã được thêm vào phiếu lắp ráp!');
+                        return;
+                    }
+                    
+                    // Thêm linh kiện vào danh sách
+                    selectedComponents.push({
+                        id: foundComponent.id,
+                        code: foundComponent.code,
+                        type: foundComponent.type,
+                        name: foundComponent.name,
+                        serial: foundComponent.serial,
+                        quantity: 1,
+                        note: ''
+                    });
+                    
+                    // Cập nhật giao diện
+                    updateComponentList();
+                    componentSearchInput.value = '';
+                }
+            }
             
             function updateComponentList() {
                 // Ẩn thông báo "không có linh kiện"
@@ -319,16 +440,21 @@
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <input type="hidden" name="components[${index}][id]" value="${component.id}">
-                            ${component.serial}
+                            ${component.code || ''}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.type}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.type || ''}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.name || ''}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="text" name="components[${index}][position]" value="${component.position}"
-                                class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="number" min="1" name="components[${index}][quantity]" value="${component.quantity || 1}"
+                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="text" name="components[${index}][note]" value="${component.note}"
+                            <input type="text" name="components[${index}][serial]" value="${component.serial || ''}"
+                                class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                placeholder="Nhập serial">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            <input type="text" name="components[${index}][note]" value="${component.note || ''}"
                                 class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="Ghi chú">
                         </td>
@@ -340,13 +466,9 @@
                     `;
                     
                     componentList.insertBefore(row, noComponentsRow);
-                });
-                
-                // Thêm sự kiện xóa linh kiện
-                const deleteButtons = document.querySelectorAll('.delete-component');
-                deleteButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const index = parseInt(this.dataset.index);
+                    
+                    // Thêm event listener để xóa linh kiện
+                    row.querySelector('.delete-component').addEventListener('click', function() {
                         selectedComponents.splice(index, 1);
                         updateComponentList();
                     });

@@ -111,7 +111,7 @@
                             <a href="{{ asset('warehouse-transfers') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
                         </li>
                         <li>
-                            <a href="{{ asset('warranties/repair_list') }}"
+                            <a href="{{ asset('repair_list') }}"
                                 class="block px-4 py-2 rounded-lg hover:bg-gray-700">
                                 Sửa chữa - bảo hành
                             </a>
