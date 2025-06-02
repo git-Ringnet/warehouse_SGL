@@ -102,17 +102,7 @@
                                 <input type="text" id="address" name="address" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="123 Lê Lợi, Quận 1, TP.HCM">
                             </div>
                             
-                            <div>
-                                <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Phòng ban</label>
-                                <select id="department" name="department" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- Chọn phòng ban --</option>
-                                    <option value="it" selected>Công nghệ thông tin</option>
-                                    <option value="hr">Nhân sự</option>
-                                    <option value="finance">Tài chính</option>
-                                    <option value="sales">Kinh doanh</option>
-                                    <option value="tech">Kỹ thuật</option>
-                                </select>
-                            </div>
+                        
                         </div>
                         
                         <div class="space-y-4">
@@ -121,10 +111,7 @@
                                 <input type="date" id="date_joined" name="date_joined" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2024-01-01">
                             </div>
                             
-                            <div>
-                                <label for="position" class="block text-sm font-medium text-gray-700 mb-1">Chức vụ</label>
-                                <input type="text" id="position" name="position" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="Quản trị hệ thống">
-                            </div>
+                         
                         </div>
                     </div>
                     

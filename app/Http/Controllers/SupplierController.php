@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Customer;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 
-class CustomerController extends Controller
+class SupplierController extends Controller
 {
     /**
-     * Hiển thị danh sách khách hàng.
+     * Hiển thị danh sách nhà cung cấp.
      */
     public function index(Request $request)
     {
         $search = $request->input('search');
         $filter = $request->input('filter');
         
-        $query = Customer::query();
+        $query = Supplier::query();
         
         // Xử lý tìm kiếm
         if ($search) {
@@ -46,40 +46,40 @@ class CustomerController extends Controller
             }
         }
         
-        $customers = $query->latest()->paginate(10);
+        $suppliers = $query->latest()->paginate(10);
         
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
-        $customers->appends([
+        $suppliers->appends([
             'search' => $search,
             'filter' => $filter
         ]);
         
-        return view('customers.index', compact('customers', 'search', 'filter'));
+        return view('suppliers.index', compact('suppliers', 'search', 'filter'));
     }
 
     /**
-     * Hiển thị form tạo khách hàng mới.
+     * Hiển thị form tạo nhà cung cấp mới.
      */
     public function create()
     {
-        return view('customers.create');
+        return view('suppliers.create');
     }
 
     /**
-     * Lưu khách hàng mới vào database.
+     * Lưu nhà cung cấp mới vào database.
      */
     public function store(Request $request)
     {
         $request->validate([
-            'customer_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'phone' => 'required|numeric|digits_between:10,11',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
         ], [
-            'customer_name.required' => 'Tên khách hàng không được để trống',
-            'customer_name.string' => 'Tên khách hàng phải là chuỗi ký tự',
-            'customer_name.max' => 'Tên khách hàng không được vượt quá 255 ký tự',
+            'name.required' => 'Tên nhà cung cấp không được để trống',
+            'name.string' => 'Tên nhà cung cấp phải là chuỗi ký tự',
+            'name.max' => 'Tên nhà cung cấp không được vượt quá 255 ký tự',
             'phone.required' => 'Số điện thoại không được để trống',
             'phone.numeric' => 'Số điện thoại chỉ được nhập số',
             'phone.digits_between' => 'Số điện thoại phải có từ 10 đến 11 số',
@@ -87,51 +87,45 @@ class CustomerController extends Controller
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
         ]);
 
-        Customer::create([
-            'name' => $request->customer_name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'address' => $request->address,
-            'notes' => $request->notes,
-        ]);
+        Supplier::create($request->all());
 
-        return redirect()->route('customers.index')
-            ->with('success', 'Khách hàng đã được thêm thành công.');
+        return redirect()->route('suppliers.index')
+            ->with('success', 'Nhà cung cấp đã được thêm thành công.');
     }
 
     /**
-     * Hiển thị chi tiết khách hàng.
+     * Hiển thị chi tiết nhà cung cấp.
      */
     public function show(string $id)
     {
-        $customer = Customer::findOrFail($id);
-        return view('customers.show', compact('customer'));
+        $supplier = Supplier::findOrFail($id);
+        return view('suppliers.show', compact('supplier'));
     }
 
     /**
-     * Hiển thị form chỉnh sửa thông tin khách hàng.
+     * Hiển thị form chỉnh sửa thông tin nhà cung cấp.
      */
     public function edit(string $id)
     {
-        $customer = Customer::findOrFail($id);
-        return view('customers.edit', compact('customer'));
+        $supplier = Supplier::findOrFail($id);
+        return view('suppliers.edit', compact('supplier'));
     }
 
     /**
-     * Cập nhật thông tin khách hàng trong database.
+     * Cập nhật thông tin nhà cung cấp trong database.
      */
     public function update(Request $request, string $id)
     {
         $request->validate([
-            'customer_name' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
             'phone' => 'required|numeric|digits_between:10,11',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
         ], [
-            'customer_name.required' => 'Tên khách hàng không được để trống',
-            'customer_name.string' => 'Tên khách hàng phải là chuỗi ký tự',
-            'customer_name.max' => 'Tên khách hàng không được vượt quá 255 ký tự',
+            'name.required' => 'Tên nhà cung cấp không được để trống',
+            'name.string' => 'Tên nhà cung cấp phải là chuỗi ký tự',
+            'name.max' => 'Tên nhà cung cấp không được vượt quá 255 ký tự',
             'phone.required' => 'Số điện thoại không được để trống',
             'phone.numeric' => 'Số điện thoại chỉ được nhập số',
             'phone.digits_between' => 'Số điện thoại phải có từ 10 đến 11 số',
@@ -139,28 +133,22 @@ class CustomerController extends Controller
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
         ]);
 
-        $customer = Customer::findOrFail($id);
-        $customer->update([
-            'name' => $request->customer_name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'address' => $request->address,
-            'notes' => $request->notes,
-        ]);
+        $supplier = Supplier::findOrFail($id);
+        $supplier->update($request->all());
 
-        return redirect()->route('customers.show', $id)
-            ->with('success', 'Thông tin khách hàng đã được cập nhật thành công.');
+        return redirect()->route('suppliers.show', $id)
+            ->with('success', 'Thông tin nhà cung cấp đã được cập nhật thành công.');
     }
 
     /**
-     * Xóa khách hàng khỏi database.
+     * Xóa nhà cung cấp khỏi database.
      */
     public function destroy(string $id)
     {
-        $customer = Customer::findOrFail($id);
-        $customer->delete();
+        $supplier = Supplier::findOrFail($id);
+        $supplier->delete();
 
-        return redirect()->route('customers.index')
-            ->with('success', 'Khách hàng đã được xóa thành công.');
+        return redirect()->route('suppliers.index')
+            ->with('success', 'Nhà cung cấp đã được xóa thành công.');
     }
 }

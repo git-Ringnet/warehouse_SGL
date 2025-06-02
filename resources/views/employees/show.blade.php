@@ -53,7 +53,7 @@
                                             Đang hoạt động
                                         </span>
                                     </div>
-                                    <p class="text-gray-600 mt-2">Quản trị hệ thống</p>
+                                  
                                     <p class="text-gray-600 mt-1">Tài khoản từ 01/01/2024</p>
                                 </div>
                             </div>
@@ -70,10 +70,7 @@
                                     <i class="fas fa-map-marker-alt text-gray-400 w-6"></i>
                                     <span class="ml-3 text-gray-700">123 Lê Lợi, Quận 1, TP.HCM</span>
                                 </div>
-                                <div class="flex items-center">
-                                    <i class="fas fa-building text-gray-400 w-6"></i>
-                                    <span class="ml-3 text-gray-700">Phòng Công nghệ thông tin</span>
-                                </div>
+                           
                             </div>
                         </div>
                     </div>
@@ -132,14 +129,8 @@
                             <p class="text-sm text-gray-500">Vai trò</p>
                             <p class="font-medium text-gray-800">Quản trị viên</p>
                         </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Phòng ban</p>
-                            <p class="font-medium text-gray-800">Công nghệ thông tin</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Chức vụ</p>
-                            <p class="font-medium text-gray-800">Quản trị hệ thống</p>
-                        </div>
+                     
+                     
                         <div>
                             <p class="text-sm text-gray-500">Trạng thái</p>
                             <p class="font-medium text-gray-800">
@@ -152,10 +143,7 @@
                             <p class="text-sm text-gray-500">Ngày vào làm</p>
                             <p class="font-medium text-gray-800">01/01/2024</p>
                         </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Ngày tạo tài khoản</p>
-                            <p class="font-medium text-gray-800">01/01/2024</p>
-                        </div>
+                     
                     </div>
                 </div>
             </div>

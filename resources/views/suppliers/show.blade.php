@@ -8,7 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
-
 </head>
 <body>
     <x-sidebar-component />
@@ -18,73 +17,96 @@
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết nhà cung cấp</h1>
-               
+                <div class="ml-4 px-2 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                    ID: #{{ $supplier->id }}
+                </div>
             </div>
-            <div class="flex space-x-3">
-                <a href="{{ url('/suppliers/1/edit') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-edit mr-2"></i> Sửa
-                </a>
-             
-                <a href="{{ url('/suppliers') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+            <div class="flex space-x-2">
+                <a href="{{ route('suppliers.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
+                </a>
+                <a href="{{ route('suppliers.edit', $supplier->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
             </div>
         </header>
 
+        @if(session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+
         <main class="p-6">
-            <div class="mb-6">
-                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
-                    <div class="p-6">
-                        <div class="flex flex-col md:flex-row justify-between">
-                            <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Công ty ABC</h2>
-                                <p class="text-gray-600 mt-1">Nhà cung cấp từ 01/05/2024</p>
-                            </div>
-                            <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
-                                <div class="flex items-center">
-                                    <i class="fas fa-phone-alt text-gray-400 mr-2"></i>
-                                    <span class="text-gray-800 font-medium">0987654321</span>
-                                </div>
-                                <div class="flex items-center mt-1">
-                                    <i class="fas fa-envelope text-gray-400 mr-2"></i>
-                                    <span class="text-gray-800">contact@abc.com</span>
-                                </div>
-                            </div>
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-6">Thông tin nhà cung cấp</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Tên nhà cung cấp</h3>
+                            <p class="text-base text-gray-900">{{ $supplier->name }}</p>
                         </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Số điện thoại</h3>
+                            <p class="text-base text-gray-900">{{ $supplier->phone }}</p>
+                        </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
+                            <p class="text-base text-gray-900">{{ $supplier->email ?? 'Không có' }}</p>
+                        </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Địa chỉ</h3>
+                            <p class="text-base text-gray-900">{{ $supplier->address ?? 'Không có' }}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Ngày tạo</h3>
+                            <p class="text-base text-gray-900">{{ $supplier->created_at->format('d/m/Y H:i') }}</p>
+                        </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Cập nhật lần cuối</h3>
+                            <p class="text-base text-gray-900">{{ $supplier->updated_at->format('d/m/Y H:i') }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h3 class="text-sm font-medium text-gray-500 mb-1">Ghi chú</h3>
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <p class="text-base text-gray-900">{{ $supplier->notes ?? 'Không có ghi chú' }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Thông tin chi tiết -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">Thông tin nhà cung cấp</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 mb-6">
-                    <div>
-                        <p class="text-sm text-gray-500">Tên nhà cung cấp</p>
-                        <p class="text-gray-900 font-medium">Công ty ABC</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Số điện thoại</p>
-                        <p class="text-gray-900 font-medium">0987654321</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Email</p>
-                        <p class="text-gray-900">contact@abc.com</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Địa chỉ</p>
-                        <p class="text-gray-900">123 Lê Lợi, Hà Nội</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">01/05/2024</p>
-                    </div>
+            <!-- Danh sách sản phẩm của nhà cung cấp (mẫu) -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Sản phẩm liên quan</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã sản phẩm</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên sản phẩm</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Danh mục</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Giá nhập</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng tồn</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SP001</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Thiết bị mạng Router</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị mạng</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1.500.000 đ</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">25</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <a href="#" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                
-                <div class="border-t border-gray-200 pt-4">
-                    <p class="text-sm text-gray-500">Ghi chú</p>
-                    <p class="text-gray-900 mt-1">Nhà cung cấp vật liệu xây dựng chính, thường có hàng sẵn và giao hàng nhanh.</p>
+                <div class="mt-4 flex justify-center">
+                    <p class="text-gray-500 text-sm italic">Chức năng liên kết sản phẩm sẽ được cập nhật sau</p>
                 </div>
             </div>
         </main>

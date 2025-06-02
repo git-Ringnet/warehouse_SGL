@@ -5,6 +5,7 @@ use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\SupplierController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -118,39 +119,8 @@ Route::get('/report/testing_verification', function () {
 
 
 //tu day tro xuong day
-// Nhà cung cấp
-Route::get('/suppliers', function () {
-    return view('suppliers.index');
-});
-
-Route::get('/suppliers/create', function () {
-    return view('suppliers.create');
-});
-
-Route::get('/suppliers/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('suppliers.show');
-})->where('id', '[0-9]+');
-
-Route::get('/suppliers/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('suppliers.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/suppliers', function () {
-    // Xử lý lưu nhà cung cấp mới
-    return redirect('/suppliers');
-});
-
-Route::put('/suppliers/{id}', function ($id) {
-    // Xử lý cập nhật nhà cung cấp
-    return redirect('/suppliers/' . $id);
-});
-
-Route::delete('/suppliers/{id}', function ($id) {
-    // Xử lý xóa nhà cung cấp
-    return redirect('/suppliers');
-});
+// Thay thế routes suppliers cũ bằng resource controller
+Route::resource('suppliers', SupplierController::class);
 
 // Quản lý nhân viên
 Route::get('/employees', function () {
