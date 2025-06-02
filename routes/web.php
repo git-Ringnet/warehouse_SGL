@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MaterialController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\CustomerController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -25,40 +26,8 @@ Route::get('/assemble/edit', function () {
     return view('assemble.edit');
 });
 
-Route::get('/customers', function () {
-    return view('customers.index');
-});
-
-Route::get('/customers/create', function () {
-    return view('customers.create');
-});
-
-Route::get('/customers/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('customers.show');
-})->where('id', '[0-9]+');
-
-Route::get('/customers/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('customers.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/customers', function () {
-    // Xử lý lưu khách hàng mới
-    return redirect('/customers');
-});
-
-Route::put('/customers/{id}', function ($id) {
-    // Xử lý cập nhật khách hàng
-    return redirect('/customers/' . $id);
-});
-
-Route::delete('/customers/{id}', function ($id) {
-    // Xử lý xóa khách hàng
-    return redirect('/customers');
-});
-
-
+// Thay thế routes customers cũ bằng resource controller
+Route::resource('customers', CustomerController::class);
 
 //Materials
 Route::resource('materials', MaterialController::class);
