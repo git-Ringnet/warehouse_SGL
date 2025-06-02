@@ -202,6 +202,35 @@
                     </ul>
                 </div>
             </li>
+            <li>
+                <div class="dropdown">
+                    <button onclick="toggleDropdown('permissions')"
+                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                        <div class="flex items-center">
+                            <i class="fas fa-user-shield mr-3"></i>
+                            <span class="nav-text">Phân Quyền</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <ul id="permissions" class="dropdown-content pl-4 mt-1 space-y-1">
+                        <li>
+                            <a href="{{ asset('roles') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Nhóm quyền
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('permissions') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Danh sách quyền
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('user-logs') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Nhật ký người dùng
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
         </ul>
     </div>
 </div>

@@ -6,6 +6,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\EmployeeController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -122,39 +123,8 @@ Route::get('/report/testing_verification', function () {
 // Thay thế routes suppliers cũ bằng resource controller
 Route::resource('suppliers', SupplierController::class);
 
-// Quản lý nhân viên
-Route::get('/employees', function () {
-    return view('employees.index');
-});
-
-Route::get('/employees/create', function () {
-    return view('employees.create');
-});
-
-Route::get('/employees/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('employees.show');
-})->where('id', '[0-9]+');
-
-Route::get('/employees/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('employees.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/employees', function () {
-    // Xử lý lưu nhân viên mới
-    return redirect('/employees');
-});
-
-Route::put('/employees/{id}', function ($id) {
-    // Xử lý cập nhật nhân viên
-    return redirect('/employees/' . $id);
-});
-
-Route::delete('/employees/{id}', function ($id) {
-    // Xử lý xóa nhân viên
-    return redirect('/employees');
-});
+// Thay thế routes employees cũ bằng resource controller
+Route::resource('employees', EmployeeController::class);
 
 // Quản lý nhập kho
 Route::get('/inventory-imports', function () {

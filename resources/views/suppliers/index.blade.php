@@ -195,7 +195,9 @@
         @if(session('success'))
             <x-alert type="success" :message="session('success')" />
         @endif
-
+        @if(session('error'))
+                <x-alert type="error" :message="session('error')" />
+            @endif
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
