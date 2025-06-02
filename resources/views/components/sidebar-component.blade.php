@@ -1,5 +1,5 @@
 <!-- Sidebar -->
-<div class="sidebar w-64 fixed top-0 left-0 h-screen overflow-y-auto shadow-lg z-50">
+<div class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50" style="bottom: 0; background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);">
     <div class="p-4 flex items-center justify-between border-b border-gray-700">
         <div class="flex items-center">
             <i class="fas fa-warehouse text-2xl mr-3" style="color: #fff"></i>
@@ -9,7 +9,7 @@
             <i class="fas fa-bars"></i>
         </button>
     </div>
-    <div class="p-4">
+    <div class="p-4 flex flex-col">
         <div class="relative mb-4">
             <input type="text" placeholder="Tìm kiếm..."
                 class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 placeholder-gray-400" />
@@ -17,7 +17,7 @@
         </div>
         <ul class="space-y-2">
             <li>
-                <a href="{{ asset('') }}" class="nav-item flex items-center px-4 py-3 rounded-lg active">
+                <a href="{{ asset('') }}" class="nav-item flex items-center px-4 py-3 rounded-lg">
                     <i class="fas fa-tachometer-alt mr-3"></i>
                     <span class="nav-text">Tổng Quan</span>
                 </a>
@@ -205,7 +205,38 @@
         </ul>
     </div>
 </div>
+
+<!-- JavaScript to fix sidebar height -->
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function adjustSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const body = document.body;
+            const html = document.documentElement;
+            
+            // Get the maximum height of the page content
+            const height = Math.max(
+                body.scrollHeight,
+                body.offsetHeight,
+                html.clientHeight,
+                html.scrollHeight,
+                html.offsetHeight
+            );
+            
+            // Set the sidebar height
+            sidebar.style.height = height + 'px';
+        }
+        
+        // Run on page load
+        adjustSidebar();
+        
+        // Also run when window is resized
+        window.addEventListener('resize', adjustSidebar);
+        
+        // Run again after a short delay to ensure all content is loaded
+        setTimeout(adjustSidebar, 500);
+    });
+
     // Dropdown Menus
     function toggleDropdown(id) {
         const dropdown = document.getElementById(id);
@@ -238,3 +269,4 @@
         });
     });
 </script>
+<script src="{{ asset('js/sidebar-active.js') }}"></script>
