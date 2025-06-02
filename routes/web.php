@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\WarehouseController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -58,55 +61,13 @@ Route::delete('/customers/{id}', function ($id) {
 
 
 //Materials
-Route::get('/materials', function () {
-    return view('materials.index');
-});
-
-Route::get('/materials/create', function () {
-    return view('materials.create');
-});
-
-Route::get('/materials/show', function () {
-    return view('materials.show');
-});
-
-Route::get('/materials/edit', function () {
-    return view('materials.edit');
-});
+Route::resource('materials', MaterialController::class);
 
 //Products
-Route::get('/products', function () {
-    return view('products.index');
-});
+Route::resource('products', ProductController::class);
 
-Route::get('/products/create', function () {
-    return view('products.create');
-});
-
-Route::get('/products/show', function () {
-    return view('products.show');
-});
-
-Route::get('/products/edit', function () {
-    return view('products.edit');
-});
-
-//warehouses
-Route::get('/warehouses', function () {
-    return view('warehouses.index');
-});
-
-Route::get('/warehouses/create', function () {
-    return view('warehouses.create');
-});
-
-Route::get('/warehouses/show', function () {
-    return view('warehouses.show');
-});
-
-Route::get('/warehouses/edit', function () {
-    return view('warehouses.edit');
-});
+//Warehouses
+Route::resource('warehouses', WarehouseController::class);
 
 //Warranties
 Route::get('/warranties', function () {

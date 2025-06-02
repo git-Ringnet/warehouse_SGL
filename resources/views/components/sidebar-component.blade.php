@@ -194,10 +194,10 @@
                                 cáo tổng quan</a>
                         </li>
                         <li>
-                            <a href="{{ asset('report/inventory_import') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo thông kê chi tiết vật tư nhập</a>
+                            <a href="{{ asset('report/inventory_import') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo vật tư nhập</a>
                         </li>
                         <li>
-                            <a href="{{ asset('report/testing_verification') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo thông kê chi tiết vật tư kiểm thử cài đặt nghiệm thu</a>
+                            <a href="{{ asset('report/testing_verification') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo vật tư kiểm thử cài đặt nghiệm thu</a>
                         </li>
                     </ul>
                 </div>

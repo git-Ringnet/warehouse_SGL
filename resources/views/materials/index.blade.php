@@ -31,7 +31,7 @@
                     </select>
                 </div>
                 <div class="flex gap-2">
-                    <a href="{{ asset('materials/create') }}">
+                    <a href="{{ route('materials.create') }}">
                         <button
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
                             <i class="fas fa-plus mr-2"></i> Thêm vật tư
@@ -47,6 +47,12 @@
             </div>
         </header>
         <main class="p-6">
+            @if (session('success'))
+            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                {{ session('success') }}
+            </div>
+            @endif
+            
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -75,343 +81,92 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
+                        @foreach($materials as $index => $material)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0001</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Pin lithium 3.7V
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện điện tử</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->code }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $material->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->category }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->unit }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
+                                @if($material->status == 'new')
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
+                                @elseif($material->status == 'used')
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Cũ</span>
+                                @else
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Hư hỏng</span>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
+                                <a href="{{ route('materials.show', $material->id) }}">
                                     <button
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                         title="Xem">
                                         <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
-                                <a href="{{ asset('materials/edit') }}">
+                                <a href="{{ route('materials.edit', $material->id) }}">
                                     <button
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                         title="Sửa">
                                         <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
-                                <button onclick="openDeleteModal(1, 'VT-0001')"
+                                <button onclick="openDeleteModal('{{ $material->id }}', '{{ $material->code }}')"
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0002</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module GPS NEO-6M
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện định vị</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
+                        @endforeach
+                        
+                        @if(count($materials) == 0)
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                Không có dữ liệu vật tư
                             </td>
                         </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0003</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Mạch điều khiển
-                                Arduino Nano</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vi điều khiển</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0004</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module SIM800L
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện viễn thông</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">5</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0005</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Vỏ hộp thiết bị
-                                A3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Phụ kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Cũ
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">6</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0006</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Cảm biến nhiệt độ
-                                DHT22</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cảm biến</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                    Hư hỏng
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">7</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0007</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module nguồn
-                                DC-DC Step Down</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nguồn điện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">8</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VT-0008</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Anten GSM 5dBi
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Phụ kiện viễn thông</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Mới</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('materials/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('materials/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
+                        @endif
                     </tbody>
                 </table>
-            </div>
-
-            <!-- Pagination -->
-            <div class="mt-4 flex justify-between items-center">
-                <div class="text-sm text-gray-700">
-                    Hiển thị <span class="font-medium">1</span> đến <span class="font-medium">8</span> của <span
-                        class="font-medium">54</span> vật tư
-                </div>
-                <div class="flex space-x-1">
-                    <button
-                        class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Trước
-                    </button>
-                    <button class="px-3 py-1 rounded bg-blue-500 text-white">
-                        1
-                    </button>
-                    <button class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">
-                        2
-                    </button>
-                    <button class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">
-                        3
-                    </button>
-                    <button class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">
-                        ...
-                    </button>
-                    <button class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">
-                        7
-                    </button>
-                    <button class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">
-                        Sau
-                    </button>
-                </div>
             </div>
         </main>
     </div>
 
+    <!-- Modal xác nhận xóa -->
+    <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
+            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa vật tư <span id="materialCode" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                    onclick="closeDeleteModal()">
+                    Hủy
+                </button>
+                <form id="deleteForm" action="" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        Xác nhận xóa
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // Dropdown Menus
-        function toggleDropdown(id) {
-            const dropdown = document.getElementById(id);
-            const allDropdowns = document.querySelectorAll('.dropdown-content');
-
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
-                if (d.id !== id) {
-                    d.classList.remove('show');
-                }
-            });
-
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
+        function openDeleteModal(materialId, materialCode) {
+            document.getElementById('materialCode').textContent = materialCode;
+            document.getElementById('deleteForm').action = `/materials/${materialId}`;
+            document.getElementById('deleteModal').classList.remove('hidden');
         }
 
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown')) {
-                document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                    dropdown.classList.remove('show');
-                });
-            }
-        });
-
-        // Prevent dropdown from closing when clicking inside
-        document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-        });
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
     </script>
 </body>
 
