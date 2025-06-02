@@ -17,7 +17,7 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('materials') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('materials.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Thêm vật tư mới</h1>
@@ -26,8 +26,20 @@
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mx-auto">
-                <form action="#" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('materials.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
+                    
+                    @if ($errors->any())
+                    <div class="mb-4 bg-red-50 p-4 rounded-lg border border-red-200">
+                        <div class="text-red-600 font-medium mb-2">Có lỗi xảy ra:</div>
+                        <ul class="list-disc pl-5 text-red-500">
+                            @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
+                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Mã vật tư -->
                         <div class="col-span-1">
@@ -74,7 +86,7 @@
                         <!-- Nhà cung cấp -->
                         <div class="col-span-1">
                             <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
-                            <select id="supplier" name="supplier" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <select id="supplier" name="supplier_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Chọn nhà cung cấp</option>
                                 <option value="1">Công ty TNHH Điện tử ABC</option>
                                 <option value="2">Công ty CP Thiết bị XYZ</option>
@@ -100,10 +112,10 @@
                     </div>
 
                     <div class="mt-8 flex justify-end space-x-3">
-                        <a href="{{ asset('materials') }}" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+                        <a href="{{ route('materials.index') }}" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                             Hủy
                         </a>
-                        <button type="button" class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <button type="submit" class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                             <i class="fas fa-save mr-2"></i> Lưu vật tư
                         </button>
                     </div>

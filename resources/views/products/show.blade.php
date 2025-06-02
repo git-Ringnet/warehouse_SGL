@@ -20,11 +20,11 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết thành phẩm</h1>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ asset('products/edit') }}"
+                <a href="{{ route('products.edit', $product->id) }}"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <a href="{{ asset('products') }}"
+                <a href="{{ route('products.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
@@ -32,23 +32,24 @@
         </header>
 
         <main class="p-6">
+            @if (session('success'))
+            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                {{ session('success') }}
+            </div>
+            @endif
+        
             <div class="mb-6">
                 <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                     <div class="p-6">
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Radio SPA Pro</h2>
-                                <p class="text-gray-600 mt-1">Mã SP: SP-0001</p>
-                                <p class="text-gray-600 mt-1">Serial: SER123456</p>
+                                <h2 class="text-2xl font-bold text-gray-800">{{ $product->name }}</h2>
+                                <p class="text-gray-600 mt-1">Mã SP: {{ $product->code }}</p>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
                                 <div class="flex items-center mt-1">
-                                    <i class="fas fa-map-marker-alt text-blue-500 mr-2"></i>
-                                    <span class="text-blue-500 font-medium">Kho Hà Nội</span>
-                                </div>
-                                <div class="flex items-center mt-1">
                                     <i class="fas fa-tag text-blue-500 mr-2"></i>
-                                    <span class="text-blue-500 font-medium">Mới</span>
+                                    <span class="text-blue-500 font-medium">{{ $product->type }}</span>
                                 </div>
                             </div>
                         </div>
@@ -63,82 +64,40 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 mb-6">
                     <div>
                         <p class="text-sm text-gray-500">Tên sản phẩm</p>
-                        <p class="text-gray-900 font-medium">Radio SPA Pro</p>
+                        <p class="text-gray-900 font-medium">{{ $product->name }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Mã sản phẩm</p>
-                        <p class="text-gray-900 font-medium">SP-0001</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Serial</p>
-                        <p class="text-gray-900 font-medium">SER123456</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Vị trí hiện tại</p>
-                        <p class="text-gray-900">Kho Hà Nội</p>
+                        <p class="text-gray-900 font-medium">{{ $product->code }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Loại sản phẩm</p>
-                        <p class="text-gray-900">Mới</p>
+                        <p class="text-gray-900">{{ $product->type }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">05/06/2023</p>
+                        <p class="text-gray-900">{{ $product->created_at->format('d/m/Y') }}</p>
                     </div>
                 </div>
                 
+                @if($product->description)
                 <div class="border-t border-gray-200 pt-4 mb-6">
                     <p class="text-sm text-gray-500">Mô tả sản phẩm</p>
-                    <p class="text-gray-900 mt-1">Radio SPA Pro là thiết bị viễn thông thế hệ mới nhất của SGL, được trang bị module GPS NEO-6M và hệ thống thu phát sóng hai chiều tiên tiến. Sản phẩm phù hợp cho các công trình viễn thông và trạm phát sóng.</p>
+                    <p class="text-gray-900 mt-1">{{ $product->description }}</p>
+                </div>
+                @endif
+
+                <div class="border-t border-gray-200 pt-4">
+                    <div class="text-sm text-gray-500 mb-2">
+                        <p><i>Lưu ý: Serial sẽ được tạo khi thành phẩm được lắp ráp</i></p>
+                    </div>
                 </div>
 
-                <!-- Thành phần linh kiện -->
-                <div class="border-t border-gray-200 pt-4">
-                    <h4 class="text-md font-semibold text-gray-800 mb-3">Thành phần linh kiện</h4>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <table class="min-w-full">
-                            <thead>
-                                <tr>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Mã vật tư</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Serial vật tư</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Tên vật tư</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Số lượng</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">VT-0001</td>
-                                    <td class="py-2 text-sm text-gray-700">SER-VT-001</td>
-                                    <td class="py-2 text-sm text-gray-700">Vỏ thiết bị Radio SPA</td>
-                                    <td class="py-2 text-sm text-gray-700">1</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">VT-0002</td>
-                                    <td class="py-2 text-sm text-gray-700">SER-VT-002</td>
-                                    <td class="py-2 text-sm text-gray-700">Module GPS NEO-6M</td>
-                                    <td class="py-2 text-sm text-gray-700">1</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">VT-0003</td>
-                                    <td class="py-2 text-sm text-gray-700">SER-VT-003</td>
-                                    <td class="py-2 text-sm text-gray-700">Bo mạch điều khiển</td>
-                                    <td class="py-2 text-sm text-gray-700">1</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">VT-0004</td>
-                                    <td class="py-2 text-sm text-gray-700">SER-VT-004</td>
-                                    <td class="py-2 text-sm text-gray-700">Ăng-ten thu phát</td>
-                                    <td class="py-2 text-sm text-gray-700">2</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">VT-0005</td>
-                                    <td class="py-2 text-sm text-gray-700">SER-VT-005</td>
-                                    <td class="py-2 text-sm text-gray-700">Pin Lithium 2000mAh</td>
-                                    <td class="py-2 text-sm text-gray-700">1</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="mt-6 flex justify-end">
+                    <button onclick="confirmDelete()" 
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-trash mr-2"></i> Xóa sản phẩm
+                    </button>
                 </div>
             </div>
         </main>
@@ -155,8 +114,10 @@
                     onclick="closeDeleteModal()">
                     Hủy
                 </button>
-                <form action="#" method="POST">
-                    <button type="button"
+                <form action="{{ route('products.destroy', $product->id) }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
                         class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
                         Xác nhận xóa
                     </button>

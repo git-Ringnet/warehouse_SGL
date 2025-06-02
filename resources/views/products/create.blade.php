@@ -17,7 +17,7 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('products') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('products.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Thêm thành phẩm mới</h1>
@@ -26,65 +26,73 @@
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mx-auto">
-                <form action="#" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('products.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
+
+                    @if ($errors->any())
+                        <div class="mb-4 bg-red-50 p-4 rounded-lg border border-red-200">
+                            <div class="text-red-600 font-medium mb-2">Có lỗi xảy ra:</div>
+                            <ul class="list-disc pl-5 text-red-500">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    @if (session('error'))
+                        <div class="mb-4 bg-red-50 p-4 rounded-lg border border-red-200">
+                            <div class="text-red-600">{{ session('error') }}</div>
+                        </div>
+                    @endif
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <div>
-                                <label for="code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã sản phẩm <span class="text-red-500">*</span></label>
-                                <input type="text" id="code" name="code" placeholder="SP-XXXX" required 
+                                <label for="code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã
+                                    sản phẩm <span class="text-red-500">*</span></label>
+                                <input type="text" id="code" name="code" placeholder="SP-XXXX" required
+                                    value="{{ old('code') }}"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
-                            
+
                             <div>
-                                <label for="serial" class="block text-sm font-medium text-gray-700 mb-1 required">Serial thành phẩm <span class="text-red-500">*</span></label>
-                                <input type="text" id="serial" name="serial" placeholder="SER-XXXX" required 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            
-                            <div>
-                                <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên sản phẩm <span class="text-red-500">*</span></label>
-                                <input type="text" id="name" name="name" placeholder="Nhập tên sản phẩm" required 
+                                <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên
+                                    sản phẩm <span class="text-red-500">*</span></label>
+                                <input type="text" id="name" name="name" placeholder="Nhập tên sản phẩm"
+                                    required value="{{ old('name') }}"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
                         </div>
-                        
+
                         <div class="space-y-4">
                             <div>
-                                <label for="location" class="block text-sm font-medium text-gray-700 mb-1 required">Vị trí hiện tại <span class="text-red-500">*</span></label>
-                                <select id="location" name="location" required
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Chọn vị trí</option>
-                                    <option value="Kho Hà Nội">Kho Hà Nội</option>
-                                    <option value="Kho Hồ Chí Minh">Kho Hồ Chí Minh</option>
-                                    <option value="Kho Đà Nẵng">Kho Đà Nẵng</option>
-                                    <option value="Dự án ABC">Dự án ABC</option>
-                                    <option value="Dự án XYZ">Dự án XYZ</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label for="type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại sản phẩm <span class="text-red-500">*</span></label>
+                                <label for="type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
+                                    sản phẩm <span class="text-red-500">*</span>
+                                </label>
                                 <select id="type" name="type" required
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="Mới" selected>Mới</option>
-                                    <option value="Bảo hành">Bảo hành</option>
+                                    <option value="Mới" {{ old('type') == 'Mới' ? 'selected' : '' }}>Mới</option>
+                                    <option value="Bảo hành" {{ old('type') == 'Bảo hành' ? 'selected' : '' }}>Bảo hành
+                                    </option>
                                 </select>
                             </div>
-                        </div>
-                        
-                        <div class="md:col-span-2">
-                            <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả sản phẩm</label>
-                            <textarea id="description" name="description" rows="3" placeholder="Nhập mô tả chi tiết về sản phẩm"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            <div class="">
+                                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả sản
+                                    phẩm</label>
+                                <textarea id="description" name="description" rows="3" placeholder="Nhập mô tả chi tiết về sản phẩm"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('description') }}</textarea>
+                            </div>
                         </div>
                     </div>
 
                     <div class="mt-8 flex justify-end space-x-3">
-                        <a href="{{ asset('products') }}" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+                        <a href="{{ route('products.index') }}"
+                            class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                             Hủy
                         </a>
-                        <button type="submit" class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <button type="submit"
+                            class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
                             <i class="fas fa-save mr-2"></i> Lưu sản phẩm
                         </button>
                     </div>
@@ -92,85 +100,6 @@
             </div>
         </main>
     </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const materialSelect = document.getElementById('material_select');
-            const materialQuantity = document.getElementById('material_quantity');
-            const addMaterialBtn = document.getElementById('add_material');
-            const materialsTable = document.getElementById('materials_table');
-            
-            // Danh sách vật tư để hiển thị tên
-            const materials = {
-                'VT-0001': 'Vỏ thiết bị Radio SPA',
-                'VT-0002': 'Module GPS NEO-6M',
-                'VT-0003': 'Bo mạch điều khiển',
-                'VT-0004': 'Ăng-ten thu phát',
-                'VT-0005': 'Pin Lithium 2000mAh'
-            };
-            
-            // Tạo mã serial ngẫu nhiên
-            function generateSerial(prefix) {
-                return prefix + '-' + Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-            }
-            
-            // Thêm vật tư vào bảng
-            addMaterialBtn.addEventListener('click', function() {
-                const materialId = materialSelect.value;
-                const quantity = materialQuantity.value;
-                
-                if (!materialId) {
-                    alert('Vui lòng chọn vật tư');
-                    return;
-                }
-                
-                // Kiểm tra vật tư đã tồn tại chưa
-                const existingRow = document.querySelector(`tr[data-material-id="${materialId}"]`);
-                if (existingRow) {
-                    alert('Vật tư này đã được thêm vào danh sách');
-                    return;
-                }
-                
-                const row = document.createElement('tr');
-                row.setAttribute('data-material-id', materialId);
-                row.classList.add('hover:bg-gray-50');
-                
-                // Tạo serial ngẫu nhiên cho vật tư
-                const serial = generateSerial('SER-VT');
-                
-                row.innerHTML = `
-                    <td class="py-2 text-sm text-gray-700">${materialId}</td>
-                    <td class="py-2 text-sm text-gray-700">
-                        <input type="text" name="material_serial[]" value="${serial}" class="w-32 border border-gray-300 rounded px-2 py-1">
-                    </td>
-                    <td class="py-2 text-sm text-gray-700">${materials[materialId]}</td>
-                    <td class="py-2 text-sm text-gray-700">
-                        <input type="number" name="material_qty[]" value="${quantity}" min="1" class="w-16 border border-gray-300 rounded px-2 py-1">
-                        <input type="hidden" name="material_id[]" value="${materialId}">
-                    </td>
-                    <td class="py-2 text-sm text-gray-700">
-                        <button type="button" class="text-red-500 hover:text-red-700 remove-material">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </td>
-                `;
-                
-                materialsTable.appendChild(row);
-                
-                // Reset form
-                materialSelect.value = '';
-                materialQuantity.value = 1;
-            });
-            
-            // Xóa vật tư khỏi bảng
-            materialsTable.addEventListener('click', function(e) {
-                if (e.target.classList.contains('remove-material') || e.target.parentElement.classList.contains('remove-material')) {
-                    const row = e.target.closest('tr');
-                    row.remove();
-                }
-            });
-        });
-    </script>
 </body>
 
-</html> 
+</html>

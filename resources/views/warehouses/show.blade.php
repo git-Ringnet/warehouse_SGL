@@ -20,11 +20,11 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết kho hàng</h1>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ asset('warehouses/edit') }}"
+                <a href="{{ route('warehouses.edit', $warehouse->id) }}"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <a href="{{ asset('warehouses') }}"
+                <a href="{{ route('warehouses.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
@@ -32,23 +32,36 @@
         </header>
 
         <main class="p-6">
+            @if (session('success'))
+            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                {{ session('success') }}
+            </div>
+            @endif
+        
             <div class="mb-6">
                 <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                     <div class="p-6">
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Kho Hà Nội</h2>
-                                <p class="text-gray-600 mt-1">Mã kho: KHO-HN</p>
+                                <h2 class="text-2xl font-bold text-gray-800">{{ $warehouse->name }}</h2>
+                                <p class="text-gray-600 mt-1">Mã kho: {{ $warehouse->code }}</p>
+                                <p class="text-gray-600 mt-1">{{ $warehouse->address }}</p>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
                                 <div class="flex items-center mt-1">
                                     <i class="fas fa-user text-blue-500 mr-2"></i>
-                                    <span class="text-blue-500 font-medium">Nguyễn Văn A</span>
+                                    <span class="text-blue-500 font-medium">{{ $warehouse->manager }}</span>
                                 </div>
                                 <div class="flex items-center mt-1">
-                                    <i class="fas fa-phone text-green-500 mr-2"></i>
-                                    <span class="text-green-500 font-medium">0912345678</span>
+                                    <i class="fas fa-phone text-blue-500 mr-2"></i>
+                                    <span class="text-blue-500">{{ $warehouse->phone }}</span>
                                 </div>
+                                @if($warehouse->email)
+                                <div class="flex items-center mt-1">
+                                    <i class="fas fa-envelope text-blue-500 mr-2"></i>
+                                    <span class="text-blue-500">{{ $warehouse->email }}</span>
+                                </div>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -59,122 +72,92 @@
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Thông tin kho hàng</h3>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 mb-6">
-                    <div>
-                        <p class="text-sm text-gray-500">Tên kho</p>
-                        <p class="text-gray-900 font-medium">Kho Hà Nội</p>
-                    </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 mb-6">
                     <div>
                         <p class="text-sm text-gray-500">Mã kho</p>
-                        <p class="text-gray-900 font-medium">KHO-HN</p>
+                        <p class="text-gray-900 font-medium">{{ $warehouse->code }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Tên kho</p>
+                        <p class="text-gray-900 font-medium">{{ $warehouse->name }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Địa chỉ</p>
-                        <p class="text-gray-900">Số 15, Đường Trần Duy Hưng, Cầu Giấy, Hà Nội</p>
+                        <p class="text-gray-900">{{ $warehouse->address }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Người quản lý</p>
-                        <p class="text-gray-900">Nguyễn Văn A</p>
+                        <p class="text-gray-900">{{ $warehouse->manager }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Số điện thoại</p>
-                        <p class="text-gray-900">0912345678</p>
+                        <p class="text-gray-900">{{ $warehouse->phone }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Email</p>
-                        <p class="text-gray-900">nguyenvana@sgl.com</p>
+                        <p class="text-gray-900">{{ $warehouse->email ?: 'Chưa có' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Ngày tạo</p>
+                        <p class="text-gray-900">{{ $warehouse->created_at->format('d/m/Y') }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
+                        <p class="text-gray-900">{{ $warehouse->updated_at->format('d/m/Y') }}</p>
                     </div>
                 </div>
                 
+                @if($warehouse->description)
                 <div class="border-t border-gray-200 pt-4 mb-6">
-                    <p class="text-sm text-gray-500">Mô tả</p>
-                    <p class="text-gray-900 mt-1">Kho chính tại Hà Nội, chuyên lưu trữ thiết bị và sản phẩm cho khu vực miền Bắc. Diện tích 1,200m², bao gồm khu vực đóng gói và khu vực bảo quản riêng biệt cho các thiết bị nhạy cảm.</p>
+                    <p class="text-sm text-gray-500">Mô tả kho hàng</p>
+                    <p class="text-gray-900 mt-1">{{ $warehouse->description }}</p>
                 </div>
+                @endif
 
-                <!-- Danh sách sản phẩm trong kho -->
-                <div class="border-t border-gray-200 pt-4">
-                    <h4 class="text-md font-semibold text-gray-800 mb-3">Sản phẩm trong kho</h4>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-4">
-                            <h5 class="text-sm font-medium text-gray-700">Tổng số sản phẩm: <span class="text-blue-600">145</span></h5>
-                            <div class="flex items-center gap-2">
-                                <input type="text" placeholder="Tìm kiếm sản phẩm" class="border border-gray-300 rounded-lg px-3 py-1 text-sm">
-                                <button class="bg-blue-100 text-blue-600 px-3 py-1 rounded-lg text-sm hover:bg-blue-200 transition-colors">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <table class="min-w-full">
-                            <thead>
-                                <tr>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">STT</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Mã SP</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Tên sản phẩm</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Số lượng</th>
-                                    <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Loại</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">1</td>
-                                    <td class="py-2 text-sm text-gray-700">SP-0001</td>
-                                    <td class="py-2 text-sm text-gray-700">Radio SPA Pro</td>
-                                    <td class="py-2 text-sm text-gray-700">25</td>
-                                    <td class="py-2 text-sm text-gray-700">Mới</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">2</td>
-                                    <td class="py-2 text-sm text-gray-700">SP-0005</td>
-                                    <td class="py-2 text-sm text-gray-700">GPS Tracker X2</td>
-                                    <td class="py-2 text-sm text-gray-700">15</td>
-                                    <td class="py-2 text-sm text-gray-700">Mới</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">3</td>
-                                    <td class="py-2 text-sm text-gray-700">SP-0010</td>
-                                    <td class="py-2 text-sm text-gray-700">Bộ đàm SGL X10</td>
-                                    <td class="py-2 text-sm text-gray-700">30</td>
-                                    <td class="py-2 text-sm text-gray-700">Mới</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">4</td>
-                                    <td class="py-2 text-sm text-gray-700">SP-0012</td>
-                                    <td class="py-2 text-sm text-gray-700">Thiết bị định vị SGL-GPS</td>
-                                    <td class="py-2 text-sm text-gray-700">18</td>
-                                    <td class="py-2 text-sm text-gray-700">Mới</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 text-sm text-gray-700">5</td>
-                                    <td class="py-2 text-sm text-gray-700">SP-0015</td>
-                                    <td class="py-2 text-sm text-gray-700">Camera an ninh SGL-CAM</td>
-                                    <td class="py-2 text-sm text-gray-700">22</td>
-                                    <td class="py-2 text-sm text-gray-700">Mới</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        
-                        <div class="mt-4 flex justify-between items-center">
-                            <div class="text-sm text-gray-600">Hiển thị 1 - 5 của 25 sản phẩm</div>
-                            <div class="flex space-x-1">
-                                <button class="w-8 h-8 flex items-center justify-center rounded bg-blue-600 text-white">
-                                    1
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600">
-                                    2
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600">
-                                    3
-                                </button>
-                                <button class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-200 text-gray-600">
-                                    <i class="fas fa-chevron-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Có thể thêm các section khác ở đây: Danh sách sản phẩm trong kho, lịch sử nhập xuất, ... -->
+                
+                <div class="mt-6 flex justify-end">
+                    <button onclick="confirmDelete()" 
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-trash mr-2"></i> Xóa kho hàng
+                    </button>
                 </div>
             </div>
         </main>
     </div>
+
+    <!-- Modal xác nhận xóa -->
+    <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
+            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa kho hàng <span class="font-semibold">{{ $warehouse->code }}</span>? Hành động này không thể hoàn tác.</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                    onclick="closeDeleteModal()">
+                    Hủy
+                </button>
+                <form action="{{ route('warehouses.destroy', $warehouse->id) }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        Xác nhận xóa
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function confirmDelete() {
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+    </script>
 </body>
 
 </html> 

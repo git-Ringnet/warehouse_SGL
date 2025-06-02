@@ -28,7 +28,7 @@
                     </select>
                 </div>
                 <div class="flex gap-2 w-full md:w-auto">
-                    <a href="{{ asset('products/create') }}">
+                    <a href="{{ route('products.create') }}">
                         <button
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
                             <i class="fas fa-plus mr-2"></i> Thêm thành phẩm
@@ -43,6 +43,12 @@
         </header>
 
         <main class="p-6">
+            @if (session('success'))
+            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                {{ session('success') }}
+            </div>
+            @endif
+        
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -55,13 +61,7 @@
                                 Mã SP</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Serial</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Tên sản phẩm</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Vị trí</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Loại</th>
@@ -71,185 +71,43 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
+                        @foreach($products as $index => $product)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SP-0001</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SER123456</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Radio SPA Pro</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hà Nội</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mới</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $product->code }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $product->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $product->type }}</td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('products/show') }}">
+                                <a href="{{ route('products.show', $product->id) }}">
                                     <button
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                         title="Xem">
                                         <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
-                                <a href="{{ asset('products/edit') }}">
+                                <a href="{{ route('products.edit', $product->id) }}">
                                     <button
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                         title="Sửa">
                                         <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                     </button>
                                 </a>
-                                <button
+                                <button onclick="openDeleteModal('{{ $product->id }}', '{{ $product->code }}')"
                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                     title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SP-0002</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SER234567</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Radio SPA Lite</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hồ Chí Minh</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mới</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('products/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('products/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
+                        @endforeach
+                        
+                        @if(count($products) == 0)
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                                Không có dữ liệu thành phẩm
                             </td>
                         </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SP-0003</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SER345678</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Radio SPA Mini</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án ABC</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bảo hành</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('products/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('products/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SP-0004</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SER456789</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">GPS Tracker X1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Đà Nẵng</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mới</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('products/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('products/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">5</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SP-0005</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SER567890</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">GPS Tracker X2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho Hà Nội</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mới</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('products/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('products/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">6</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">SP-0006</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SER678901</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Camera giám sát VT5</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án XYZ</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bảo hành</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('products/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('products/edit') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
+                        @endif
                     </tbody>
                 </table>
             </div>
@@ -296,6 +154,41 @@
             </div>
         </main>
     </div>
+
+    <!-- Modal xác nhận xóa -->
+    <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
+            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa thành phẩm <span id="productCode" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                    onclick="closeDeleteModal()">
+                    Hủy
+                </button>
+                <form id="deleteForm" action="" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
+                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        Xác nhận xóa
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openDeleteModal(productId, productCode) {
+            document.getElementById('productCode').textContent = productCode;
+            document.getElementById('deleteForm').action = `/products/${productId}`;
+            document.getElementById('deleteModal').classList.remove('hidden');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        }
+    </script>
 </body>
 
 </html>

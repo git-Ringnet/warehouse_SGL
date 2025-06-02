@@ -20,11 +20,11 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết vật tư</h1>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ asset('materials/edit') }}"
+                <a href="{{ route('materials.edit', $material->id) }}"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <a href="{{ asset('materials') }}"
+                <a href="{{ route('materials.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
@@ -32,22 +32,36 @@
         </header>
 
         <main class="p-6">
+            @if (session('success'))
+            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                {{ session('success') }}
+            </div>
+            @endif
+            
             <div class="mb-6">
                 <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                     <div class="p-6">
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Module GPS NEO-6M</h2>
-                                <p class="text-gray-600 mt-1">Mã vật tư: VT-0002</p>
+                                <h2 class="text-2xl font-bold text-gray-800">{{ $material->name }}</h2>
+                                <p class="text-gray-600 mt-1">Mã vật tư: {{ $material->code }}</p>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
                                 <div class="flex items-center">
                                     <i class="fas fa-tag text-gray-400 mr-2"></i>
-                                    <span class="text-gray-800 font-medium">Linh kiện định vị</span>
+                                    <span class="text-gray-800 font-medium">{{ $material->category }}</span>
                                 </div>
                                 <div class="flex items-center mt-1">
                                     <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                                    <span class="text-green-500 font-medium">Mới</span>
+                                    <span class="text-green-500 font-medium">
+                                        @if($material->status == 'new')
+                                            Mới
+                                        @elseif($material->status == 'used')
+                                            Cũ
+                                        @else
+                                            Hư hỏng
+                                        @endif
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -62,41 +76,50 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 mb-6">
                     <div>
                         <p class="text-sm text-gray-500">Tên vật tư</p>
-                        <p class="text-gray-900 font-medium">Module GPS NEO-6M</p>
+                        <p class="text-gray-900 font-medium">{{ $material->name }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Mã vật tư</p>
-                        <p class="text-gray-900 font-medium">VT-0002</p>
+                        <p class="text-gray-900 font-medium">{{ $material->code }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Loại vật tư</p>
-                        <p class="text-gray-900">Linh kiện định vị</p>
+                        <p class="text-gray-900">{{ $material->category }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Đơn vị</p>
-                        <p class="text-gray-900">Cái</p>
+                        <p class="text-gray-900">{{ $material->unit }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
-                        <p class="text-gray-900">Công ty TNHH Linh kiện DEF</p>
+                        <p class="text-gray-900">{{ $material->supplier_id ?? 'Không có' }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Trạng thái</p>
-                        <p class="text-gray-900">Mới</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Người liên hệ</p>
-                        <p class="text-gray-900">Nguyễn Văn A</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Điện thoại</p>
-                        <p class="text-gray-900">0901234567</p>
+                        <p class="text-gray-900">
+                            @if($material->status == 'new')
+                                Mới
+                            @elseif($material->status == 'used')
+                                Cũ
+                            @else
+                                Hư hỏng
+                            @endif
+                        </p>
                     </div>
                 </div>
                 
+                @if($material->notes)
                 <div class="border-t border-gray-200 pt-4">
                     <p class="text-sm text-gray-500">Ghi chú</p>
-                    <p class="text-gray-900 mt-1">Cần kiểm tra trạng thái hoạt động trước khi sử dụng. Nên tránh để gần các nguồn nhiễu điện từ để đảm bảo chất lượng tín hiệu.</p>
+                    <p class="text-gray-900 mt-1">{{ $material->notes }}</p>
+                </div>
+                @endif
+
+                <div class="mt-6 flex justify-end">
+                    <button onclick="confirmDelete()" 
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-trash mr-2"></i> Xóa vật tư
+                    </button>
                 </div>
             </div>
         </main>
@@ -113,8 +136,10 @@
                     onclick="closeDeleteModal()">
                     Hủy
                 </button>
-                <form action="#" method="POST">
-                    <button type="button"
+                <form action="{{ route('materials.destroy', $material->id) }}" method="POST">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit"
                         class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
                         Xác nhận xóa
                     </button>
