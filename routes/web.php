@@ -7,11 +7,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SupplierController;
-
-use App\Http\Controllers\EmployeeController;
-
 use App\Http\Controllers\AssemblyController;
-
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UserLogController;
@@ -25,8 +22,6 @@ Route::get('/dashboard', function () {
 });
 
 Route::resource('assemble', AssemblyController::class);
-
-
 
 // Thay thế routes customers cũ bằng resource controller
 Route::resource('customers', CustomerController::class);
@@ -101,6 +96,7 @@ Route::get('/report', function () {
     return view('reports.index');
 });
 
+// Báo cáo đã có
 Route::get('/report/inventory_import', function () {
     return view('reports.inventory_import');
 });
@@ -377,10 +373,6 @@ Route::get('/requests/project', function () {
     return view('requests.project');
 });
 
-Route::get('/requests/project/create', function () {
-    return view('requests.project.create');
-});
-
 Route::post('/requests/project', function () {
     // Xử lý tạo phiếu đề xuất triển khai dự án
     return redirect('/requests');
@@ -403,10 +395,6 @@ Route::get('/requests/maintenance', function () {
     return view('requests.maintenance');
 });
 
-Route::get('/requests/maintenance/create', function () {
-    return view('requests.maintenance.create');
-});
-
 Route::post('/requests/maintenance', function () {
     // Xử lý tạo phiếu đề xuất bảo trì dự án
     return redirect('/requests');
@@ -427,10 +415,6 @@ Route::get('/requests/maintenance/{id}/preview', function ($id) {
 // Phiếu đề xuất nhập thêm linh kiện
 Route::get('/requests/components', function () {
     return view('requests.components');
-});
-
-Route::get('/requests/components/create', function () {
-    return view('requests.components.create');
 });
 
 Route::post('/requests/components', function () {
@@ -473,18 +457,5 @@ Route::get('/debug/materials', function () {
         ];
     }
 });
-
-// Thêm phần routes phân quyền
-// Routes cho nhóm quyền (roles)
-Route::resource('roles', RoleController::class);
-Route::put('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggle-status');
-
-// Routes cho danh sách quyền (permissions)
-Route::resource('permissions', PermissionController::class);
-
-// Routes cho nhật ký người dùng (user logs)
-Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
-Route::get('user-logs/{id}', [UserLogController::class, 'show'])->name('user-logs.show');
-Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export');
 
 

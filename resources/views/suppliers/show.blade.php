@@ -86,7 +86,6 @@
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã sản phẩm</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên sản phẩm</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Danh mục</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Giá nhập</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng tồn</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                             </tr>
@@ -96,7 +95,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SP001</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Thiết bị mạng Router</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị mạng</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1.500.000 đ</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">25</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <a href="#" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
