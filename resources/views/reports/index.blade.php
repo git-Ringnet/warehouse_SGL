@@ -8,7 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
 </head>
 
@@ -18,335 +17,115 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Báo cáo thống kê</h1>
-            <div class="flex gap-2">
-                <button id="export-excel-btn"
-                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                    <i class="fas fa-file-excel mr-2"></i> Xuất Excel
-                </button>
-                <button id="export-pdf-btn"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                    <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
-                </button>
-            </div>
         </header>
 
         <main class="p-6">
-            <!-- Filters Section -->
-            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-filter text-blue-500 mr-2"></i>
-                    Bộ lọc báo cáo
-                </h2>
-
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                        <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
-                        <input type="date" id="date_from" name="date_from" value="{{ date('Y-m-d', strtotime('-30 days')) }}"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
-                        <input type="date" id="date_to" name="date_to" value="{{ date('Y-m-d') }}"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="report_type" class="block text-sm font-medium text-gray-700 mb-1">Loại báo cáo</label>
-                        <select id="report_type" name="report_type"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="all" selected>Tổng quan</option>
-                            <option value="inventory">Tồn kho</option>
-                            <option value="assembly">Lắp ráp</option>
-                            <option value="warranty">Bảo hành</option>
-                            <option value="repair">Sửa chữa</option>
-                            <option value="dispatch">Xuất kho</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="warehouse" class="block text-sm font-medium text-gray-700 mb-1">Kho</label>
-                        <select id="warehouse" name="warehouse"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="all" selected>Tất cả các kho</option>
-                            <option value="hn">Kho Hà Nội</option>
-                            <option value="hcm">Kho Hồ Chí Minh</option>
-                            <option value="dn">Kho Đà Nẵng</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="mt-4 flex justify-end">
-                    <button id="filter-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-search mr-2"></i> Áp dụng
-                    </button>
-                </div>
-            </div>
-
-            <!-- Dashboard Overview -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-semibold text-gray-800">Tổng thiết bị</h3>
-                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-microchip text-blue-500"></i>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Báo cáo thống kê chi tiết vật tư xuất cho kho Z755 -->
+                <a href="{{ url('report/material_export_z755') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-box text-blue-500 text-xl"></i>
                         </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Thống kê chi tiết vật tư xuất cho kho Z755</h2>
                     </div>
-                    <p class="text-3xl font-bold text-gray-900">1,257</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-green-500 text-sm font-medium flex items-center">
-                            <i class="fas fa-arrow-up mr-1"></i> 12%
-                        </span>
-                        <span class="text-gray-500 text-sm ml-2">so với tháng trước</span>
-                    </div>
-                </div>
+                    <p class="text-gray-600">Báo cáo thống kê chi tiết vật tư xuất cho kho Z755 theo tuần/tháng/năm</p>
+                </a>
 
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-semibold text-gray-800">Lắp ráp</h3>
-                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-tools text-green-500"></i>
+                <!-- Báo cáo thống kê chi tiết thiết bị thành phẩm -->
+                <a href="{{ url('report/finished_product_by_material') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-laptop text-green-500 text-xl"></i>
                         </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Thống kê chi tiết thiết bị thành phẩm</h2>
                     </div>
-                    <p class="text-3xl font-bold text-gray-900">87</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-green-500 text-sm font-medium flex items-center">
-                            <i class="fas fa-arrow-up mr-1"></i> 8%
-                        </span>
-                        <span class="text-gray-500 text-sm ml-2">so với tháng trước</span>
-                    </div>
-                </div>
+                    <p class="text-gray-600">Báo cáo thống kê chi tiết thiết bị thành phẩm theo vật tư đã xuất cho Z755 theo tuần/tháng/năm</p>
+                </a>
 
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-semibold text-gray-800">Bảo hành</h3>
-                        <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-shield-alt text-yellow-500"></i>
+                <!-- Báo cáo thống kê chi tiết module hỏng -->
+                <a href="{{ url('report/defective_modules') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-100 p-3 rounded-full">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
                         </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Thống kê chi tiết module hỏng</h2>
                     </div>
-                    <p class="text-3xl font-bold text-gray-900">32</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-red-500 text-sm font-medium flex items-center">
-                            <i class="fas fa-arrow-down mr-1"></i> 5%
-                        </span>
-                        <span class="text-gray-500 text-sm ml-2">so với tháng trước</span>
-                    </div>
-                </div>
+                    <p class="text-gray-600">Báo cáo thống kê chi tiết module hỏng trong quá trình sản xuất theo tuần/tháng/năm</p>
+                </a>
 
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-semibold text-gray-800">Xuất kho</h3>
-                        <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                            <i class="fas fa-truck text-purple-500"></i>
+                <!-- Báo cáo thống kê thiết bị nhập kho -->
+                <a href="{{ url('report/finished_product_import') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-purple-100 p-3 rounded-full">
+                            <i class="fas fa-warehouse text-purple-500 text-xl"></i>
                         </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Thống kê thiết bị nhập kho</h2>
                     </div>
-                    <p class="text-3xl font-bold text-gray-900">143</p>
-                    <div class="flex items-center mt-2">
-                        <span class="text-green-500 text-sm font-medium flex items-center">
-                            <i class="fas fa-arrow-up mr-1"></i> 15%
-                        </span>
-                        <span class="text-gray-500 text-sm ml-2">so với tháng trước</span>
-                    </div>
-                </div>
-            </div>
+                    <p class="text-gray-600">Báo cáo thống kê số lượng thiết bị thành phẩm được nhập kho</p>
+                </a>
 
-            <!-- Charts Section -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Inventory Over Time Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Biến động tồn kho theo thời gian</h3>
-                    <div class="h-80">
-                        <canvas id="inventoryChart"></canvas>
+                <!-- Báo cáo thống kê thiết bị xuất đi -->
+                <a href="{{ url('report/product_export_by_project') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-yellow-100 p-3 rounded-full">
+                            <i class="fas fa-truck text-yellow-500 text-xl"></i>
+                        </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Thống kê thiết bị xuất đi</h2>
                     </div>
-                </div>
+                    <p class="text-gray-600">Báo cáo thống kê số lượng thiết bị xuất đi cho từng dự án</p>
+                </a>
 
-                <!-- Assembly by Type Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Phân loại lắp ráp theo sản phẩm</h3>
-                    <div class="h-80">
-                        <canvas id="assemblyChart"></canvas>
+                <!-- Báo cáo chi tiết lịch sử bảo trì -->
+                <a href="{{ url('report/maintenance_history') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-indigo-100 p-3 rounded-full">
+                            <i class="fas fa-tools text-indigo-500 text-xl"></i>
+                        </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Chi tiết lịch sử bảo trì</h2>
                     </div>
-                </div>
-            </div>
+                    <p class="text-gray-600">Báo cáo chi tiết lịch sử bảo trì cho từng dự án</p>
+                </a>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Warranty Status Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Trạng thái bảo hành</h3>
-                    <div class="h-80">
-                        <canvas id="warrantyChart"></canvas>
+                <!-- Báo cáo chi tiết thiết bị bảo hành -->
+                <a href="{{ url('report/warranty_repair_success') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-teal-100 p-3 rounded-full">
+                            <i class="fas fa-check-circle text-teal-500 text-xl"></i>
+                        </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Chi tiết thiết bị bảo hành sửa chữa</h2>
                     </div>
-                </div>
+                    <p class="text-gray-600">Báo cáo chi tiết thiết bị bảo hành xử lý sửa chữa thành công</p>
+                </a>
 
-                <!-- Dispatch by Location Chart -->
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Xuất kho theo địa điểm</h3>
-                    <div class="h-80">
-                        <canvas id="dispatchChart"></canvas>
+                <!-- Báo cáo chi tiết thiết bị xử lý bảo hành nhập kho -->
+                <a href="{{ url('report/warranty_product_return') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-pink-100 p-3 rounded-full">
+                            <i class="fas fa-undo-alt text-pink-500 text-xl"></i>
+                        </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Chi tiết thiết bị xử lý và nhập kho bảo hành</h2>
                     </div>
-                </div>
+                    <p class="text-gray-600">Báo cáo chi tiết thiết bị đã xử lý và nhập kho bảo hành theo tuần/tháng/năm</p>
+                </a>
+
+                <!-- Báo cáo vật tư nhập kho -->
+                <a href="{{ url('report/inventory_import') }}" class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 border border-gray-100">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-orange-100 p-3 rounded-full">
+                            <i class="fas fa-clipboard-list text-orange-500 text-xl"></i>
+                        </div>
+                        <h2 class="ml-4 text-lg font-semibold text-gray-800">Chi tiết vật tư nhập kho</h2>
+                    </div>
+                    <p class="text-gray-600">Báo cáo thống kê chi tiết vật tư nhập kho</p>
+                </a>
             </div>
         </main>
     </div>
 
+    <!-- JavaScript để xử lý các chức năng trên trang -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Filter button
-            const filterBtn = document.getElementById('filter-btn');
-            filterBtn.addEventListener('click', function() {
-                alert('Đã áp dụng bộ lọc báo cáo!');
-                // Here you would typically make an AJAX call to update the dashboard
-            });
-            
-            // Export buttons
-            const exportExcelBtn = document.getElementById('export-excel-btn');
-            exportExcelBtn.addEventListener('click', function() {
-                alert('Tính năng xuất Excel đang được phát triển!');
-            });
-            
-            const exportPdfBtn = document.getElementById('export-pdf-btn');
-            exportPdfBtn.addEventListener('click', function() {
-                alert('Tính năng xuất PDF đang được phát triển!');
-            });
-            
-            // Initialize charts
-            // 1. Inventory Chart
-            const inventoryCtx = document.getElementById('inventoryChart').getContext('2d');
-            const inventoryChart = new Chart(inventoryCtx, {
-                type: 'line',
-                data: {
-                    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
-                    datasets: [
-                        {
-                            label: 'Thiết bị',
-                            data: [850, 920, 980, 1050, 1100, 1150, 1180, 1220, 1240, 1245, 1250, 1257],
-                            borderColor: 'rgba(59, 130, 246, 1)',
-                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        },
-                        {
-                            label: 'Linh kiện',
-                            data: [1200, 1350, 1500, 1620, 1750, 1800, 1920, 2050, 2180, 2250, 2320, 2400],
-                            borderColor: 'rgba(16, 185, 129, 1)',
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            tension: 0.4,
-                            fill: true
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false
-                        }
-                    }
-                }
-            });
-            
-            // 2. Assembly Chart
-            const assemblyCtx = document.getElementById('assemblyChart').getContext('2d');
-            const assemblyChart = new Chart(assemblyCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Radio SPA Pro', 'Radio SPA Lite', 'Radio SPA Mini', 'Radio SPA Plus', 'Radio SPA Ultra'],
-                    datasets: [{
-                        data: [35, 20, 15, 10, 7],
-                        backgroundColor: [
-                            'rgba(59, 130, 246, 0.8)',
-                            'rgba(16, 185, 129, 0.8)',
-                            'rgba(245, 158, 11, 0.8)',
-                            'rgba(139, 92, 246, 0.8)',
-                            'rgba(239, 68, 68, 0.8)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                        }
-                    }
-                }
-            });
-            
-            // 3. Warranty Chart
-            const warrantyCtx = document.getElementById('warrantyChart').getContext('2d');
-            const warrantyChart = new Chart(warrantyCtx, {
-                type: 'pie',
-                data: {
-                    labels: ['Hoàn thành', 'Đang xử lý', 'Chờ duyệt', 'Từ chối'],
-                    datasets: [{
-                        data: [15, 8, 7, 2],
-                        backgroundColor: [
-                            'rgba(16, 185, 129, 0.8)',
-                            'rgba(245, 158, 11, 0.8)',
-                            'rgba(59, 130, 246, 0.8)',
-                            'rgba(239, 68, 68, 0.8)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                        }
-                    }
-                }
-            });
-            
-            // 4. Dispatch Chart
-            const dispatchCtx = document.getElementById('dispatchChart').getContext('2d');
-            const dispatchChart = new Chart(dispatchCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Hà Nội', 'TP HCM', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'Khác'],
-                    datasets: [{
-                        label: 'Số lượng xuất kho',
-                        data: [45, 38, 25, 15, 12, 8],
-                        backgroundColor: 'rgba(139, 92, 246, 0.8)',
-                        borderColor: 'rgba(139, 92, 246, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-            
-            // Report type change handler
-            const reportTypeSelect = document.getElementById('report_type');
-            reportTypeSelect.addEventListener('change', function() {
-                const selectedValue = this.value;
-                alert(`Đã chọn loại báo cáo: ${selectedValue}. Dữ liệu sẽ được cập nhật.`);
-                // Here you would typically make an AJAX call to update the dashboard based on the report type
-            });
-        });
+        // Javascript code can be added here if needed
     </script>
 </body>
 

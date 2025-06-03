@@ -44,11 +44,11 @@
 
         <main class="p-6">
             @if (session('success'))
-            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                {{ session('success') }}
-            </div>
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                    {{ session('success') }}
+                </div>
             @endif
-        
+
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -71,42 +71,43 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        @foreach($products as $index => $product)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $product->code }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $product->name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $product->type }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ route('products.show', $product->id) }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                        @foreach ($products as $index => $product)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ $product->code }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $product->name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $product->type }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
+                                    <a href="{{ route('products.show', $product->id) }}">
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                            title="Xem">
+                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                    <a href="{{ route('products.edit', $product->id) }}">
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                            title="Sửa">
+                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                    <button onclick="openDeleteModal('{{ $product->id }}', '{{ $product->code }}')"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                        title="Xóa">
+                                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                     </button>
-                                </a>
-                                <a href="{{ route('products.edit', $product->id) }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button onclick="openDeleteModal('{{ $product->id }}', '{{ $product->code }}')"
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
                         @endforeach
-                        
-                        @if(count($products) == 0)
-                        <tr>
-                            <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
-                                Không có dữ liệu thành phẩm
-                            </td>
-                        </tr>
+
+                        @if (count($products) == 0)
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    Không có dữ liệu thành phẩm
+                                </td>
+                            </tr>
                         @endif
                     </tbody>
                 </table>
@@ -159,7 +160,8 @@
     <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
             <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
-            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa thành phẩm <span id="productCode" class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
+            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa thành phẩm <span id="productCode"
+                    class="font-semibold"></span>? Hành động này không thể hoàn tác.</p>
             <div class="flex justify-end space-x-3">
                 <button type="button"
                     class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"

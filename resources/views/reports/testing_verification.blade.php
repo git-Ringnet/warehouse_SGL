@@ -99,6 +99,15 @@
                             <option value="3">Lê Văn C</option>
                         </select>
                     </div>
+                    <div>
+                        <label for="time_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian</label>
+                        <select id="time_period" name="time_period"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="week" selected>Tuần</option>
+                            <option value="month">Tháng</option>
+                            <option value="year">Năm</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="mt-4">
@@ -154,9 +163,6 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Đạt tiêu chuẩn
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Thao tác
-                                </th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
@@ -178,11 +184,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-check-circle text-green-500"></i>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </td>
                             </tr>
                             <!-- Row 2 -->
                             <tr class="hover:bg-gray-50">
@@ -201,11 +202,6 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-check-circle text-green-500"></i>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
                                 </td>
                             </tr>
                             <!-- Row 3 -->
@@ -226,11 +222,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-check-circle text-green-500"></i>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </td>
                             </tr>
                             <!-- Row 4 -->
                             <tr class="hover:bg-gray-50">
@@ -249,11 +240,6 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-minus-circle text-yellow-500"></i>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
                                 </td>
                             </tr>
                             <!-- Row 5 -->
@@ -274,11 +260,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-times-circle text-red-500"></i>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </td>
                             </tr>
                             <!-- Row 6 -->
                             <tr class="hover:bg-gray-50">
@@ -297,11 +278,6 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-check-circle text-green-500"></i>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
                                 </td>
                             </tr>
                             <!-- Row 7 -->
@@ -322,11 +298,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-check-circle text-green-500"></i>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </td>
                             </tr>
                             <!-- Row 8 -->
                             <tr class="hover:bg-gray-50">
@@ -345,11 +316,6 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <i class="fas fa-minus-circle text-yellow-500"></i>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
                                 </td>
                             </tr>
                         </tbody>

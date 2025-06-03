@@ -15,7 +15,7 @@
 <body>
     <x-sidebar-component />
     <div class="content-area">
-        <h3 class="text-gray-700 text-3xl font-medium">Báo cáo vật tư nhập kho</h3>
+        <h3 class="text-gray-700 text-3xl font-medium">Thống kê thiết bị nhập kho</h3>
 
         <!-- Bộ lọc -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-6 mt-4">
@@ -35,15 +35,16 @@
                         class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                 </div>
                 <div class="w-full md:w-1/4 px-3 mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2" for="material-category">
-                        Loại vật tư
+                    <label class="block text-gray-700 text-sm font-bold mb-2" for="product-type">
+                        Loại thiết bị
                     </label>
-                    <select id="material-category"
+                    <select id="product-type"
                         class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         <option value="">Tất cả</option>
-                        <option value="electronic">Linh kiện điện tử</option>
-                        <option value="mechanical">Linh kiện cơ khí</option>
-                        <option value="consumable">Vật tư tiêu hao</option>
+                        <option value="router">Router</option>
+                        <option value="switch">Switch</option>
+                        <option value="camera">Camera</option>
+                        <option value="server">Server</option>
                     </select>
                 </div>
                 <div class="w-full md:w-1/4 px-3 mb-4">
@@ -66,36 +67,26 @@
 
         <!-- Thống kê tổng quan -->
         <div class="flex flex-wrap -mx-3 mb-6">
-            <div class="w-full md:w-1/2 px-3 mb-6">
+            <div class="w-full md:w-1/3 px-3 mb-6">
                 <div class="bg-blue-100 border-l-4 border-blue-500 rounded-lg shadow-md p-5 flex items-center">
                     <div class="rounded-full bg-blue-500 p-3 mr-4">
                         <i class="fas fa-boxes text-white text-2xl"></i>
                     </div>
                     <div>
-                        <p class="text-blue-500 text-sm font-medium">Tổng vật tư nhập kho</p>
-                        <p class="text-2xl font-bold">1,852</p>
+                        <p class="text-blue-500 text-sm font-medium">Tổng thiết bị nhập kho</p>
+                        <p class="text-2xl font-bold">845</p>
                     </div>
                 </div>
             </div>
-            <div class="w-full md:w-1/2 px-3 mb-6">
+            <div class="w-full md:w-1/3 px-3 mb-6">
                 <div class="bg-purple-100 border-l-4 border-purple-500 rounded-lg shadow-md p-5 flex items-center">
                     <div class="rounded-full bg-purple-500 p-3 mr-4">
                         <i class="fas fa-truck-loading text-white text-2xl"></i>
                     </div>
                     <div>
-                        <p class="text-purple-500 text-sm font-medium">Đơn nhập kho</p>
-                        <p class="text-2xl font-bold">42</p>
+                        <p class="text-purple-500 text-sm font-medium">Nhà cung cấp</p>
+                        <p class="text-2xl font-bold">18</p>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Biểu đồ -->
-        <div class="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <h4 class="text-lg font-semibold text-gray-700 mb-4">Phân bổ theo loại vật tư</h4>
-                <div class="chart-container" style="position: relative; height:250px;">
-                    <canvas id="materialTypeChart"></canvas>
                 </div>
             </div>
         </div>
@@ -103,7 +94,7 @@
         <!-- Bảng dữ liệu -->
         <div class="bg-white rounded-lg shadow-md overflow-hidden mb-6">
             <div class="p-4 flex justify-between items-center border-b">
-                <h4 class="text-lg font-semibold text-gray-700">Chi tiết vật tư nhập kho</h4>
+                <h4 class="text-lg font-semibold text-gray-700">Danh sách thiết bị nhập kho</h4>
                 <div class="flex space-x-2">
                     <button
                         class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline flex items-center">
@@ -124,16 +115,13 @@
                                 STT</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Mã phiếu</th>
+                                Mã thiết bị</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Mã vật tư</th>
+                                Tên thiết bị</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Tên vật tư</th>
-                            <th scope="col"
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Loại</th>
+                                Loại thiết bị</th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Số lượng</th>
@@ -149,31 +137,28 @@
                         @for ($i = 1; $i <= 10; $i++)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $i }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">NK-{{ 10000 + $i }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">VT-{{ 20000 + $i }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">TB-{{ 20000 + $i }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     @php
-                                        $materials = [
-                                            'Cảm biến áp suất',
-                                            'Module điều khiển',
-                                            'Transistor BC547',
-                                            'Điện trở 10K 1/4W',
-                                            'IC nguồn LM7805',
+                                        $devices = [
+                                            'Router Cisco RV345',
+                                            'Switch Cisco SG350-28',
+                                            'Camera IP Hikvision DS-2CD2023G0',
+                                            'Server Dell PowerEdge R440',
                                         ];
-                                        echo $materials[array_rand($materials)];
+                                        echo $devices[array_rand($devices)];
                                     @endphp
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     @php
-                                        $types = ['Linh kiện điện tử', 'Linh kiện cơ khí', 'Vật tư tiêu hao'];
+                                        $types = ['Router', 'Switch', 'Camera', 'Server'];
                                         echo $types[array_rand($types)];
                                     @endphp
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rand(10, 200) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rand(1, 10) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ date('d/m/Y', strtotime('-' . rand(1, 120) . ' days')) }}</td>
+                                    {{ date('d/m/Y', strtotime('-' . rand(1, 60) . ' days')) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     @php
                                         $suppliers = [
@@ -192,14 +177,14 @@
             </div>
             <div class="px-6 py-4 border-t">
                 <div class="flex justify-between items-center">
-                    <div class="text-sm text-gray-500">Hiển thị 1 đến 10 của 152 bản ghi</div>
+                    <div class="text-sm text-gray-500">Hiển thị 1 đến 10 của 87 bản ghi</div>
                     <div class="flex space-x-1">
                         <a href="#" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Trước</a>
                         <a href="#" class="px-3 py-1 border rounded text-sm bg-blue-500 text-white">1</a>
                         <a href="#" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">2</a>
                         <a href="#" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">3</a>
                         <span class="px-3 py-1 border rounded text-sm">...</span>
-                        <a href="#" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">16</a>
+                        <a href="#" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">9</a>
                         <a href="#" class="px-3 py-1 border rounded text-sm hover:bg-gray-50">Tiếp</a>
                     </div>
                 </div>
@@ -209,42 +194,14 @@
 </body>
 
 </html>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize date pickers with today's date and 120 days ago
+        // Initialize date pickers with today's date and 60 days ago
         const today = new Date();
-        const fourMonthsAgo = new Date();
-        fourMonthsAgo.setDate(today.getDate() - 120);
+        const sixtyDaysAgo = new Date();
+        sixtyDaysAgo.setDate(today.getDate() - 60);
 
         document.getElementById('to-date').valueAsDate = today;
-        document.getElementById('from-date').valueAsDate = fourMonthsAgo;
-
-        // Setup material type chart
-        const materialTypeCtx = document.getElementById('materialTypeChart').getContext('2d');
-        const materialTypeChart = new Chart(materialTypeCtx, {
-            type: 'pie',
-            data: {
-                labels: ['Linh kiện điện tử', 'Linh kiện cơ khí', 'Vật tư tiêu hao'],
-                datasets: [{
-                    data: [45, 35, 20],
-                    backgroundColor: [
-                        'rgba(54, 162, 235, 0.7)',
-                        'rgba(255, 99, 132, 0.7)',
-                        'rgba(255, 205, 86, 0.7)'
-                    ],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                    }
-                }
-            }
-        });
+        document.getElementById('from-date').valueAsDate = sixtyDaysAgo;
     });
 </script>

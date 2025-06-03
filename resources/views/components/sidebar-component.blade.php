@@ -1,5 +1,6 @@
 <!-- Sidebar -->
-<div class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50" style="bottom: 0; background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);">
+<div class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50"
+    style="bottom: 0; background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);">
     <div class="p-4 flex items-center justify-between border-b border-gray-700">
         <div class="flex items-center">
             <i class="fas fa-warehouse text-2xl mr-3" style="color: #fff"></i>
@@ -17,7 +18,7 @@
         </div>
         <ul class="space-y-2">
             <li>
-                <a href="{{ asset('') }}" class="nav-item flex items-center px-4 py-3 rounded-lg">
+                <a href="{{ asset('dashboard') }}" class="nav-item flex items-center px-4 py-3 rounded-lg">
                     <i class="fas fa-tachometer-alt mr-3"></i>
                     <span class="nav-text">Tổng Quan</span>
                 </a>
@@ -39,13 +40,12 @@
                                 Hàng</a>
                         </li>
                         <li>
-                        <a href="{{ asset('suppliers') }}"
-                                 class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhà Cung
+                            <a href="{{ asset('suppliers') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhà
+                                Cung
                                 Cấp</a>
                         </li>
                         <li>
-                        <a href="{{ asset('employees') }}"
-                         class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhân
+                            <a href="{{ asset('employees') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhân
                                 Viên</a>
                         </li>
                         <li>
@@ -79,13 +79,13 @@
             <li>
                 <div class="dropdown">
                     <a href="{{ asset('testing') }}">
-                    <button onclick="toggleDropdown('testing')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-vial mr-3"></i>
-                            <span class="nav-text">Kiểm Thử</span>
-                        </div>
-                    </button>
+                        <button onclick="toggleDropdown('testing')"
+                            class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                            <div class="flex items-center">
+                                <i class="fas fa-vial mr-3"></i>
+                                <span class="nav-text">Kiểm Thử</span>
+                            </div>
+                        </button>
                     </a>
                 </div>
             </li>
@@ -101,23 +101,26 @@
                     </button>
                     <ul id="operations" class="dropdown-content pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="{{ asset('inventory-imports') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhập Kho</a>
+                            <a href="{{ asset('inventory-imports') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhập Kho</a>
                         </li>
                         <li>
-                            <a href="{{ asset('inventory') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Xuất
+                            <a href="{{ asset('inventory') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Xuất
                                 Kho</a>
                         </li>
                         <li>
-                            <a href="{{ asset('warehouse-transfers') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
+                            <a href="{{ asset('warehouse-transfers') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
                         </li>
                         <li>
-                            <a href="{{ asset('repair_list') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                            <a href="{{ asset('repair_list') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
                                 Sửa chữa - bảo hành
                             </a>
                         </li>
                         <li>
-                            <a href="{{ asset('warranties') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Bảo
+                            <a href="{{ asset('warranties') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Bảo
                                 hành điện
                                 tử</a>
                         </li>
@@ -136,11 +139,13 @@
                     </button>
                     <ul id="projects" class="dropdown-content pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="{{ asset('projects') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản Lý Dự
+                            <a href="{{ asset('projects') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản
+                                Lý Dự
                                 Án</a>
                         </li>
                         <li>
-                        <a href="{{ asset('rentals') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản Lý Cho
+                            <a href="{{ asset('rentals') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản
+                                Lý Cho
                                 Thuê</a>
                         </li>
                     </ul>
@@ -160,21 +165,22 @@
                 </div>
             </li>
             <li>
-                <a href="{{ asset('software') }}" class="nav-item flex items-center px-4 py-3 rounded-lg hover:bg-gray-700">
+                <a href="{{ asset('software') }}"
+                    class="nav-item flex items-center px-4 py-3 rounded-lg hover:bg-gray-700">
                     <i class="fas fa-laptop-code mr-3"></i>
                     <span class="nav-text">Phần mềm</span>
                 </a>
             </li>
             <li>
                 <div class="dropdown">
-                <a href="{{ asset('requests') }}">
-                    <button onclick="toggleDropdown('requestForm')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-file-alt mr-3"></i>
-                            <span class="nav-text">Gửi phiếu yêu cầu</span>
-                        </div>
-                    </button>
+                    <a href="{{ asset('requests') }}">
+                        <button onclick="toggleDropdown('requestForm')"
+                            class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                            <div class="flex items-center">
+                                <i class="fas fa-file-alt mr-3"></i>
+                                <span class="nav-text">Gửi phiếu yêu cầu</span>
+                            </div>
+                        </button>
                     </a>
                 </div>
             </li>
@@ -188,16 +194,66 @@
                         </div>
                         <i class="fas fa-chevron-down text-xs"></i>
                     </button>
-                    <ul id="reports" class="dropdown-content pl-4 mt-1 space-y-1">
+                    <ul id="reports" class="dropdown-content reports-menu pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="{{ asset('report') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo
-                                cáo tổng quan</a>
+                            <a href="{{ asset('report/material_export_z755') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thống kê vật tư xuất Z755
+                            </a>
                         </li>
                         <li>
-                            <a href="{{ asset('report/inventory_import') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo vật tư nhập</a>
+                            <a href="{{ asset('report/finished_product_by_material') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thống kê thiết bị theo vật tư Z755
+                            </a>
                         </li>
                         <li>
-                            <a href="{{ asset('report/testing_verification') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Báo cáo vật tư kiểm thử cài đặt nghiệm thu</a>
+                            <a href="{{ asset('report/defective_modules') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thống kê module hỏng
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/finished_product_import') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thống kê thiết bị nhập kho
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/product_export_by_project') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thống kê thiết bị xuất theo dự án
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/maintenance_history') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Lịch sử bảo trì theo dự án
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/warranty_repair_success') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thiết bị bảo hành sửa chữa
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/warranty_product_return') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Thiết bị nhập kho bảo hành
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/inventory_import') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Báo cáo vật tư nhập kho
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ asset('report/testing_verification') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Báo cáo kiểm thử nghiệm thu
+                            </a>
                         </li>
                     </ul>
                 </div>
@@ -219,7 +275,8 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{{ asset('permissions') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                            <a href="{{ asset('permissions') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
                                 Danh sách quyền
                             </a>
                         </li>
@@ -242,7 +299,7 @@
             const sidebar = document.querySelector('.sidebar');
             const body = document.body;
             const html = document.documentElement;
-            
+
             // Get the maximum height of the page content
             const height = Math.max(
                 body.scrollHeight,
@@ -251,17 +308,17 @@
                 html.scrollHeight,
                 html.offsetHeight
             );
-            
+
             // Set the sidebar height
             sidebar.style.height = height + 'px';
         }
-        
+
         // Run on page load
         adjustSidebar();
-        
+
         // Also run when window is resized
         window.addEventListener('resize', adjustSidebar);
-        
+
         // Run again after a short delay to ensure all content is loaded
         setTimeout(adjustSidebar, 500);
     });
@@ -299,3 +356,53 @@
     });
 </script>
 <script src="{{ asset('js/sidebar-active.js') }}"></script>
+
+<style>
+    .sidebar {
+        color: #fff;
+    }
+
+    .logo-text {
+        color: #fff;
+    }
+
+    .nav-item {
+        color: #cbd5e0;
+    }
+
+    .nav-item:hover {
+        color: #fff;
+    }
+
+    .dropdown-content {
+        max-height: 0;
+        overflow: hidden;
+        transition: all 0.3s;
+    }
+
+    .dropdown-content.show {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    /* Đặc biệt cho menu báo cáo do có nhiều mục */
+    .dropdown-content.reports-menu.show {
+        overflow-y: auto;
+    }
+
+    .dropdown-content a {
+        color: #a0aec0;
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .dropdown-content a:hover {
+        color: #fff;
+    }
+
+    .nav-item.active,
+    .dropdown-content a.active {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+</style>
