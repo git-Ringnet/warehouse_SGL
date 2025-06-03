@@ -167,6 +167,110 @@
                     </div> -->
                 </div>
 
+                <!-- Thiết bị dự án -->
+                <div class="mt-8 pt-6 border-t border-gray-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold text-gray-800">Thiết bị dự án</h2>
+                        <button type="button" class="text-blue-500 hover:text-blue-600 text-sm font-medium" onclick="addEquipmentRow()">
+                            <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị
+                        </button>
+                    </div>
+
+                    <!-- Kho xuất thiết bị -->
+                    <div class="mb-4">
+                        <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho xuất thiết bị</label>
+                        <select name="warehouse_id" id="warehouse_id" required class="w-full md:w-1/3 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Chọn kho --</option>
+                            @foreach($warehouses ?? [] as $warehouse)
+                                <option value="{{ $warehouse->id }}" {{ isset($project) && $project->warehouse_id == $warehouse->id ? 'selected' : '' }}>
+                                    {{ $warehouse->name }} ({{ $warehouse->code }})
+                                </option>
+                            @endforeach
+                        </select>
+                        <p class="text-sm text-gray-500 mt-1">Chọn kho để xuất thiết bị cho dự án</p>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã thiết bị</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại thiết bị</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100" id="equipment-table-body">
+                                @if(isset($project_equipment) && count($project_equipment) > 0)
+                                    @foreach($project_equipment as $index => $equipment)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                <input type="text" name="project_equipment[{{$index}}][code]" value="{{ $equipment->code }}" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                <input type="text" name="project_equipment[{{$index}}][name]" value="{{ $equipment->name }}" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                <select name="project_equipment[{{$index}}][type]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                    <option value="">Chọn loại</option>
+                                                    <option value="camera" {{ $equipment->type == 'camera' ? 'selected' : '' }}>Camera</option>
+                                                    <option value="nvr" {{ $equipment->type == 'nvr' ? 'selected' : '' }}>NVR/DVR</option>
+                                                    <option value="sensor" {{ $equipment->type == 'sensor' ? 'selected' : '' }}>Cảm biến</option>
+                                                    <option value="controller" {{ $equipment->type == 'controller' ? 'selected' : '' }}>Bộ điều khiển</option>
+                                                    <option value="other" {{ $equipment->type == 'other' ? 'selected' : '' }}>Khác</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                <input type="number" name="project_equipment[{{$index}}][quantity]" min="1" value="{{ $equipment->quantity }}" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">
+                                                <input type="text" name="project_equipment[{{$index}}][note]" value="{{ $equipment->note }}" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                <button type="button" class="text-red-500 hover:text-red-700" onclick="removeEquipmentRow(this)">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @else
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            <input type="text" name="project_equipment[0][code]" placeholder="Mã thiết bị" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                            <input type="text" name="project_equipment[0][name]" placeholder="Tên thiết bị" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                            <select name="project_equipment[0][type]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="">Chọn loại</option>
+                                                <option value="camera">Camera</option>
+                                                <option value="nvr">NVR/DVR</option>
+                                                <option value="sensor">Cảm biến</option>
+                                                <option value="controller">Bộ điều khiển</option>
+                                                <option value="other">Khác</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                            <input type="number" name="project_equipment[0][quantity]" min="1" value="1" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">
+                                            <input type="text" name="project_equipment[0][note]" placeholder="Ghi chú" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="removeEquipmentRow(this)">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endif
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Thiết bị bảo hành -->
                 <div class="mt-8 pt-6 border-t border-gray-200">
                     <div class="flex justify-between items-center mb-4">
@@ -263,31 +367,28 @@
     </div>
 
     <script>
-        // Add warranty row
-        let warrantyRowCount = 2; // Start at 2 since we already have rows 0 and 1
-        
+        // For warranty devices
+        let warrantyRowIndex = {{ isset($warranty_devices) && $warranty_devices->count() > 0 ? $warranty_devices->count() : 1 }};
         function addWarrantyRow() {
-            const warrantyTableBody = document.getElementById('warranty-table-body');
-            const newRow = document.createElement('tr');
-            newRow.className = 'hover:bg-gray-50';
+            const tbody = document.getElementById('warranty-table-body');
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
             
-            const today = new Date().toISOString().split('T')[0];
-            
-            newRow.innerHTML = `
+            row.innerHTML = `
                 <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                    <input type="text" name="warranty_devices[${warrantyRowCount}][code]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="warranty_devices[${warrantyRowIndex}][code]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                    <input type="text" name="warranty_devices[${warrantyRowCount}][name]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="warranty_devices[${warrantyRowIndex}][name]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                    <input type="date" name="warranty_devices[${warrantyRowCount}][date]" value="${today}" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="date" name="warranty_devices[${warrantyRowIndex}][date]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500" value="${new Date().toISOString().split('T')[0]}">
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-700">
-                    <input type="text" name="warranty_devices[${warrantyRowCount}][issue]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" name="warranty_devices[${warrantyRowIndex}][issue]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </td>
                 <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                    <select name="warranty_devices[${warrantyRowCount}][status]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select name="warranty_devices[${warrantyRowIndex}][status]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="pending" selected>Chờ xử lý</option>
                         <option value="processing">Đang xử lý</option>
                         <option value="fixed">Đã sửa</option>
@@ -302,13 +403,57 @@
                 </td>
             `;
             
-            // Append the new row
-            warrantyTableBody.appendChild(newRow);
-            
-            warrantyRowCount++;
+            tbody.appendChild(row);
+            warrantyRowIndex++;
+        }
+
+        function removeWarrantyRow(button) {
+            const row = button.closest('tr');
+            row.remove();
         }
         
-        function removeWarrantyRow(button) {
+        // For equipment
+        let equipmentRowIndex = {{ isset($project_equipment) && count($project_equipment) > 0 ? count($project_equipment) : 1 }};
+        function addEquipmentRow() {
+            const tbody = document.getElementById('equipment-table-body');
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50';
+            
+            row.innerHTML = `
+                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <input type="text" name="project_equipment[${equipmentRowIndex}][code]" placeholder="Mã thiết bị" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                    <input type="text" name="project_equipment[${equipmentRowIndex}][name]" placeholder="Tên thiết bị" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                    <select name="project_equipment[${equipmentRowIndex}][type]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Chọn loại</option>
+                        <option value="camera">Camera</option>
+                        <option value="nvr">NVR/DVR</option>
+                        <option value="sensor">Cảm biến</option>
+                        <option value="controller">Bộ điều khiển</option>
+                        <option value="other">Khác</option>
+                    </select>
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                    <input type="number" name="project_equipment[${equipmentRowIndex}][quantity]" min="1" value="1" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-700">
+                    <input type="text" name="project_equipment[${equipmentRowIndex}][note]" placeholder="Ghi chú" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </td>
+                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                    <button type="button" class="text-red-500 hover:text-red-700" onclick="removeEquipmentRow(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+            equipmentRowIndex++;
+        }
+
+        function removeEquipmentRow(button) {
             const row = button.closest('tr');
             row.remove();
         }

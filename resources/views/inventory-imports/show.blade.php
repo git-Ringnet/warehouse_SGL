@@ -59,10 +59,6 @@
                                     <p class="text-sm text-gray-600">Số mặt hàng:</p>
                                     <p class="font-medium text-gray-800">1</p>
                                 </div>
-                                <div class="mt-2 text-right">
-                                    <p class="text-sm text-gray-600">Tổng giá trị:</p>
-                                    <p class="font-medium text-gray-800">5,000,000 VNĐ</p>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -88,8 +84,6 @@
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn vị</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phân loại</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn giá</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thành tiền</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
@@ -99,17 +93,8 @@
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Kg</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">100</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">50,000 VNĐ</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 font-medium">5,000,000 VNĐ</td>
                                     </tr>
                                 </tbody>
-                                <tfoot class="bg-gray-50">
-                                    <tr>
-                                        <td colspan="5" class="px-4 py-3 whitespace-nowrap text-sm text-gray-700"></td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">Tổng cộng:</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">5,000,000 VNĐ</td>
-                                    </tr>
-                                </tfoot>
                             </table>
                         </div>
                     </div>

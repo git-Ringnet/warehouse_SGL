@@ -18,6 +18,7 @@ class Assembly extends Model
         'code',
         'date',
         'product_id',
+        'warehouse_id',
         'assigned_to',
         'status',
         'notes'
@@ -29,6 +30,14 @@ class Assembly extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the warehouse for this assembly.
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     /**

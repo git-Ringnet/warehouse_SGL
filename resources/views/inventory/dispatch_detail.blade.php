@@ -49,6 +49,10 @@
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày xuất:</span>
                             <span class="text-sm text-gray-700">05/05/2023</span>
                         </div>
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất:</span>
+                            <span class="text-sm text-gray-700">Kho chính</span>
+                        </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
                             <span class="text-sm text-gray-700">Công ty TNHH ABC</span>

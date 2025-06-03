@@ -114,6 +114,140 @@
                 </div>
                 @endif
 
+                <!-- Bảng hiển thị linh kiện và thành phẩm -->
+                <div class="border-t border-gray-200 pt-4 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Tồn kho</h3>
+                    
+                    <!-- Tab navigation -->
+                    <div class="mb-4 border-b border-gray-200">
+                        <ul class="flex flex-wrap -mb-px" id="inventoryTabs" role="tablist">
+                            <li class="mr-2" role="presentation">
+                                <button class="inline-block p-4 border-b-2 border-blue-500 rounded-t-lg text-blue-600 font-medium" 
+                                        id="components-tab" 
+                                        data-tabs-target="#components" 
+                                        type="button" 
+                                        role="tab" 
+                                        aria-controls="components" 
+                                        aria-selected="true"
+                                        onclick="openTab('components')">
+                                    Linh kiện
+                                </button>
+                            </li>
+                            <li class="mr-2" role="presentation">
+                                <button class="inline-block p-4 border-b-2 border-transparent rounded-t-lg text-gray-500 hover:text-gray-600 hover:border-gray-300"
+                                        id="products-tab" 
+                                        data-tabs-target="#products" 
+                                        type="button" 
+                                        role="tab" 
+                                        aria-controls="products" 
+                                        aria-selected="false"
+                                        onclick="openTab('products')">
+                                    Thành phẩm
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Tab content -->
+                    <div id="inventoryTabContent">
+                        <!-- Linh kiện tab -->
+                        <div class="block" id="components" role="tabpanel" aria-labelledby="components-tab">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Mã linh kiện
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tên linh kiện
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Loại
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Số lượng tồn
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Đơn vị
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Dữ liệu mẫu - sẽ được thay thế bằng dữ liệu thực từ backend -->
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LK001</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Bo mạch chủ</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Điện tử</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">150</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LK002</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Chip xử lý</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Điện tử</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">85</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LK003</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Vỏ máy tính</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Phụ kiện</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">52</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Thành phẩm tab -->
+                        <div class="hidden" id="products" role="tabpanel" aria-labelledby="products-tab">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Mã thành phẩm
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tên thành phẩm
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Danh mục
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Số lượng tồn
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Dữ liệu mẫu - sẽ được thay thế bằng dữ liệu thực từ backend -->
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SP001</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Máy tính để bàn Gaming</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Máy tính</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">25</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SP002</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Laptop Business</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Laptop</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">18</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SP003</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Tablet Pro</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Tablet</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">32</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Có thể thêm các section khác ở đây: Danh sách sản phẩm trong kho, lịch sử nhập xuất, ... -->
                 
                 <div class="mt-6 flex justify-end">
@@ -156,6 +290,27 @@
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        function openTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('#inventoryTabContent > div');
+            tabContents.forEach(tab => tab.classList.add('hidden'));
+            
+            // Show the selected tab content
+            document.getElementById(tabName).classList.remove('hidden');
+            
+            // Update tab button styling
+            const tabButtons = document.querySelectorAll('#inventoryTabs button');
+            tabButtons.forEach(button => {
+                button.classList.remove('border-blue-500', 'text-blue-600');
+                button.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-600', 'hover:border-gray-300');
+            });
+            
+            // Style active tab
+            const activeButton = document.getElementById(`${tabName}-tab`);
+            activeButton.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-600', 'hover:border-gray-300');
+            activeButton.classList.add('border-blue-500', 'text-blue-600');
         }
     </script>
 </body>

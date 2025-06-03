@@ -142,12 +142,6 @@
                         <input type="date" name="due_date" id="due_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="2024-06-30">
                     </div>
 
-                    <!-- Tiền đặt cọc -->
-                    <div>
-                        <label for="deposit" class="block text-sm font-medium text-gray-700 mb-1">Tiền đặt cọc (VNĐ)</label>
-                        <input type="number" name="deposit" id="deposit" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="5000000">
-                    </div>
-
                     <!-- Trạng thái -->
                     <div>
                         <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
@@ -169,6 +163,16 @@
                     <div>
                         <label for="contact_phone" class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại liên hệ</label>
                         <input type="text" name="contact_phone" id="contact_phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="0912345678">
+                    </div>
+
+                    <!-- Kho -->
+                    <div>
+                        <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Kho</label>
+                        <select name="status" id="status" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="active" selected>Kho 1</option>
+                            <option value="active" selected>Kho 2</option>
+                            <option value="returned">Kho 3</option>
+                        </select>
                     </div>
 
                     <!-- Ghi chú -->
