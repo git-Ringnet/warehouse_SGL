@@ -294,34 +294,34 @@
 
 <!-- JavaScript to fix sidebar height -->
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        function adjustSidebar() {
-            const sidebar = document.querySelector('.sidebar');
-            const body = document.body;
-            const html = document.documentElement;
+    // document.addEventListener('DOMContentLoaded', function() {
+    //     function adjustSidebar() {
+    //         const sidebar = document.querySelector('.sidebar');
+    //         const body = document.body;
+    //         const html = document.documentElement;
 
-            // Get the maximum height of the page content
-            const height = Math.max(
-                body.scrollHeight,
-                body.offsetHeight,
-                html.clientHeight,
-                html.scrollHeight,
-                html.offsetHeight
-            );
+    //         // Get the maximum height of the page content
+    //         const height = Math.max(
+    //             body.scrollHeight,
+    //             body.offsetHeight,
+    //             html.clientHeight,
+    //             html.scrollHeight,
+    //             html.offsetHeight
+    //         );
 
-            // Set the sidebar height
-            sidebar.style.height = height + 'px';
-        }
+    //         // Set the sidebar height
+    //         sidebar.style.height = height + 'px';
+    //     }
 
-        // Run on page load
-        adjustSidebar();
+    //     // Run on page load
+    //     adjustSidebar();
 
-        // Also run when window is resized
-        window.addEventListener('resize', adjustSidebar);
+    //     // Also run when window is resized
+    //     window.addEventListener('resize', adjustSidebar);
 
-        // Run again after a short delay to ensure all content is loaded
-        setTimeout(adjustSidebar, 500);
-    });
+    //     // Run again after a short delay to ensure all content is loaded
+    //     setTimeout(adjustSidebar, 500);
+    // });
 
     // Dropdown Menus
     function toggleDropdown(id) {

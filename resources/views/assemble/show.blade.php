@@ -58,7 +58,11 @@
                         </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Sản phẩm:</span>
-                            <span class="text-sm text-gray-700">Radio SPA Pro</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
+                        </div>
+                        <div class="flex items-center mt-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Kho lắp ráp:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->warehouse->name }} ({{ $assembly->warehouse->code }})</span>
                         </div>
                     </div>
                     <div>

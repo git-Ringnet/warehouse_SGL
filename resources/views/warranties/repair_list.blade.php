@@ -53,6 +53,13 @@
                             <option value="upgrade">Nâng cấp</option>
                             <option value="other">Khác</option>
                         </select>
+                        <select id="warehouse_filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Tất cả kho</option>
+                            <option value="1">Kho chính</option>
+                            <option value="2">Kho phụ</option>
+                            <option value="3">Kho linh kiện</option>
+                            <option value="4">Kho bảo hành</option>
+                        </select>
                         <div class="relative">
                             <input type="date" id="date_from" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <span class="mx-1">-</span>
@@ -100,6 +107,9 @@
                                     Kỹ thuật viên
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Kho sửa chữa
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Trạng thái
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -129,6 +139,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Nguyễn Văn A</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho chính</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                         Hoàn thành
@@ -178,6 +189,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Trần Văn B</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho chính</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                         Hoàn thành
@@ -227,6 +239,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Lê Thị C</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho bảo hành</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                         Đang tiến hành
@@ -309,6 +322,7 @@
             const searchInput = document.getElementById('search_input');
             const statusFilter = document.getElementById('status_filter');
             const repairTypeFilter = document.getElementById('repair_type_filter');
+            const warehouseFilter = document.getElementById('warehouse_filter');
             const dateFrom = document.getElementById('date_from');
             const dateTo = document.getElementById('date_to');
             const filterBtn = document.getElementById('filter_btn');
@@ -325,6 +339,7 @@
                 console.log('Search:', searchInput.value);
                 console.log('Status:', statusFilter.value);
                 console.log('Repair Type:', repairTypeFilter.value);
+                console.log('Warehouse:', warehouseFilter.value);
                 console.log('Date From:', dateFrom.value);
                 console.log('Date To:', dateTo.value);
                 
@@ -338,6 +353,7 @@
                 searchInput.value = '';
                 statusFilter.value = '';
                 repairTypeFilter.value = '';
+                warehouseFilter.value = '';
                 dateFrom.value = '';
                 dateTo.value = '';
                 

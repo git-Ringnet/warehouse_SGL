@@ -6,6 +6,7 @@ use App\Models\Assembly;
 use App\Models\AssemblyMaterial;
 use App\Models\Material;
 use App\Models\Product;
+use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -29,8 +30,9 @@ class AssemblyController extends Controller
         // Get all products and materials for the form
         $products = Product::all();
         $materials = Material::all();
+        $warehouses = Warehouse::all();
         
-        return view('assemble.create', compact('products', 'materials'));
+        return view('assemble.create', compact('products', 'materials', 'warehouses'));
     }
 
     /**
@@ -42,6 +44,7 @@ class AssemblyController extends Controller
             'assembly_code' => 'required|unique:assemblies,code',
             'assembly_date' => 'required|date',
             'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'assigned_to' => 'required',
             'components' => 'required|array|min:1',
             'components.*.id' => 'required|exists:materials,id',
@@ -55,6 +58,7 @@ class AssemblyController extends Controller
                 'code' => $request->assembly_code,
                 'date' => $request->assembly_date,
                 'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
                 'assigned_to' => $request->assigned_to,
                 'status' => 'completed',
                 'notes' => $request->assembly_note,
@@ -96,8 +100,9 @@ class AssemblyController extends Controller
         $assembly->load(['product', 'materials.material']);
         $products = Product::all();
         $materials = Material::all();
+        $warehouses = Warehouse::all();
         
-        return view('assemble.edit', compact('assembly', 'products', 'materials'));
+        return view('assemble.edit', compact('assembly', 'products', 'materials', 'warehouses'));
     }
 
     /**
@@ -108,6 +113,7 @@ class AssemblyController extends Controller
         $request->validate([
             'assembly_date' => 'required|date',
             'product_id' => 'required|exists:products,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'assigned_to' => 'required',
             'components' => 'required|array|min:1',
             'components.*.id' => 'required|exists:materials,id',
@@ -120,6 +126,7 @@ class AssemblyController extends Controller
             $assembly->update([
                 'date' => $request->assembly_date,
                 'product_id' => $request->product_id,
+                'warehouse_id' => $request->warehouse_id,
                 'assigned_to' => $request->assigned_to,
                 'notes' => $request->assembly_note,
             ]);

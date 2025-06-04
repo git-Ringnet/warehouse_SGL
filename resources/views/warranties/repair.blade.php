@@ -137,6 +137,17 @@
                                 placeholder="Nhập tên kỹ thuật viên">
                         </div>
                         <div>
+                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho sửa chữa <span class="text-red-500">*</span></label>
+                            <select id="warehouse_id" name="warehouse_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn kho sửa chữa --</option>
+                                <option value="1">Kho chính</option>
+                                <option value="2">Kho phụ</option>
+                                <option value="3">Kho linh kiện</option>
+                                <option value="4">Kho bảo hành</option>
+                            </select>
+                        </div>
+                        <div>
                             <label for="repair_status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái <span class="text-red-500">*</span></label>
                             <select id="repair_status" name="repair_status" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">

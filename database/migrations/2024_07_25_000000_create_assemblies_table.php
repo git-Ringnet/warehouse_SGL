@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('assigned_to');
             $table->enum('status', ['pending', 'in_progress', 'completed', 'cancelled'])->default('pending');
+            $table->foreignId('warehouse_id')->nullable()->constrained()->onDelete('set null');
             $table->text('notes')->nullable();
             $table->timestamps();
         });

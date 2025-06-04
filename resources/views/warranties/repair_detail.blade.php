@@ -68,6 +68,10 @@
                             <span class="text-sm text-gray-700">Nguyễn Văn A</span>
                         </div>
                         <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Kho sửa chữa:</span>
+                            <span class="text-sm text-gray-700">Kho chính</span>
+                        </div>
+                        <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Loại sửa chữa:</span>
                             <span
                                 class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">

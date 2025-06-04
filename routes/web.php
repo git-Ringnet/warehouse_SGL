@@ -410,6 +410,32 @@ Route::get('/assemblies/search-materials', [AssemblyController::class, 'searchMa
 // Route for material search in assemblies
 Route::get('/materials/search', [App\Http\Controllers\AssemblyController::class, 'searchMaterials'])->name('materials.search');
 
+// Thêm phần routes phân quyền
+// Routes cho nhóm quyền (roles)
+Route::resource('roles', RoleController::class);
+Route::put('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggle-status');
+
+// Routes cho danh sách quyền (permissions)
+Route::resource('permissions', PermissionController::class);
+
+// Routes cho nhật ký người dùng (user logs)
+Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
+Route::get('user-logs/{id}', [UserLogController::class, 'show'])->name('user-logs.show');
+Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export');
+
+Route::get('/requests/project/create', function () {
+    return view('requests.project.create');
+});
+
+Route::get('/requests/maintenance/create', function () {
+    return view('requests.maintenance.create');
+});
+
+Route::get('/requests/components/create', function () {
+    return view('requests.components.create');
+});
+
+
 // Temporary debug route
 Route::get('/debug/materials', function () {
     try {

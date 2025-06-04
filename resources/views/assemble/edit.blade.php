@@ -55,30 +55,40 @@
                             <select id="product_id" name="product_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn sản phẩm --</option>
-                                <option value="1" selected>Radio SPA Pro</option>
-                                <option value="2">Radio SPA Lite</option>
-                                <option value="3">Radio SPA Mini</option>
-                                <option value="4">Radio SPA Plus</option>
-                                <option value="5">Radio SPA Ultra</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}" {{ $assembly->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                                @endforeach
                             </select>
                         </div>
+                        <div>
+                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho lắp ráp <span class="text-red-500">*</span></label>
+                            <select id="warehouse_id" name="warehouse_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn kho lắp ráp --</option>
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}" {{ $assembly->warehouse_id == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }} ({{ $warehouse->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
                             <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người phụ trách <span class="text-red-500">*</span></label>
                             <select id="assigned_to" name="assigned_to" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn người phụ trách --</option>
-                                <option value="1" selected>Nguyễn Văn A</option>
-                                <option value="2">Trần Thị B</option>
-                                <option value="3">Lê Văn C</option>
-                                <option value="4">Phạm Thị D</option>
+                                <option value="Nguyễn Văn A" {{ $assembly->assigned_to == 'Nguyễn Văn A' ? 'selected' : '' }}>Nguyễn Văn A</option>
+                                <option value="Trần Thị B" {{ $assembly->assigned_to == 'Trần Thị B' ? 'selected' : '' }}>Trần Thị B</option>
+                                <option value="Lê Văn C" {{ $assembly->assigned_to == 'Lê Văn C' ? 'selected' : '' }}>Lê Văn C</option>
+                                <option value="Phạm Thị D" {{ $assembly->assigned_to == 'Phạm Thị D' ? 'selected' : '' }}>Phạm Thị D</option>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                        <textarea id="assembly_note" name="assembly_note" rows="2"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">Lắp ráp thiết bị mới theo đơn đặt hàng ABC123</textarea>
+                        <div>
+                            <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                            <textarea id="assembly_note" name="assembly_note" rows="2"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ $assembly->notes }}</textarea>
+                        </div>
                     </div>
                 </div>
 

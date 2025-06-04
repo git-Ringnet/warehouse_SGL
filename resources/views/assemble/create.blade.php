@@ -77,6 +77,19 @@
                             </select>
                         </div>
                         <div>
+                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho lắp ráp <span class="text-red-500">*</span></label>
+                            <select id="warehouse_id" name="warehouse_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn kho lắp ráp --</option>
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}">{{ $warehouse->name }} ({{ $warehouse->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
                             <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người
                                 phụ trách <span class="text-red-500">*</span></label>
                             <select id="assigned_to" name="assigned_to" required
@@ -88,13 +101,12 @@
                                 <option value="Phạm Thị D">Phạm Thị D</option>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                        <textarea id="assembly_note" name="assembly_note" rows="2"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Nhập ghi chú cho phiếu lắp ráp (nếu có)"></textarea>
+                        <div>
+                            <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                            <textarea id="assembly_note" name="assembly_note" rows="2"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Nhập ghi chú cho phiếu lắp ráp (nếu có)"></textarea>
+                        </div>
                     </div>
                 </div>
 
