@@ -17,200 +17,123 @@
         <header class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý nhập kho</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm theo mã, tên vật tư..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                        <option value="">Bộ lọc</option>
-                        <option value="material_code">Mã vật tư</option>
-                        <option value="material_name">Tên vật tư</option>
-                        <option value="category">Phân loại</option>
-                        <option value="supplier">Nhà cung cấp</option>
-                    </select>
-                </div>
-                <a href="{{ url('/inventory-imports/create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
+                <form action="{{ route('inventory-imports.index') }}" method="GET" class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <input type="text" name="search" placeholder="Tìm kiếm theo mã, nhà cung cấp..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" value="{{ $search ?? '' }}" />
+                        <select name="filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
+                            <option value="">Bộ lọc</option>
+                            <option value="import_code" {{ isset($filter) && $filter == 'import_code' ? 'selected' : '' }}>Mã phiếu nhập</option>
+                            <option value="supplier" {{ isset($filter) && $filter == 'supplier' ? 'selected' : '' }}>Nhà cung cấp</option>
+                            <option value="order_code" {{ isset($filter) && $filter == 'order_code' ? 'selected' : '' }}>Mã đơn hàng</option>
+                        </select>
+                        <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+                <a href="{{ route('inventory-imports.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
                     <i class="fas fa-plus mr-2"></i> Tạo phiếu nhập
                 </a>
             </div>
         </header>
+
+        @if(session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        
+        @if(session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
+
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã vật tư</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên vật tư</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phân loại</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày nhập kho</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã phiếu nhập</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nhà cung cấp</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kho nhập</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày nhập kho</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã đơn hàng</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
+                        @forelse($inventoryImports as $key => $import)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">VT001</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Ốc vít 10mm</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kg</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">100</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty TNHH ABC</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nhập đợt 1</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $inventoryImports->firstItem() + $key }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $import->import_code }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $import->supplier->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $import->warehouse->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $import->import_date->format('d/m/Y') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $import->order_code ?? 'N/A' }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $import->notes ?? '-' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/inventory-imports/1') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                <a href="{{ route('inventory-imports.show', $import->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </a>
-                                <a href="{{ url('/inventory-imports/1/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                <a href="{{ route('inventory-imports.edit', $import->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="openDeleteModal(1, 'VT001')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <button onclick="openDeleteModal('{{ $import->id }}', '{{ $import->import_code }}')" 
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
+                                        title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
+                                <form id="delete-form-{{ $import->id }}" action="{{ route('inventory-imports.destroy', $import->id) }}" method="POST" class="hidden">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
                             </td>
                         </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">VT002</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Ống nhựa PVC 20mm</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mét</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vật tư</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">50</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">02/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Vật liệu XYZ</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nhập bổ sung</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/inventory-imports/2') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/inventory-imports/2/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(2, 'VT002')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu phiếu nhập kho</td>
                         </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">VT003</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dây điện 2.5mm</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Mét</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Điện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">200</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">03/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Điện máy MNO</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nhập theo đơn hàng D123</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/inventory-imports/3') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/inventory-imports/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(3, 'VT003')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">VT004</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bóng đèn LED 10W</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Điện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">30</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">04/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Điện máy MNO</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">-</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/inventory-imports/4') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/inventory-imports/4/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(4, 'VT004')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">5</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">VT005</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Keo dán 2 thành phần</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Tuýp</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Hóa chất</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">20</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">05/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Hóa chất LKM</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Đơn gấp</td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/inventory-imports/5') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/inventory-imports/5/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(5, 'VT005')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
             
             <div class="mt-4 flex justify-between items-center">
                 <div class="text-sm text-gray-600">
-                    Hiển thị 1 đến 5 của 25 bản ghi
+                    @if($inventoryImports->count() > 0)
+                    Hiển thị {{ $inventoryImports->firstItem() }} đến {{ $inventoryImports->lastItem() }} của {{ $inventoryImports->total() }} bản ghi
+                    @else
+                    Không có bản ghi nào
+                    @endif
                 </div>
                 
                 <div class="flex space-x-1">
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button class="px-3 py-1 bg-blue-500 border border-blue-500 rounded-md text-sm text-white hover:bg-blue-600">1</button>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">2</button>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">3</button>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">4</button>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">5</button>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                    {{ $inventoryImports->links('pagination::tailwind') }}
                 </div>
             </div>
         </main>
     </div>
 
     <script>
-        // Dropdown Menus
-        function toggleDropdown(id) {
-            const dropdown = document.getElementById(id);
-            const allDropdowns = document.querySelectorAll('.dropdown-content');
-            
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
-                if (d.id !== id) {
-                    d.classList.remove('show');
-                }
-            });
-            
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
-        }
-
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown')) {
-                document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                    dropdown.classList.remove('show');
-                });
-            }
+        // Khởi tạo modal khi trang được tải
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
         });
+
+        // Mở modal xác nhận xóa
+        function openDeleteModal(id, name) {
+            // Thay đổi nội dung modal
+            document.getElementById('customerNameToDelete').innerText = "phiếu nhập " + name;
+            
+            // Thay đổi hành động khi nút xác nhận được nhấn
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                document.getElementById('delete-form-' + id).submit();
+                closeDeleteModal();
+            };
+            
+            // Hiển thị modal
+            document.getElementById('deleteModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
     </script>
 </body>
 </html> 

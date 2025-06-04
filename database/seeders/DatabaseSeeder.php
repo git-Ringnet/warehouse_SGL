@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             CustomerSeeder::class,
             SupplierSeeder::class,
             EmployeeSeeder::class,
+            WarehouseSeeder::class,
+            MaterialSeeder::class,
             PermissionSeeder::class,
             RoleSeeder::class,
         ]);

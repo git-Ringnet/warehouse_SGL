@@ -12,6 +12,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UserLogController;
+use App\Http\Controllers\InventoryImportController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -145,40 +146,8 @@ Route::resource('suppliers', SupplierController::class);
 // Thay thế routes employees cũ bằng resource controller
 Route::resource('employees', EmployeeController::class);
 
-// Quản lý nhập kho
-Route::get('/inventory-imports', function () {
-    return view('inventory-imports.index');
-});
-
-Route::get('/inventory-imports/create', function () {
-    return view('inventory-imports.create');
-});
-
-Route::get('/inventory-imports/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('inventory-imports.show');
-})->where('id', '[0-9]+');
-
-Route::get('/inventory-imports/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('inventory-imports.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/inventory-imports', function () {
-    // Xử lý lưu phiếu nhập kho mới
-    return redirect('/inventory-imports');
-});
-
-Route::put('/inventory-imports/{id}', function ($id) {
-    // Xử lý cập nhật phiếu nhập kho
-    return redirect('/inventory-imports/' . $id);
-});
-
-Route::delete('/inventory-imports/{id}', function ($id) {
-    // Xử lý xóa phiếu nhập kho
-    return redirect('/inventory-imports');
-});
-
+// Thay thế routes inventory-imports cũ bằng resource controller
+Route::resource('inventory-imports', InventoryImportController::class);
 
 // Quản lý chuyển kho
 Route::get('/warehouse-transfers', function () {

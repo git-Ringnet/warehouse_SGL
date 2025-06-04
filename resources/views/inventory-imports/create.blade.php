@@ -17,123 +17,135 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Tạo phiếu nhập kho</h1>
-            <a href="{{ url('/inventory-imports') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
+            <a href="{{ route('inventory-imports.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Quay lại
             </a>
         </header>
 
+        @if(session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        
+        @if(session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
+
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <form action="#" method="POST">
+                <form action="{{ route('inventory-imports.store') }}" method="POST">
+                    @csrf
                     <h2 class="text-lg font-semibold text-gray-800 mb-6">Thông tin phiếu nhập kho</h2>
+                    
+                    @if ($errors->any())
+                    <div class="mb-4 bg-red-50 p-3 rounded border border-red-200">
+                        <ul class="list-disc list-inside text-red-500">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Cột 1 -->
                         <div class="space-y-4">
                             <div>
-                                <label for="material_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã vật tư</label>
-                                <input type="text" id="material_code" name="material_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã vật tư" required>
-                            </div>
-                            
-                            <div>
-                                <label for="material_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư</label>
-                                <input type="text" id="material_name" name="material_name" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập tên vật tư" required>
-                            </div>
-                            
-                            <div>
-                                <label for="unit" class="block text-sm font-medium text-gray-700 mb-1 required">Đơn vị</label>
-                                <select id="unit" name="unit" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn đơn vị --</option>
-                                    <option value="kg">Kg</option>
-                                    <option value="cai">Cái</option>
-                                    <option value="met">Mét</option>
-                                    <option value="lit">Lít</option>
-                                    <option value="bo">Bộ</option>
-                                    <option value="thung">Thùng</option>
-                                    <option value="hop">Hộp</option>
-                                    <option value="tuyp">Tuýp</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label for="category" class="block text-sm font-medium text-gray-700 mb-1 required">Phân loại</label>
-                                <select id="category" name="category" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn phân loại --</option>
-                                    <option value="linh_kien">Linh kiện</option>
-                                    <option value="vat_tu">Vật tư</option>
-                                    <option value="dien">Điện</option>
-                                    <option value="co_khi">Cơ khí</option>
-                                    <option value="hoa_chat">Hóa chất</option>
-                                    <option value="thiet_bi">Thiết bị</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Cột 2 -->
-                        <div class="space-y-4">
-                            <div>
-                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                                <input type="number" id="quantity" name="quantity" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số lượng" min="1" required>
+                                <label for="import_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã phiếu nhập</label>
+                                <input type="text" id="import_code" name="import_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã phiếu nhập" required value="{{ old('import_code') }}">
                             </div>
                             
                             <div>
                                 <label for="import_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày nhập kho</label>
-                                <input type="date" id="import_date" name="import_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                <input type="date" id="import_date" name="import_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required value="{{ old('import_date', date('Y-m-d')) }}">
                             </div>
                             
                             <div>
                                 <label for="supplier_id" class="block text-sm font-medium text-gray-700 mb-1 required">Nhà cung cấp</label>
                                 <select id="supplier_id" name="supplier_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn nhà cung cấp --</option>
-                                    <option value="1">Công ty TNHH ABC</option>
-                                    <option value="2">Công ty Vật liệu XYZ</option>
-                                    <option value="3">Công ty Điện máy MNO</option>
-                                    <option value="4">Công ty Hóa chất LKM</option>
-                                    <option value="5">Công ty TNHH PQR</option>
+                                    @foreach($suppliers as $supplier)
+                                        <option value="{{ $supplier->id }}" {{ old('supplier_id') == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
+                                    @endforeach
                                 </select>
                                 <div class="mt-2 text-sm">
-                                    <a href="{{ url('/suppliers/create') }}" class="text-blue-500 hover:text-blue-700">
+                                    <a href="{{ route('suppliers.create') }}" class="text-blue-500 hover:text-blue-700">
                                         <i class="fas fa-plus-circle mr-1"></i>Thêm nhà cung cấp mới
                                     </a>
                                 </div>
                             </div>
+                        </div>
+                        
+                        <!-- Cột 2 -->
+                        <div class="space-y-4">
+                            <div>
+                                <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập</label>
+                                <select id="warehouse_id" name="warehouse_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    <option value="">-- Chọn kho --</option>
+                                    @foreach($warehouses as $warehouse)
+                                        <option value="{{ $warehouse->id }}" {{ old('warehouse_id') == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                             
+                            <div>
+                                <label for="order_code" class="block text-sm font-medium text-gray-700 mb-1">Mã đơn hàng</label>
+                                <input type="text" id="order_code" name="order_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã đơn hàng liên quan (nếu có)" value="{{ old('order_code') }}">
+                            </div>
                             
+                            <div>
+                                <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                                <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú về phiếu nhập kho (nếu có)">{{ old('notes') }}</textarea>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Ghi chú -->
-                    <div class="mt-6">
-                        <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                        <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú về phiếu nhập kho (nếu có)"></textarea>
-                    </div>
-                    
-                    <div class="mt-6">
-                        <h3 class="text-md font-semibold text-gray-800 mb-2">Thông tin bổ sung</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div class="space-y-4">
-                                <div>
-                                    <label for="warehouse" class="block text-sm font-medium text-gray-700 mb-1">Kho nhập</label>
-                                    <select id="warehouse" name="warehouse" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        <option value="">-- Chọn kho --</option>
-                                        <option value="main" selected>Kho chính</option>
-                                        <option value="secondary">Kho phụ</option>
-                                        <option value="components">Kho linh kiện</option>
-                                    </select>
+                    <!-- Phần vật tư -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-md font-semibold text-gray-800 mb-4">Danh sách vật tư nhập kho</h3>
+                        
+                        <div id="materials-container">
+                            <!-- Template cho hàng vật tư đầu tiên -->
+                            <div class="material-row border border-gray-200 rounded-lg p-4 mb-4">
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Vật tư</label>
+                                        <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                            <option value="">-- Chọn vật tư --</option>
+                                            @foreach($materials as $material)
+                                                <option value="{{ $material->id }}">{{ $material->code }} - {{ $material->name }} ({{ $material->unit }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                                        <input type="number" name="materials[0][quantity]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số lượng" value="1" min="1" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Serial</label>
+                                        <input type="text" name="materials[0][serial]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số serial (nếu có)">
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                                    <textarea name="materials[0][notes]" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho vật tư này (nếu có)"></textarea>
+                                </div>
+                                <div class="mt-2 flex justify-end">
+                                    <button type="button" class="remove-material text-red-500 hover:text-red-700" onclick="removeMaterial(this)" style="display: none;">
+                                        <i class="fas fa-trash mr-1"></i> Xóa
+                                    </button>
                                 </div>
                             </div>
-                            
-                            <div class="space-y-4">
-                                <div>
-                                    <label for="order_code" class="block text-sm font-medium text-gray-700 mb-1">Mã đơn hàng</label>
-                                    <input type="text" id="order_code" name="order_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã đơn hàng liên quan (nếu có)">
-                                </div>
-                            </div>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <button type="button" id="add-material" class="flex items-center text-blue-500 hover:text-blue-700">
+                                <i class="fas fa-plus-circle mr-1"></i> Thêm vật tư
+                            </button>
                         </div>
                     </div>
                     
                     <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
-                        <a href="{{ url('/inventory-imports') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
+                        <a href="{{ route('inventory-imports.index') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
                             Hủy
                         </a>
                         <button type="submit" class="h-10 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center justify-center transition-colors">
@@ -154,7 +166,74 @@
             const day = String(today.getDate()).padStart(2, '0');
             
             document.getElementById('import_date').value = `${year}-${month}-${day}`;
+            
+            // Thêm xử lý cho nút "Thêm vật tư"
+            document.getElementById('add-material').addEventListener('click', addMaterial);
+            
+            // Hiển thị nút xóa nếu có nhiều hơn 1 hàng
+            updateRemoveButtons();
         });
+        
+        // Biến đếm số lượng hàng vật tư
+        let materialCount = 1;
+        
+        // Hàm thêm hàng vật tư mới
+        function addMaterial() {
+            const container = document.getElementById('materials-container');
+            const template = container.querySelector('.material-row').cloneNode(true);
+            
+            // Cập nhật các attributes
+            const inputs = template.querySelectorAll('select, input, textarea');
+            inputs.forEach(input => {
+                const nameAttr = input.getAttribute('name');
+                if (nameAttr) {
+                    input.setAttribute('name', nameAttr.replace('[0]', `[${materialCount}]`));
+                    
+                    // Reset giá trị
+                    if (input.tagName === 'SELECT') {
+                        input.selectedIndex = 0;
+                    } else if (input.type === 'number' && input.name.includes('quantity')) {
+                        input.value = '1';
+                    } else {
+                        input.value = '';
+                    }
+                }
+            });
+            
+            // Hiển thị nút xóa
+            const removeButton = template.querySelector('.remove-material');
+            removeButton.style.display = 'inline-flex';
+            
+            // Thêm hàng mới vào container
+            container.appendChild(template);
+            
+            materialCount++;
+            
+            // Cập nhật hiển thị của các nút xóa
+            updateRemoveButtons();
+        }
+        
+        // Hàm xóa hàng vật tư
+        function removeMaterial(button) {
+            const materialRow = button.closest('.material-row');
+            materialRow.remove();
+            
+            // Cập nhật hiển thị của các nút xóa
+            updateRemoveButtons();
+        }
+        
+        // Cập nhật hiển thị của các nút xóa
+        function updateRemoveButtons() {
+            const rows = document.querySelectorAll('.material-row');
+            const removeButtons = document.querySelectorAll('.remove-material');
+            
+            // Ẩn/hiện nút xóa dựa trên số lượng hàng
+            if (rows.length <= 1) {
+                removeButtons.forEach(btn => btn.style.display = 'none');
+            } else {
+                removeButtons.forEach(btn => btn.style.display = 'inline-flex');
+            }
+        }
     </script>
 </body>
 </html> 

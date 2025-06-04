@@ -1,0 +1,78 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Material;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+class MaterialSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
+     */
+    public function run(): void
+    {
+        $materials = [
+            [
+                'code' => 'VT001',
+                'name' => 'Ốc vít 10mm',
+                'category' => 'Linh kiện',
+                'unit' => 'Kg',
+                'supplier_id' => 1,
+                'status' => 'new',
+                'notes' => 'Ốc vít thông dụng',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'code' => 'VT002',
+                'name' => 'Ống nhựa PVC 20mm',
+                'category' => 'Vật tư',
+                'unit' => 'Mét',
+                'supplier_id' => 2,
+                'status' => 'new',
+                'notes' => 'Ống nhựa chất lượng cao',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'code' => 'VT003',
+                'name' => 'Dây điện 2.5mm',
+                'category' => 'Điện',
+                'unit' => 'Mét',
+                'supplier_id' => 3,
+                'status' => 'new',
+                'notes' => 'Dây điện chất lượng cao',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'code' => 'VT004',
+                'name' => 'Bóng đèn LED 10W',
+                'category' => 'Điện',
+                'unit' => 'Cái',
+                'supplier_id' => 3,
+                'status' => 'new',
+                'notes' => 'Tiết kiệm năng lượng',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'code' => 'VT005',
+                'name' => 'Keo dán 2 thành phần',
+                'category' => 'Hóa chất',
+                'unit' => 'Tuýp',
+                'supplier_id' => 4,
+                'status' => 'new',
+                'notes' => 'Keo dán đa năng',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ];
+
+        foreach ($materials as $materialData) {
+            Material::create($materialData);
+        }
+    }
+} 
