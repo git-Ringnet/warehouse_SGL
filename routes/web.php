@@ -13,6 +13,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\UserLogController;
 use App\Http\Controllers\InventoryImportController;
+use App\Http\Controllers\WarehouseTransferController;
+use App\Http\Controllers\SoftwareController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -150,79 +152,11 @@ Route::resource('employees', EmployeeController::class);
 Route::resource('inventory-imports', InventoryImportController::class);
 
 // Quản lý chuyển kho
-Route::get('/warehouse-transfers', function () {
-    return view('warehouse-transfers.index');
-});
-
-Route::get('/warehouse-transfers/create', function () {
-    return view('warehouse-transfers.create');
-});
-
-Route::get('/warehouse-transfers/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('warehouse-transfers.show');
-})->where('id', '[0-9]+');
-
-Route::get('/warehouse-transfers/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('warehouse-transfers.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/warehouse-transfers', function () {
-    // Xử lý lưu phiếu chuyển kho mới
-    return redirect('/warehouse-transfers');
-});
-
-Route::put('/warehouse-transfers/{id}', function ($id) {
-    // Xử lý cập nhật phiếu chuyển kho
-    return redirect('/warehouse-transfers/' . $id);
-});
-
-Route::delete('/warehouse-transfers/{id}', function ($id) {
-    // Xử lý xóa phiếu chuyển kho
-    return redirect('/warehouse-transfers');
-});
+Route::resource('warehouse-transfers', WarehouseTransferController::class);
 
 // Quản lý phần mềm
-Route::get('/software', function () {
-    return view('software.index');
-});
-
-Route::get('/software/create', function () {
-    return view('software.create');
-});
-
-Route::get('/software/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('software.show');
-})->where('id', '[0-9]+');
-
-Route::get('/software/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('software.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/software', function () {
-    // Xử lý lưu phần mềm mới
-    return redirect('/software');
-});
-
-Route::put('/software/{id}', function ($id) {
-    // Xử lý cập nhật phần mềm
-    return redirect('/software/' . $id);
-});
-
-Route::delete('/software/{id}', function ($id) {
-    // Xử lý xóa phần mềm
-    return redirect('/software');
-});
-
-// Tải xuống phần mềm
-Route::get('/software/{id}/download', function ($id) {
-    // Trong thực tế, sẽ xử lý tải xuống file phần mềm tại đây
-    // return response()->download($filePath);
-    return redirect('/software/' . $id);
-})->where('id', '[0-9]+');
+Route::resource('software', SoftwareController::class);
+Route::get('/software/{software}/download', [SoftwareController::class, 'download'])->name('software.download');
 
 // Quản lý kiểm thử (QA)
 Route::get('/testing', function () {

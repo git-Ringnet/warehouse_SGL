@@ -16,71 +16,85 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Thêm phần mềm mới</h1>
-            <a href="{{ url('/software') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
+            <a href="{{ route('software.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Quay lại
             </a>
         </header>
 
+        @if(session('error'))
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6" role="alert">
+                <p>{{ session('error') }}</p>
+            </div>
+        @endif
+
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <form action="{{ url('/software') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('software.store') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <h2 class="text-lg font-semibold text-gray-800 mb-6">Thông tin phần mềm</h2>
+                    
+                    @if ($errors->any())
+                    <div class="mb-4 bg-red-50 p-3 rounded border border-red-200">
+                        <ul class="list-disc list-inside text-red-500">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                    @endif
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Cột 1 -->
                         <div class="space-y-4">
                             <div>
                                 <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên phần mềm</label>
-                                <input type="text" id="name" name="name" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập tên phần mềm" required>
+                                <input type="text" id="name" name="name" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập tên phần mềm" required value="{{ old('name') }}">
                             </div>
                             
                             <div>
                                 <label for="version" class="block text-sm font-medium text-gray-700 mb-1 required">Phiên bản</label>
-                                <input type="text" id="version" name="version" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="VD: 1.0.0" required>
+                                <input type="text" id="version" name="version" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="VD: 1.0.0" required value="{{ old('version') }}">
                             </div>
                             
                             <div>
                                 <label for="type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại phần mềm</label>
                                 <select id="type" name="type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn loại phần mềm --</option>
-                                    <option value="mobile_app">Ứng dụng di động</option>
-                                    <option value="firmware">Firmware</option>
-                                    <option value="desktop_app">Ứng dụng máy tính</option>
-                                    <option value="driver">Driver</option>
-                                    <option value="other">Khác</option>
+                                    <option value="mobile_app" {{ old('type') == 'mobile_app' ? 'selected' : '' }}>Ứng dụng di động</option>
+                                    <option value="firmware" {{ old('type') == 'firmware' ? 'selected' : '' }}>Firmware</option>
+                                    <option value="desktop_app" {{ old('type') == 'desktop_app' ? 'selected' : '' }}>Ứng dụng máy tính</option>
+                                    <option value="driver" {{ old('type') == 'driver' ? 'selected' : '' }}>Driver</option>
+                                    <option value="other" {{ old('type') == 'other' ? 'selected' : '' }}>Khác</option>
                                 </select>
                             </div>
-                            
-                           
                         </div>
                         
                         <!-- Cột 2 -->
                         <div class="space-y-4">                            
                             <div>
                                 <label for="release_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày phát hành</label>
-                                <input type="date" id="release_date" name="release_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <input type="date" id="release_date" name="release_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ old('release_date') }}">
                             </div>
                             
                             <div>
                                 <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
                                 <select id="status" name="status" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="active">Hoạt động</option>
-                                    <option value="inactive">Đã ngừng</option>
-                                    <option value="beta">Phiên bản beta</option>
+                                    <option value="active" {{ old('status') == 'active' ? 'selected' : '' }}>Hoạt động</option>
+                                    <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }}>Đã ngừng</option>
+                                    <option value="beta" {{ old('status') == 'beta' ? 'selected' : '' }}>Phiên bản beta</option>
                                 </select>
                             </div>
                             <div>
                                 <label for="platform" class="block text-sm font-medium text-gray-700 mb-1">Nền tảng</label>
                                 <select id="platform" name="platform" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                     <option value="">-- Chọn nền tảng --</option>
-                                    <option value="android">Android</option>
-                                    <option value="ios">iOS</option>
-                                    <option value="windows">Windows</option>
-                                    <option value="mac">macOS</option>
-                                    <option value="linux">Linux</option>
-                                    <option value="embedded">Embedded</option>
-                                    <option value="other">Khác</option>
+                                    <option value="android" {{ old('platform') == 'android' ? 'selected' : '' }}>Android</option>
+                                    <option value="ios" {{ old('platform') == 'ios' ? 'selected' : '' }}>iOS</option>
+                                    <option value="windows" {{ old('platform') == 'windows' ? 'selected' : '' }}>Windows</option>
+                                    <option value="mac" {{ old('platform') == 'mac' ? 'selected' : '' }}>macOS</option>
+                                    <option value="linux" {{ old('platform') == 'linux' ? 'selected' : '' }}>Linux</option>
+                                    <option value="embedded" {{ old('platform') == 'embedded' ? 'selected' : '' }}>Embedded</option>
+                                    <option value="other" {{ old('platform') == 'other' ? 'selected' : '' }}>Khác</option>
                                 </select>
                             </div>
                         </div>
@@ -97,7 +111,7 @@
                                             <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
                                             <p class="text-gray-700 font-medium">Kéo và thả file hoặc</p>
                                             <p class="mt-1 text-sm text-gray-500">
-                                                Hỗ trợ: APK, BIN, ZIP, EXE, DMG, TAR.GZ...
+                                                Hỗ trợ: APK, BIN, ZIP, EXE, DMG, TAR.GZ... (Tối đa 40MB)
                                             </p>
                                             <button type="button" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm" id="browseBtn">
                                                 Chọn file
@@ -130,18 +144,18 @@
                     <!-- Description -->
                     <div class="mt-6">
                         <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả phần mềm</label>
-                        <textarea id="description" name="description" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mô tả về phần mềm"></textarea>
+                        <textarea id="description" name="description" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mô tả về phần mềm">{{ old('description') }}</textarea>
                     </div>
                     
                     <!-- Changelog -->
                     <div class="mt-6">
                         <label for="changelog" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú cập nhật</label>
-                        <textarea id="changelog" name="changelog" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú về các thay đổi trong phiên bản này"></textarea>
+                        <textarea id="changelog" name="changelog" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú về các thay đổi trong phiên bản này">{{ old('changelog') }}</textarea>
                     </div>
                     
                     <!-- Submit buttons -->
                     <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
-                        <a href="{{ url('/software') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
+                        <a href="{{ route('software.index') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
                             Hủy
                         </a>
                         <button type="submit" class="h-10 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center justify-center transition-colors">
@@ -185,10 +199,10 @@
                         return;
                     }
                     
-                    // Check file size (max 500MB)
-                    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
+                    // Check file size (max 40MB)
+                    const maxSize = 40 * 1024 * 1024; // 40MB in bytes
                     if (file.size > maxSize) {
-                        uploadError.textContent = 'File quá lớn. Kích thước tối đa là 500MB.';
+                        uploadError.textContent = 'File quá lớn. Kích thước tối đa là 40MB.';
                         uploadError.classList.remove('hidden');
                         fileInput.value = '';
                         return;

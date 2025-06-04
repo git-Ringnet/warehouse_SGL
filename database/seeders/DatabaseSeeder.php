@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             RoleSeeder::class,
             UserLogSeeder::class,
+            SoftwareSeeder::class,
         ]);
     }
 }

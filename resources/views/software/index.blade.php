@@ -17,21 +17,40 @@
         <header class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý phần mềm</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm theo tên, phiên bản..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64 h-10" />
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
-                        <option value="">Loại file</option>
-                        <option value="apk">APK</option>
-                        <option value="bin">BIN</option>
-                        <option value="zip">ZIP</option>
-                        <option value="other">Khác</option>
-                    </select>
-                </div>
-                <a href="{{ url('/software/create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
+                <form action="{{ route('software.index') }}" method="GET" class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full">
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <input type="text" name="search" placeholder="Tìm kiếm theo tên, phiên bản..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64 h-10" value="{{ request('search') }}" />
+                        <select name="file_type" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
+                            <option value="">Loại file</option>
+                            <option value="apk" {{ request('file_type') == 'apk' ? 'selected' : '' }}>APK</option>
+                            <option value="bin" {{ request('file_type') == 'bin' ? 'selected' : '' }}>BIN</option>
+                            <option value="zip" {{ request('file_type') == 'zip' ? 'selected' : '' }}>ZIP</option>
+                            <option value="exe" {{ request('file_type') == 'exe' ? 'selected' : '' }}>EXE</option>
+                            <option value="other" {{ request('file_type') == 'other' ? 'selected' : '' }}>Khác</option>
+                        </select>
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors h-10">
+                            <i class="fas fa-search mr-2"></i> Tìm
+                        </button>
+                    </div>
+                </form>
+                <a href="{{ route('software.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
                     <i class="fas fa-plus-circle mr-2"></i> Thêm phần mềm mới
                 </a>
             </div>
         </header>
+
+        @if(session('success'))
+            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 m-6" role="alert">
+                <p>{{ session('success') }}</p>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6" role="alert">
+                <p>{{ session('error') }}</p>
+            </div>
+        @endif
+
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -48,146 +67,91 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        <!-- Sample data row 1 -->
+                        @forelse($software as $index => $item)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Ứng dụng SGL Mobile</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1.2.5</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $software->firstItem() + $index }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->version }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">APK</span>
+                                <span class="px-2 py-1 {{ $item->fileTypeClass }} rounded text-xs">{{ strtoupper($item->file_type) }}</span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">25.4 MB</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/06/2024</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->file_size }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->created_at->format('d/m/Y') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Hoạt động</span>
+                                <span class="px-2 py-1 {{ $item->statusClass }} rounded text-xs">{{ $item->statusLabel }}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/software/1') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                <a href="{{ route('software.show', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </a>
-                                <a href="{{ url('/software/1/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                <a href="{{ route('software.edit', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="openDeleteModal(1, 'Ứng dụng SGL Mobile')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <button onclick="openDeleteModal('{{ $item->id }}', '{{ $item->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
-                                <a href="#" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống">
+                                <a href="{{ route('software.download', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống">
                                     <i class="fas fa-download text-purple-500 group-hover:text-white"></i>
                                 </a>
                             </td>
                         </tr>
-
-                        <!-- Sample data row 2 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Firmware SGL Scanner</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2.0.1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">BIN</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">5.7 MB</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Hoạt động</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/software/2') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/software/2/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(2, 'Firmware SGL Scanner')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <a href="#" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống">
-                                    <i class="fas fa-download text-purple-500 group-hover:text-white"></i>
-                                </a>
-                            </td>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="px-6 py-4 text-center text-gray-500">Không có dữ liệu phần mềm</td>
                         </tr>
-
-                        <!-- Sample data row 3 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Bộ cài đặt SGL Desktop</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3.1.4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">ZIP</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">105.2 MB</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">05/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Hoạt động</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/software/3') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/software/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(3, 'Bộ cài đặt SGL Desktop')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <a href="#" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống">
-                                    <i class="fas fa-download text-purple-500 group-hover:text-white"></i>
-                                </a>
-                            </td>
-                        </tr>
-
-                        <!-- Sample data row 4 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Driver SGL Printer</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1.0.0</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">EXE</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">12.8 MB</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Đã ngừng</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/software/4') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/software/4/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(4, 'Driver SGL Printer')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <a href="#" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống">
-                                    <i class="fas fa-download text-purple-500 group-hover:text-white"></i>
-                                </a>
-                            </td>
-                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
 
             <!-- Pagination -->
             <div class="mt-6 flex justify-between items-center">
-                <div class="text-sm text-gray-500">Hiển thị 1-4 của 4 mục</div>
-                <div class="flex space-x-1">
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <a href="#" class="px-3 py-1 rounded border border-blue-500 bg-blue-500 text-white">1</a>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                <div class="text-sm text-gray-500">
+                    Hiển thị {{ $software->firstItem() ?? 0 }}-{{ $software->lastItem() ?? 0 }} của {{ $software->total() ?? 0 }} mục
+                </div>
+                <div class="flex">
+                    {{ $software->appends(request()->query())->links() }}
                 </div>
             </div>
         </main>
     </div>
 
-   
+    <!-- Modal xác nhận xóa -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full">
+            <h2 class="text-xl font-bold mb-4">Xác nhận xóa</h2>
+            <p class="mb-6">Bạn có chắc chắn muốn xóa phần mềm <span id="softwareNameToDelete" class="font-bold"></span> không?</p>
+            <div class="flex justify-end space-x-3">
+                <button id="cancelDeleteBtn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">Hủy</button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded">Xóa</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form ẩn để xóa phần mềm -->
+    <form id="deleteSoftwareForm" method="POST" style="display: none;">
+        @csrf
+        @method('DELETE')
+    </form>
 
     <script>
-       
+        // Xử lý xóa phần mềm
+        function openDeleteModal(id, name) {
+            document.getElementById('softwareNameToDelete').textContent = name;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            
+            // Set up action for confirm button
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                const form = document.getElementById('deleteSoftwareForm');
+                form.action = `/software/${id}`;
+                form.submit();
+            };
+        }
         
+        document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
+            document.getElementById('deleteModal').classList.add('hidden');
+        });
+
         // Hàm toggleDropdown cho sidebar
         function toggleDropdown(id) {
             const dropdown = document.getElementById(id);
