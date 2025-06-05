@@ -80,27 +80,16 @@
                         </div>
                         
                         <div>
-                            <label for="role" class="block text-sm font-medium text-gray-700 mb-1 required">Vai trò</label>
-                            <select id="role" name="role" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="">-- Chọn vai trò --</option>
-                                <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Quản trị viên</option>
-                                <option value="manager" {{ old('role') == 'manager' ? 'selected' : '' }}>Quản lý</option>
-                                <option value="staff" {{ old('role') == 'staff' ? 'selected' : '' }}>Nhân viên</option>
-                                <option value="tech" {{ old('role') == 'tech' ? 'selected' : '' }}>Kỹ thuật viên</option>
-                            </select>
-                        </div>
-                        
-                        <div>
-                            <label for="role_id" class="block text-sm font-medium text-gray-700 mb-1">Nhóm quyền</label>
+                            <label for="role_id" class="block text-sm font-medium text-gray-700 mb-1">Chức vụ</label>
                             <select id="role_id" name="role_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Chọn nhóm quyền --</option>
+                                <option value="">-- Chọn chức vụ --</option>
                                 @foreach($roles as $role)
                                 <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}>
                                     {{ $role->name }} {{ !$role->is_active ? '(Vô hiệu hóa)' : '' }}
                                 </option>
                                 @endforeach
                             </select>
-                            <p class="text-xs text-gray-500 mt-1">Nhóm quyền xác định các quyền cụ thể mà nhân viên được phép thực hiện</p>
+                            <p class="text-xs text-gray-500 mt-1">Chức vụ xác định các quyền cụ thể mà nhân viên được phép thực hiện</p>
                         </div>
                         
                         <div>
@@ -109,11 +98,10 @@
                         </div>
                         
                         <div>
-                            <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
-                            <select id="status" name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="active" {{ old('status') == 'active' ? 'selected' : 'selected' }}>Đang hoạt động</option>
-                                <option value="leave" {{ old('status') == 'leave' ? 'selected' : '' }}>Nghỉ phép</option>
-                                <option value="inactive" {{ old('status') == 'inactive' ? 'selected' : '' }}>Đã nghỉ việc</option>
+                            <label for="is_active" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
+                            <select id="is_active" name="is_active" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                <option value="1" {{ old('is_active', '1') == '1' ? 'selected' : '' }}>Hoạt động</option>
+                                <option value="0" {{ old('is_active') == '0' ? 'selected' : '' }}>Khóa</option>
                             </select>
                         </div>
                     </div>

@@ -94,11 +94,10 @@ class EmployeeController extends Controller
             'address' => 'nullable|string',
             'hire_date' => 'required|date',
             'notes' => 'nullable|string',
-            'role' => 'required|string',
             'role_id' => 'nullable|exists:roles,id',
             'scope_type' => 'nullable|string',
             'scope_value' => 'nullable|string',
-            'status' => 'required|string',
+            'is_active' => 'required|boolean',
         ], [
             'username.required' => 'Username không được để trống',
             'username.unique' => 'Username đã tồn tại',
@@ -116,12 +115,16 @@ class EmployeeController extends Controller
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
             'hire_date.required' => 'Ngày tuyển dụng không được để trống',
             'hire_date.date' => 'Ngày tuyển dụng không đúng định dạng',
-            'role.required' => 'Vai trò không được để trống',
-            'status.required' => 'Trạng thái không được để trống',
-            'role_id.exists' => 'Nhóm quyền không hợp lệ',
+            'is_active.required' => 'Trạng thái không được để trống',
+            'role_id.exists' => 'Chức vụ không hợp lệ',
         ]);
 
-        $employee = Employee::create($request->all());
+        // Đặt vai trò mặc định là 'staff' nếu không có
+        $data = $request->all();
+        $data['role'] = 'staff'; // Mặc định là nhân viên
+        $data['status'] = $data['is_active'] ? 'active' : 'inactive'; // Đồng bộ status cũ với is_active mới
+
+        $employee = Employee::create($data);
         
         // Ghi nhật ký
         if (Auth::check()) {
@@ -176,11 +179,10 @@ class EmployeeController extends Controller
             'address' => 'nullable|string',
             'hire_date' => 'required|date',
             'notes' => 'nullable|string',
-            'role' => 'required|string',
             'role_id' => 'nullable|exists:roles,id',
             'scope_type' => 'nullable|string',
             'scope_value' => 'nullable|string',
-            'status' => 'required|string',
+            'is_active' => 'required|boolean',
         ];
         
         // Chỉ xác thực mật khẩu khi có nhập
@@ -204,9 +206,8 @@ class EmployeeController extends Controller
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
             'hire_date.required' => 'Ngày tuyển dụng không được để trống',
             'hire_date.date' => 'Ngày tuyển dụng không đúng định dạng',
-            'role.required' => 'Vai trò không được để trống',
-            'status.required' => 'Trạng thái không được để trống',
-            'role_id.exists' => 'Nhóm quyền không hợp lệ',
+            'is_active.required' => 'Trạng thái không được để trống',
+            'role_id.exists' => 'Chức vụ không hợp lệ',
         ];
 
         $request->validate($rules, $messages);
@@ -215,6 +216,10 @@ class EmployeeController extends Controller
 
         // Cập nhật thông tin
         $data = $request->except(['password', 'password_confirmation']);
+        
+        // Đồng bộ status cũ với is_active mới
+        $data['status'] = $data['is_active'] ? 'active' : 'inactive';
+        $data['role'] = $employee->role; // Giữ nguyên vai trò
         
         // Cập nhật mật khẩu nếu có nhập
         if ($request->filled('password')) {
@@ -264,5 +269,31 @@ class EmployeeController extends Controller
 
         return redirect()->route('employees.index')
             ->with('success', 'Nhân viên đã được xóa thành công.');
+    }
+
+    /**
+     * Khóa/mở khóa tài khoản nhân viên.
+     */
+    public function toggleActive(string $id)
+    {
+        $employee = Employee::findOrFail($id);
+        $isActive = $employee->toggleActive();
+        
+        $statusText = $isActive ? "mở khóa" : "khóa";
+        
+        // Ghi nhật ký
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'employees',
+                'Đã ' . $statusText . ' tài khoản nhân viên: ' . $employee->name,
+                ['is_active' => !$isActive],
+                ['is_active' => $isActive]
+            );
+        }
+
+        return redirect()->route('employees.index')
+            ->with('success', 'Đã ' . $statusText . ' tài khoản nhân viên thành công.');
     }
 } 

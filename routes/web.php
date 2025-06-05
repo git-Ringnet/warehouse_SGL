@@ -28,6 +28,7 @@ Route::resource('assemble', AssemblyController::class);
 
 // Thay thế routes customers cũ bằng resource controller
 Route::resource('customers', CustomerController::class);
+Route::get('customers/{customer}/activate', [CustomerController::class, 'activateAccount'])->name('customers.activate');
 
 //Materials
 Route::resource('materials', MaterialController::class);
@@ -147,6 +148,7 @@ Route::resource('suppliers', SupplierController::class);
 
 // Thay thế routes employees cũ bằng resource controller
 Route::resource('employees', EmployeeController::class);
+Route::patch('employees/{employee}/toggle-active', [EmployeeController::class, 'toggleActive'])->name('employees.toggle-active');
 
 // Thay thế routes inventory-imports cũ bằng resource controller
 Route::resource('inventory-imports', InventoryImportController::class);

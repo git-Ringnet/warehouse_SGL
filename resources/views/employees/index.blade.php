@@ -54,8 +54,8 @@
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ và tên</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email/SĐT</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vai trò</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nhóm quyền</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chức vụ</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                             <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                         </tr>
@@ -67,25 +67,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $employee->name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $employee->email }} / {{ $employee->phone }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    @if($employee->role == 'admin')
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                                            Quản trị viên
-                                        </span>
-                                    @elseif($employee->role == 'manager')
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                            Quản lý
-                                        </span>
-                                    @elseif($employee->role == 'tech')
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                                            Kỹ thuật viên
-                                        </span>
-                                    @else
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                            Nhân viên
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
                                     @if($employee->roleGroup)
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $employee->roleGroup->is_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600' }}">
                                             {{ $employee->roleGroup->name }}
@@ -94,18 +75,17 @@
                                         <span class="text-gray-500 text-xs">Chưa gán</span>
                                     @endif
                                 </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $employee->created_at->format('d/m/Y') }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    @if($employee->status == 'active')
+                                    @if($employee->is_active)
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                             Đang hoạt động
                                         </span>
-                                    @elseif($employee->status == 'leave')
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            Nghỉ phép
-                                        </span>
                                     @else
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                            Đã nghỉ việc
+                                            Đã khóa
                                         </span>
                                     @endif
                                 </td>
@@ -121,6 +101,18 @@
                                             title="Xóa">
                                         <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                     </button>
+
+                                    <!-- Nút khóa tài khoản -->
+                                    <form id="toggle-form-{{ $employee->id }}" action="{{ route('employees.toggle-active', $employee->id) }}" method="POST" class="hidden">
+                                        @csrf
+                                        @method('PATCH')
+                                    </form>
+                                    <button onclick="document.getElementById('toggle-form-{{ $employee->id }}').submit()" 
+                                            class="w-8 h-8 flex items-center justify-center rounded-full {{ $employee->is_active ? 'bg-purple-100 hover:bg-purple-500' : 'bg-green-100 hover:bg-green-500' }} transition-colors group" 
+                                            title="{{ $employee->is_active ? 'Khóa tài khoản' : 'Mở khóa tài khoản' }}">
+                                        <i class="fas {{ $employee->is_active ? 'fa-lock' : 'fa-lock-open' }} {{ $employee->is_active ? 'text-purple-500' : 'text-green-500' }} group-hover:text-white"></i>
+                                    </button>
+                                    
                                     <form id="delete-form-{{ $employee->id }}" action="{{ route('employees.destroy', $employee->id) }}" method="POST" class="hidden">
                                         @csrf
                                         @method('DELETE')

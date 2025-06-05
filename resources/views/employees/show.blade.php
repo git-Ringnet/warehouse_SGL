@@ -78,21 +78,18 @@
                                             </div>
                                         @endif
                                         
-                                        @if($employee->status == 'active')
+                                        @if($employee->is_active)
                                             <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
                                                 Đang hoạt động
                                             </span>
-                                        @elseif($employee->status == 'leave')
-                                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
-                                                Nghỉ phép
-                                            </span>
                                         @else
                                             <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
-                                                Đã nghỉ việc
+                                                Đã khóa
                                             </span>
                                         @endif
                                     </div>
                                     <p class="text-gray-600 mt-1">Tài khoản từ {{ \Carbon\Carbon::parse($employee->created_at)->format('d/m/Y') }}</p>
+                                    <p class="text-gray-600 mt-1">Cập nhật lần cuối: {{ \Carbon\Carbon::parse($employee->updated_at)->format('d/m/Y H:i') }}</p>
                                 </div>
                             </div>
                             <div class="mt-6 lg:mt-0 flex flex-col">
@@ -155,45 +152,27 @@
                     
                     <div class="space-y-4">
                         <div>
-                            <p class="text-sm text-gray-500">Vai trò</p>
-                            <p class="font-medium text-gray-800">
-                                @if($employee->role == 'admin')
-                                    Quản trị viên
-                                @elseif($employee->role == 'manager')
-                                    Quản lý
-                                @elseif($employee->role == 'tech')
-                                    Kỹ thuật viên
-                                @else
-                                    Nhân viên
-                                @endif
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Nhóm quyền</p>
+                            <p class="text-sm text-gray-500">Chức vụ</p>
                             <p class="font-medium text-gray-800">
                                 @if($employee->roleGroup)
                                     <span class="px-2 py-1 {{ $employee->roleGroup->is_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600' }} rounded-full text-xs font-semibold">
                                         {{ $employee->roleGroup->name }}
                                     </span>
                                 @else
-                                    <span class="text-gray-500">Chưa được gán nhóm quyền</span>
+                                    <span class="text-gray-500">Chưa được gán chức vụ</span>
                                 @endif
                             </p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Trạng thái</p>
                             <p class="font-medium text-gray-800">
-                                @if($employee->status == 'active')
+                                @if($employee->is_active)
                                     <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
                                         Đang hoạt động
                                     </span>
-                                @elseif($employee->status == 'leave')
-                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">
-                                        Nghỉ phép
-                                    </span>
                                 @else
                                     <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
-                                        Đã nghỉ việc
+                                        Đã khóa
                                     </span>
                                 @endif
                             </p>
@@ -243,6 +222,54 @@
                 </div>
             </div>
             @endif
+            
+            <!-- Dự án liên quan -->
+            <div class="mt-6">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-project-diagram mr-2 text-indigo-500"></i>
+                        Dự án liên quan
+                    </h3>
+                    
+                    @if (isset($relatedProjects) && count($relatedProjects) > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên dự án</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vai trò</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($relatedProjects as $project)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $project->name }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full
+                                            @if($project->status == 'active') bg-green-100 text-green-800
+                                            @elseif($project->status == 'pending') bg-yellow-100 text-yellow-800
+                                            @elseif($project->status == 'completed') bg-blue-100 text-blue-800
+                                            @else bg-red-100 text-red-800
+                                            @endif">
+                                            {{ $project->status_text }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $project->pivot->role ?? 'Thành viên' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <a href="{{ route('projects.show', $project->id) }}" class="text-blue-600 hover:text-blue-900">Xem chi tiết</a>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    @else
+                    <p class="text-gray-500">Nhân viên này chưa được gán vào dự án nào.</p>
+                    @endif
+                </div>
+            </div>
             
         </main>
     </div>

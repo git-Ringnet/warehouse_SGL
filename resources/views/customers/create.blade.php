@@ -41,13 +41,24 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <div>
-                                <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên khách hàng</label>
-                                <input type="text" id="customer_name" name="customer_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập tên khách hàng" required value="{{ old('customer_name') }}">
+                                <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên người đại diện</label>
+                                <input type="text" id="customer_name" name="customer_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập tên người đại diện" required value="{{ old('customer_name') }}">
+                            </div>
+                            
+                            <div>
+                                <label for="company_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên công ty</label>
+                                <input type="text" id="company_name" name="company_name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập tên công ty" required value="{{ old('company_name') }}">
                             </div>
                             
                             <div>
                                 <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
                                 <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập số điện thoại" required value="{{ old('phone') }}" pattern="[0-9]{10,11}" title="Số điện thoại chỉ được nhập số và có độ dài từ 10 đến 11 số" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                <small class="text-gray-500">Chỉ được nhập số, 10-11 chữ số</small>
+                            </div>
+                            
+                            <div>
+                                <label for="company_phone" class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại công ty</label>
+                                <input type="tel" id="company_phone" name="company_phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập số điện thoại công ty" value="{{ old('company_phone') }}" pattern="[0-9]{10,11}" title="Số điện thoại chỉ được nhập số và có độ dài từ 10 đến 11 số" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                 <small class="text-gray-500">Chỉ được nhập số, 10-11 chữ số</small>
                             </div>
                         </div>
@@ -59,14 +70,14 @@
                             </div>
                             
                             <div>
-                                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
-                                <input type="text" id="address" name="address" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập địa chỉ" value="{{ old('address') }}">
+                                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ công ty</label>
+                                <input type="text" id="address" name="address" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập địa chỉ công ty" value="{{ old('address') }}">
                             </div>
-                        </div>
-                        
-                        <div class="md:col-span-2">
-                            <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                            <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập ghi chú về khách hàng">{{ old('notes') }}</textarea>
+                            
+                            <div>
+                                <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                                <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập ghi chú về khách hàng">{{ old('notes') }}</textarea>
+                            </div>
                         </div>
                     </div>
                     
