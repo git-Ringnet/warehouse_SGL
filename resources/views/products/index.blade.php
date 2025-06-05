@@ -41,14 +41,13 @@
                 </div>
             </div>
         </header>
-
+        @if (session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        @if (session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
         <main class="p-6">
-            @if (session('success'))
-                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                    {{ session('success') }}
-                </div>
-            @endif
-
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">

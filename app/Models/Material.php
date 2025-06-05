@@ -22,7 +22,9 @@ class Material extends Model
         'supplier_id',
         'status',
         'serial',
-        'notes'
+        'notes',
+        'image_path',
+        'inventory_warehouses'
     ];
     
     /**
@@ -32,13 +34,19 @@ class Material extends Model
      */
     protected $casts = [
         'supplier_id' => 'integer',
+        'inventory_warehouses' => 'array',
     ];
     
     /**
-     * Get the supplier that owns the material.
+     * Get the images for this material.
      */
+    public function images()
+    {
+        return $this->hasMany(MaterialImage::class);
+    }
+
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
-    }
+    }   
 } 

@@ -14,14 +14,18 @@ class Assembly extends Model
      *
      * @var array<int, string>
      */
+    protected $primaryKey = 'id';
     protected $fillable = [
         'code',
         'date',
         'product_id',
         'warehouse_id',
+        'target_warehouse_id',
         'assigned_to',
         'status',
-        'notes'
+        'notes',
+        'quantity',
+        'product_serials'
     ];
 
     /**
@@ -33,11 +37,19 @@ class Assembly extends Model
     }
 
     /**
-     * Get the warehouse for this assembly.
+     * Get the source warehouse (where components are taken from).
      */
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
+    }
+    
+    /**
+     * Get the target warehouse (where finished products are placed).
+     */
+    public function targetWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
     }
 
     /**

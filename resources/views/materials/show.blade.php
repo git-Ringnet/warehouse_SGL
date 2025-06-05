@@ -92,21 +92,69 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
-                        <p class="text-gray-900">{{ $material->supplier_id ?? 'Không có' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Trạng thái</p>
-                        <p class="text-gray-900">
-                            @if($material->status == 'new')
-                                Mới
-                            @elseif($material->status == 'used')
-                                Cũ
-                            @else
-                                Hư hỏng
-                            @endif
-                        </p>
+                        <p class="text-gray-900">{{ $material->supplier->name ?? 'Không có' }}</p>
                     </div>
                 </div>
+                
+                <!-- Thông tin số lượng -->
+                <div class="border-t border-gray-200 pt-4 mt-4">
+                    <h4 class="text-md font-semibold text-gray-700 mb-3">Thông tin số lượng</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+                        <div>
+                            <p class="text-sm text-gray-500">Tổng số lượng vật tư</p>
+                            <p class="text-gray-900 font-medium mt-1">
+                                <span class="px-3 py-1.5 rounded-md {{ $totalQuantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700' }} inline-flex items-center">
+                                    <i class="fas fa-cubes mr-2 {{ $totalQuantity > 0 ? 'text-blue-600' : 'text-gray-500' }}"></i>
+                                    <span class="text-lg">{{ number_format($totalQuantity, 0, ',', '.') }}</span>
+                                </span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">Tổng số lượng ở tất cả các kho, dự án, cho thuê, bảo hành, sửa chữa...</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Tổng số lượng tồn kho</p>
+                            <p class="text-gray-900 font-medium mt-1">
+                                <span class="px-3 py-1.5 rounded-md {{ $inventoryQuantity > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }} inline-flex items-center">
+                                    <i class="fas fa-warehouse mr-2 {{ $inventoryQuantity > 0 ? 'text-green-600' : 'text-gray-500' }}"></i>
+                                    <span class="text-lg">{{ number_format($inventoryQuantity, 0, ',', '.') }}</span>
+                                </span>
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                Tính theo:
+                                @if(is_array($material->inventory_warehouses) && in_array('all', $material->inventory_warehouses))
+                                    Tất cả các kho
+                                @elseif(is_array($material->inventory_warehouses) && !empty($material->inventory_warehouses))
+                                    @php
+                                        $warehouseNames = [];
+                                        foreach($material->inventory_warehouses as $warehouseId) {
+                                            $warehouse = App\Models\Warehouse::find($warehouseId);
+                                            if($warehouse) {
+                                                $warehouseNames[] = $warehouse->name;
+                                            }
+                                        }
+                                    @endphp
+                                    {{ implode(', ', $warehouseNames) }}
+                                @else
+                                    Tất cả các kho
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hình ảnh vật tư nếu có -->
+                @if($material->images->count() > 0)
+                <div class="border-t border-gray-200 pt-4 mb-4">
+                    <p class="text-sm text-gray-500 mb-2">Hình ảnh</p>
+                    <div class="flex flex-wrap gap-4">
+                        @foreach($material->images as $image)
+                        <div class="w-32 h-32">
+                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="{{ $material->name }}" 
+                                class="w-full h-full object-cover rounded-lg border border-gray-200">
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
                 
                 @if($material->notes)
                 <div class="border-t border-gray-200 pt-4">

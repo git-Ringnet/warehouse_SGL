@@ -17,13 +17,13 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('assemble') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('assemblies.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu lắp ráp</h1>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ asset('assemble/edit') }}">
+                <a href="{{ route('assemblies.edit', $assembly->id) }}">
                     <button
                         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
@@ -43,61 +43,69 @@
                     <div>
                         <div class="flex items-center mb-2">
                             <span class="text-lg font-semibold text-gray-800 mr-2">Mã phiếu lắp ráp:</span>
-                            <span class="text-lg text-blue-600 font-bold">LR001</span>
+                            <span class="text-lg text-blue-600 font-bold">{{ $assembly->code }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày lắp ráp:</span>
-                            <span class="text-sm text-gray-700">01/06/2023</span>
-                        </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Loại lắp ráp:</span>
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                Thiết bị mới
-                            </span>
+                            <span class="text-sm text-gray-700">{{ \Carbon\Carbon::parse($assembly->date)->format('d/m/Y') }}</span>
                         </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Sản phẩm:</span>
                             <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
                         </div>
                         <div class="flex items-center mt-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kho lắp ráp:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->warehouse->name }} ({{ $assembly->warehouse->code }})</span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Số lượng:</span>
+                            <span class="text-sm font-semibold text-gray-700">{{ $assembly->quantity ?? '1' }}</span>
                         </div>
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người phụ trách:</span>
-                            <span class="text-sm text-gray-700">Nguyễn Văn A</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->assigned_to }}</span>
                         </div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kiểm tra chất lượng:</span>
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Đạt yêu cầu
-                            </span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất linh kiện:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->warehouse->name }}
+                                ({{ $assembly->warehouse->code }})</span>
                         </div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kiểm tra cuối cùng:</span>
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Đạt yêu cầu
-                            </span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Kho nhập thành phẩm:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->targetWarehouse->name ?? '' }}
+                                ({{ $assembly->targetWarehouse->code ?? '' }})</span>
                         </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
                             <span
                                 class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Hoàn thành
+                                {{ ucfirst($assembly->status) }}
                             </span>
                         </div>
                     </div>
                 </div>
 
+                @if($assembly->product_serials)
+                <div class="mt-4 border-t border-gray-200 pt-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Serial sản phẩm:</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        @foreach(explode(',', $assembly->product_serials) as $serial)
+                            @if(!empty($serial))
+                            <div class="bg-gray-50 rounded-lg p-2 text-sm">
+                                <span class="font-medium">{{ $loop->iteration }}.</span> {{ $serial }}
+                            </div>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                @if($assembly->notes)
                 <div class="mt-4 border-t border-gray-200 pt-4">
                     <div class="flex items-center">
                         <span class="text-sm font-medium text-gray-700 mr-2">Ghi chú:</span>
-                        <span class="text-sm text-gray-700">Lắp ráp thiết bị mới theo đơn đặt hàng ABC123</span>
+                        <span class="text-sm text-gray-700">{{ $assembly->notes }}</span>
                     </div>
                 </div>
+                @endif
             </div>
 
             <!-- Component List -->
@@ -111,48 +119,72 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     STT
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Mã
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Loại linh kiện
+                                </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Tên vật tư
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Số lượng
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Serial
                                 </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Ghi chú
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($assembly->materials as $index => $material)
-                            <tr class="bg-white hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $index + 1 }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $material->material->code }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $material->material->name }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $material->quantity }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $material->serial }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $material->note }}
-                                </td>
-                            </tr>
+                            @foreach ($assembly->materials as $index => $material)
+                                <tr class="bg-white hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $index + 1 }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $material->material->code }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $material->material->category }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $material->material->name }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">
+                                        {{ $material->quantity }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">
+                                        @if($material->serial && str_contains($material->serial, ','))
+                                            <div class="space-y-1">
+                                                @foreach(explode(',', $material->serial) as $serial)
+                                                    @if(!empty($serial))
+                                                        <div class="bg-gray-50 px-2 py-1 rounded">{{ $serial }}</div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-1">{{ count(array_filter(explode(',', $material->serial))) }} serial</div>
+                                        @else
+                                            {{ $material->serial }}
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $material->note }}
+                                    </td>
+                                </tr>
                             @endforeach
                         </tbody>
                     </table>
@@ -180,13 +212,13 @@
             printBtn.addEventListener('click', function() {
                 window.print();
             });
-            
+
             // Xử lý sự kiện xuất Excel
             const exportExcelBtn = document.getElementById('export-excel-btn');
             exportExcelBtn.addEventListener('click', function() {
                 alert('Tính năng xuất Excel đang được phát triển!');
             });
-            
+
             // Xử lý sự kiện xuất PDF
             const exportPdfBtn = document.getElementById('export-pdf-btn');
             exportPdfBtn.addEventListener('click', function() {
@@ -196,4 +228,4 @@
     </script>
 </body>
 
-</html> 
+</html>

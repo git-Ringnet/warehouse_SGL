@@ -167,7 +167,7 @@
                                 <div>
                                     <p class="text-sm text-gray-500">Kho xuất thiết bị:</p>
                                     <p class="text-base text-gray-800 font-medium">
-                                        {{ isset($warehouse) ? $warehouse->name . ' (' . $warehouse->code . ')' : 'Chưa chọn kho' }}
+                                        {{ isset($warehouse) ? $warehouse->name . ' (' . $warehouse->code . ')' : 'Kho Trung tâm (KTC01)' }}
                                     </p>
                                 </div>
                             </div>
