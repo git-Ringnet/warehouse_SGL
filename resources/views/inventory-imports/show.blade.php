@@ -82,10 +82,10 @@
                                     <tr>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã vật tư</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên vật tư</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên vật tư/ thành phẩm/ hàng hoá</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số seri</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
                                     </tr>
                                 </thead>
@@ -97,7 +97,20 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->material->name }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->material->unit }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->quantity }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->serial ?? '-' }}</td>
+                                        <td class="px-6 py-4 text-sm text-gray-700">
+                                            @if($item->serial_numbers)
+                                                <div class="max-h-20 overflow-y-auto">
+                                                    @foreach($item->serial_numbers as $serial)
+                                                        <div class="mb-1">{{ $serial }}</div>
+                                                    @endforeach
+                                                </div>
+                                                <div class="text-xs text-gray-500 mt-1">
+                                                    {{ count($item->serial_numbers) }} số seri
+                                                </div>
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->notes ?? '-' }}</td>
                                     </tr>
                                     @empty

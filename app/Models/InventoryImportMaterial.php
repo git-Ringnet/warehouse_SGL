@@ -19,6 +19,7 @@ class InventoryImportMaterial extends Model
         'material_id',
         'quantity',
         'serial',
+        'serial_numbers',
         'notes'
     ];
 
@@ -31,6 +32,7 @@ class InventoryImportMaterial extends Model
         'inventory_import_id' => 'integer',
         'material_id' => 'integer',
         'quantity' => 'integer',
+        'serial_numbers' => 'json',
     ];
 
     /**

@@ -157,6 +157,7 @@ Route::patch('employees/{employee}/toggle-active', [EmployeeController::class, '
 
 // Thay thế routes inventory-imports cũ bằng resource controller
 Route::resource('inventory-imports', InventoryImportController::class);
+Route::get('api/materials/{id}', [InventoryImportController::class, 'getMaterialInfo'])->name('api.material.info');
 
 // Quản lý chuyển kho
 Route::resource('warehouse-transfers', WarehouseTransferController::class);

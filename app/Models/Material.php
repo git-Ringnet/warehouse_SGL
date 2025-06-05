@@ -20,6 +20,7 @@ class Material extends Model
         'category',
         'unit',
         'supplier_id',
+        'status',
         'serial',
         'notes',
         'image_path',
