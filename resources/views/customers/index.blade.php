@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <!-- Thêm thư viện jsPDF và html2canvas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -172,7 +176,8 @@
                         class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
                     >
                         <option value="">Tất cả</option>
-                        <option value="name" {{ ($filter ?? '') == 'name' ? 'selected' : '' }}>Tên khách hàng</option>
+                        <option value="name" {{ ($filter ?? '') == 'name' ? 'selected' : '' }}>Tên người đại diện</option>
+                        <option value="company_name" {{ ($filter ?? '') == 'company_name' ? 'selected' : '' }}>Tên công ty</option>
                         <option value="phone" {{ ($filter ?? '') == 'phone' ? 'selected' : '' }}>Số điện thoại</option>
                         <option value="email" {{ ($filter ?? '') == 'email' ? 'selected' : '' }}>Email</option>
                         <option value="address" {{ ($filter ?? '') == 'address' ? 'selected' : '' }}>Địa chỉ</option>
@@ -200,14 +205,33 @@
             @endif
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
+                <div class="mt-4 flex justify-end mr-4">
+                    <div class="relative inline-block text-left">
+                        <button id="exportDropdownButton" type="button" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-download mr-2"></i> Xuất dữ liệu
+                            <i class="fas fa-chevron-down ml-2"></i>
+                        </button>
+                        <div id="exportDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                            <div class="py-1">
+                                <button id="exportExcelButton" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                    <i class="far fa-file-excel text-green-500 mr-2"></i> Xuất Excel
+                                </button>
+                                <button id="exportPdfButton" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">
+                                    <i class="far fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên khách hàng</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên người đại diện</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Công ty</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số điện thoại</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Địa chỉ</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Địa chỉ công ty</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
@@ -217,6 +241,7 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $customers->firstItem() + $key }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $customer->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $customer->company_name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $customer->phone }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $customer->email ?? 'N/A' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $customer->address ?? 'N/A' }}</td>
@@ -232,11 +257,20 @@
                                 <button onclick="openDeleteModal('{{ $customer->id }}', '{{ $customer->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
+                                @if(!$customer->has_account)
+                                <a href="{{ route('customers.activate', $customer->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Kích hoạt tài khoản">
+                                    <i class="fas fa-user-check text-green-500 group-hover:text-white"></i>
+                                </a>
+                                @else
+                                <span class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100" title="Đã kích hoạt">
+                                    <i class="fas fa-user-check text-gray-400"></i>
+                                </span>
+                                @endif
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu</td>
+                            <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -319,6 +353,217 @@
             // Gửi form để xóa khách hàng
             form.submit();
         }
+
+        // Toggle dropdown menu for export
+        const exportDropdownButton = document.getElementById('exportDropdownButton');
+        const exportDropdown = document.getElementById('exportDropdown');
+        
+        exportDropdownButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            exportDropdown.classList.toggle('hidden');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function() {
+            exportDropdown.classList.add('hidden');
+        });
+        
+        // Prevent dropdown from closing when clicking inside
+        exportDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        // Hàm xuất dữ liệu sang Excel
+        document.getElementById('exportExcelButton').addEventListener('click', function() {
+            // Tạo một bảng HTML tạm thời
+            const tempTable = document.createElement('table');
+            tempTable.style.borderCollapse = 'collapse';
+            tempTable.style.width = '100%';
+            
+            // Tạo header row
+            const headerRow = document.createElement('tr');
+            const headings = Array.from(document.querySelectorAll('table thead th'));
+            
+            // Thêm header cells (bỏ qua cột hành động)
+            for (let i = 0; i < headings.length - 1; i++) {
+                const th = document.createElement('th');
+                th.textContent = headings[i].textContent.trim();
+                th.style.backgroundColor = '#4b90e2';
+                th.style.color = 'white';
+                th.style.padding = '8px';
+                th.style.fontWeight = 'bold';
+                th.style.border = '1px solid #ddd';
+                headerRow.appendChild(th);
+            }
+            
+            // Thêm header row vào table
+            const thead = document.createElement('thead');
+            thead.appendChild(headerRow);
+            tempTable.appendChild(thead);
+            
+            // Tạo body
+            const tbody = document.createElement('tbody');
+            const rows = document.querySelectorAll('table tbody tr');
+            
+            // Thêm data rows
+            rows.forEach(row => {
+                if (!row.querySelector('td[colspan]')) { // Bỏ qua hàng "Không có dữ liệu"
+                    const tr = document.createElement('tr');
+                    const cells = row.querySelectorAll('td');
+                    
+                    // Thêm cell data (bỏ qua cột hành động)
+                    for (let i = 0; i < cells.length - 1; i++) {
+                        const td = document.createElement('td');
+                        td.textContent = cells[i].textContent.trim();
+                        td.style.padding = '5px';
+                        td.style.border = '1px solid #ddd';
+                        tr.appendChild(td);
+                    }
+                    
+                    tbody.appendChild(tr);
+                }
+            });
+            
+            tempTable.appendChild(tbody);
+            
+            // Tạo temp div chứa table
+            const tempDiv = document.createElement('div');
+            
+            // Thêm tiêu đề
+            const header = document.createElement('div');
+            header.textContent = 'DANH SÁCH KHÁCH HÀNG';
+            header.style.fontWeight = 'bold';
+            header.style.fontSize = '16px';
+            header.style.marginBottom = '10px';
+            header.style.textAlign = 'center';
+            
+            tempDiv.appendChild(header);
+            tempDiv.appendChild(tempTable);
+            
+            // Tạo và tải xuống Excel
+            let tableHTML = tempDiv.outerHTML.replace(/ /g, '%20');
+            
+            // Tạo data URI cho Excel
+            let uri = 'data:application/vnd.ms-excel;charset=utf-8,' + tableHTML;
+            
+            // Tạo link tải về
+            let downloadLink = document.createElement('a');
+            downloadLink.href = uri;
+            downloadLink.download = 'danh-sach-khach-hang.xls';
+            
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            // Đóng dropdown
+            exportDropdown.classList.add('hidden');
+        });
+        
+        // Hàm xuất dữ liệu sang PDF bằng html2canvas
+        document.getElementById('exportPdfButton').addEventListener('click', function() {
+            // Hiển thị thông báo đang xử lý
+            alert('Đang xử lý PDF, vui lòng đợi trong giây lát...');
+            
+            // Khởi tạo jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a4'); // landscape mode
+            
+            // Tạo bảng tạm thời để xuất PDF
+            const originalTable = document.querySelector('table');
+            const tempTable = originalTable.cloneNode(true);
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            tempDiv.style.top = '-9999px';
+            tempDiv.style.width = '1000px'; // Đủ rộng để hiển thị toàn bộ bảng
+            
+            // Loại bỏ cột hành động
+            const headerRow = tempTable.querySelector('thead tr');
+            const lastHeaderCell = headerRow.lastElementChild;
+            headerRow.removeChild(lastHeaderCell);
+            
+            tempTable.querySelectorAll('tbody tr').forEach(row => {
+                if (row.lastElementChild) {
+                    row.removeChild(row.lastElementChild);
+                }
+            });
+            
+            // Thêm CSS
+            tempTable.style.width = '100%';
+            tempTable.style.borderCollapse = 'collapse';
+            tempTable.style.fontSize = '14px';
+            tempTable.style.color = '#333';
+            
+            // Thiết lập màu cho header
+            tempTable.querySelectorAll('thead th').forEach(th => {
+                th.style.backgroundColor = '#4b90e2';
+                th.style.color = 'white';
+                th.style.padding = '8px';
+                th.style.textAlign = 'left';
+                th.style.fontWeight = 'bold';
+                th.style.border = '1px solid #ddd';
+            });
+            
+            // Thiết lập CSS cho cells
+            tempTable.querySelectorAll('tbody td').forEach(td => {
+                td.style.padding = '8px';
+                td.style.border = '1px solid #ddd';
+                if (td.parentElement.rowIndex % 2 === 0) {
+                    td.style.backgroundColor = '#f9f9f9';
+                }
+            });
+            
+            // Tạo header
+            const header = document.createElement('h2');
+            header.textContent = 'DANH SÁCH KHÁCH HÀNG';
+            header.style.textAlign = 'center';
+            header.style.margin = '20px 0';
+            header.style.fontWeight = 'bold';
+            header.style.fontSize = '18px';
+            
+            // Tạo ngày xuất
+            const today = new Date();
+            const dateStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+            const dateDiv = document.createElement('div');
+            dateDiv.textContent = `Ngày xuất: ${dateStr}`;
+            dateDiv.style.textAlign = 'right';
+            dateDiv.style.margin = '10px 0';
+            
+            // Thêm tất cả vào div tạm thời
+            tempDiv.appendChild(header);
+            tempDiv.appendChild(dateDiv);
+            tempDiv.appendChild(tempTable);
+            document.body.appendChild(tempDiv);
+            
+            // Sử dụng html2canvas để chụp bảng
+            html2canvas(tempDiv, {
+                scale: 1,
+                useCORS: true,
+                logging: false
+            }).then(canvas => {
+                // Xóa div tạm thời
+                document.body.removeChild(tempDiv);
+                
+                // Tính toán tỷ lệ để vừa với trang PDF
+                const imgWidth = 280;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // Thêm ảnh vào PDF
+                const imgData = canvas.toDataURL('image/png');
+                doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+                
+                // Thêm footer
+                doc.setFontSize(10);
+                doc.text('SGL - Hệ thống quản lý kho', 10, doc.internal.pageSize.height - 10);
+                doc.text(`Trang 1 / 1`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 10);
+                
+                // Tải xuống PDF
+                doc.save('danh-sach-khach-hang.pdf');
+                
+                // Đóng dropdown
+                exportDropdown.classList.add('hidden');
+            });
+        });
     </script>
 </body>
 </html> 

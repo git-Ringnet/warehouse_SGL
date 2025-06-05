@@ -28,7 +28,8 @@ class Employee extends Model
         'role_id',
         'scope_value',
         'scope_type',
-        'status'
+        'status',
+        'is_active'
     ];
 
     /**
@@ -38,6 +39,7 @@ class Employee extends Model
      */
     protected $hidden = [
         'password',
+        'status'
     ];
 
     /**
@@ -99,5 +101,15 @@ class Employee extends Model
 
         // Kiểm tra phạm vi
         return $this->scope_type === $scopeType && $this->scope_value === $scopeValue;
+    }
+
+    /**
+     * Phương thức để khóa/mở tài khoản nhân viên
+     */
+    public function toggleActive()
+    {
+        $this->is_active = !$this->is_active;
+        $this->save();
+        return $this->is_active;
     }
 } 

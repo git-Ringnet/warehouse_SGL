@@ -41,21 +41,29 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Tên khách hàng</h3>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Tên người đại diện</h3>
                             <p class="text-base text-gray-900">{{ $customer->name }}</p>
+                        </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Công ty</h3>
+                            <p class="text-base text-gray-900">{{ $customer->company_name }}</p>
                         </div>
                         <div class="mb-4">
                             <h3 class="text-sm font-medium text-gray-500 mb-1">Số điện thoại</h3>
                             <p class="text-base text-gray-900">{{ $customer->phone }}</p>
                         </div>
                         <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
-                            <p class="text-base text-gray-900">{{ $customer->email ?? 'Không có' }}</p>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Số điện thoại công ty</h3>
+                            <p class="text-base text-gray-900">{{ $customer->company_phone ?? 'Không có' }}</p>
                         </div>
                     </div>
                     <div>
                         <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Địa chỉ</h3>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
+                            <p class="text-base text-gray-900">{{ $customer->email ?? 'Không có' }}</p>
+                        </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Địa chỉ công ty</h3>
                             <p class="text-base text-gray-900">{{ $customer->address ?? 'Không có' }}</p>
                         </div>
                         <div class="mb-4">
@@ -65,6 +73,34 @@
                         <div class="mb-4">
                             <h3 class="text-sm font-medium text-gray-500 mb-1">Cập nhật lần cuối</h3>
                             <p class="text-base text-gray-900">{{ $customer->updated_at->format('d/m/Y H:i') }}</p>
+                        </div>
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Trạng thái tài khoản</h3>
+                            @if($customer->has_account)
+                                <div>
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">Đã kích hoạt</span>
+                                </div>
+                                <div class="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                    <h4 class="text-sm font-medium text-blue-800 mb-2">Thông tin đăng nhập</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        <div>
+                                            <span class="text-gray-600 text-sm">Tên đăng nhập:</span>
+                                            <span class="font-medium ml-1">{{ $customer->account_username }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-gray-600 text-sm">Mật khẩu:</span>
+                                            <span class="font-medium ml-1">{{ $customer->account_password }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="flex items-center">
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Chưa kích hoạt</span>
+                                    <a href="{{ route('customers.activate', $customer->id) }}" class="ml-2 text-blue-500 hover:text-blue-700 text-sm">
+                                        <i class="fas fa-user-check mr-1"></i> Kích hoạt ngay
+                                    </a>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
