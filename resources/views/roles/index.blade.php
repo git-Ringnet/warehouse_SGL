@@ -36,15 +36,15 @@
                 </a>
             </div>
         </header>
-        
-        <main class="p-6">
-            @if(session('success'))
+        @if(session('success'))
                 <x-alert type="success" :message="session('success')" />
             @endif
             
             @if(session('error'))
                 <x-alert type="error" :message="session('error')" />
             @endif
+        <main class="p-6">
+          
             
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -124,9 +124,9 @@
                                             @method('DELETE')
                                         </form>
 
-                                        <form action="{{ route('roles.toggle-status', $role->id) }}" method="POST" class="inline">
+                                        <form action="{{ route('roles.toggleStatus', $role->id) }}" method="POST" class="inline">
                                             @csrf
-                                            @method('PUT')
+                                            @method('PATCH')
                                             <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full {{ $role->is_active ? 'bg-orange-100 hover:bg-orange-500' : 'bg-green-100 hover:bg-green-500' }} transition-colors group" title="{{ $role->is_active ? 'Vô hiệu hóa' : 'Kích hoạt' }}">
                                                 <i class="fas {{ $role->is_active ? 'fa-ban' : 'fa-check' }} {{ $role->is_active ? 'text-orange-500' : 'text-green-500' }} group-hover:text-white"></i>
                                             </button>

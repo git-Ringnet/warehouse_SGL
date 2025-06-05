@@ -58,7 +58,10 @@ class RoleController extends Controller
                                ->get()
                                ->groupBy('group');
         
-        return view('roles.create', compact('permissions'));
+        // Lấy tất cả nhân viên
+        $employees = \App\Models\Employee::orderBy('name')->get();
+        
+        return view('roles.create', compact('permissions', 'employees'));
     }
 
     /**
@@ -72,6 +75,8 @@ class RoleController extends Controller
             'scope' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
             'permissions.*' => 'exists:permissions,id',
+            'employees' => 'nullable|array',
+            'employees.*' => 'exists:employees,id',
         ]);
 
         $role = Role::create([
@@ -84,6 +89,23 @@ class RoleController extends Controller
         // Gán quyền
         if ($request->has('permissions')) {
             $role->permissions()->sync($request->permissions);
+        }
+        
+        // Gán nhân viên vào nhóm quyền
+        if ($request->has('employees')) {
+            \App\Models\Employee::whereIn('id', $request->employees)->update(['role_id' => $role->id]);
+            
+            // Ghi nhật ký cho việc gán nhân viên
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'employees',
+                    'Gán ' . count($request->employees) . ' nhân viên vào nhóm quyền ' . $role->name,
+                    null,
+                    ['role_id' => $role->id, 'employees' => $request->employees]
+                );
+            }
         }
         
         // Ghi nhật ký
@@ -139,7 +161,13 @@ class RoleController extends Controller
                                ->get()
                                ->groupBy('group');
         
-        return view('roles.edit', compact('role', 'permissions', 'rolePermissions'));
+        // Lấy tất cả nhân viên
+        $employees = \App\Models\Employee::orderBy('name')->get();
+        
+        // Lấy danh sách id nhân viên đang thuộc nhóm quyền này
+        $roleEmployees = $role->employees->pluck('id')->toArray();
+        
+        return view('roles.edit', compact('role', 'permissions', 'rolePermissions', 'employees', 'roleEmployees'));
     }
 
     /**
@@ -159,6 +187,8 @@ class RoleController extends Controller
             'scope' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
             'permissions.*' => 'exists:permissions,id',
+            'employees' => 'nullable|array',
+            'employees.*' => 'exists:employees,id',
         ]);
 
         $oldData = $role->toArray();
@@ -175,6 +205,27 @@ class RoleController extends Controller
             $role->permissions()->sync($request->permissions);
         } else {
             $role->permissions()->detach();
+        }
+        
+        // Cập nhật nhân viên trong nhóm quyền
+        // Đầu tiên, bỏ nhóm quyền cho tất cả nhân viên thuộc nhóm quyền này
+        \App\Models\Employee::where('role_id', $role->id)->update(['role_id' => null]);
+        
+        // Sau đó, gán lại nhóm quyền cho các nhân viên được chọn
+        if ($request->has('employees')) {
+            \App\Models\Employee::whereIn('id', $request->employees)->update(['role_id' => $role->id]);
+            
+            // Ghi nhật ký cho việc cập nhật nhân viên
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'employees',
+                    'Cập nhật nhân viên trong nhóm quyền ' . $role->name,
+                    ['old_employees' => $role->employees->pluck('id')->toArray()],
+                    ['new_employees' => $request->employees]
+                );
+            }
         }
         
         // Ghi nhật ký

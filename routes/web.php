@@ -347,7 +347,7 @@ Route::get('/materials/search', [App\Http\Controllers\AssemblyController::class,
 // Thêm phần routes phân quyền
 // Routes cho nhóm quyền (roles)
 Route::resource('roles', RoleController::class);
-Route::put('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggle-status');
+Route::patch('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggleStatus');
 
 // Routes cho danh sách quyền (permissions)
 Route::resource('permissions', PermissionController::class);

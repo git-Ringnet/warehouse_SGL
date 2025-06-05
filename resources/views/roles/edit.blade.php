@@ -121,13 +121,118 @@
                     </div>
                 </div>
                 
-                <div class="flex justify-end space-x-4">
-                    <a href="{{ route('roles.show', $role->id) }}" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                        Hủy
-                    </a>
-                    <button type="submit" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
-                        <i class="fas fa-save mr-2"></i> Lưu thay đổi
-                    </button>
+                <!-- Thêm nhân viên vào nhóm quyền -->
+                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Nhân viên trong nhóm quyền này</h2>
+                    
+                    <div class="space-y-4">
+                        <p class="text-sm text-gray-600">Nhân viên thuộc nhóm quyền này sẽ được phép thực hiện các quyền đã chọn ở trên</p>
+                        
+                        <!-- Tìm kiếm nhân viên -->
+                        <div class="mb-6 relative">
+                            <input type="text" id="employeeSearch" placeholder="Tìm kiếm nhân viên..." 
+                                class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="max-h-80 overflow-y-auto">
+                                <table class="min-w-full divide-y divide-gray-200 employee-list">
+                                    <thead class="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                <input type="checkbox" id="select-all-employees" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                            </th>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên nhân viên</th>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vai trò</th>
+                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        @foreach($employees as $employee)
+                                        <tr class="employee-row hover:bg-gray-50">
+                                            <td class="px-3 py-2 whitespace-nowrap">
+                                                <input type="checkbox" name="employees[]" value="{{ $employee->id }}" 
+                                                    {{ in_array($employee->id, $roleEmployees) ? 'checked' : '' }}
+                                                    class="employee-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-3 py-2 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900 employee-name">{{ $employee->name }}</div>
+                                            </td>
+                                            <td class="px-3 py-2 whitespace-nowrap">
+                                                <div class="text-sm text-gray-500 employee-username">{{ $employee->username }}</div>
+                                            </td>
+                                            <td class="px-3 py-2 whitespace-nowrap">
+                                                @if($employee->role == 'admin')
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                        Quản trị viên
+                                                    </span>
+                                                @elseif($employee->role == 'manager')
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        Quản lý
+                                                    </span>
+                                                @elseif($employee->role == 'tech')
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                                        Kỹ thuật viên
+                                                    </span>
+                                                @else
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                                        Nhân viên
+                                                    </span>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2 whitespace-nowrap">
+                                                @if($employee->status == 'active')
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                        Đang hoạt động
+                                                    </span>
+                                                @elseif($employee->status == 'leave')
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                        Nghỉ phép
+                                                    </span>
+                                                @else
+                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                        Đã nghỉ việc
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div id="noEmployeesFound" class="hidden py-4 text-center text-gray-500 text-sm">
+                                Không tìm thấy nhân viên nào phù hợp với từ khóa tìm kiếm
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mt-4">
+                            <div>
+                                <span class="font-medium">Lưu ý:</span> Nhân viên được chọn sẽ được gán vào nhóm quyền này sau khi lưu thay đổi
+                            </div>
+                            <div>
+                                <span id="selectedEmployeesCount">{{ count($roleEmployees) }}</span> nhân viên được chọn
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cài đặt -->
+                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Cài đặt</h2>
+                    
+                    <div class="flex justify-end space-x-4">
+                        <a href="{{ route('roles.show', $role->id) }}" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
+                            Hủy
+                        </a>
+                        <button type="submit" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i> Lưu thay đổi
+                        </button>
+                    </div>
                 </div>
             </form>
         </main>
@@ -270,7 +375,84 @@
                 selectAllCheckbox.checked = allChecked;
             }
             
-            // Khởi tạo trạng thái ban đầu
+            // Xử lý tìm kiếm nhân viên
+            const employeeSearch = document.getElementById('employeeSearch');
+            const employeeRows = document.querySelectorAll('.employee-row');
+            const noEmployeesFoundMessage = document.getElementById('noEmployeesFound');
+            
+            if (employeeSearch) {
+                employeeSearch.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+                    let foundAny = false;
+                    
+                    employeeRows.forEach(row => {
+                        const name = row.querySelector('.employee-name').textContent.toLowerCase();
+                        const username = row.querySelector('.employee-username').textContent.toLowerCase();
+                        
+                        if (name.includes(searchTerm) || username.includes(searchTerm)) {
+                            row.style.display = '';
+                            foundAny = true;
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                    
+                    noEmployeesFoundMessage.style.display = foundAny ? 'none' : 'block';
+                });
+            }
+            
+            // Xử lý chọn tất cả nhân viên
+            const selectAllEmployeesCheckbox = document.getElementById('select-all-employees');
+            const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
+            
+            if (selectAllEmployeesCheckbox) {
+                // Kiểm tra trạng thái ban đầu của "Chọn tất cả"
+                function updateSelectAllEmployeesStatus() {
+                    let allChecked = true;
+                    let visibleCount = 0;
+                    
+                    employeeCheckboxes.forEach(checkbox => {
+                        // Chỉ xét các checkbox đang hiển thị
+                        if (checkbox.closest('tr').style.display !== 'none') {
+                            visibleCount++;
+                            if (!checkbox.checked) {
+                                allChecked = false;
+                            }
+                        }
+                    });
+                    
+                    selectAllEmployeesCheckbox.checked = (visibleCount > 0) && allChecked;
+                    selectAllEmployeesCheckbox.indeterminate = !allChecked && visibleCount > 0 && document.querySelectorAll('.employee-checkbox:checked').length > 0;
+                    
+                    // Cập nhật số lượng nhân viên được chọn
+                    const selectedCount = document.querySelectorAll('.employee-checkbox:checked').length;
+                    document.getElementById('selectedEmployeesCount').textContent = selectedCount;
+                }
+                
+                selectAllEmployeesCheckbox.addEventListener('change', function() {
+                    employeeCheckboxes.forEach(checkbox => {
+                        // Chỉ thay đổi trạng thái của các checkbox đang hiển thị
+                        if (checkbox.closest('tr').style.display !== 'none') {
+                            checkbox.checked = this.checked;
+                        }
+                    });
+                    
+                    // Cập nhật số lượng nhân viên được chọn
+                    updateSelectAllEmployeesStatus();
+                });
+                
+                // Khi checkbox nhân viên thay đổi, cập nhật trạng thái "Chọn tất cả"
+                employeeCheckboxes.forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        updateSelectAllEmployeesStatus();
+                    });
+                });
+                
+                // Khởi tạo trạng thái ban đầu
+                updateSelectAllEmployeesStatus();
+            }
+            
+            // Khởi tạo trạng thái ban đầu của các nhóm quyền
             initializeGroupStatus();
         });
     </script>

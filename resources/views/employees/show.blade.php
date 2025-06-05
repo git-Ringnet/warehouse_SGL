@@ -169,6 +169,18 @@
                             </p>
                         </div>
                         <div>
+                            <p class="text-sm text-gray-500">Nhóm quyền</p>
+                            <p class="font-medium text-gray-800">
+                                @if($employee->roleGroup)
+                                    <span class="px-2 py-1 {{ $employee->roleGroup->is_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600' }} rounded-full text-xs font-semibold">
+                                        {{ $employee->roleGroup->name }}
+                                    </span>
+                                @else
+                                    <span class="text-gray-500">Chưa được gán nhóm quyền</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div>
                             <p class="text-sm text-gray-500">Trạng thái</p>
                             <p class="font-medium text-gray-800">
                                 @if($employee->status == 'active')
@@ -197,6 +209,41 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Danh sách quyền -->
+            @if($employee->roleGroup && $employee->roleGroup->permissions->count() > 0)
+            <div class="mt-6">
+                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-lock mr-2 text-green-500"></i>
+                        Quyền hạn của nhân viên
+                    </h3>
+                    
+                    <div class="space-y-4">
+                        <p class="text-sm text-gray-600">
+                            Các quyền được cấp thông qua nhóm quyền <span class="font-semibold">{{ $employee->roleGroup->name }}</span>:
+                        </p>
+                        
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-3">
+                            @foreach($employee->roleGroup->permissions->groupBy('group') as $group => $permissions)
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <h4 class="font-medium text-gray-700 mb-2">{{ $group }}</h4>
+                                    <ul class="space-y-1">
+                                        @foreach($permissions as $permission)
+                                            <li class="text-sm">
+                                                <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                                {{ $permission->display_name }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+            
         </main>
     </div>
 

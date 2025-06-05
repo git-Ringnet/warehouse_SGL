@@ -54,11 +54,8 @@ class UserLogSeeder extends Seeder
             'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1'
         ];
         
-        // Get log count from command, default to 200
+        // Set default log count
         $logCount = 200;
-        if (isset($this->command)) {
-            $logCount = $this->command->argument('count') ?? $logCount;
-        }
         
         // Create sample logs
         $userLogs = [];
@@ -116,7 +113,9 @@ class UserLogSeeder extends Seeder
             UserLog::insert($userLogs);
         }
         
-        $this->command->info('Đã tạo ' . $logCount . ' bản ghi nhật ký người dùng thành công!');
+        if (isset($this->command)) {
+            $this->command->info('Đã tạo ' . $logCount . ' bản ghi nhật ký người dùng thành công!');
+        }
     }
     
     /**
@@ -335,9 +334,6 @@ class UserLogSeeder extends Seeder
 
     /**
      * Set the console command instance.
-     *
-     * @param  \Illuminate\Console\Command  $command
-     * @return void
      */
     public function setCommand($command)
     {
