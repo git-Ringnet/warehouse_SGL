@@ -108,9 +108,9 @@
                             <div class="material-row border border-gray-200 rounded-lg p-4 mb-4">
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Vật tư</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
                                         <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                            <option value="">-- Chọn vật tư --</option>
+                                            <option value="">-- Chọn vật tư/ thành phẩm --</option>
                                             @foreach($materials as $material)
                                                 <option value="{{ $material->id }}">{{ $material->code }} - {{ $material->name }} ({{ $material->unit }})</option>
                                             @endforeach
@@ -118,11 +118,12 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                                        <input type="number" name="materials[0][quantity]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số lượng" value="1" min="1" required>
+                                        <input type="number" name="materials[0][quantity]" class="quantity-input w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số lượng" value="1" min="1" required>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Serial</label>
-                                        <input type="text" name="materials[0][serial]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số serial (nếu có)">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">List số seri</label>
+                                        <textarea name="materials[0][serial_numbers]" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập danh sách số seri, mỗi số seri trên một dòng hoặc ngăn cách bằng dấu phẩy"></textarea>
+                                        <p class="text-xs text-gray-500 mt-1">Số lượng seri nên trùng khớp với số lượng vật tư nhập</p>
                                     </div>
                                 </div>
                                 <div class="mt-2">
@@ -172,6 +173,9 @@
             
             // Hiển thị nút xóa nếu có nhiều hơn 1 hàng
             updateRemoveButtons();
+            
+            // Tự động hiển thị gợi ý từ dữ liệu đã có
+            setupAutoSuggestion();
         });
         
         // Biến đếm số lượng hàng vật tư
@@ -207,6 +211,14 @@
             // Thêm hàng mới vào container
             container.appendChild(template);
             
+            // Đăng ký sự kiện cho dropdown vật tư mới
+            const newSelect = template.querySelector('.material-select');
+            if(newSelect) {
+                newSelect.addEventListener('change', function() {
+                    handleMaterialChange(this);
+                });
+            }
+            
             materialCount++;
             
             // Cập nhật hiển thị của các nút xóa
@@ -232,6 +244,81 @@
                 removeButtons.forEach(btn => btn.style.display = 'none');
             } else {
                 removeButtons.forEach(btn => btn.style.display = 'inline-flex');
+            }
+        }
+        
+        // Thiết lập gợi ý tự động từ dữ liệu đã có
+        function setupAutoSuggestion() {
+            // Thêm sự kiện change cho tất cả các dropdown chọn vật tư
+            document.querySelectorAll('.material-select').forEach(select => {
+                select.addEventListener('change', function() {
+                    handleMaterialChange(this);
+                });
+            });
+        }
+        
+        // Xử lý khi chọn vật tư
+        function handleMaterialChange(selectElement) {
+            const materialId = selectElement.value;
+            if (!materialId) return;
+            
+            const materialRow = selectElement.closest('.material-row');
+            
+            // Gọi API để lấy thông tin vật tư
+            fetch(`/api/materials/${materialId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const material = data.data;
+                        
+                        // Nếu vật tư có nhà cung cấp
+                        if (material.supplier_id) {
+                            // Tự động chọn nhà cung cấp tương ứng
+                            const supplierSelect = document.getElementById('supplier_id');
+                            if (supplierSelect) {
+                                supplierSelect.value = material.supplier_id;
+                            }
+                        }
+                        
+                        // Tạo gợi ý serial numbers dựa trên số lượng
+                        const quantityInput = materialRow.querySelector('.quantity-input');
+                        if (quantityInput) {
+                            quantityInput.addEventListener('change', function() {
+                                suggestSerialNumbers(materialRow, material, this.value);
+                            });
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi tải dữ liệu vật tư:', error);
+                });
+        }
+        
+        // Gợi ý số serial dựa trên số lượng
+        function suggestSerialNumbers(row, material, quantity) {
+            const serialNumbersTextarea = row.querySelector('textarea[name*="serial_numbers"]');
+            if (!serialNumbersTextarea) return;
+            
+            // Nếu có đã có dữ liệu hoặc người dùng đã nhập, không tự gợi ý
+            if (serialNumbersTextarea.value.trim() !== '') return;
+            
+            // Chỉ gợi ý nếu vật tư thường có serial
+            if (material.serial) {
+                const prefix = material.code + '-';
+                const today = new Date();
+                const dateStr = today.getFullYear() + 
+                                ('0' + (today.getMonth() + 1)).slice(-2) + 
+                                ('0' + today.getDate()).slice(-2);
+                
+                let suggestedSerials = [];
+                
+                // Tạo các số serial gợi ý
+                for (let i = 1; i <= quantity; i++) {
+                    const paddedNumber = ('000' + i).slice(-3); // Format to ensure 3 digits
+                    suggestedSerials.push(prefix + dateStr + '-' + paddedNumber);
+                }
+                
+                serialNumbersTextarea.value = suggestedSerials.join('\n');
             }
         }
     </script>

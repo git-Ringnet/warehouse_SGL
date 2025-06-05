@@ -33,4 +33,12 @@ class Material extends Model
     protected $casts = [
         'supplier_id' => 'integer',
     ];
+    
+    /**
+     * Get the supplier that owns the material.
+     */
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
 } 

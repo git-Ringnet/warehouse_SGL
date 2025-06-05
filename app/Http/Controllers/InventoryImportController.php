@@ -9,6 +9,7 @@ use App\Models\Supplier;
 use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class InventoryImportController extends Controller
 {
@@ -79,7 +80,8 @@ class InventoryImportController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        // Validation cơ bản
+        $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'import_code' => 'required|string|max:255|unique:inventory_imports',
@@ -89,7 +91,7 @@ class InventoryImportController extends Controller
             'materials' => 'required|array|min:1',
             'materials.*.material_id' => 'required|exists:materials,id',
             'materials.*.quantity' => 'required|integer|min:1',
-            'materials.*.serial' => 'nullable|string',
+            'materials.*.serial_numbers' => 'nullable|string',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
@@ -108,6 +110,33 @@ class InventoryImportController extends Controller
             'materials.*.quantity.min' => 'Số lượng phải lớn hơn hoặc bằng 1',
         ]);
 
+        // Validation custom cho số lượng serial
+        $validator->after(function ($validator) use ($request) {
+            if ($request->has('materials')) {
+                foreach ($request->materials as $index => $material) {
+                    // Chỉ kiểm tra khi có nhập danh sách số seri
+                    if (!empty($material['serial_numbers'])) {
+                        $serialArray = preg_split('/[,;\n\r]+/', $material['serial_numbers']);
+                        $serialArray = array_map('trim', $serialArray);
+                        $serialArray = array_filter($serialArray);
+                        $serialCount = count($serialArray);
+                        $quantity = (int) $material['quantity'];
+
+                        if ($serialCount != $quantity) {
+                            $validator->errors()->add(
+                                "materials.{$index}.serial_numbers", 
+                                "Số lượng số seri ({$serialCount}) phải bằng với số lượng vật tư nhập ({$quantity})"
+                            );
+                        }
+                    }
+                }
+            }
+        });
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
         DB::beginTransaction();
         try {
             // Tạo phiếu nhập kho
@@ -122,11 +151,23 @@ class InventoryImportController extends Controller
             
             // Thêm các vật tư vào phiếu nhập kho
             foreach ($request->materials as $material) {
+                // Xử lý danh sách số serial (nếu có)
+                $serialNumbers = null;
+                if (!empty($material['serial_numbers'])) {
+                    // Phân tách các số serial bằng dấu phẩy, xuống dòng hoặc dấu chấm phẩy
+                    $serialArray = preg_split('/[,;\n\r]+/', $material['serial_numbers']);
+                    $serialArray = array_map('trim', $serialArray); // Loại bỏ khoảng trắng thừa
+                    $serialArray = array_filter($serialArray); // Loại bỏ các giá trị trống
+                    if (count($serialArray) > 0) {
+                        $serialNumbers = $serialArray;
+                    }
+                }
+                
                 InventoryImportMaterial::create([
                     'inventory_import_id' => $inventoryImport->id,
                     'material_id' => $material['material_id'],
                     'quantity' => $material['quantity'],
-                    'serial' => $material['serial'] ?? null,
+                    'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
                 ]);
             }
@@ -167,7 +208,8 @@ class InventoryImportController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $request->validate([
+        // Validation cơ bản
+        $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'import_code' => 'required|string|max:255|unique:inventory_imports,import_code,'.$id,
@@ -177,7 +219,7 @@ class InventoryImportController extends Controller
             'materials' => 'required|array|min:1',
             'materials.*.material_id' => 'required|exists:materials,id',
             'materials.*.quantity' => 'required|integer|min:1',
-            'materials.*.serial' => 'nullable|string',
+            'materials.*.serial_numbers' => 'nullable|string',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
@@ -195,6 +237,33 @@ class InventoryImportController extends Controller
             'materials.*.quantity.integer' => 'Số lượng phải là số nguyên',
             'materials.*.quantity.min' => 'Số lượng phải lớn hơn hoặc bằng 1',
         ]);
+
+        // Validation custom cho số lượng serial
+        $validator->after(function ($validator) use ($request) {
+            if ($request->has('materials')) {
+                foreach ($request->materials as $index => $material) {
+                    // Chỉ kiểm tra khi có nhập danh sách số seri
+                    if (!empty($material['serial_numbers'])) {
+                        $serialArray = preg_split('/[,;\n\r]+/', $material['serial_numbers']);
+                        $serialArray = array_map('trim', $serialArray);
+                        $serialArray = array_filter($serialArray);
+                        $serialCount = count($serialArray);
+                        $quantity = (int) $material['quantity'];
+
+                        if ($serialCount != $quantity) {
+                            $validator->errors()->add(
+                                "materials.{$index}.serial_numbers", 
+                                "Số lượng số seri ({$serialCount}) phải bằng với số lượng vật tư nhập ({$quantity})"
+                            );
+                        }
+                    }
+                }
+            }
+        });
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
 
         DB::beginTransaction();
         try {
@@ -214,11 +283,23 @@ class InventoryImportController extends Controller
             
             // Thêm lại các vật tư mới vào phiếu nhập kho
             foreach ($request->materials as $material) {
+                // Xử lý danh sách số serial (nếu có)
+                $serialNumbers = null;
+                if (!empty($material['serial_numbers'])) {
+                    // Phân tách các số serial bằng dấu phẩy, xuống dòng hoặc dấu chấm phẩy
+                    $serialArray = preg_split('/[,;\n\r]+/', $material['serial_numbers']);
+                    $serialArray = array_map('trim', $serialArray); // Loại bỏ khoảng trắng thừa
+                    $serialArray = array_filter($serialArray); // Loại bỏ các giá trị trống
+                    if (count($serialArray) > 0) {
+                        $serialNumbers = $serialArray;
+                    }
+                }
+                
                 InventoryImportMaterial::create([
                     'inventory_import_id' => $inventoryImport->id,
                     'material_id' => $material['material_id'],
                     'quantity' => $material['quantity'],
-                    'serial' => $material['serial'] ?? null,
+                    'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
                 ]);
             }
@@ -243,5 +324,27 @@ class InventoryImportController extends Controller
 
         return redirect()->route('inventory-imports.index')
             ->with('success', 'Phiếu nhập kho đã được xóa thành công.');
+    }
+
+    /**
+     * Trả về thông tin chi tiết của vật tư qua API.
+     * 
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getMaterialInfo($id)
+    {
+        try {
+            $material = Material::with('supplier')->findOrFail($id);
+            return response()->json([
+                'success' => true,
+                'data' => $material
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy vật tư'
+            ], 404);
+        }
     }
 } 
