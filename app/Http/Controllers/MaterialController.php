@@ -115,7 +115,22 @@ class MaterialController extends Controller
         // Load material images
         $material->load('images');
         
-        return view('materials.show', compact('material', 'warehouses'));
+        // Calculate total quantity across all locations
+        $totalQuantity = WarehouseMaterial::where('material_id', $material->id)
+            ->where('item_type', 'material')
+            ->sum('quantity');
+        
+        // Calculate total inventory based on configuration
+        $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+            ->where('item_type', 'material');
+            
+        if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+            $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
+        }
+        
+        $inventoryQuantity = $warehouseQuery->sum('quantity');
+        
+        return view('materials.show', compact('material', 'warehouses', 'totalQuantity', 'inventoryQuantity'));
     }
 
     /**
@@ -389,12 +404,6 @@ class MaterialController extends Controller
      */
     public function exportExcel()
     {
-        try {
-            return Excel::download(new MaterialsExport, 'danh-sach-vat-tu-' . date('Y-m-d') . '.xlsx');
-        } catch (\Exception $e) {
-            Log::error('Export Excel error: ' . $e->getMessage());
-            
-            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
-        }
+        
     }
 } 
