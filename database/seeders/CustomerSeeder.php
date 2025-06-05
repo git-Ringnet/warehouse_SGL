@@ -16,6 +16,7 @@ class CustomerSeeder extends Seeder
         $customers = [
             [
                 'name' => 'Nguyễn Văn B',
+                'company_name' => 'Công ty TNHH B',
                 'phone' => '0912345678',
                 'email' => 'nguyenb@gmail.com',
                 'address' => '123 Lê Lợi, Hà Nội',
@@ -25,6 +26,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Trần Thị C',
+                'company_name' => 'Công ty Cổ phần C',
                 'phone' => '0987654321',
                 'email' => 'tranthic@gmail.com',
                 'address' => '456 Trần Hưng Đạo, TP.HCM',
@@ -34,6 +36,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Lê Văn D',
+                'company_name' => 'Công ty TNHH D',
                 'phone' => '0901234567',
                 'email' => 'levand@gmail.com',
                 'address' => '789 Nguyễn Trãi, Đà Nẵng',
@@ -43,6 +46,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Vũ Thị M',
+                'company_name' => 'Công ty M',
                 'phone' => '0911111111',
                 'email' => 'vum@gmail.com',
                 'address' => '11 Lê Lai, Hà Nội',
@@ -52,6 +56,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Phạm Thị X',
+                'company_name' => 'Công ty X',
                 'phone' => '0912345679',
                 'email' => 'phamx@gmail.com',
                 'address' => '23 Nguyễn Huệ, Huế',
@@ -61,6 +66,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Ngô Văn Y',
+                'company_name' => 'Công ty Y',
                 'phone' => '0987654322',
                 'email' => 'ngoy@gmail.com',
                 'address' => '45 Lê Lợi, Hải Phòng',
@@ -70,6 +76,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Lê Thị Z',
+                'company_name' => 'Công ty Z',
                 'phone' => '0901234568',
                 'email' => 'lez@gmail.com',
                 'address' => '67 Nguyễn Văn Cừ, Cần Thơ',
@@ -79,6 +86,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Trịnh Văn A1',
+                'company_name' => 'Công ty A1',
                 'phone' => '0912345680',
                 'email' => 'trinha1@gmail.com',
                 'address' => '89 Lê Duẩn, Đắk Lắk',
@@ -88,6 +96,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Nguyễn Thị B2',
+                'company_name' => 'Công ty B2',
                 'phone' => '0987654323',
                 'email' => 'nguyenthib2@gmail.com',
                 'address' => '12 Nguyễn Trãi, Nam Định',
@@ -97,6 +106,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Lê Văn C3',
+                'company_name' => 'Công ty C3',
                 'phone' => '0901234569',
                 'email' => 'levanc3@gmail.com',
                 'address' => '34 Lê Lợi, Quảng Ngãi',
@@ -106,6 +116,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Phạm Thị D4',
+                'company_name' => 'Công ty D4',
                 'phone' => '0912345670',
                 'email' => 'phamd4@gmail.com',
                 'address' => '56 Nguyễn Văn Cừ, Cần Thơ',
@@ -115,6 +126,7 @@ class CustomerSeeder extends Seeder
             ],
             [
                 'name' => 'Ngô Văn E5',
+                'company_name' => 'Công ty E5',
                 'phone' => '0987654324',
                 'email' => 'ngovane5@gmail.com',
                 'address' => '78 Phan Đình Phùng, Quảng Ninh',
