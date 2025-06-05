@@ -40,92 +40,130 @@
                         </div>
                     @endif
 
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Thông tin vật tư</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Mã vật tư -->
-                        <div class="col-span-1">
-                            <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Mã vật tư <span
-                                    class="text-red-500">*</span></label>
-                            <input type="text" id="code" name="code" placeholder="VT-XXXX" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Mã vật tư <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" id="code" name="code" placeholder="VT-XXXX" required
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
 
-                        <!-- Tên vật tư -->
-                        <div class="col-span-1">
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Tên vật tư <span
-                                    class="text-red-500">*</span></label>
-                            <input type="text" id="name" name="name" placeholder="Nhập tên vật tư" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
+                            <div>
+                                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Tên vật tư <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" id="name" name="name" placeholder="Nhập tên vật tư" required
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            </div>
 
-                        <!-- Loại vật tư -->
-                        <div class="col-span-1">
-                            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư <span
-                                    class="text-red-500">*</span></label>
-                            <div class="flex">
-                                <select id="category" name="category" required
-                                    class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Chọn loại vật tư</option>
-                                    @foreach ($categories as $category)
-                                        <option value="{{ $category }}">{{ $category }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="button" id="addCategoryBtn"
-                                    class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
-                                    <i class="fas fa-plus"></i>
-                                </button>
+                            <div>
+                                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư <span
+                                        class="text-red-500">*</span></label>
+                                <div class="flex">
+                                    <select id="category" name="category" required
+                                        class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Chọn loại vật tư</option>
+                                        @foreach ($categories as $category)
+                                            <option value="{{ $category }}">{{ $category }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" id="addCategoryBtn"
+                                        class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Đơn vị tính -->
-                        <div class="col-span-1">
-                            <label for="unit" class="block text-sm font-medium text-gray-700 mb-1">Đơn vị<span
-                                    class="text-red-500">*</span></label>
-                            <select id="unit" name="unit" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Chọn đơn vị</option>
-                                <option value="Cái">Cái</option>
-                                <option value="Bộ">Bộ</option>
-                                <option value="Chiếc">Chiếc</option>
-                                <option value="Mét">Mét</option>
-                                <option value="Cuộn">Cuộn</option>
-                                <option value="Kg">Kg</option>
-                            </select>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung
+                                    cấp</label>
+                                <select id="supplier" name="supplier_id"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Chọn nhà cung cấp</option>
+                                    <option value="1">Công ty TNHH Điện tử ABC</option>
+                                    <option value="2">Công ty CP Thiết bị XYZ</option>
+                                    <option value="3">Công ty TNHH Linh kiện DEF</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="unit" class="block text-sm font-medium text-gray-700 mb-1">Đơn vị<span
+                                        class="text-red-500">*</span></label>
+                                <select id="unit" name="unit" required
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">Chọn đơn vị</option>
+                                    <option value="Cái">Cái</option>
+                                    <option value="Bộ">Bộ</option>
+                                    <option value="Chiếc">Chiếc</option>
+                                    <option value="Mét">Mét</option>
+                                    <option value="Cuộn">Cuộn</option>
+                                    <option value="Kg">Kg</option>
+                                </select>
+                            </div>
                         </div>
 
-                        <!-- Nhà cung cấp -->
-                        <div class="col-span-1">
-                            <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung
-                                cấp</label>
-                            <select id="supplier" name="supplier_id"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">Chọn nhà cung cấp</option>
-                                <option value="1">Công ty TNHH Điện tử ABC</option>
-                                <option value="2">Công ty CP Thiết bị XYZ</option>
-                                <option value="3">Công ty TNHH Linh kiện DEF</option>
-                            </select>
-                        </div>
-
-                        <!-- Trạng thái -->
-                        <div class="col-span-1">
-                            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái <span
-                                    class="text-red-500">*</span></label>
-                            <select id="status" name="status" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="new">Mới</option>
-                                <option value="used">Cũ</option>
-                                <option value="damaged">Hư hỏng</option>
-                            </select>
+                        <!-- Hình ảnh -->
+                        <div class="md:col-span-2">
+                            <label for="images" class="block text-sm font-medium text-gray-700 mb-1">Hình ảnh</label>
+                            <div class="flex flex-col space-y-2">
+                                <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <svg class="w-12 h-12 text-gray-400 mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                        <p class="mb-1 text-gray-600 font-medium">Kéo và thả file hoặc</p>
+                                        <p class="text-xs text-gray-500 mb-3">Hỗ trợ: JPG, JPEG, PNG, GIF (Tối đa 2MB)</p>
+                                        <button type="button" id="addImageBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                            Chọn file
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="file" id="imageInput" name="images[]" accept="image/*" multiple class="hidden">
+                                
+                                <div id="imagePreviewContainer" class="flex flex-wrap gap-4 mt-2">
+                                    <!-- Image previews will be inserted here -->
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Ghi chú -->
-                        <div class="col-span-2">
+                        <div class="md:col-span-2">
                             <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                            <textarea id="notes" placeholder="Nhập ghi chú" name="notes" rows="2"
+                            <textarea id="notes" placeholder="Nhập ghi chú" name="notes" rows="3"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
                         </div>
+
+                        <!-- Cách tính tồn kho -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn kho</label>
+                            <div class="space-y-2">
+                                @foreach(App\Models\Warehouse::orderBy('name')->get() as $warehouse)
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="warehouse_{{ $warehouse->id }}" name="inventory_warehouses[]" 
+                                        value="{{ $warehouse->id }}" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="warehouse_{{ $warehouse->id }}" class="ml-2 block text-sm text-gray-700">
+                                        {{ $warehouse->name }}
+                                    </label>
+                                </div>
+                                @endforeach
+                                <div class="flex items-center mt-2">
+                                    <input type="checkbox" id="warehouse_all" name="inventory_warehouses[]" 
+                                        value="all" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" checked>
+                                    <label for="warehouse_all" class="ml-2 block text-sm text-gray-700 font-medium">
+                                        Tất cả các kho
+                                    </label>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">Lựa chọn kho để thực hiện đếm số lượng vật tư tồn trong kho đó.</p>
+                        </div>
+
+                        <!-- Nội dung mô tả -->
                     </div>
 
-                    <div class="mt-8 flex justify-end space-x-3">
+                    <div class="mt-6 flex justify-end space-x-3">
                         <a href="{{ route('materials.index') }}"
                             class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                             Hủy
@@ -171,82 +209,40 @@
         </div>
     </div>
 
+    <!-- Include common JS file -->
+    <script src="{{ asset('js/material-form.js') }}"></script>
     <script>
-        // Hiển thị hình ảnh khi chọn file
-        document.getElementById('image')?.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const previewContainer = document.querySelector('.w-32.h-32');
-                    previewContainer.innerHTML =
-                        `<img src="${e.target.result}" class="w-full h-full object-cover rounded-lg">`;
+        // Initialize the material form
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMaterialForm(false); // false = create form
+            
+            // Handle warehouse checkboxes
+            const allWarehouseCheckbox = document.getElementById('warehouse_all');
+            const warehouseCheckboxes = document.querySelectorAll('input[name="inventory_warehouses[]"]:not([value="all"])');
+            
+            // When "All" is checked, uncheck others
+            allWarehouseCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    warehouseCheckboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
                 }
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Xử lý modal thêm loại vật tư
-        const modal = document.getElementById('addCategoryModal');
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const cancelCategoryBtn = document.getElementById('cancelCategoryBtn');
-        const addCategoryForm = document.getElementById('addCategoryForm');
-        const categorySelect = document.getElementById('category');
-
-        // Mở modal
-        addCategoryBtn.addEventListener('click', function() {
-            modal.classList.remove('hidden');
-        });
-
-        // Đóng modal
-        function closeModal() {
-            modal.classList.add('hidden');
-            addCategoryForm.reset();
-        }
-
-        closeModalBtn.addEventListener('click', closeModal);
-        cancelCategoryBtn.addEventListener('click', closeModal);
-
-        // Đóng modal khi click bên ngoài
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
-
-        // Xử lý form thêm loại vật tư
-        addCategoryForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const newCategoryName = document.getElementById('newCategoryName').value.trim();
-
-            if (newCategoryName) {
-                // Kiểm tra trùng lặp
-                let isDuplicate = false;
-                for (let i = 0; i < categorySelect.options.length; i++) {
-                    if (categorySelect.options[i].value === newCategoryName) {
-                        isDuplicate = true;
-                        break;
+            });
+            
+            // When any other warehouse is checked, uncheck "All"
+            warehouseCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        allWarehouseCheckbox.checked = false;
                     }
-                }
-
-                if (!isDuplicate) {
-                    // Thêm option mới vào select
-                    const newOption = document.createElement('option');
-                    newOption.value = newCategoryName;
-                    newOption.text = newCategoryName;
-                    categorySelect.add(newOption);
-
-                    // Chọn option vừa thêm
-                    categorySelect.value = newCategoryName;
-
-                    // Đóng modal
-                    closeModal();
-                } else {
-                    alert('Loại vật tư này đã tồn tại!');
-                }
-            }
+                    
+                    // If no warehouses are checked, check "All"
+                    const anyChecked = Array.from(warehouseCheckboxes).some(cb => cb.checked);
+                    if (!anyChecked) {
+                        allWarehouseCheckbox.checked = true;
+                    }
+                });
+            });
         });
     </script>
 </body>

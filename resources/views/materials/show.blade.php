@@ -92,21 +92,24 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
-                        <p class="text-gray-900">{{ $material->supplier_id ?? 'Không có' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Trạng thái</p>
-                        <p class="text-gray-900">
-                            @if($material->status == 'new')
-                                Mới
-                            @elseif($material->status == 'used')
-                                Cũ
-                            @else
-                                Hư hỏng
-                            @endif
-                        </p>
+                        <p class="text-gray-900">{{ $material->supplier->name ?? 'Không có' }}</p>
                     </div>
                 </div>
+
+                <!-- Hình ảnh vật tư nếu có -->
+                @if($material->images->count() > 0)
+                <div class="border-t border-gray-200 pt-4 mb-4">
+                    <p class="text-sm text-gray-500 mb-2">Hình ảnh</p>
+                    <div class="flex flex-wrap gap-4">
+                        @foreach($material->images as $image)
+                        <div class="w-32 h-32">
+                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="{{ $material->name }}" 
+                                class="w-full h-full object-cover rounded-lg border border-gray-200">
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
                 
                 @if($material->notes)
                 <div class="border-t border-gray-200 pt-4">

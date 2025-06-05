@@ -65,7 +65,7 @@
             </li>
             <li>
                 <div class="dropdown">
-                    <a href="{{ asset('assemble') }}">
+                    <a href="{{ route('assemblies.index') }}">
                         <button onclick="toggleDropdown('assembly')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">

@@ -64,8 +64,14 @@
                         <div class="space-y-4">
                             <div>
                                 <label for="manager" class="block text-sm font-medium text-gray-700 mb-1 required">Người quản lý <span class="text-red-500">*</span></label>
-                                <input type="text" id="manager" name="manager" placeholder="Nhập tên người quản lý" required value="{{ old('manager') }}"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <select id="manager" name="manager" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">-- Chọn người quản lý --</option>
+                                    @foreach($employees as $employee)
+                                    <option value="{{ $employee->name }}" data-phone="{{ $employee->phone }}" data-email="{{ $employee->email }}">
+                                        {{ $employee->name }}
+                                    </option>
+                                    @endforeach
+                                </select>
                             </div>
                             
                             <div>
@@ -100,6 +106,20 @@
             </div>
         </main>
     </div>
+
+    <script>
+        // Auto-fill phone and email when selecting manager
+        document.getElementById('manager').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                document.getElementById('phone').value = selectedOption.dataset.phone || '';
+                document.getElementById('email').value = selectedOption.dataset.email || '';
+            } else {
+                document.getElementById('phone').value = '';
+                document.getElementById('email').value = '';
+            }
+        });
+    </script>
 </body>
 
 </html> 

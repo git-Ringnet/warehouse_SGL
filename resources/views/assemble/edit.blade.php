@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chỉnh sửa phiếu lắp ráp - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -17,7 +18,7 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('assemble/detail') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('assemblies.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Chỉnh sửa phiếu lắp ráp</h1>
@@ -25,9 +26,20 @@
         </header>
 
         <main class="p-6">
-            <form action="#" method="POST">
+            <form action="{{ route('assemblies.update', $assembly->id) }}" method="POST">
                 @csrf
                 @method('PUT')
+
+                @if ($errors->any())
+                    <div class="mb-4 bg-red-50 p-4 rounded-lg border border-red-200">
+                        <div class="text-red-600 font-medium mb-2">Có lỗi xảy ra:</div>
+                        <ul class="list-disc pl-5 text-red-500">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
 
                 <!-- Thông tin phiếu lắp ráp -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
@@ -38,12 +50,15 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="assembly_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu lắp ráp</label>
-                            <input type="text" id="assembly_code" name="assembly_code" value="LR001" readonly
+                            <label for="assembly_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu lắp
+                                ráp</label>
+                            <input type="text" id="assembly_code" name="assembly_code" value="{{ $assembly->code }}" readonly
                                 class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
                         </div>
                         <div>
-                            <label for="assembly_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp <span class="text-red-500">*</span></label>
+                            <label for="assembly_date"
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp <span
+                                    class="text-red-500">*</span></label>
                             <input type="date" id="assembly_date" name="assembly_date" value="2023-06-01" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
@@ -51,43 +66,114 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
-                            <label for="product_id" class="block text-sm font-medium text-gray-700 mb-1 required">Sản phẩm <span class="text-red-500">*</span></label>
+                            <label for="product_id" class="block text-sm font-medium text-gray-700 mb-1 required">Sản
+                                phẩm <span class="text-red-500">*</span></label>
                             <select id="product_id" name="product_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn sản phẩm --</option>
                                 @foreach ($products as $product)
-                                    <option value="{{ $product->id }}" {{ $assembly->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                                    <option value="{{ $product->id }}"
+                                        {{ $assembly->product_id == $product->id ? 'selected' : '' }}
+                                        data-product-id="{{ $product->id }}">
+                                        {{ $product->name }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div>
-                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho lắp ráp <span class="text-red-500">*</span></label>
-                            <select id="warehouse_id" name="warehouse_id" required
+                            <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người
+                                phụ trách <span class="text-red-500">*</span></label>
+                            <select id="assigned_to" name="assigned_to" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn kho lắp ráp --</option>
-                                @foreach ($warehouses as $warehouse)
-                                    <option value="{{ $warehouse->id }}" {{ $assembly->warehouse_id == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }} ({{ $warehouse->code }})</option>
-                                @endforeach
+                                <option value="">-- Chọn người phụ trách --</option>
+                                <option value="Nguyễn Văn A"
+                                    {{ $assembly->assigned_to == 'Nguyễn Văn A' ? 'selected' : '' }}>Nguyễn Văn A
+                                </option>
+                                <option value="Trần Thị B"
+                                    {{ $assembly->assigned_to == 'Trần Thị B' ? 'selected' : '' }}>Trần Thị B</option>
+                                <option value="Lê Văn C" {{ $assembly->assigned_to == 'Lê Văn C' ? 'selected' : '' }}>Lê
+                                    Văn C</option>
+                                <option value="Phạm Thị D"
+                                    {{ $assembly->assigned_to == 'Phạm Thị D' ? 'selected' : '' }}>Phạm Thị D</option>
                             </select>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
-                            <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người phụ trách <span class="text-red-500">*</span></label>
-                            <select id="assigned_to" name="assigned_to" required
+                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho xuất
+                                <span class="text-red-500">*</span></label>
+                            <select id="warehouse_id" name="warehouse_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn người phụ trách --</option>
-                                <option value="Nguyễn Văn A" {{ $assembly->assigned_to == 'Nguyễn Văn A' ? 'selected' : '' }}>Nguyễn Văn A</option>
-                                <option value="Trần Thị B" {{ $assembly->assigned_to == 'Trần Thị B' ? 'selected' : '' }}>Trần Thị B</option>
-                                <option value="Lê Văn C" {{ $assembly->assigned_to == 'Lê Văn C' ? 'selected' : '' }}>Lê Văn C</option>
-                                <option value="Phạm Thị D" {{ $assembly->assigned_to == 'Phạm Thị D' ? 'selected' : '' }}>Phạm Thị D</option>
+                                <option value="">-- Chọn kho xuất linh kiện --</option>
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}"
+                                        {{ $assembly->warehouse_id == $warehouse->id ? 'selected' : '' }}>
+                                        {{ $warehouse->name }} ({{ $warehouse->code }})</option>
+                                @endforeach
                             </select>
                         </div>
+                        
                         <div>
-                            <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                            <label for="target_warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập
+                                <span class="text-red-500">*</span></label>
+                            <select id="target_warehouse_id" name="target_warehouse_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn kho nhập thành phẩm --</option>
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}"
+                                        {{ $assembly->target_warehouse_id == $warehouse->id ? 'selected' : '' }}>
+                                        {{ $warehouse->name }} ({{ $warehouse->code }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div>
+                            <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
+                                chú</label>
                             <textarea id="assembly_note" name="assembly_note" rows="2"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ $assembly->notes }}</textarea>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="product_quantity" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng sản phẩm
+                                <span class="text-red-500">*</span></label>
+                            <input type="number" id="product_quantity" name="product_quantity" min="1" value="{{ $assembly->quantity ?? 1 }}" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label for="product_serial" class="block text-sm font-medium text-gray-700 mb-1">Serial sản phẩm</label>
+                            <div id="product_serial_container" class="space-y-2">
+                                <!-- Các trường serial sản phẩm sẽ được thêm vào đây -->
+                                @if($assembly->product_serials)
+                                    @foreach(explode(',', $assembly->product_serials) as $index => $serial)
+                                        <div class="flex items-center mb-2 serial-input-row">
+                                            <div class="bg-blue-100 text-blue-800 font-medium rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">
+                                                {{ $index + 1 }}
+                                            </div>
+                                            <div class="flex-grow">
+                                                <input type="text" name="product_serials[]" value="{{ $serial }}" 
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    placeholder="Nhập serial sản phẩm {{ $index + 1 }}">
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="flex items-center mb-2 serial-input-row">
+                                        <div class="bg-blue-100 text-blue-800 font-medium rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0">
+                                            1
+                                        </div>
+                                        <div class="flex-grow">
+                                            <input type="text" name="product_serials[]" 
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Nhập serial sản phẩm 1">
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Nhập serial cho mỗi sản phẩm. Số lượng trường sẽ tự động cập nhật theo số lượng sản phẩm.</p>
                         </div>
                     </div>
                 </div>
@@ -101,18 +187,27 @@
 
                     <!-- Tìm kiếm linh kiện -->
                     <div class="mb-4">
-                        <div class="relative">
-                            <input type="text" id="component_search" placeholder="Nhập serial hoặc tên linh kiện để tìm kiếm..."
-                                class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <i class="fas fa-search text-gray-400"></i>
+                        <div class="relative flex space-x-2">
+                            <div class="relative flex-1">
+                                <input type="text" id="component_search"
+                                    placeholder="Nhập hoặc click để xem danh sách linh kiện..."
+                                    class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-gray-400"></i>
+                                </div>
+                            </div>
+                            <div class="w-24">
+                                <input type="number" id="component_add_quantity" min="1" value="1"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                    placeholder="Số lượng">
                             </div>
                             <button type="button" id="add_component_btn"
-                                class="absolute inset-y-0 right-0 px-3 bg-blue-500 text-white rounded-r-lg hover:bg-blue-600 transition-colors">
+                                class="px-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                                 Thêm
                             </button>
                             <!-- Dropdown results -->
-                            <div id="search_results" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
+                            <div id="search_results"
+                                class="absolute z-10 w-full left-0 right-0 mt-10 bg-white border border-gray-300 rounded-lg shadow-lg hidden max-h-60 overflow-y-auto">
                                 <!-- Results will be populated here -->
                             </div>
                         </div>
@@ -123,115 +218,74 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Mã
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Loại linh kiện
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Tên linh kiện
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Số lượng
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Serial
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Ghi chú
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Thao tác
                                     </th>
                                 </tr>
                             </thead>
                             <tbody id="component_list" class="bg-white divide-y divide-gray-200">
                                 <!-- Sản phẩm hiện tại -->
-                                <tr class="component-row">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <input type="hidden" name="components[0][id]" value="1">
-                                        SN001
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ xử lý</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">CPU Intel i5</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="number" min="1" name="components[0][quantity]" value="1"
-                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[0][serial]" value="SN001"
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Nhập serial">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[0][note]" value=""
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Ghi chú">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button type="button" class="text-red-500 hover:text-red-700 delete-component" data-index="0">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr class="component-row">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <input type="hidden" name="components[1][id]" value="2">
-                                        SN002
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ nhớ</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="number" min="1" name="components[1][quantity]" value="1"
-                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[1][serial]" value="SN002"
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Nhập serial">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[1][note]" value=""
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Ghi chú">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button type="button" class="text-red-500 hover:text-red-700 delete-component" data-index="1">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr class="component-row">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <input type="hidden" name="components[2][id]" value="3">
-                                        SN003
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ nhớ</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="number" min="1" name="components[2][quantity]" value="1"
-                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[2][serial]" value="SN003"
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Nhập serial">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <input type="text" name="components[2][note]" value=""
-                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Ghi chú">
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button type="button" class="text-red-500 hover:text-red-700 delete-component" data-index="2">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                                @foreach ($assembly->materials as $index => $material)
+                                    <tr class="component-row bg-white hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <input type="hidden" name="components[{{ $index }}][id]" value="{{ $material->material_id }}">
+                                            {{ $material->material->code }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {{ $material->material->category }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {{ $material->material->name }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <input type="number" min="1" name="components[{{ $index }}][quantity]" value="{{ $material->quantity }}"
+                                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <input type="text" name="components[{{ $index }}][serial]" value="{{ $material->serial ?? '' }}"
+                                                class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Nhập serial">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <input type="text" name="components[{{ $index }}][note]" value="{{ $material->note ?? '' }}"
+                                                class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                placeholder="Ghi chú">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button type="button" class="text-red-500 hover:text-red-700 delete-component" data-index="{{ $index }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
                                 <!-- Hàng "không có linh kiện" -->
-                                <tr id="no_components_row" style="display: none;">
-                                    <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">
+                                <tr id="no_components_row" style="{{ count($assembly->materials) > 0 ? 'display: none;' : '' }}">
+                                    <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
                                         Chưa có linh kiện nào được thêm vào phiếu lắp ráp
                                     </td>
                                 </tr>
@@ -241,7 +295,7 @@
                 </div>
 
                 <div class="flex justify-end space-x-3">
-                    <a href="{{ asset('assemble/detail') }}"
+                    <a href="{{ route('assemblies.index') }}"
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg transition-colors">
                         Hủy
                     </a>
@@ -256,36 +310,252 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Dữ liệu mẫu cho linh kiện
-            const sampleComponents = [
-                { id: 1, code: 'VT001', serial: 'SN001', type: 'Bộ xử lý', name: 'CPU Intel i5', category: 'CPU' },
-                { id: 2, code: 'VT002', serial: 'SN002', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', category: 'RAM' },
-                { id: 3, code: 'VT003', serial: 'SN003', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', category: 'RAM' },
-                { id: 4, code: 'VT004', serial: 'SN004', type: 'Lưu trữ', name: 'SSD 256GB', category: 'SSD' },
-                { id: 5, code: 'VT005', serial: 'SN005', type: 'Nguồn', name: 'Nguồn 400W', category: 'PSU' },
-                { id: 6, code: 'VT006', serial: 'SN006', type: 'Màn hình', name: 'LCD 7 inch', category: 'Display' },
-                { id: 7, code: 'VT007', serial: 'SN007', type: 'Bàn phím', name: 'Bàn phím 4x4', category: 'Input' },
-                { id: 8, code: 'VT008', serial: 'SN008', type: 'Anten', name: 'Anten 5G', category: 'Antenna' },
-                { id: 9, code: 'VT009', serial: 'SN009', type: 'Bo mạch', name: 'Mạch khuếch đại', category: 'PCB' },
-                { id: 10, code: 'VT010', serial: 'SN010', type: 'Pin', name: 'Pin Lithium 5000mAh', category: 'Battery' }
-            ];
-            
-            // Khởi tạo mảng linh kiện đã chọn
-            let selectedComponents = [
-                { id: 1, code: 'VT001', serial: 'SN001', type: 'Bộ xử lý', name: 'CPU Intel i5', quantity: 1, note: '' },
-                { id: 2, code: 'VT002', serial: 'SN002', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', quantity: 1, note: '' },
-                { id: 3, code: 'VT003', serial: 'SN003', type: 'Bộ nhớ', name: 'RAM 8GB DDR4', quantity: 1, note: '' }
-            ];
-            
             // Xử lý tìm kiếm linh kiện khi gõ
             const componentSearchInput = document.getElementById('component_search');
             const addComponentBtn = document.getElementById('add_component_btn');
             const componentList = document.getElementById('component_list');
             const noComponentsRow = document.getElementById('no_components_row');
             const searchResults = document.getElementById('search_results');
+            const productSelect = document.getElementById('product_id');
+            const warehouseSelect = document.getElementById('warehouse_id');
+            const productQuantityInput = document.getElementById('product_quantity');
+            const componentAddQuantity = document.getElementById('component_add_quantity');
+            
             let searchTimeout = null;
             let selectedMaterial = null;
+            let warehouseMaterials = [];
             
+            // Ensure component quantity is at least 1
+            componentAddQuantity.addEventListener('change', function() {
+                if (parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+            });
+            
+            // Khởi tạo mảng linh kiện đã chọn từ dữ liệu hiện có
+            let selectedComponents = [];
+            
+            // Tải linh kiện đã có vào mảng
+            document.querySelectorAll('.component-row').forEach((row, index) => {
+                const idInput = row.querySelector('input[name^="components"][name$="[id]"]');
+                const quantityInput = row.querySelector('input[name^="components"][name$="[quantity]"]');
+                const serialInput = row.querySelector('input[name^="components"][name$="[serial]"]');
+                const noteInput = row.querySelector('input[name^="components"][name$="[note]"]');
+                
+                if (idInput) {
+                    const code = row.cells[0].textContent.trim();
+                    const type = row.cells[1].textContent.trim();
+                    const name = row.cells[2].textContent.trim();
+                    const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
+                    const serial = serialInput ? serialInput.value : '';
+                    
+                    // Parse multiple serials if comma-separated
+                    let serials = [];
+                    if (serial && serial.includes(',')) {
+                        serials = serial.split(',').map(s => s.trim());
+                    }
+                    
+                    selectedComponents.push({
+                        id: idInput.value,
+                        code: code,
+                        type: type,
+                        name: name,
+                        quantity: quantity,
+                        originalQuantity: quantity, // Store the original quantity for validation
+                        serial: serial,
+                        serials: serials,
+                        note: noteInput ? noteInput.value : '',
+                        stock_quantity: 0, // Will be updated when fetching warehouse materials
+                        isExisting: true // Flag to mark components already in the assembly
+                    });
+                }
+            });
+            
+            // Listen for product quantity changes to update component quantities
+            productQuantityInput.addEventListener('change', function() {
+                if (parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+                // Cập nhật số lượng input serial sản phẩm
+                updateProductSerialInputs();
+                
+                // Update component quantities based on product quantity
+                updateComponentQuantities();
+            });
+
+            // Kiểm tra kho xuất và kho nhập không được trùng nhau
+            function validateWarehouses() {
+                const sourceWarehouse = warehouseSelect.value;
+                const targetWarehouse = document.getElementById('target_warehouse_id').value;
+                
+                if (sourceWarehouse && targetWarehouse && sourceWarehouse === targetWarehouse) {
+                    // Hiển thị cảnh báo
+                    showWarehouseWarning();
+                    return false;
+                } else {
+                    // Ẩn cảnh báo
+                    hideWarehouseWarning();
+                    return true;
+                }
+            }
+
+            function showWarehouseWarning() {
+                // Tìm container của kho nhập
+                const targetContainer = document.getElementById('target_warehouse_id').parentElement;
+                
+                // Xóa cảnh báo cũ nếu có
+                const existingWarning = targetContainer.querySelector('.warehouse-warning');
+                if (existingWarning) {
+                    existingWarning.remove();
+                }
+                
+                // Tạo cảnh báo mới
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'warehouse-warning text-red-600 text-sm mt-1 font-medium';
+                warningDiv.textContent = 'Kho nhập thành phẩm phải khác với kho xuất linh kiện!';
+                targetContainer.appendChild(warningDiv);
+                
+                // Đổi màu border của select
+                document.getElementById('target_warehouse_id').classList.add('border-red-500');
+                warehouseSelect.classList.add('border-red-500');
+            }
+
+            function hideWarehouseWarning() {
+                // Xóa cảnh báo
+                const existingWarning = document.querySelector('.warehouse-warning');
+                if (existingWarning) {
+                    existingWarning.remove();
+                }
+                
+                // Bỏ màu border đỏ
+                document.getElementById('target_warehouse_id').classList.remove('border-red-500');
+                warehouseSelect.classList.remove('border-red-500');
+            }
+
+            // Thêm event listener cho cả hai dropdown kho
+            warehouseSelect.addEventListener('change', function() {
+                fetchWarehouseMaterials(this.value);
+                validateWarehouses();
+            });
+
+            document.getElementById('target_warehouse_id').addEventListener('change', function() {
+                validateWarehouses();
+            });
+            
+            // Lấy danh sách linh kiện khi click vào ô tìm kiếm
+            componentSearchInput.addEventListener('click', function() {
+                const warehouseId = warehouseSelect.value;
+                if (!warehouseId) {
+                    alert('Vui lòng chọn kho trước khi tìm kiếm linh kiện!');
+                    return;
+                }
+                
+                showAllMaterials();
+            });
+
+            // Hàm lấy danh sách linh kiện theo kho
+            function fetchWarehouseMaterials(warehouseId) {
+                if (!warehouseId) return;
+                
+                // Hiển thị đang tải
+                warehouseMaterials = [];
+                
+                // Gọi API để lấy linh kiện theo kho
+                fetch(`/api/warehouses/${warehouseId}/materials`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            console.error('Error fetching warehouse materials:', data.message);
+                            return;
+                        }
+                        
+                        // Lưu danh sách vật tư của kho
+                        warehouseMaterials = Array.isArray(data) ? data : (data.materials || []);
+                        
+                        // Update stock quantities for existing components
+                        selectedComponents.forEach(component => {
+                            const warehouseMaterial = warehouseMaterials.find(m => m.id == component.id);
+                            if (warehouseMaterial) {
+                                component.stock_quantity = warehouseMaterial.stock_quantity;
+                            }
+                        });
+                        
+                        // Update the component list to show stock warnings
+                        updateComponentList();
+                    })
+                    .catch(error => {
+                        console.error('Error loading warehouse materials:', error);
+                    });
+            }
+            
+            // Hiển thị tất cả linh kiện của kho
+            function showAllMaterials() {
+                if (warehouseMaterials.length === 0) {
+                    // Nếu chưa có dữ liệu, lấy từ API
+                    const warehouseId = warehouseSelect.value;
+                    if (!warehouseId) return;
+                    
+                    // Hiển thị đang tải
+                    searchResults.innerHTML = '<div class="p-2 text-gray-500">Đang tải danh sách linh kiện...</div>';
+                    searchResults.classList.remove('hidden');
+                    
+                    // Gọi API để lấy linh kiện theo kho
+                    fetch(`/api/warehouses/${warehouseId}/materials`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                searchResults.innerHTML = `<div class="p-2 text-red-500">Lỗi: ${data.message}</div>`;
+                                console.error('Error fetching warehouse materials:', data.message);
+                                return;
+                            }
+                            
+                            // Lưu và hiển thị danh sách vật tư của kho
+                            warehouseMaterials = Array.isArray(data) ? data : (data.materials || []);
+                            displaySearchResults(warehouseMaterials);
+                        })
+                        .catch(error => {
+                            console.error('Error loading warehouse materials:', error);
+                            searchResults.innerHTML = '<div class="p-2 text-red-500">Có lỗi xảy ra khi tải dữ liệu!</div>';
+                        });
+                } else {
+                    // Hiển thị danh sách đã có
+                    displaySearchResults(warehouseMaterials);
+                }
+            }
+            
+            // Hiển thị kết quả tìm kiếm
+            function displaySearchResults(materials) {
+                if (materials.length === 0) {
+                    searchResults.innerHTML = '<div class="p-2 text-gray-500">Không có linh kiện nào trong kho này</div>';
+                    return;
+                }
+                
+                searchResults.innerHTML = '';
+                materials.forEach(material => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                    resultItem.innerHTML = `
+                        <div class="font-medium">${material.code}: ${material.name}</div>
+                        <div class="text-xs text-gray-500">
+                            ${material.category || ''} 
+                            ${material.serial ? '| ' + material.serial : ''} 
+                            | Tồn kho: ${material.stock_quantity || 0}
+                        </div>
+                    `;
+                    
+                    // Handle click on search result
+                    resultItem.addEventListener('click', function() {
+                        selectedMaterial = material;
+                        componentSearchInput.value = material.code + ' - ' + material.name;
+                        searchResults.classList.add('hidden');
+                    });
+                    
+                    searchResults.appendChild(resultItem);
+                });
+                
+                searchResults.classList.remove('hidden');
+            }
+
             componentSearchInput.addEventListener('input', function() {
                 const searchTerm = componentSearchInput.value.trim().toLowerCase();
                 
@@ -296,141 +566,322 @@
                 
                 // Set a timeout to avoid too many searches while typing
                 searchTimeout = setTimeout(() => {
-                    if (searchTerm.length < 1) {
-                        searchResults.classList.add('hidden');
+                    const warehouseId = warehouseSelect.value;
+                    if (!warehouseId) {
+                        alert('Vui lòng chọn kho trước khi tìm kiếm linh kiện!');
                         return;
                     }
                     
-                    // Show loading indicator
+                    if (searchTerm.length === 0) {
+                        // Nếu ô tìm kiếm trống, hiển thị tất cả linh kiện
+                        showAllMaterials();
+                        return;
+                    }
+                    
+                    // Nếu đã có danh sách linh kiện của kho, lọc trực tiếp
+                    if (warehouseMaterials.length > 0) {
+                        const filteredMaterials = warehouseMaterials.filter(material => 
+                            material.code?.toLowerCase().includes(searchTerm) || 
+                            material.name?.toLowerCase().includes(searchTerm) ||
+                            material.category?.toLowerCase().includes(searchTerm) ||
+                            material.serial?.toLowerCase().includes(searchTerm)
+                        );
+                        
+                        displaySearchResults(filteredMaterials);
+                        return;
+                    }
+                    
+                    // Nếu chưa có danh sách linh kiện, tìm kiếm qua API
                     searchResults.innerHTML = '<div class="p-2 text-gray-500">Đang tìm kiếm...</div>';
                     searchResults.classList.remove('hidden');
                     
-                    // Call API to search materials
-                    fetch(`{{ route('materials.search') }}?term=${encodeURIComponent(searchTerm)}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            return response.json();
-                        })
+                    // Gọi API để tìm kiếm linh kiện
+                    fetch(`/api/warehouses/${warehouseId}/materials?term=${encodeURIComponent(searchTerm)}`)
+                        .then(response => response.json())
                         .then(data => {
                             if (data.error) {
                                 searchResults.innerHTML = `<div class="p-2 text-red-500">Lỗi: ${data.message}</div>`;
-                                console.error('Search error:', data.message);
+                                console.error('Error searching materials:', data.message);
                                 return;
                             }
                             
-                            // If data is wrapped in a success object
-                            const materials = Array.isArray(data) ? data : (data.data || []);
-                            
-                            if (materials.length > 0) {
-                                searchResults.innerHTML = '';
-                                materials.forEach(material => {
-                                    const resultItem = document.createElement('div');
-                                    resultItem.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-                                    resultItem.innerHTML = `
-                                        <div class="font-medium">${material.code}: ${material.name}</div>
-                                        <div class="text-xs text-gray-500">${material.category || ''} ${material.serial ? '| ' + material.serial : ''}</div>
-                                    `;
-                                    
-                                    // Handle click on search result
-                                    resultItem.addEventListener('click', function() {
-                                        selectedMaterial = material;
-                                        componentSearchInput.value = material.code + ' - ' + material.name;
-                                        searchResults.classList.add('hidden');
-                                    });
-                                    
-                                    searchResults.appendChild(resultItem);
-                                });
-                            } else {
-                                searchResults.innerHTML = '<div class="p-2 text-gray-500">Không tìm thấy vật tư phù hợp</div>';
-                            }
+                            const materials = Array.isArray(data) ? data : (data.materials || []);
+                            displaySearchResults(materials);
                         })
                         .catch(error => {
                             console.error('Error searching materials:', error);
-                            searchResults.innerHTML = '<div class="p-2 text-red-500">Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại sau!</div>';
+                            searchResults.innerHTML = '<div class="p-2 text-red-500">Có lỗi xảy ra khi tìm kiếm!</div>';
                         });
                 }, 300);
             });
-            
+
             // Close dropdown when clicking outside
             document.addEventListener('click', function(event) {
                 if (!componentSearchInput.contains(event.target) && !searchResults.contains(event.target)) {
                     searchResults.classList.add('hidden');
                 }
             });
-            
+
             addComponentBtn.addEventListener('click', function() {
                 addSelectedComponent();
             });
             
+            // Check if stock is sufficient for a component based on product quantity
+            function checkStockSufficiency(component) {
+                // Số lượng sản phẩm
+                const productQty = parseInt(productQuantityInput.value) || 1;
+                
+                // Số lượng linh kiện cho mỗi sản phẩm
+                const componentQtyPerProduct = parseInt(component.quantity);
+                
+                // Tổng số linh kiện cần = số lượng sản phẩm * số lượng linh kiện cho mỗi sản phẩm
+                const totalRequiredQty = productQty * componentQtyPerProduct;
+                
+                // For existing components, we only need to check additional quantity beyond original
+                let effectiveRequiredQty = totalRequiredQty;
+                let additionalQtyNeeded = 0;
+                
+                if (component.isExisting && component.originalQuantity) {
+                    const originalTotalQty = component.originalQuantity * ({{ $assembly->quantity }});
+                    // If we're using less than or equal to original amount, no stock check needed
+                    if (totalRequiredQty <= originalTotalQty) {
+                        component.isStockSufficient = true;
+                        component.stockWarning = '';
+                        return true;
+                    }
+                    // Otherwise, only check the additional quantity needed
+                    additionalQtyNeeded = totalRequiredQty - originalTotalQty;
+                    // We only need to check if stock can cover this additional amount
+                    effectiveRequiredQty = additionalQtyNeeded;
+                }
+                
+                // Tồn kho hiện có
+                const stockQty = parseInt(component.stock_quantity);
+                
+                // Check if stock is sufficient for the effective required quantity
+                component.isStockSufficient = effectiveRequiredQty <= stockQty;
+                
+                if (!component.isStockSufficient) {
+                    // Calculate the actual shortage (how many more we need beyond what's in stock)
+                    let actualShortage;
+                    
+                    if (component.isExisting) {
+                        // For existing components
+                        actualShortage = additionalQtyNeeded - stockQty;
+                        component.stockWarning = `Không đủ tồn kho (còn ${stockQty}, cần thêm ${actualShortage})`;
+                    } else {
+                        // For new components
+                        actualShortage = totalRequiredQty - stockQty;
+                        component.stockWarning = `Không đủ tồn kho (còn ${stockQty}, cần thêm ${actualShortage})`;
+                    }
+                } else {
+                    component.stockWarning = '';
+                }
+                
+                return component.isStockSufficient;
+            }
+            
+            // Update component quantities based on product quantity
+            function updateComponentQuantities() {
+                const productQty = parseInt(productQuantityInput.value) || 1;
+                
+                selectedComponents.forEach(component => {
+                    // Only update if component doesn't have manually adjusted quantity
+                    // AND is not an existing component from the assembly
+                    if (!component.manuallyAdjusted && !component.isExisting) {
+                        component.quantity = productQty;
+                    }
+                    
+                    // Always check stock sufficiency when product quantity changes
+                    checkStockSufficiency(component);
+                });
+                
+                updateComponentList();
+            }
+            
+            // Generate serial input fields based on quantity
+            function generateSerialInputs(component, index, container) {
+                const quantity = parseInt(component.quantity);
+                const serialsContainer = document.createElement('div');
+                serialsContainer.className = 'serial-inputs mt-2';
+                
+                // Clear existing serials container
+                const existingContainer = container.querySelector('.serial-inputs');
+                if (existingContainer) {
+                    existingContainer.remove();
+                }
+                
+                // Remove any existing serial count label
+                const existingLabel = container.querySelector('.serial-count-label');
+                if (existingLabel) {
+                    existingLabel.remove();
+                }
+                
+                if (quantity > 1) {
+                    // For quantities > 1, show multiple serial inputs
+                    // If we have comma-separated serials, split them
+                    let serials = component.serials || [];
+                    if (!serials.length && component.serial && component.serial.includes(',')) {
+                        serials = component.serial.split(',').map(s => s.trim());
+                        component.serials = serials;
+                    }
+                    
+                    for (let i = 0; i < quantity; i++) {
+                        const serialDiv = document.createElement('div');
+                        serialDiv.className = 'mb-1';
+                        const serialInput = document.createElement('input');
+                        serialInput.type = 'text';
+                        serialInput.name = `components[${index}][serials][]`;
+                        serialInput.value = serials[i] || '';
+                        serialInput.placeholder = `Serial ${i+1}`;
+                        serialInput.className =
+                            'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                        
+                        // Save serial when typing
+                        serialInput.addEventListener('input', function() {
+                            if (!component.serials) component.serials = [];
+                            component.serials[i] = this.value;
+                        });
+                        
+                        serialDiv.appendChild(serialInput);
+                        serialsContainer.appendChild(serialDiv);
+                    }
+                } else {
+                    // For quantity = 1, show single serial input
+                    const serialInput = document.createElement('input');
+                    serialInput.type = 'text';
+                    serialInput.name = `components[${index}][serial]`;
+                    serialInput.value = component.serial || (component.serials && component.serials[0] || '');
+                    serialInput.placeholder = 'Nhập serial';
+                    serialInput.className =
+                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                    
+                    // Save serial when typing
+                    serialInput.addEventListener('input', function() {
+                        component.serial = this.value;
+                    });
+                    
+                    serialsContainer.appendChild(serialInput);
+                }
+                
+                container.appendChild(serialsContainer);
+                
+                // Add label indicating multiple serials if needed
+                if (quantity > 1) {
+                    const label = document.createElement('div');
+                    label.className = 'text-xs text-gray-500 mt-1 serial-count-label';
+                    label.textContent = `${quantity} serial cho linh kiện này`;
+                    container.appendChild(label);
+                }
+            }
+
             // Add selected component function
             function addSelectedComponent() {
                 if (selectedMaterial) {
                     // Check if already added
-                    if (selectedComponents.some(c => c.id === selectedMaterial.id)) {
-                        alert('Linh kiện này đã được thêm vào phiếu lắp ráp!');
+                    const existingComponent = selectedComponents.find(c => c.id == selectedMaterial.id);
+                    if (existingComponent) {
+                        // Allow updating existing components with validation
+                        const newQty = parseInt(componentAddQuantity.value) || 1;
+                        existingComponent.quantity = newQty;
+                        
+                        // If the component was already in the assembly, check for increased quantity
+                        if (existingComponent.isExisting) {
+                            if (newQty > existingComponent.originalQuantity) {
+                                // Validate stock for the increased amount
+                                if (!checkStockSufficiency(existingComponent)) {
+                                    alert('Không đủ tồn kho cho số lượng mới!');
+                                    existingComponent.quantity = existingComponent.originalQuantity;
+                                }
+                            }
+                        }
+                        
+                        updateComponentList();
+                        componentSearchInput.value = '';
+                        componentAddQuantity.value = '1';
+                        selectedMaterial = null;
+                        searchResults.classList.add('hidden');
                         return;
                     }
+
+                    // Số lượng linh kiện cho mỗi sản phẩm
+                    const componentQtyPerProduct = parseInt(componentAddQuantity.value) || 1;
                     
+                    // Số lượng sản phẩm
+                    const productQty = parseInt(productQuantityInput.value) || 1;
+                    
+                    // Tổng số linh kiện cần = số lượng sản phẩm * số lượng linh kiện cho mỗi sản phẩm
+                    const totalRequiredQty = productQty * componentQtyPerProduct;
+                    
+                    // Tồn kho hiện có
+                    const stockQty = parseInt(selectedMaterial.stock_quantity) || 0;
+                    
+                    // Check if there's enough stock
+                    if (totalRequiredQty > stockQty) {
+                        alert(
+                            `Không đủ tồn kho! Tồn kho hiện tại: ${stockQty}, Yêu cầu: ${totalRequiredQty} (${productQty} sản phẩm × ${componentQtyPerProduct} linh kiện/sản phẩm)`);
+                        return;
+                    }
+
                     // Add to selected components
-                    selectedComponents.push({
+                    const newComponent = {
                         id: selectedMaterial.id,
                         code: selectedMaterial.code,
                         name: selectedMaterial.name,
-                        type: selectedMaterial.type,
-                        serial: selectedMaterial.serial,
-                        quantity: 1,
-                        note: ''
-                    });
+                        type: selectedMaterial.category || '',
+                        quantity: componentQtyPerProduct,
+                        originalQuantity: componentQtyPerProduct, // Store the original quantity for validation
+                        stock_quantity: selectedMaterial.stock_quantity || 0,
+                        serial: selectedMaterial.serial || '',
+                        serials: [],
+                        note: '',
+                        manuallyAdjusted: true, // Mark as manually adjusted to prevent auto-update from product quantity
+                        isExisting: false // This is a newly added component
+                    };
                     
+                    // Check stock sufficiency
+                    checkStockSufficiency(newComponent);
+                    
+                    selectedComponents.push(newComponent);
+
                     // Update UI
                     updateComponentList();
                     componentSearchInput.value = '';
+                    componentAddQuantity.value = '1'; // Reset quantity to 1
                     selectedMaterial = null;
                     searchResults.classList.add('hidden');
                 } else {
-                    const searchTerm = componentSearchInput.value.trim().toLowerCase();
-                    
+                    const searchTerm = componentSearchInput.value.trim();
+
                     if (!searchTerm) {
-                        alert('Vui lòng nhập serial hoặc tên linh kiện để tìm kiếm!');
+                        alert('Vui lòng chọn linh kiện trước khi thêm!');
                         return;
                     }
-                    
-                    // Tìm linh kiện trong dữ liệu mẫu
-                    const foundComponent = sampleComponents.find(c => 
-                        c.serial.toLowerCase().includes(searchTerm) || 
-                        c.name.toLowerCase().includes(searchTerm)
-                    );
-                    
-                    if (!foundComponent) {
-                        alert('Không tìm thấy linh kiện phù hợp!');
-                        return;
-                    }
-                    
-                    // Kiểm tra xem linh kiện đã được thêm chưa
-                    if (selectedComponents.some(c => c.id === foundComponent.id)) {
-                        alert('Linh kiện này đã được thêm vào phiếu lắp ráp!');
-                        return;
-                    }
-                    
-                    // Thêm linh kiện vào danh sách
-                    selectedComponents.push({
-                        id: foundComponent.id,
-                        code: foundComponent.code,
-                        type: foundComponent.type,
-                        name: foundComponent.name,
-                        serial: foundComponent.serial,
-                        quantity: 1,
-                        note: ''
-                    });
-                    
-                    // Cập nhật giao diện
-                    updateComponentList();
-                    componentSearchInput.value = '';
+
+                    // Không tìm thấy linh kiện hoặc chưa chọn
+                    alert('Vui lòng chọn một linh kiện từ danh sách!');
                 }
             }
             
+            // Update stock warning when quantity changes
+            function updateStockWarning(row, component) {
+                const stockWarningContainer = row.querySelector('td:nth-child(4) div');
+                
+                if (component.stockWarning) {
+                    if (stockWarningContainer) {
+                        stockWarningContainer.innerHTML = component.stockWarning;
+                    } else {
+                        const warningDiv = document.createElement('div');
+                        warningDiv.className = 'text-xs text-red-600 font-medium mt-1';
+                        warningDiv.textContent = component.stockWarning;
+                        row.querySelector('td:nth-child(4)').appendChild(warningDiv);
+                    }
+                } else if (stockWarningContainer) {
+                    stockWarningContainer.remove();
+                }
+            }
+
+            // Cập nhật danh sách linh kiện
             function updateComponentList() {
                 // Ẩn thông báo "không có linh kiện"
                 if (selectedComponents.length > 0) {
@@ -438,30 +889,36 @@
                 } else {
                     noComponentsRow.style.display = '';
                 }
-                
+
                 // Xóa các hàng linh kiện hiện tại (trừ hàng thông báo)
                 const componentRows = document.querySelectorAll('.component-row');
                 componentRows.forEach(row => row.remove());
-                
+
                 // Thêm hàng cho mỗi linh kiện đã chọn
                 selectedComponents.forEach((component, index) => {
                     const row = document.createElement('tr');
-                    row.className = 'component-row';
+                    row.className = 'component-row bg-white hover:bg-gray-50';
+                    
+                    // Hiển thị cảnh báo tồn kho nếu có
+                    const stockWarningHtml = component.stockWarning ? 
+                        `<div class="text-xs text-red-600 font-medium mt-1">${component.stockWarning}</div>` : '';
+                    
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <input type="hidden" name="components[${index}][id]" value="${component.id}">
-                            ${component.code || ''}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.type || ''}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.name || ''}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="number" min="1" name="components[${index}][quantity]" value="${component.quantity || 1}"
-                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            ${component.code}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="text" name="components[${index}][serial]" value="${component.serial || ''}"
-                                class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="Nhập serial">
+                            ${component.type || ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${component.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                            <input type="number" min="1" name="components[${index}][quantity]" value="${component.quantity}"
+                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 quantity-input">
+                            ${stockWarningHtml}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 serial-cell">
+                            <!-- Serial inputs will be added here -->
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                             <input type="text" name="components[${index}][note]" value="${component.note || ''}"
@@ -474,9 +931,34 @@
                             </button>
                         </td>
                     `;
-                    
+
                     componentList.insertBefore(row, noComponentsRow);
                     
+                    // Generate serial inputs based on quantity
+                    const serialCell = row.querySelector('.serial-cell');
+                    generateSerialInputs(component, index, serialCell);
+                    
+                    // Add event listener for quantity change
+                    const quantityInput = row.querySelector('.quantity-input');
+                    quantityInput.addEventListener('change', function() {
+                        const newQty = parseInt(this.value) || 1;
+                        if (newQty < 1) {
+                            this.value = component.quantity = 1;
+                        } else {
+                            component.quantity = newQty;
+                        }
+                        
+                        // Mark as manually adjusted
+                        component.manuallyAdjusted = true;
+                        
+                        // Update serial inputs
+                        generateSerialInputs(component, index, serialCell);
+                        
+                        // Check stock sufficiency and update warning
+                        checkStockSufficiency(component);
+                        updateStockWarning(row, component);
+                    });
+
                     // Thêm event listener để xóa linh kiện
                     row.querySelector('.delete-component').addEventListener('click', function() {
                         selectedComponents.splice(index, 1);
@@ -484,18 +966,282 @@
                     });
                 });
             }
-            
-            // Khởi tạo sự kiện cho các nút xóa ban đầu
-            const deleteButtons = document.querySelectorAll('.delete-component');
-            deleteButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const index = parseInt(this.dataset.index);
-                    selectedComponents.splice(index, 1);
-                    updateComponentList();
+
+            // Validation trước khi submit
+            document.querySelector('form').addEventListener('submit', function(e) {
+                // Kiểm tra kho xuất và kho nhập
+                if (!validateWarehouses()) {
+                    e.preventDefault();
+                    alert('Kho nhập thành phẩm phải khác với kho xuất linh kiện!');
+                    return false;
+                }
+                
+                if (selectedComponents.length === 0) {
+                    e.preventDefault();
+                    alert('Vui lòng thêm ít nhất một vật tư vào phiếu lắp ráp!');
+                    return false;
+                }
+                
+                // Kiểm tra serial sản phẩm
+                const serialInputs = document.querySelectorAll('input[name="product_serials[]"]');
+                let hasSerialError = false;
+                let hasDuplicateSerials = false;
+                let hasExistingSerials = false;
+                let serialValues = [];
+                
+                // Kiểm tra các trường serial có lỗi
+                serialInputs.forEach(input => {
+                    if (input.classList.contains('border-red-500')) {
+                        hasSerialError = true;
+                    }
+                    
+                    if (input.value.trim()) {
+                        // Kiểm tra trùng lặp
+                        if (serialValues.includes(input.value.trim())) {
+                            hasDuplicateSerials = true;
+                        } else {
+                            serialValues.push(input.value.trim());
+                        }
+                    }
                 });
+                
+                // Kiểm tra đủ serial cho từng sản phẩm nếu số lượng > 1
+                const productQty = parseInt(productQuantityInput.value) || 1;
+                if (productQty > 1 && serialValues.length < productQty) {
+                    e.preventDefault();
+                    alert(`Vui lòng nhập đủ serial cho ${productQty} sản phẩm.`);
+                    return false;
+                }
+                
+                if (hasSerialError) {
+                    e.preventDefault();
+                    alert('Vui lòng kiểm tra lại các serial sản phẩm có lỗi!');
+                    return false;
+                }
+                
+                if (hasDuplicateSerials) {
+                    e.preventDefault();
+                    alert('Phát hiện trùng lặp serial sản phẩm. Vui lòng kiểm tra lại!');
+                    return false;
+                }
+                
+                // Kiểm tra số lượng và tồn kho
+                let hasStockError = false;
+                let errorMessages = [];
+                
+                // Kiểm tra số lượng vật tư
+                for (const component of selectedComponents) {
+                    if (parseInt(component.quantity) < 1) {
+                        e.preventDefault();
+                        alert('Số lượng vật tư phải lớn hơn 0!');
+                        return false;
+                    }
+                    
+                    // Kiểm tra lại tồn kho
+                    checkStockSufficiency(component);
+                    if (!component.isStockSufficient) {
+                        hasStockError = true;
+                        errorMessages.push(
+                            `- ${component.code}: ${component.name} - ${component.stockWarning}`);
+                    }
+                }
+                
+                // Nếu có lỗi tồn kho, hiển thị thông báo và ngăn submit form
+                if (hasStockError) {
+                    e.preventDefault();
+                    alert(`Không thể lưu phiếu lắp ráp do không đủ tồn kho:\n${errorMessages.join('\n')}`);
+                    return false;
+                }
+
+                return true;
             });
+            
+            // Khởi tạo: tải danh sách linh kiện của kho nếu đã chọn kho
+            if (warehouseSelect.value) {
+                fetchWarehouseMaterials(warehouseSelect.value);
+            }
+
+            // Xử lý số lượng input serial sản phẩm
+            updateProductSerialInputs();
+            
+            // Listen for product quantity changes to update serial inputs
+            productQuantityInput.addEventListener('change', function() {
+                if (parseInt(this.value) < 1) {
+                    this.value = 1;
+                }
+                // Cập nhật số lượng input serial sản phẩm
+                updateProductSerialInputs();
+                
+                // Update component quantities based on product quantity
+                updateComponentQuantities();
+            });
+
+            // Hàm cập nhật số lượng input serial sản phẩm theo số lượng sản phẩm
+            function updateProductSerialInputs() {
+                const productQty = parseInt(productQuantityInput.value) || 1;
+                const container = document.getElementById('product_serial_container');
+                const currentInputs = container.querySelectorAll('input[name="product_serials[]"]');
+                
+                // Lưu lại giá trị của các input hiện tại
+                let serialValues = [];
+                currentInputs.forEach(input => {
+                    serialValues.push(input.value);
+                });
+                
+                // Xóa tất cả input hiện tại
+                container.innerHTML = '';
+                
+                // Tạo số lượng input tương ứng với số lượng sản phẩm
+                for (let i = 0; i < productQty; i++) {
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'flex items-center mb-2 serial-input-row';
+                    
+                    const numberBadge = document.createElement('div');
+                    numberBadge.className = 'bg-blue-100 text-blue-800 font-medium rounded-full w-6 h-6 flex items-center justify-center mr-2 flex-shrink-0';
+                    numberBadge.innerText = (i + 1);
+                    
+                    const inputWrapper = document.createElement('div');
+                    inputWrapper.className = 'flex-grow relative';
+                    
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.name = 'product_serials[]';
+                    input.className = 'w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500';
+                    input.placeholder = `Serial sản phẩm ${i + 1}`;
+                    
+                    // Feedback validation element
+                    const feedbackDiv = document.createElement('div');
+                    feedbackDiv.className = 'serial-feedback hidden text-xs mt-1 absolute right-2 top-2';
+                    
+                    // Giữ lại giá trị cũ nếu có
+                    if (i < serialValues.length) {
+                        input.value = serialValues[i];
+                    }
+                    
+                    // Add event listeners for validation
+                    input.addEventListener('input', function() {
+                        validateSerialInput(input, feedbackDiv);
+                    });
+                    
+                    input.addEventListener('blur', function() {
+                        // When input loses focus, check with the server if value is not empty
+                        if (input.value.trim()) {
+                            checkSerialExistence(input.value.trim(), feedbackDiv);
+                        }
+                    });
+                    
+                    inputWrapper.appendChild(input);
+                    inputWrapper.appendChild(feedbackDiv);
+                    rowDiv.appendChild(numberBadge);
+                    rowDiv.appendChild(inputWrapper);
+                    container.appendChild(rowDiv);
+                    
+                    // Validate if there's already a value
+                    if (input.value.trim()) {
+                        validateSerialInput(input, feedbackDiv);
+                    }
+                }
+                
+                // Thêm thông báo nếu có nhiều sản phẩm
+                if (productQty > 3) {
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'mt-2 text-sm text-blue-700';
+                    noteDiv.innerHTML = '<i class="fas fa-info-circle mr-1"></i> Đang hiển thị ' + productQty + ' trường nhập serial cho ' + productQty + ' sản phẩm.';
+                    container.appendChild(noteDiv);
+                }
+            }
+            
+            // Validate serial input for duplicates within the form
+            function validateSerialInput(input, feedbackElement) {
+                const value = input.value.trim();
+                if (!value) {
+                    // Clear validation
+                    feedbackElement.classList.add('hidden');
+                    input.classList.remove('border-red-500', 'border-green-500');
+                    return;
+                }
+                
+                // Get all serials in the form
+                const allSerialInputs = document.querySelectorAll('input[name="product_serials[]"]');
+                let duplicateFound = false;
+                let duplicateCount = 0;
+                
+                allSerialInputs.forEach(serialInput => {
+                    if (serialInput !== input && serialInput.value.trim() === value) {
+                        duplicateFound = true;
+                        duplicateCount++;
+                    }
+                });
+                
+                if (duplicateFound) {
+                    // Show error for duplicate
+                    input.classList.add('border-red-500');
+                    input.classList.remove('border-green-500');
+                    feedbackElement.classList.remove('hidden', 'text-green-500');
+                    feedbackElement.classList.add('text-red-500');
+                    feedbackElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> Trùng serial';
+                } else {
+                    // Looking good so far, but we need to check the database
+                    input.classList.remove('border-red-500');
+                    input.classList.add('border-green-500');
+                    feedbackElement.classList.remove('hidden', 'text-red-500');
+                    feedbackElement.classList.add('text-green-500');
+                    feedbackElement.innerHTML = '<i class="fas fa-check-circle"></i> OK';
+                }
+            }
+            
+            // Check if serial exists in the database
+            function checkSerialExistence(serial, feedbackElement) {
+                const productId = productSelect.value;
+                if (!productId) return;
+                
+                const assemblyId = {{ $assembly->id }}; // Current assembly ID for edit mode
+                
+                // Show loading state
+                feedbackElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                feedbackElement.classList.remove('hidden');
+                const input = feedbackElement.previousElementSibling;
+                
+                // Call API to check if serial exists
+                fetch('/api/check-serial', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({
+                        serial: serial,
+                        product_id: productId,
+                        assembly_id: assemblyId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.exists) {
+                        // Serial exists, show error
+                        input.classList.add('border-red-500');
+                        input.classList.remove('border-green-500');
+                        feedbackElement.classList.remove('text-green-500');
+                        feedbackElement.classList.add('text-red-500');
+                        feedbackElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + data.message;
+                        feedbackElement.setAttribute('title', data.message);
+                    } else {
+                        // Serial is available
+                        input.classList.remove('border-red-500');
+                        input.classList.add('border-green-500');
+                        feedbackElement.classList.remove('text-red-500');
+                        feedbackElement.classList.add('text-green-500');
+                        feedbackElement.innerHTML = '<i class="fas fa-check-circle"></i> OK';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking serial:', error);
+                    feedbackElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Lỗi kiểm tra';
+                    feedbackElement.classList.add('text-yellow-500');
+                });
+            }
         });
     </script>
 </body>
 
-</html> 
+</html>

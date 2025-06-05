@@ -24,19 +24,24 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 });
 
-Route::resource('assemble', AssemblyController::class);
-
 // Thay thế routes customers cũ bằng resource controller
 Route::resource('customers', CustomerController::class);
 
 //Materials
 Route::resource('materials', MaterialController::class);
+Route::delete('materials/images/{id}', [MaterialController::class, 'deleteImage'])->name('materials.images.delete');
 
 //Products
 Route::resource('products', ProductController::class);
 
 //Warehouses
 Route::resource('warehouses', WarehouseController::class);
+
+// API route for warehouse materials
+Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::class, 'getMaterials']);
+
+// API route for material inventory quantity
+Route::get('/api/materials/inventory', [MaterialController::class, 'getInventoryQuantity']);
 
 //Warranties
 Route::get('/warranties', function () {
@@ -339,10 +344,12 @@ Route::get('/requests/components/{id}/preview', function ($id) {
 
 // Assembly routes
 Route::resource('assemblies', AssemblyController::class);
-Route::get('/assemblies/search-materials', [AssemblyController::class, 'searchMaterials'])->name('assemblies.search-materials');
 
 // Route for material search in assemblies
-Route::get('/materials/search', [App\Http\Controllers\AssemblyController::class, 'searchMaterials'])->name('materials.search');
+Route::get('/materials/search', [AssemblyController::class, 'searchMaterials'])->name('materials.search');
+
+// Route for checking serial duplicates
+Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');
 
 // Thêm phần routes phân quyền
 // Routes cho nhóm quyền (roles)

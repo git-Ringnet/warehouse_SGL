@@ -41,6 +41,12 @@
                 </a>
             </div>
         </header>
+        @if (session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        @if (session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -71,63 +77,67 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         @forelse($assemblies as $index => $assembly)
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $assembly->code }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $assembly->product->name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $assembly->assigned_to }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ date('d/m/Y', strtotime($assembly->date)) }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                @if($assembly->status == 'completed')
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
-                                    thành</span>
-                                @elseif($assembly->status == 'in_progress')
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang
-                                    xử lý</span>
-                                @elseif($assembly->status == 'pending')
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Chờ
-                                    xử lý</span>
-                                @else
-                                <span
-                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã
-                                    hủy</span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ route('assemblies.show', $assembly->id) }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ route('assemblies.edit', $assembly->id) }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                        title="Sửa">
-                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                        title="Xóa">
-                                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $assembly->code }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $assembly->product->name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $assembly->assigned_to }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ date('d/m/Y', strtotime($assembly->date)) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if ($assembly->status == 'completed')
+                                        <span
+                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
+                                            thành</span>
+                                    @elseif($assembly->status == 'in_progress')
+                                        <span
+                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang
+                                            xử lý</span>
+                                    @elseif($assembly->status == 'pending')
+                                        <span
+                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Chờ
+                                            xử lý</span>
+                                    @else
+                                        <span
+                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã
+                                            hủy</span>
+                                    @endif
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
+                                    <a href="{{ route('assemblies.show', $assembly->id) }}">
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                            title="Xem">
+                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                    <a href="{{ route('assemblies.edit', $assembly->id) }}">
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                            title="Sửa">
+                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                    <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST"
+                                        onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                            title="Xóa">
+                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
                         @empty
-                        <tr>
-                            <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
-                                Không có phiếu lắp ráp nào
-                            </td>
-                        </tr>
+                            <tr>
+                                <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
+                                    Không có phiếu lắp ráp nào
+                                </td>
+                            </tr>
                         @endforelse
                     </tbody>
                 </table>
