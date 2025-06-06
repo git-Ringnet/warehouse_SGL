@@ -34,22 +34,19 @@
                                 <label for="test_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại kiểm thử</label>
                                 <select id="test_type" name="test_type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="toggleTestTypeFields()">
                                     <option value="">-- Chọn loại kiểm thử --</option>
-                                    <option value="new_component">Kiểm thử linh kiện đầu vào</option>
-                                    <option value="defective">Kiểm thử module bị lỗi</option>
-                                    <option value="new_device">Kiểm thử thiết bị mới lắp ráp</option>
+ <!-- #region 
+  -->                                    <option value="material">Kiểm thử Vật tư/Hàng hóa</option>
+                                    <option value="finished_product">Kiểm thử Thiết bị thành phẩm</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label for="device_category" class="block text-sm font-medium text-gray-700 mb-1 required">Loại thiết bị/module</label>
-                                <select id="device_category" name="device_category" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn loại thiết bị/module --</option>
-                                    <option value="android">Android</option>
-                                    <option value="module_4g">Module 4G</option>
-                                    <option value="module_power">Module Công suất</option>
-                                    <option value="module_iot">Module IoTs</option>
-                                    <option value="smartbox">SGL SmartBox</option>
-                                    <option value="other">Khác</option>
+                                <label for="material_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại Vật tư hoặc hàng hóa</label>
+                                <select id="material_type" name="material_type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="getSerialData()">
+                                    <option value="">-- Chọn loại vật tư/hàng hóa --</option>
+                                    @foreach(['Module 4G', 'Module Công suất', 'Module IoTs', 'Android', 'SmartBox'] as $material)
+                                        <option value="{{ $material }}">{{ $material }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
@@ -57,12 +54,12 @@
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label for="serial_number" class="block text-sm font-medium text-gray-700 mb-1 required">Serial/Mã thiết bị</label>
-                                <input type="text" id="serial_number" name="serial_number" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã thiết bị/serial" required>
+                                <input type="text" id="serial_number" name="serial_number" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Mã thiết bị/serial sẽ hiển thị tự động" readonly required>
                             </div>
 
                             <div>
-                                <label for="test_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày kiểm thử</label>
-                                <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ date('Y-m-d') }}" required>
+                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng Vật tư/Hàng hóa</label>
+                                <input type="number" id="quantity" name="quantity" min="1" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="1" required>
                             </div>
                         </div>
                         
@@ -80,12 +77,8 @@
                             </div>
 
                             <div>
-                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
-                                <select id="status" name="status" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="pending">Chờ kiểm thử</option>
-                                    <option value="testing">Đang kiểm thử</option>
-                                    <option value="completed">Hoàn thành</option>
-                                </select>
+                                <label for="test_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày kiểm thử</label>
+                                <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ date('Y-m-d') }}" required>
                             </div>
                         </div>
                     </div>
@@ -94,8 +87,8 @@
                     <div class="mb-6">
                         <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mt-6">Thông tin chi tiết kiểm thử</h2>
                         
-                        <!-- Thông tin kiểm thử linh kiện đầu vào -->
-                        <div id="new_component_fields" class="mt-4 hidden">
+                        <!-- Thông tin kiểm thử vật tư/hàng hóa -->
+                        <div id="material_fields" class="mt-4 hidden">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
@@ -107,95 +100,39 @@
                                     <input type="text" id="batch_number" name="batch_number" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã lô">
                                 </div>
                             </div>
-                            
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label for="manufacture_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày sản xuất</label>
-                                    <input type="date" id="manufacture_date" name="manufacture_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                </div>
-                                
-                                <div>
-                                    <label for="arrival_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày nhập kho</label>
-                                    <input type="date" id="arrival_date" name="arrival_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                </div>
-                            </div>
                         </div>
 
-                        <!-- Thông tin kiểm thử module lỗi -->
-                        <div id="defective_fields" class="mt-4 hidden">
+                        <!-- Thông tin kiểm thử thiết bị thành phẩm -->
+                        <div id="finished_product_fields" class="mt-4 hidden">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="defect_source" class="block text-sm font-medium text-gray-700 mb-1">Nguồn gốc lỗi</label>
-                                    <select id="defect_source" name="defect_source" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        <option value="">-- Chọn nguồn gốc lỗi --</option>
-                                        <option value="customer_site">Site khách hàng</option>
-                                        <option value="internal_test">Phát hiện nội bộ</option>
-                                        <option value="production">Lỗi sản xuất</option>
-                                        <option value="other">Khác</option>
-                                    </select>
+                                    <label for="installation_request" class="block text-sm font-medium text-gray-700 mb-1">Phiếu yêu cầu lắp đặt</label>
+                                    <input type="text" id="installation_request" name="installation_request" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã phiếu lắp đặt" readonly>
                                 </div>
                                 
-                                <div>
-                                    <label for="received_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày nhận module lỗi</label>
-                                    <input type="date" id="received_date" name="received_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4">
-                                <label for="defect_description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả lỗi</label>
-                                <textarea id="defect_description" name="defect_description" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mô tả chi tiết về lỗi"></textarea>
-                            </div>
-                        </div>
-
-                        <!-- Thông tin kiểm thử thiết bị mới -->
-                        <div id="new_device_fields" class="mt-4 hidden">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label for="assembly_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày lắp ráp</label>
                                     <input type="date" id="assembly_date" name="assembly_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                 </div>
-                                
-                                <div>
-                                    <label for="software_version" class="block text-sm font-medium text-gray-700 mb-1">Phiên bản phần mềm</label>
-                                    <input type="text" id="software_version" name="software_version" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="VD: 1.2.5">
-                                </div>
-                            </div>
-                            
-                            <div class="mt-4">
-                                <label for="device_config" class="block text-sm font-medium text-gray-700 mb-1">Cấu hình thiết bị</label>
-                                <textarea id="device_config" name="device_config" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập thông tin cấu hình thiết bị"></textarea>
                             </div>
                         </div>
 
-                        <!-- Hạng mục kiểm thử chung -->
+                        <!-- Hạng mục kiểm thử -->
                         <div class="mt-6">
-                            <h3 class="text-md font-medium text-gray-800 mb-3">Hạng mục kiểm thử</h3>
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-md font-medium text-gray-800">Hạng mục kiểm thử</h3>
+                                <button type="button" onclick="addTestItem()" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex items-center">
+                                    <i class="fas fa-plus mr-1"></i> Thêm hạng mục
+                                </button>
+                            </div>
                             
                             <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <div class="space-y-3">
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="test_item_1" name="test_items[]" value="hardware_inspection" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="test_item_1" class="ml-2 block text-sm text-gray-700">Kiểm tra phần cứng</label>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="test_item_2" name="test_items[]" value="software_test" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="test_item_2" class="ml-2 block text-sm text-gray-700">Kiểm tra phần mềm</label>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="test_item_3" name="test_items[]" value="communication_test" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="test_item_3" class="ml-2 block text-sm text-gray-700">Kiểm tra kết nối/truyền thông</label>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="test_item_4" name="test_items[]" value="functionality_test" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="test_item_4" class="ml-2 block text-sm text-gray-700">Kiểm tra chức năng</label>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="test_item_5" name="test_items[]" value="stress_test" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="test_item_5" class="ml-2 block text-sm text-gray-700">Kiểm tra độ bền (stress test)</label>
-                                    </div>
-                                    <div class="flex items-center">
-                                        <input type="checkbox" id="test_item_6" name="test_items[]" value="compatibility_test" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                        <label for="test_item_6" class="ml-2 block text-sm text-gray-700">Kiểm tra khả năng tương thích</label>
+                                <div id="test_items_container" class="space-y-3">
+                                    <div class="test-item flex items-center gap-4">
+                                        <input type="text" name="test_items[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
+                                        <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -228,50 +165,67 @@
             const testType = document.getElementById('test_type').value;
             
             // Hide all specific fields first
-            document.getElementById('new_component_fields').classList.add('hidden');
-            document.getElementById('defective_fields').classList.add('hidden');
-            document.getElementById('new_device_fields').classList.add('hidden');
+            document.getElementById('material_fields').classList.add('hidden');
+            document.getElementById('finished_product_fields').classList.add('hidden');
             
             // Show fields based on test type
-            if(testType === 'new_component') {
-                document.getElementById('new_component_fields').classList.remove('hidden');
-            } else if(testType === 'defective') {
-                document.getElementById('defective_fields').classList.remove('hidden');
-            } else if(testType === 'new_device') {
-                document.getElementById('new_device_fields').classList.remove('hidden');
+            if(testType === 'material') {
+                document.getElementById('material_fields').classList.remove('hidden');
+            } else if(testType === 'finished_product') {
+                document.getElementById('finished_product_fields').classList.remove('hidden');
             }
         }
         
-        // Hàm toggleDropdown cho sidebar
-        function toggleDropdown(id) {
-            const dropdown = document.getElementById(id);
-            const allDropdowns = document.querySelectorAll('.dropdown-content');
-            
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
-                if (d.id !== id) {
-                    d.classList.remove('show');
-                }
-            });
-            
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
-        }
-
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown')) {
-                document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                    dropdown.classList.remove('show');
-                });
+        // Get serial data based on material type
+        function getSerialData() {
+            const materialType = document.getElementById('material_type').value;
+            if (!materialType) {
+                document.getElementById('serial_number').value = '';
+                return;
             }
-        });
-
-        // Prevent dropdown from closing when clicking inside
-        document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
+            
+            // Normally this would be an API call, but for now simulate with a generated code
+            const today = new Date();
+            const dateCode = today.getFullYear().toString().slice(-2) + 
+                             (today.getMonth() + 1).toString().padStart(2, '0') + 
+                             today.getDate().toString().padStart(2, '0');
+            const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            
+            // Generate code based on material type (simplified for demo)
+            const prefix = materialType.split(' ')[0].substring(0, 3).toUpperCase();
+            document.getElementById('serial_number').value = `${prefix}-${dateCode}-${randomNum}`;
+        }
+        
+        // Add new test item
+        function addTestItem() {
+            const container = document.getElementById('test_items_container');
+            const newItem = document.createElement('div');
+            newItem.className = 'test-item flex items-center gap-4';
+            newItem.innerHTML = `
+                <input type="text" name="test_items[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
+                <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(newItem);
+        }
+        
+        // Remove test item
+        function removeTestItem(button) {
+            const container = document.getElementById('test_items_container');
+            const item = button.closest('.test-item');
+            
+            // Don't remove if it's the last one
+            if (container.children.length > 1) {
+                container.removeChild(item);
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add a few default test items
+            addTestItem();
+            addTestItem();
         });
     </script>
 </body>
