@@ -37,7 +37,7 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã bảo hành <span class="text-red-500">*</span></label>
+                            <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã bảo hành hoặc thiết bị<span class="text-red-500">*</span></label>
                             <div class="relative">
                                 <input type="text" id="warranty_code" name="warranty_code" required
                                     class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -137,10 +137,10 @@
                                 placeholder="Nhập tên kỹ thuật viên">
                         </div>
                         <div>
-                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho sửa chữa <span class="text-red-500">*</span></label>
+                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required"> Kho linh kiện thay thế <span class="text-red-500">*</span></label>
                             <select id="warehouse_id" name="warehouse_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn kho sửa chữa --</option>
+                                <option value="">-- Chọn Kho linh kiện thay thế --</option>
                                 <option value="1">Kho chính</option>
                                 <option value="2">Kho phụ</option>
                                 <option value="3">Kho linh kiện</option>

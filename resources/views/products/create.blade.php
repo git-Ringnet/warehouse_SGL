@@ -50,7 +50,7 @@
                         <div class="space-y-4">
                             <div>
                                 <label for="code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã
-                                    sản phẩm <span class="text-red-500">*</span></label>
+                                    thành phẩm <span class="text-red-500">*</span></label>
                                 <input type="text" id="code" name="code" placeholder="SP-XXXX" required
                                     value="{{ old('code') }}"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -58,8 +58,8 @@
 
                             <div>
                                 <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên
-                                    sản phẩm <span class="text-red-500">*</span></label>
-                                <input type="text" id="name" name="name" placeholder="Nhập tên sản phẩm"
+                                    thành phẩm <span class="text-red-500">*</span></label>
+                                <input type="text" id="name" name="name" placeholder="Nhập tên thành phẩm"
                                     required value="{{ old('name') }}"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
@@ -68,7 +68,7 @@
                         <div class="space-y-4">
                             <div>
                                 <label for="type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
-                                    sản phẩm <span class="text-red-500">*</span>
+                                    thành phẩm <span class="text-red-500">*</span>
                                 </label>
                                 <select id="type" name="type" required
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -77,13 +77,106 @@
                                     </option>
                                 </select>
                             </div>
-                            <div class="">
-                                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả sản
-                                    phẩm</label>
-                                <textarea id="description" name="description" rows="3" placeholder="Nhập mô tả chi tiết về sản phẩm"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('description') }}</textarea>
+                            <div class="mb-4">
+                                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô
+                                    tả</label>
+                                <textarea id="description" name="description" rows="3"
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Upload hình ảnh -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Hình ảnh thành phẩm</label>
+                        <div id="dropzone"
+                            class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer mb-2">
+                            <input type="file" id="imageInput" name="images[]" class="hidden" multiple
+                                accept="image/*">
+                            <div class="mb-2">
+                                <i class="fas fa-cloud-upload-alt text-gray-400 text-3xl"></i>
+                            </div>
+                            <p class="text-gray-700 mb-1">Kéo thả hình ảnh vào đây hoặc</p>
+                            <button type="button" id="addImageBtn"
+                                class="text-blue-500 font-medium hover:text-blue-600">Chọn từ thiết bị</button>
+                            <p class="text-xs text-gray-500 mt-1">Hỗ trợ: JPG, PNG, GIF (Tối đa 2MB)</p>
+                        </div>
+                        <div id="imagePreviewContainer" class="flex flex-wrap gap-3 mt-3">
+                            <!-- Image previews will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Vật tư sử dụng -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Thông tin vật tư sử dụng</label>
+                        <div class="border border-gray-300 rounded-lg p-4">
+                            <div id="materialsContainer" class="space-y-3">
+                                <!-- Initial empty material row -->
+                                <div class="material-row grid grid-cols-12 gap-2 items-center">
+                                    <div class="col-span-5">
+                                        <select
+                                            class="material-select w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                            <option value="">-- Chọn vật tư --</option>
+                                            <!-- Material options would be populated here -->
+                                        </select>
+                                    </div>
+                                    <div class="col-span-3">
+                                        <input type="number" placeholder="Số lượng" min="1"
+                                            class="material-quantity w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    </div>
+                                    <div class="col-span-3">
+                                        <input type="text" placeholder="Ghi chú"
+                                            class="material-note w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                                    </div>
+                                    <div class="col-span-1">
+                                        <button type="button"
+                                            class="remove-material-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
+                                            <i class="fas fa-times text-red-500 group-hover:text-white text-sm"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="my-3">
+                                <button type="button" id="addMaterialBtn"
+                                    class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center text-sm">
+                                    <i class="fas fa-plus mr-2"></i> Thêm vật tư
+                                </button>
+                            </div>
+
+                            <!-- No materials message -->
+                            <div id="noMaterialsMessage" class="text-gray-500 text-center py-3 hidden">
+                                Chưa có vật tư nào được thêm
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cách tính tồn kho -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn kho</label>
+                        <div class="space-y-2">
+                            @foreach (App\Models\Warehouse::orderBy('name')->get() as $warehouse)
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="warehouse_{{ $warehouse->id }}"
+                                        name="inventory_warehouses[]" value="{{ $warehouse->id }}"
+                                        class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                    <label for="warehouse_{{ $warehouse->id }}"
+                                        class="ml-2 block text-sm text-gray-700">
+                                        {{ $warehouse->name }}
+                                    </label>
+                                </div>
+                            @endforeach
+                            <div class="flex items-center mt-2">
+                                <input type="checkbox" id="warehouse_all" name="inventory_warehouses[]"
+                                    value="all"
+                                    class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" checked>
+                                <label for="warehouse_all" class="ml-2 block text-sm text-gray-700 font-medium">
+                                    Tất cả các kho
+                                </label>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Lựa chọn kho để thực hiện đếm số lượng thành phẩm tồn trong
+                            kho đó.</p>
                     </div>
 
                     <div class="mt-8 flex justify-end space-x-3">
@@ -93,13 +186,16 @@
                         </a>
                         <button type="submit"
                             class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-save mr-2"></i> Lưu sản phẩm
+                            <i class="fas fa-save mr-2"></i> Lưu thành phẩm
                         </button>
                     </div>
                 </form>
             </div>
         </main>
     </div>
+
+    <!-- JavaScript for UI functionality -->
+    <script src="{{ asset('js/product-form.js') }}"></script>
 </body>
 
 </html>

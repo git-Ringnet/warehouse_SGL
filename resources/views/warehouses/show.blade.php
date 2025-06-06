@@ -248,7 +248,7 @@
                     </div>
                 </div>
 
-                <!-- Có thể thêm các section khác ở đây: Danh sách sản phẩm trong kho, lịch sử nhập xuất, ... -->
+                <!-- Có thể thêm các section khác ở đây: Danh sách thành phẩm trong kho, lịch sử nhập xuất, ... -->
                 
                 <div class="mt-6 flex justify-end">
                     <button onclick="confirmDelete()" 

@@ -89,7 +89,7 @@
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <i class="fas fa-boxes text-blue-500 mr-2"></i>
-                    Danh sách sản phẩm
+                    Danh sách thành phẩm
                 </h2>
 
                 <div class="overflow-x-auto">
@@ -106,7 +106,7 @@
                                 </th>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Tên sản phẩm
+                                    Tên thành phẩm
                                 </th>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">

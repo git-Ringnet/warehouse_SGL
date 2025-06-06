@@ -66,7 +66,7 @@ function initializeImageUpload() {
                 return;
             }
             
-            if (file.size > 2 * 1024 * 1024) {
+            if (file.size > 20 * 1024 * 1024) {
                 alert('File quá lớn. Kích thước tối đa là 2MB!');
                 return;
             }

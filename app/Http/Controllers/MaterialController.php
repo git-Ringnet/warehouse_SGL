@@ -78,7 +78,7 @@ class MaterialController extends Controller
             'name' => 'required',
             'category' => 'required',
             'unit' => 'required',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
             'inventory_warehouses' => 'nullable',
         ]);
 
@@ -160,7 +160,7 @@ class MaterialController extends Controller
             'name' => 'required',
             'category' => 'required',
             'unit' => 'required',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
             'inventory_warehouses' => 'nullable'
         ]);
 

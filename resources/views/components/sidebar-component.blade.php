@@ -53,6 +53,11 @@
                                 Tư</a>
                         </li>
                         <li>
+                            <a href="{{ asset('goods') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                Hàng hóa
+                            </a>
+                        </li>
+                        <li>
                             <a href="{{ asset('products') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Thành
                                 Phẩm</a>
                         </li>
@@ -115,7 +120,7 @@
                         </li>
                         <li>
                             <a href="{{ asset('repair_list') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Sửa chữa - bảo hành
+                                Sửa chữa - bảo trì
                             </a>
                         </li>
                         <li>

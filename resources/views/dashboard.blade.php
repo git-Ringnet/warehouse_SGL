@@ -82,20 +82,49 @@
                 </div>
             </div>
 
+            <!-- Search Bar -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
+                <form action="#" method="GET" class="flex flex-col md:flex-row gap-3">
+                    <div class="flex-grow">
+                        <div class="relative">
+                            <input type="text" name="search" id="searchQuery" placeholder="Tìm kiếm theo ID hoặc Serial..." 
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 pl-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <select name="category" id="searchCategory" 
+                            class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
+                            <option value="all">Tất cả</option>
+                            <option value="materials">Vật tư</option>
+                            <option value="finished">Thành phẩm</option>
+                            <option value="goods">Hàng hóa</option>
+                            <option value="projects">Dự án</option>
+                            <option value="customers">Khách hàng</option>
+                        </select>
+                    </div>
+                    <button type="submit" 
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                        Tìm kiếm
+                    </button>
+                </form>
+            </div>
+
             <!-- Quick Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center">
-                        <div
-                            class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300 mr-4">
+                        <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300 mr-4">
                             <i class="fas fa-boxes text-xl"></i>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500 dark:text-gray-400">
-                                Tổng vật tư
+                                Tổng nhập kho
                             </p>
                             <p class="text-2xl font-bold text-gray-800 dark:text-white">
-                                1,245
+                                3,248
                             </p>
                         </div>
                     </div>
@@ -103,33 +132,47 @@
 
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center">
-                        <div
-                            class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-500 dark:text-purple-300 mr-4">
-                            <i class="fas fa-sign-in-alt text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">
-                                Nhập kho tháng
-                            </p>
-                            <p class="text-2xl font-bold text-gray-800 dark:text-white">
-                                1,245
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
-                    <div class="flex items-center">
-                        <div
-                            class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-500 dark:text-orange-300 mr-4">
+                        <div class="p-3 rounded-full bg-red-100 dark:bg-red-900 text-red-500 dark:text-red-300 mr-4">
                             <i class="fas fa-sign-out-alt text-xl"></i>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500 dark:text-gray-400">
-                                Xuất kho tháng
+                                Tổng xuất kho
                             </p>
                             <p class="text-2xl font-bold text-gray-800 dark:text-white">
-                                987
+                                2,587
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-orange-100 dark:bg-orange-900 text-orange-500 dark:text-orange-300 mr-4">
+                            <i class="fas fa-exclamation-triangle text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Tổng hư hỏng
+                            </p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-white">
+                                345
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-500 dark:text-purple-300 mr-4">
+                            <i class="fas fa-project-diagram text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Tổng dự án
+                            </p>
+                            <p class="text-2xl font-bold text-gray-800 dark:text-white">
+                                78
                             </p>
                         </div>
                     </div>
@@ -139,15 +182,55 @@
             <!-- Main Chart Row -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <!-- Inventory Overview Chart -->
-                <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 lg:col-span-2 hover:shadow-md transition-shadow">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 lg:col-span-2 hover:shadow-md transition-shadow">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                            Tổng quan tồn kho
+                            Tổng quan nhập/xuất/hư hỏng
                         </h3>
+                        <div class="flex items-center space-x-2">
+                            <div class="flex items-center">
+                                <button data-category="materials" class="category-filter px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800 active">Vật tư</button>
+                            </div>
+                            <div class="flex items-center">
+                                <button data-category="finished" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Thành phẩm</button>
+                            </div>
+                            <div class="flex items-center">
+                                <button data-category="goods" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Hàng hóa</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="chart-container-lg">
                         <canvas id="inventoryOverviewChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Project Growth Chart -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
+                            Mức độ gia tăng dự án
+                        </h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="projectGrowthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary Chart Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Inventory Categories Chart -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
+                            Phân loại kho
+                        </h3>
+                        <div class="text-blue-500 dark:text-blue-300 text-sm">
+                            <i class="fas fa-tags mr-1"></i> Tất cả
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="inventoryCategoriesChart"></canvas>
                     </div>
                 </div>
 
@@ -190,24 +273,6 @@
                             </div>
                             <span class="text-sm font-medium text-gray-800 dark:text-white">20%</span>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Secondary Chart Row -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <!-- Inventory Categories Chart -->
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-                            Phân loại vật tư
-                        </h3>
-                        <div class="text-blue-500 dark:text-blue-300 text-sm">
-                            <i class="fas fa-tags mr-1"></i> Tất cả
-                        </div>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="inventoryCategoriesChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -325,6 +390,12 @@
                             backgroundColor: "#ef4444",
                             borderRadius: 4,
                         },
+                        {
+                            label: "Hư hỏng",
+                            data: [50, 45, 60, 55, 65, 70],
+                            backgroundColor: "#f59e0b",
+                            borderRadius: 4,
+                        }
                     ],
                 },
                 options: {
@@ -344,6 +415,11 @@
                         datalabels: {
                             display: false,
                         },
+                        title: {
+                            display: true,
+                            text: 'Vật Tư',
+                            color: textColor,
+                        }
                     },
                     scales: {
                         x: {
@@ -374,6 +450,63 @@
                     },
                 },
                 plugins: [ChartDataLabels],
+            });
+
+            // Project Growth Chart
+            const projectGrowthCtx = document
+                .getElementById("projectGrowthChart")
+                .getContext("2d");
+            const projectGrowthChart = new Chart(projectGrowthCtx, {
+                type: "line",
+                data: {
+                    labels: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6"],
+                    datasets: [{
+                        label: "Số lượng dự án",
+                        data: [12, 19, 25, 37, 45, 56],
+                        fill: true,
+                        backgroundColor: "rgba(139, 92, 246, 0.2)",
+                        borderColor: "#8b5cf6",
+                        tension: 0.4,
+                        pointBackgroundColor: "#8b5cf6",
+                        pointBorderColor: "#fff",
+                        pointRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: "index",
+                            intersect: false,
+                        },
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: gridColor,
+                                drawBorder: false,
+                            },
+                            ticks: {
+                                color: textColor,
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: gridColor,
+                                drawBorder: false,
+                            },
+                            ticks: {
+                                color: textColor,
+                                precision: 0
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
             });
 
             // Warehouse Distribution Chart
@@ -548,6 +681,7 @@
                 monthlyTransactionsChart,
                 inventoryCategoriesChart,
                 inventoryStatusChart,
+                projectGrowthChart
             };
         };
 
@@ -698,6 +832,79 @@
         document.querySelectorAll(".dropdown-content").forEach((dropdown) => {
             dropdown.addEventListener("click", (e) => {
                 e.stopPropagation();
+            });
+        });
+
+        // Category filter for Inventory Overview Chart
+        document.querySelectorAll('.category-filter').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.category-filter').forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
+                    btn.classList.add('bg-gray-100', 'text-gray-800');
+                });
+                
+                // Add active class to clicked button
+                this.classList.add('active', 'bg-blue-100', 'text-blue-800');
+                this.classList.remove('bg-gray-100', 'text-gray-800');
+                
+                const category = this.dataset.category;
+                
+                // Update chart title
+                let title = '';
+                switch (category) {
+                    case 'materials':
+                        title = 'Vật Tư';
+                        break;
+                    case 'finished':
+                        title = 'Thành Phẩm';
+                        break;
+                    case 'goods':
+                        title = 'Hàng Hóa';
+                        break;
+                }
+                
+                charts.inventoryOverviewChart.options.plugins.title.text = title;
+                
+                // Show loading state
+                const toast = document.getElementById("toast");
+                toast.innerHTML =
+                    '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu...</span></div>';
+                toast.classList.remove("hidden");
+                
+                // Simulate data update (in production, you would fetch data from the server)
+                setTimeout(() => {
+                    // Update chart data with random values for demonstration
+                    const newData = {
+                        materials: {
+                            input: [450, 500, 550, 600, 650, 700],
+                            output: [300, 350, 400, 450, 500, 550],
+                            damaged: [50, 45, 60, 55, 65, 70]
+                        },
+                        finished: {
+                            input: [200, 220, 240, 260, 280, 300],
+                            output: [180, 200, 220, 240, 260, 280],
+                            damaged: [20, 25, 30, 35, 40, 45]
+                        },
+                        goods: {
+                            input: [350, 370, 390, 410, 430, 450],
+                            output: [320, 340, 360, 380, 400, 420],
+                            damaged: [30, 35, 40, 45, 50, 55]
+                        }
+                    };
+                    
+                    charts.inventoryOverviewChart.data.datasets[0].data = newData[category].input;
+                    charts.inventoryOverviewChart.data.datasets[1].data = newData[category].output;
+                    charts.inventoryOverviewChart.data.datasets[2].data = newData[category].damaged;
+                    charts.inventoryOverviewChart.update();
+                    
+                    toast.innerHTML =
+                        '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu thành công!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                }, 1000);
             });
         });
     </script>

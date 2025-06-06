@@ -87,17 +87,17 @@
                     </div>
                 </div>
 
-                <!-- Danh sách sản phẩm -->
+                <!-- Danh sách thành phẩm -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                         <i class="fas fa-boxes text-blue-500 mr-2"></i>
-                        Danh sách sản phẩm xuất kho
+                        Danh sách thành phẩm xuất kho
                     </h2>
 
-                    <!-- Tìm kiếm sản phẩm -->
+                    <!-- Tìm kiếm thành phẩm -->
                     <div class="mb-4">
                         <div class="relative">
-                            <input type="text" id="product_search" placeholder="Tìm kiếm sản phẩm theo mã, tên..."
+                            <input type="text" id="product_search" placeholder="Tìm kiếm thành phẩm theo mã, tên..."
                                 class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-search text-gray-400"></i>
@@ -109,7 +109,7 @@
                         </div>
                     </div>
 
-                    <!-- Bảng sản phẩm đã chọn -->
+                    <!-- Bảng thành phẩm đã chọn -->
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
@@ -120,7 +120,7 @@
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Tên sản phẩm
+                                        Tên thành phẩm
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -141,7 +141,7 @@
                                 </tr>
                             </thead>
                             <tbody id="product_list" class="bg-white divide-y divide-gray-200">
-                                <!-- Sản phẩm hiện tại -->
+                                <!-- thành phẩm hiện tại -->
                                 <tr class="product-row">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         <input type="hidden" name="products[0][id]" value="1">
@@ -186,10 +186,10 @@
                                         </button>
                                     </td>
                                 </tr>
-                                <!-- Hàng "không có sản phẩm" -->
+                                <!-- Hàng "không có thành phẩm" -->
                                 <tr id="no_products_row" style="display: none;">
                                     <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">
-                                        Chưa có sản phẩm nào được thêm vào phiếu xuất
+                                        Chưa có thành phẩm nào được thêm vào phiếu xuất
                                     </td>
                                 </tr>
                             </tbody>
@@ -213,7 +213,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Dữ liệu mẫu cho sản phẩm
+            // Dữ liệu mẫu cho thành phẩm
             const sampleProducts = [{
                     id: 1,
                     code: 'SP001',
@@ -256,7 +256,7 @@
                 }
             ];
 
-            // Khởi tạo mảng sản phẩm đã chọn
+            // Khởi tạo mảng thành phẩm đã chọn
             let selectedProducts = [{
                     id: 1,
                     code: 'SP001',
@@ -275,7 +275,7 @@
                 }
             ];
 
-            // Xử lý thêm sản phẩm
+            // Xử lý thêm thành phẩm
             const productSearchInput = document.getElementById('product_search');
             const addProductBtn = document.getElementById('add_product_btn');
             const productList = document.getElementById('product_list');
@@ -285,28 +285,28 @@
                 const searchTerm = productSearchInput.value.trim().toLowerCase();
 
                 if (!searchTerm) {
-                    alert('Vui lòng nhập mã hoặc tên sản phẩm để tìm kiếm!');
+                    alert('Vui lòng nhập mã hoặc tên thành phẩm để tìm kiếm!');
                     return;
                 }
 
-                // Tìm sản phẩm trong dữ liệu mẫu
+                // Tìm thành phẩm trong dữ liệu mẫu
                 const foundProduct = sampleProducts.find(p =>
                     p.code.toLowerCase().includes(searchTerm) ||
                     p.name.toLowerCase().includes(searchTerm)
                 );
 
                 if (!foundProduct) {
-                    alert('Không tìm thấy sản phẩm phù hợp!');
+                    alert('Không tìm thấy thành phẩm phù hợp!');
                     return;
                 }
 
-                // Kiểm tra xem sản phẩm đã được thêm chưa
+                // Kiểm tra xem thành phẩm đã được thêm chưa
                 if (selectedProducts.some(p => p.id === foundProduct.id)) {
-                    alert('Sản phẩm này đã được thêm vào phiếu xuất!');
+                    alert('thành phẩm này đã được thêm vào phiếu xuất!');
                     return;
                 }
 
-                // Thêm sản phẩm vào danh sách
+                // Thêm thành phẩm vào danh sách
                 selectedProducts.push({
                     ...foundProduct,
                     quantity: 1
@@ -320,18 +320,18 @@
             });
 
             function updateProductList() {
-                // Ẩn thông báo "không có sản phẩm"
+                // Ẩn thông báo "không có thành phẩm"
                 if (selectedProducts.length > 0) {
                     noProductsRow.style.display = 'none';
                 } else {
                     noProductsRow.style.display = '';
                 }
 
-                // Xóa các hàng sản phẩm hiện tại (trừ hàng thông báo)
+                // Xóa các hàng thành phẩm hiện tại (trừ hàng thông báo)
                 const productRows = document.querySelectorAll('.product-row');
                 productRows.forEach(row => row.remove());
 
-                // Thêm hàng cho mỗi sản phẩm đã chọn
+                // Thêm hàng cho mỗi thành phẩm đã chọn
                 selectedProducts.forEach((product, index) => {
                     const row = document.createElement('tr');
                     row.className = 'product-row';
@@ -379,7 +379,7 @@
                     });
                 });
 
-                // Thêm sự kiện xóa sản phẩm
+                // Thêm sự kiện xóa thành phẩm
                 const deleteButtons = document.querySelectorAll('.delete-product');
                 deleteButtons.forEach(button => {
                     button.addEventListener('click', function() {

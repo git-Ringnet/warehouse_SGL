@@ -377,7 +377,7 @@
                         <div class="md:col-span-2">
                             <p class="text-sm font-medium text-gray-500">Thông tin sau khi thay đổi:</p>
                             <p class="text-sm text-gray-900">
-                                - Mã sản phẩm: CPU-I5-10400<br>
+                                - Mã thành phẩm: CPU-I5-10400<br>
                                 - Serial: SN001<br>
                                 - Nhà sản xuất: Intel<br>
                                 - Ngày sản xuất: 10/01/2023<br>
@@ -400,7 +400,7 @@
                             </div>
                             <div class="border border-gray-200 rounded-lg p-2">
                                 <img src="https://via.placeholder.com/300x200?text=Image+2" alt="Ảnh đính kèm" class="w-full h-auto rounded">
-                                <p class="text-xs text-gray-500 mt-1">Hình ảnh sản phẩm</p>
+                                <p class="text-xs text-gray-500 mt-1">Hình ảnh thành phẩm</p>
                             </div>
                         </div>
                     </div>

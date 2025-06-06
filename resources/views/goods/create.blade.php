@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thêm vật tư mới - SGL</title>
+    <title>Thêm hàng hóa mới - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -17,16 +17,16 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ route('materials.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('goods.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <h1 class="text-xl font-bold text-gray-800">Thêm vật tư mới</h1>
+                <h1 class="text-xl font-bold text-gray-800">Thêm hàng hóa mới</h1>
             </div>
         </header>
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mx-auto">
-                <form action="{{ route('materials.store') }}" method="POST" enctype="multipart/form-data">
+                <form action="#" method="POST" enctype="multipart/form-data">
                     @csrf
 
                     @if ($errors->any())
@@ -40,30 +40,30 @@
                         </div>
                     @endif
 
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Thông tin vật tư</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Thông tin hàng hóa</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <div>
-                            <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Mã vật tư <span
+                            <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Mã hàng hóa <span
                                     class="text-red-500">*</span></label>
-                            <input type="text" id="code" name="code" placeholder="VT-XXXX" required
+                            <input type="text" id="code" name="code" placeholder="HH-XXXX" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                             <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Tên vật tư <span
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Tên hàng hóa <span
                                     class="text-red-500">*</span></label>
-                            <input type="text" id="name" name="name" placeholder="Nhập tên vật tư" required
+                            <input type="text" id="name" name="name" placeholder="Nhập tên hàng hóa" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
 
                             <div>
-                            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư <span
+                            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại hàng hóa <span
                                     class="text-red-500">*</span></label>
                             <div class="flex">
                                 <select id="category" name="category" required
                                     class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Chọn loại vật tư</option>
+                                    <option value="">Chọn loại hàng hóa</option>
                                     @foreach ($categories as $category)
                                         <option value="{{ $category }}">{{ $category }}</option>
                                     @endforeach
@@ -157,20 +157,18 @@
                                     </label>
                                 </div>
                             </div>
-                            <p class="text-sm text-gray-500 mt-1">Lựa chọn kho để thực hiện đếm số lượng vật tư tồn trong kho đó.</p>
+                            <p class="text-sm text-gray-500 mt-1">Lựa chọn kho để thực hiện đếm số lượng hàng hóa tồn trong kho đó.</p>
                         </div>
-
-                        <!-- Nội dung mô tả -->
                     </div>
 
                     <div class="mt-6 flex justify-end space-x-3">
-                        <a href="{{ route('materials.index') }}"
+                        <a href="{{ route('goods.index') }}"
                             class="bg-gray-200 text-gray-700 px-5 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                             Hủy
                         </a>
                         <button type="submit"
                             class="bg-blue-500 text-white px-5 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                            <i class="fas fa-save mr-2"></i> Lưu vật tư
+                            <i class="fas fa-save mr-2"></i> Lưu hàng hóa
                         </button>
                     </div>
                 </form>
@@ -183,14 +181,14 @@
         class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Thêm loại vật tư mới</h3>
+                <h3 class="text-lg font-bold text-gray-900">Thêm loại hàng hóa mới</h3>
                 <button type="button" class="text-gray-400 hover:text-gray-600" id="closeModalBtn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <form id="addCategoryForm">
                 <div class="mb-4">
-                    <label for="newCategoryName" class="block text-sm font-medium text-gray-700 mb-1">Tên loại vật tư
+                    <label for="newCategoryName" class="block text-sm font-medium text-gray-700 mb-1">Tên loại hàng hóa
                         <span class="text-red-500">*</span></label>
                     <input type="text" id="newCategoryName" name="newCategoryName" required
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -210,11 +208,11 @@
     </div>
 
     <!-- Include common JS file -->
-    <script src="{{ asset('js/material-form.js') }}"></script>
+    <script src="{{ asset('js/good-form.js') }}"></script>
     <script>
-        // Initialize the material form
+        // Initialize the good form
         document.addEventListener('DOMContentLoaded', function() {
-            initializeMaterialForm(false); // false = create form
+            initializeGoodForm(false); // false = create form
             
             // Handle warehouse checkboxes
             const allWarehouseCheckbox = document.getElementById('warehouse_all');
@@ -226,7 +224,7 @@
                     warehouseCheckboxes.forEach(checkbox => {
                         checkbox.checked = false;
                     });
-        }
+                }
             });
             
             // When any other warehouse is checked, uncheck "All"
@@ -234,7 +232,7 @@
                 checkbox.addEventListener('change', function() {
                     if (this.checked) {
                         allWarehouseCheckbox.checked = false;
-            }
+                    }
                     
                     // If no warehouses are checked, check "All"
                     const anyChecked = Array.from(warehouseCheckboxes).some(cb => cb.checked);
@@ -247,4 +245,4 @@
     </script>
 </body>
 
-</html>
+</html> 

@@ -31,6 +31,8 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             SoftwareSeeder::class,
             WarehouseMaterialSeeder::class,
+            ProductSeeder::class,
+            AssemblySeeder::class,
         ]);
     }
 }

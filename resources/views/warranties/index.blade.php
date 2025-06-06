@@ -28,6 +28,7 @@
                         <option value="active">Đang bảo hành</option>
                         <option value="expired">Hết hạn</option>
                         <option value="pending">Chờ kích hoạt</option>
+                        <option value="">Mã bảo hành</option>
                     </select>
                 </div>
             </div>

@@ -66,13 +66,13 @@ class AssemblyController extends Controller
             
             // Validate that we have enough serials if product quantity > 1
             if ($productQty > 1 && count(array_filter($productSerials)) < $productQty) {
-                throw new \Exception('Vui lòng nhập đủ serial cho tất cả sản phẩm.');
+                throw new \Exception('Vui lòng nhập đủ serial cho tất cả thành phẩm.');
             }
             
             // Check for duplicate serials within the form
             $filteredSerials = array_filter($productSerials);
             if (count($filteredSerials) !== count(array_unique($filteredSerials))) {
-                throw new \Exception('Không được nhập trùng serial sản phẩm.');
+                throw new \Exception('Không được nhập trùng serial thành phẩm.');
             }
             
             // Check for duplicate serials in the database
@@ -87,7 +87,7 @@ class AssemblyController extends Controller
                         ->first();
                     
                     if ($existingAssembly) {
-                        throw new \Exception("Serial sản phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
+                        throw new \Exception("Serial thành phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
                     }
                     
                     // Also check in the serials table
@@ -288,13 +288,13 @@ class AssemblyController extends Controller
             
             // Validate that we have enough serials if product quantity > 1
             if ($productQty > 1 && count(array_filter($productSerials)) < $productQty) {
-                throw new \Exception('Vui lòng nhập đủ serial cho tất cả sản phẩm.');
+                throw new \Exception('Vui lòng nhập đủ serial cho tất cả thành phẩm.');
             }
             
             // Check for duplicate serials within the form
             $filteredSerials = array_filter($productSerials);
             if (count($filteredSerials) !== count(array_unique($filteredSerials))) {
-                throw new \Exception('Không được nhập trùng serial sản phẩm.');
+                throw new \Exception('Không được nhập trùng serial thành phẩm.');
             }
             
             // Check for duplicate serials in the database (exclude current assembly)
@@ -310,7 +310,7 @@ class AssemblyController extends Controller
                         ->first();
                     
                     if ($existingAssembly) {
-                        throw new \Exception("Serial sản phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
+                        throw new \Exception("Serial thành phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
                     }
                     
                     // Also check in the serials table (excluding ones linked to this assembly)
@@ -474,7 +474,7 @@ class AssemblyController extends Controller
 
             // Cập nhật kho thành phẩm (nếu kho đã thay đổi)
             if ($oldTargetWarehouseId != $newTargetWarehouseId) {
-                // Nếu kho đích đã thay đổi, cần giảm số lượng sản phẩm ở kho cũ
+                // Nếu kho đích đã thay đổi, cần giảm số lượng thành phẩm ở kho cũ
                 // và tăng số lượng ở kho mới
                 if ($oldTargetWarehouseId) {
                     // Giảm số lượng ở kho cũ
@@ -487,8 +487,8 @@ class AssemblyController extends Controller
                 // Và cập nhật vào kho mới
                 $this->updateProductToTargetWarehouse($assembly);
             } else if ($assembly->product_id != $request->product_id || $assembly->quantity != $productQty) {
-                // Nếu kho không thay đổi nhưng sản phẩm hoặc số lượng có thay đổi
-                // Giảm số lượng sản phẩm cũ
+                // Nếu kho không thay đổi nhưng thành phẩm hoặc số lượng có thay đổi
+                // Giảm số lượng thành phẩm cũ
                 if ($oldTargetWarehouseId) {
                     WarehouseMaterial::where('warehouse_id', $oldTargetWarehouseId)
                         ->where('material_id', $assembly->product_id)
@@ -496,7 +496,7 @@ class AssemblyController extends Controller
                         ->decrement('quantity', $oldProductQty); // Use old product quantity
                 }
                 
-                // Sau khi cập nhật assembly, thêm sản phẩm mới vào kho
+                // Sau khi cập nhật assembly, thêm thành phẩm mới vào kho
                 $this->updateProductToTargetWarehouse($assembly);
             }
 
@@ -613,12 +613,12 @@ class AssemblyController extends Controller
      */
     private function updateProductToTargetWarehouse(Assembly $assembly)
     {
-        // Lấy thông tin sản phẩm và số lượng từ assembly
+        // Lấy thông tin thành phẩm và số lượng từ assembly
         $productId = $assembly->product_id;
         $warehouseId = $assembly->target_warehouse_id;
         $quantity = $assembly->quantity;
 
-        // Kiểm tra xem sản phẩm đã có trong kho chưa
+        // Kiểm tra xem thành phẩm đã có trong kho chưa
         $warehouseProduct = WarehouseMaterial::where('warehouse_id', $warehouseId)
             ->where('material_id', $productId)
             ->where('item_type', 'product')
@@ -633,7 +633,7 @@ class AssemblyController extends Controller
                 'warehouse_id' => $warehouseId,
                 'material_id' => $productId,
                 'quantity' => $quantity,
-                'item_type' => 'product' // Xác định đây là sản phẩm, không phải linh kiện
+                'item_type' => 'product' // Xác định đây là thành phẩm, không phải linh kiện
             ]);
         }
     }
