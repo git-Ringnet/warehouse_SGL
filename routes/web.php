@@ -104,53 +104,10 @@ Route::get('/change_log', function () {
 });
 
 //report
-Route::get('/report', function () {
+Route::get('/reports', function () {
     return view('reports.index');
 });
 
-// Báo cáo đã có
-Route::get('/report/inventory_import', function () {
-    return view('reports.inventory_import');
-});
-
-Route::get('/report/testing_verification', function () {
-    return view('reports.testing_verification');
-});
-
-// Các báo cáo mới
-Route::get('/report/material_export_z755', function () {
-    return view('reports.material_export_z755');
-});
-
-Route::get('/report/finished_product_by_material', function () {
-    return view('reports.finished_product_by_material');
-});
-
-Route::get('/report/defective_modules', function () {
-    return view('reports.defective_modules');
-});
-
-Route::get('/report/finished_product_import', function () {
-    return view('reports.finished_product_import');
-});
-
-Route::get('/report/product_export_by_project', function () {
-    return view('reports.product_export_by_project');
-});
-
-Route::get('/report/maintenance_history', function () {
-    return view('reports.maintenance_history');
-});
-
-Route::get('/report/warranty_repair_success', function () {
-    return view('reports.warranty_repair_success');
-});
-
-Route::get('/report/warranty_product_return', function () {
-    return view('reports.warranty_product_return');
-});
-
-//tu day tro xuong day
 // Thay thế routes suppliers cũ bằng resource controller
 Route::resource('suppliers', SupplierController::class);
 

@@ -201,63 +201,9 @@
                     </button>
                     <ul id="reports" class="dropdown-content reports-menu pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="{{ asset('report/material_export_z755') }}"
+                            <a href="{{ asset('reports') }}"
                                 class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thống kê vật tư xuất Z755
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/finished_product_by_material') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thống kê thiết bị theo vật tư Z755
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/defective_modules') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thống kê module hỏng
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/finished_product_import') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thống kê thiết bị nhập kho
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/product_export_by_project') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thống kê thiết bị xuất theo dự án
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/maintenance_history') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Lịch sử bảo trì theo dự án
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/warranty_repair_success') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thiết bị bảo hành sửa chữa
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/warranty_product_return') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Thiết bị nhập kho bảo hành
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/inventory_import') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Báo cáo vật tư nhập kho
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('report/testing_verification') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Báo cáo kiểm thử nghiệm thu
+                                Báo cáo tổng hợp xuất nhập tồn
                             </a>
                         </li>
                     </ul>
