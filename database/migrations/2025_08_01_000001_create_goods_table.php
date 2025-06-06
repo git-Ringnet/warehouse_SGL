@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('serial')->nullable();
             $table->text('notes')->nullable();
             $table->string('image_path')->nullable();
-            $table->json('inventory_warehouses')->nullable();
+            $table->json('inventory_warehouses')->default('["all"]');
             $table->timestamps();
         });
 
