@@ -50,9 +50,44 @@
                             <input type="date" id="dispatch_date" name="dispatch_date" value="2023-05-05" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
+                        <div>
+                            <label for="dispatch_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại hình <span class="text-red-500">*</span></label>
+                            <select id="dispatch_type" name="dispatch_type" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn loại hình --</option>
+                                <option value="project" selected>Dự án</option>
+                                <option value="rental">Cho thuê</option>
+                                <option value="other">Khác</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="project_id" class="block text-sm font-medium text-gray-700 mb-1">Dự án</label>
+                            <select id="project_id" name="project_id" 
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn dự án --</option>
+                                <option value="1" selected>Dự án IoT A1</option>
+                                <option value="2">Dự án Smart City A2</option>
+                                <option value="3">Dự án Nhà máy thông minh A3</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian bảo hành</label>
+                            <input type="text" id="warranty_period" name="warranty_period" value="12 tháng" readonly
+                                class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label for="company_representative" class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
+                            <select id="company_representative" name="company_representative"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn người đại diện --</option>
+                                <option value="1" selected>Nguyễn Văn A (Giám đốc dự án)</option>
+                                <option value="2">Trần Thị B (Trưởng phòng kỹ thuật)</option>
+                                <option value="3">Lê Văn C (Kỹ sư công nghệ)</option>
+                            </select>
+                        </div>
                         <div>
                             <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho xuất <span class="text-red-500">*</span></label>
                             <select id="warehouse_id" name="warehouse_id" required
@@ -195,6 +230,13 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Nút cập nhật mã thiết bị -->
+                    <div class="mt-4 flex justify-end">
+                        <button type="button" id="update_device_codes_btn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex justify-end space-x-3">
@@ -209,6 +251,133 @@
                 </div>
             </form>
         </main>
+    </div>
+
+    <!-- Modal cập nhật mã thiết bị -->
+    <div id="device-code-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Cập nhật mã thiết bị</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" id="close-device-code-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng bên dưới:</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border border-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri chính
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư 1
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư 2
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư n
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri sim
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Mã truy cập
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    ID IoT
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Mac 4G
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Chú thích
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Các hàng dữ liệu -->
+                            <tr>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_main[]" value="SG-2023-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_1[]" value="PT1-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_2[]" value="PT2-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_n[]" value="PTN-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_sim[]" value="SIM-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="access_code[]" value="AC-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="iot_id[]" value="IOT-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="mac_4g[]" value="MAC-001" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="note[]" value="Thiết bị chính" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_main[]" value="SG-2023-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_1[]" value="PT1-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_2[]" value="PT2-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_n[]" value="PTN-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_sim[]" value="SIM-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="access_code[]" value="AC-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="iot_id[]" value="IOT-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="mac_4g[]" value="MAC-002" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="note[]" value="Thiết bị phụ" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 flex justify-between">
+                    <button type="button" id="add-device-row" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors flex items-center">
+                        <i class="fas fa-plus mr-2"></i> Thêm hàng
+                    </button>
+                    <div>
+                        <button type="button" id="cancel-device-codes" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors mr-2">
+                            Hủy
+                        </button>
+                        <button type="button" id="save-device-codes" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i> Lưu thông tin
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>

@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
             SoftwareSeeder::class,
             WarehouseMaterialSeeder::class,
             ProductSeeder::class,
+            UserLogSeeder::class,
             AssemblySeeder::class,
         ]);
     }

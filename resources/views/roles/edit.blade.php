@@ -147,7 +147,6 @@
                                             </th>
                                             <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên nhân viên</th>
                                             <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                                            <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vai trò</th>
                                             <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                         </tr>
                                     </thead>
@@ -164,25 +163,6 @@
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
                                                 <div class="text-sm text-gray-500 employee-username">{{ $employee->username }}</div>
-                                            </td>
-                                            <td class="px-3 py-2 whitespace-nowrap">
-                                                @if($employee->role == 'admin')
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                                                        Quản trị viên
-                                                    </span>
-                                                @elseif($employee->role == 'manager')
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                                        Quản lý
-                                                    </span>
-                                                @elseif($employee->role == 'tech')
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                                                        Kỹ thuật viên
-                                                    </span>
-                                                @else
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                                        Nhân viên
-                                                    </span>
-                                                @endif
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
                                                 @if($employee->status == 'active')

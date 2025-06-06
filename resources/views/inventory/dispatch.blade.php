@@ -46,9 +46,40 @@
                             <input type="date" id="dispatch_date" name="dispatch_date" value="{{ date('Y-m-d') }}" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
+                        <div>
+                            <label for="dispatch_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại hình <span class="text-red-500">*</span></label>
+                            <select id="dispatch_type" name="dispatch_type" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn loại hình --</option>
+                                <option value="project">Dự án</option>
+                                <option value="rental">Cho thuê</option>
+                                <option value="other">Khác</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="project_id" class="block text-sm font-medium text-gray-700 mb-1">Dự án</label>
+                            <select id="project_id" name="project_id" 
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn dự án --</option>
+                                <!-- Dự án sẽ được load dựa trên khách hàng đã chọn -->
+                            </select>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian bảo hành</label>
+                            <input type="text" id="warranty_period" name="warranty_period" readonly
+                                class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label for="company_representative" class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
+                            <select id="company_representative" name="company_representative"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn người đại diện --</option>
+                                <!-- Người đại diện sẽ được load từ danh sách nhân viên -->
+                            </select>
+                        </div>
                         <div>
                             <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho xuất <span class="text-red-500">*</span></label>
                             <select id="warehouse_id" name="warehouse_id" required
@@ -67,7 +98,7 @@
                                 <option value="">-- Chọn người nhận --</option>
                             </select>
                         </div>
-                        <div class="">
+                        <div class="md:col-span-2">
                             <label for="dispatch_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
                         <textarea id="dispatch_note" name="dispatch_note" rows="2"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -139,6 +170,13 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Nút cập nhật mã thiết bị -->
+                    <div class="mt-4 flex justify-end">
+                        <button type="button" id="update_device_codes_btn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex justify-end space-x-3">
@@ -153,6 +191,133 @@
                 </div>
             </form>
         </main>
+    </div>
+
+    <!-- Modal cập nhật mã thiết bị -->
+    <div id="device-code-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Cập nhật mã thiết bị</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" id="close-device-code-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng bên dưới:</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border border-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri chính
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư 1
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư 2
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư n
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri sim
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Mã truy cập
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    ID IoT
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Mac 4G
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Chú thích
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Các hàng dữ liệu -->
+                            <tr>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_main[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_1[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_2[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_n[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_sim[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="access_code[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="iot_id[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="mac_4g[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="note[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_main[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_1[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_2[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_part_n[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="serial_sim[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="access_code[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="iot_id[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="mac_4g[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                                <td class="px-2 py-2 border border-gray-200">
+                                    <input type="text" name="note[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-4 flex justify-between">
+                    <button type="button" id="add-device-row" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors flex items-center">
+                        <i class="fas fa-plus mr-2"></i> Thêm hàng
+                    </button>
+                    <div>
+                        <button type="button" id="cancel-device-codes" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors mr-2">
+                            Hủy
+                        </button>
+                        <button type="button" id="save-device-codes" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i> Lưu thông tin
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -188,194 +353,234 @@
                 ]
             };
             
+            // Dữ liệu mẫu cho dự án
+            const projects = {
+                1: [ // Dự án của Công ty TNHH ABC
+                    { id: 1, name: 'Dự án IoT A1', warrantyPeriod: '12 tháng' },
+                    { id: 2, name: 'Dự án Smart City A2', warrantyPeriod: '24 tháng' },
+                    { id: 3, name: 'Dự án Nhà máy thông minh A3', warrantyPeriod: '18 tháng' }
+                ],
+                2: [ // Dự án của Công ty CP XYZ
+                    { id: 4, name: 'Dự án Xanh XYZ-1', warrantyPeriod: '36 tháng' },
+                    { id: 5, name: 'Dự án Công nghệ XYZ-2', warrantyPeriod: '24 tháng' }
+                ],
+                3: [ // Dự án của Doanh nghiệp tư nhân MNO
+                    { id: 6, name: 'Dự án MNO-2023', warrantyPeriod: '12 tháng' }
+                ]
+            };
+            
+            // Dữ liệu mẫu cho nhân viên
+            const employees = [
+                { id: 1, name: 'Nguyễn Văn A', position: 'Giám đốc dự án' },
+                { id: 2, name: 'Trần Thị B', position: 'Trưởng phòng kỹ thuật' },
+                { id: 3, name: 'Lê Văn C', position: 'Kỹ sư công nghệ' },
+                { id: 4, name: 'Phạm Thị D', position: 'Quản lý sản xuất' },
+                { id: 5, name: 'Hoàng Văn E', position: 'Trưởng phòng kinh doanh' }
+            ];
+            
             // Xử lý thay đổi loại người nhận
             const receiverTypeSelect = document.getElementById('receiver_type');
             const receiverIdSelect = document.getElementById('receiver_id');
             
-            receiverTypeSelect.addEventListener('change', function() {
-                const selectedType = this.value;
-                receiverIdSelect.innerHTML = '<option value="">-- Chọn người nhận --</option>';
-                
-                if (selectedType && receivers[selectedType]) {
-                    receivers[selectedType].forEach(receiver => {
-                        const option = document.createElement('option');
-                        option.value = receiver.id;
-                        option.textContent = receiver.name;
-                        receiverIdSelect.appendChild(option);
-                    });
-                }
-            });
+            if (receiverTypeSelect) {
+                receiverTypeSelect.addEventListener('change', function() {
+                    const selectedType = this.value;
+                    receiverIdSelect.innerHTML = '<option value="">-- Chọn người nhận --</option>';
+                    
+                    if (selectedType && receivers[selectedType]) {
+                        receivers[selectedType].forEach(receiver => {
+                            const option = document.createElement('option');
+                            option.value = receiver.id;
+                            option.textContent = receiver.name;
+                            receiverIdSelect.appendChild(option);
+                        });
+                    }
+                });
+            }
             
             // Xử lý thêm thành phẩm
             const productSearchInput = document.getElementById('product_search');
             const addProductBtn = document.getElementById('add_product_btn');
             const productList = document.getElementById('product_list');
             const noProductsRow = document.getElementById('no_products_row');
-            const totalAmountEl = document.getElementById('total_amount');
             
             let selectedProducts = [];
             
-            addProductBtn.addEventListener('click', function() {
-                const searchTerm = productSearchInput.value.trim().toLowerCase();
-                
-                if (!searchTerm) {
-                    alert('Vui lòng nhập mã hoặc tên thành phẩm để tìm kiếm!');
-                    return;
-                }
-                
-                // Tìm thành phẩm trong dữ liệu mẫu
-                const foundProduct = sampleProducts.find(p => 
-                    p.code.toLowerCase().includes(searchTerm) || 
-                    p.name.toLowerCase().includes(searchTerm)
-                );
-                
-                if (!foundProduct) {
-                    alert('Không tìm thấy thành phẩm phù hợp!');
-                    return;
-                }
-                
-                // Kiểm tra xem thành phẩm đã được thêm chưa
-                if (selectedProducts.some(p => p.id === foundProduct.id)) {
-                    alert('thành phẩm này đã được thêm vào phiếu xuất!');
-                    return;
-                }
-                
-                // Thêm thành phẩm vào danh sách
-                selectedProducts.push({
-                    ...foundProduct,
-                    quantity: 1,
-                    total: foundProduct.price
+            if (addProductBtn) {
+                addProductBtn.addEventListener('click', function() {
+                    const searchTerm = productSearchInput.value.trim().toLowerCase();
+                    
+                    if (!searchTerm) {
+                        alert('Vui lòng nhập mã hoặc tên thành phẩm để tìm kiếm!');
+                        return;
+                    }
+                    
+                    // Tìm thành phẩm trong dữ liệu mẫu
+                    const foundProduct = sampleProducts.find(p => 
+                        p.code.toLowerCase().includes(searchTerm) || 
+                        p.name.toLowerCase().includes(searchTerm)
+                    );
+                    
+                    if (!foundProduct) {
+                        alert('Không tìm thấy thành phẩm phù hợp!');
+                        return;
+                    }
+                    
+                    // Kiểm tra xem thành phẩm đã được thêm chưa
+                    if (selectedProducts.some(p => p.id === foundProduct.id)) {
+                        alert('thành phẩm này đã được thêm vào phiếu xuất!');
+                        return;
+                    }
+                    
+                    // Thêm thành phẩm vào danh sách
+                    selectedProducts.push({
+                        ...foundProduct,
+                        quantity: 1,
+                        total: foundProduct.price
+                    });
+                    
+                    // Cập nhật giao diện
+                    renderProductTable();
+                    
+                    // Reset input tìm kiếm
+                    productSearchInput.value = '';
                 });
-                
-                // Cập nhật giao diện
-                updateProductList();
-                
-                // Xóa nội dung tìm kiếm
-                productSearchInput.value = '';
-            });
+            }
             
-            function updateProductList() {
-                // Ẩn thông báo "không có thành phẩm"
-                if (selectedProducts.length > 0) {
-                    noProductsRow.style.display = 'none';
-                } else {
-                    noProductsRow.style.display = '';
-                }
-                
-                // Xóa các hàng thành phẩm hiện tại (trừ hàng thông báo)
-                const productRows = document.querySelectorAll('.product-row');
-                productRows.forEach(row => row.remove());
-                
-                // Thêm hàng cho mỗi thành phẩm đã chọn
-                let totalAmount = 0;
-                
-                selectedProducts.forEach((product, index) => {
-                    const row = document.createElement('tr');
-                    row.className = 'product-row';
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <input type="hidden" name="products[${index}][id]" value="${product.id}">
-                            ${product.code}
+            // Xử lý thay đổi loại hình xuất kho
+            const dispatchTypeSelect = document.getElementById('dispatch_type');
+            const projectIdSelect = document.getElementById('project_id');
+            
+            if (dispatchTypeSelect) {
+                dispatchTypeSelect.addEventListener('change', function() {
+                    const selectedType = this.value;
+                    
+                    // Hiển thị/ẩn field dự án dựa vào loại hình
+                    if (selectedType === 'project') {
+                        projectIdSelect.parentElement.classList.remove('hidden');
+                    } else {
+                        projectIdSelect.parentElement.classList.add('hidden');
+                    }
+                });
+            }
+            
+            // Xử lý thay đổi người nhận (khách hàng)
+            if (receiverIdSelect) {
+                receiverIdSelect.addEventListener('change', function() {
+                    const customerId = this.value;
+                    projectIdSelect.innerHTML = '<option value="">-- Chọn dự án --</option>';
+                    
+                    // Nếu có dự án cho khách hàng này
+                    if (projects[customerId]) {
+                        projects[customerId].forEach(project => {
+                            const option = document.createElement('option');
+                            option.value = project.id;
+                            option.textContent = project.name;
+                            option.dataset.warranty = project.warrantyPeriod;
+                            projectIdSelect.appendChild(option);
+                        });
+                    }
+                });
+            }
+            
+            // Xử lý chọn dự án - cập nhật thời gian bảo hành
+            const warrantyPeriodInput = document.getElementById('warranty_period');
+            
+            if (projectIdSelect) {
+                projectIdSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    if (selectedOption && selectedOption.dataset.warranty) {
+                        warrantyPeriodInput.value = selectedOption.dataset.warranty;
+                    } else {
+                        warrantyPeriodInput.value = '';
+                    }
+                });
+            }
+            
+            // Xử lý hiển thị danh sách nhân viên đại diện
+            const companyRepresentativeSelect = document.getElementById('company_representative');
+            
+            if (companyRepresentativeSelect) {
+                // Tải danh sách nhân viên
+                employees.forEach(employee => {
+                    const option = document.createElement('option');
+                    option.value = employee.id;
+                    option.textContent = `${employee.name} (${employee.position})`;
+                    companyRepresentativeSelect.appendChild(option);
+                });
+            }
+            
+            // Xử lý modal cập nhật mã thiết bị
+            const updateDeviceCodesBtn = document.getElementById('update_device_codes_btn');
+            const deviceCodeModal = document.getElementById('device-code-modal');
+            const closeDeviceCodeModalBtn = document.getElementById('close-device-code-modal');
+            const cancelDeviceCodesBtn = document.getElementById('cancel-device-codes');
+            const saveDeviceCodesBtn = document.getElementById('save-device-codes');
+            const addDeviceRowBtn = document.getElementById('add-device-row');
+            
+            if (updateDeviceCodesBtn) {
+                updateDeviceCodesBtn.addEventListener('click', function() {
+                    deviceCodeModal.classList.remove('hidden');
+                });
+            }
+            
+            if (closeDeviceCodeModalBtn) {
+                closeDeviceCodeModalBtn.addEventListener('click', function() {
+                    deviceCodeModal.classList.add('hidden');
+                });
+            }
+            
+            if (cancelDeviceCodesBtn) {
+                cancelDeviceCodesBtn.addEventListener('click', function() {
+                    deviceCodeModal.classList.add('hidden');
+                });
+            }
+            
+            if (saveDeviceCodesBtn) {
+                saveDeviceCodesBtn.addEventListener('click', function() {
+                    // Mã xử lý lưu thông tin mã thiết bị
+                    alert('Đã lưu thông tin mã thiết bị!');
+                    deviceCodeModal.classList.add('hidden');
+                });
+            }
+            
+            if (addDeviceRowBtn) {
+                addDeviceRowBtn.addEventListener('click', function() {
+                    const tbody = deviceCodeModal.querySelector('tbody');
+                    const newRow = document.createElement('tr');
+                    
+                    newRow.innerHTML = `
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="serial_main[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.unit}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.stock}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="number" name="products[${index}][quantity]" min="1" max="${product.stock}" value="${product.quantity}"
-                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 quantity-input"
-                                data-index="${index}">
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="serial_part_1[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="number" name="products[${index}][price]" min="0" value="${product.price}"
-                                class="w-32 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 price-input"
-                                data-index="${index}">
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="serial_part_2[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 product-total" data-index="${index}">
-                            ${formatCurrency(product.total)}
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="serial_part_n[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button type="button" class="text-red-500 hover:text-red-700 delete-product" data-index="${index}">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="serial_sim[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </td>
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="access_code[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </td>
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="iot_id[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </td>
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="mac_4g[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </td>
+                        <td class="px-2 py-2 border border-gray-200">
+                            <input type="text" name="note[]" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                         </td>
                     `;
                     
-                    productList.insertBefore(row, noProductsRow);
-                    totalAmount += product.total;
+                    tbody.appendChild(newRow);
                 });
-                
-                // Cập nhật tổng tiền
-                totalAmountEl.textContent = formatCurrency(totalAmount);
-                
-                // Thêm sự kiện cho input số lượng và đơn giá
-                const quantityInputs = document.querySelectorAll('.quantity-input');
-                quantityInputs.forEach(input => {
-                    input.addEventListener('change', function() {
-                        const index = parseInt(this.dataset.index);
-                        const newQuantity = parseInt(this.value);
-                        
-                        if (newQuantity < 1) {
-                            this.value = 1;
-                            selectedProducts[index].quantity = 1;
-                        } else if (newQuantity > selectedProducts[index].stock) {
-                            this.value = selectedProducts[index].stock;
-                            selectedProducts[index].quantity = selectedProducts[index].stock;
-                            alert(`Số lượng xuất không thể vượt quá số lượng tồn kho (${selectedProducts[index].stock})!`);
-                        } else {
-                            selectedProducts[index].quantity = newQuantity;
-                        }
-                        
-                        // Cập nhật thành tiền
-                        selectedProducts[index].total = selectedProducts[index].quantity * selectedProducts[index].price;
-                        document.querySelector(`.product-total[data-index="${index}"]`).textContent = formatCurrency(selectedProducts[index].total);
-                        
-                        // Cập nhật tổng tiền
-                        updateTotalAmount();
-                    });
-                });
-                
-                const priceInputs = document.querySelectorAll('.price-input');
-                priceInputs.forEach(input => {
-                    input.addEventListener('change', function() {
-                        const index = parseInt(this.dataset.index);
-                        const newPrice = parseInt(this.value);
-                        
-                        if (newPrice < 0) {
-                            this.value = 0;
-                            selectedProducts[index].price = 0;
-                        } else {
-                            selectedProducts[index].price = newPrice;
-                        }
-                        
-                        // Cập nhật thành tiền
-                        selectedProducts[index].total = selectedProducts[index].quantity * selectedProducts[index].price;
-                        document.querySelector(`.product-total[data-index="${index}"]`).textContent = formatCurrency(selectedProducts[index].total);
-                        
-                        // Cập nhật tổng tiền
-                        updateTotalAmount();
-                    });
-                });
-                
-                // Thêm sự kiện xóa thành phẩm
-                const deleteButtons = document.querySelectorAll('.delete-product');
-                deleteButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const index = parseInt(this.dataset.index);
-                        selectedProducts.splice(index, 1);
-                        updateProductList();
-                    });
-                });
-            }
-            
-            function updateTotalAmount() {
-                const totalAmount = selectedProducts.reduce((sum, product) => sum + product.total, 0);
-                totalAmountEl.textContent = formatCurrency(totalAmount);
-            }
-            
-            function formatCurrency(amount) {
-                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
-                    .format(amount)
-                    .replace('₫', 'VNĐ');
             }
         });
     </script>

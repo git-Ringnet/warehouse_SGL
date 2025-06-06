@@ -130,6 +130,7 @@ class WarehouseTransferController extends Controller
                 'source_warehouse_id' => $request->source_warehouse_id,
                 'destination_warehouse_id' => $request->destination_warehouse_id,
                 'material_id' => $materialId,
+                
                 'quantity' => $request->quantity,
                 'transfer_date' => $request->transfer_date,
                 'employee_id' => $request->employee_id,
