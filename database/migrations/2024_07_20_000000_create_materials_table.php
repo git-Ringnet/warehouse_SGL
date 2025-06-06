@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('unit');
             $table->integer('supplier_id')->nullable();
             $table->text('notes')->nullable();
-            $table->json('inventory_warehouses')->nullable()->default('["all"]')->comment('JSON array of warehouse IDs to calculate inventory');
+            $table->json('inventory_warehouses')->nullable()->comment('JSON array of warehouse IDs to calculate inventory');
             $table->timestamps();
         });
     }
