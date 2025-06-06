@@ -231,4 +231,26 @@ class CustomerController extends Controller
         return redirect()->route('customers.index')
             ->with('success', 'Khách hàng đã được xóa thành công.');
     }
+
+    /**
+     * API - Lấy thông tin chi tiết của khách hàng.
+     * 
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getCustomerInfo($id)
+    {
+        try {
+            $customer = Customer::findOrFail($id);
+            return response()->json([
+                'success' => true,
+                'data' => $customer
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không tìm thấy khách hàng'
+            ], 404);
+        }
+    }
 }

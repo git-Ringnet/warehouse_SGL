@@ -70,370 +70,101 @@
 </head>
 <body>
     <x-sidebar-component />
-    
     <!-- Main Content -->
     <div class="content-area">
+      
+        
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
-            <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết dự án</h1>
-                <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    PRJ-2406001
-                </div>
-                <div class="ml-2 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                    Đang thực hiện
-                </div>
-            </div>
-            <div class="flex items-center space-x-2">
-                <a href="{{ url('/projects') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-arrow-left mr-2"></i> Quay lại
-                </a>
-                <a href="{{ url('/projects/1/edit') }}" class="h-10 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+            <div class="flex space-x-2">
+                <a href="{{ route('projects.edit', $project->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white h-10 px-4 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                
+                <a href="{{ route('projects.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-arrow-left mr-2"></i> Quay lại
+                </a>
             </div>
         </header>
-
+        @if(session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        @if(session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
         <main class="p-6">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Thông tin dự án -->
-                <div class="lg:col-span-2">
                     <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Thông tin dự án</h2>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-project-diagram mr-2 text-blue-500"></i> Thông tin dự án
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <p class="text-sm text-gray-500">Tên dự án</p>
-                                <p class="text-base text-gray-800 font-medium">Lắp đặt hệ thống giám sát</p>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Mã dự án</p>
+                            <p class="text-base font-medium text-gray-900">{{ $project->project_code }}</p>
                             </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Khách hàng</p>
-                                <p class="text-base text-gray-800 font-medium">Công ty ABC</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Loại dự án</p>
-                                <p class="text-base text-gray-800 font-medium">Lắp đặt mới</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Ngày bắt đầu</p>
-                                <p class="text-base text-gray-800 font-medium">01/06/2024</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Ngày kết thúc dự kiến</p>
-                                <p class="text-base text-gray-800 font-medium">30/06/2024</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Thời gian bảo hành</p>
-                                <p class="text-base text-gray-800 font-medium">12 tháng</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Ngày hết hạn bảo hành</p>
-                                <p class="text-base text-gray-800 font-medium">30/06/2025</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Tổng số thiết bị</p>
-                                <p class="text-base text-gray-800 font-medium">20 thiết bị</p>
-                            </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Tên dự án</p>
+                            <p class="text-base text-gray-900">{{ $project->project_name }}</p>
                         </div>
-                        
-                        <div class="mt-4">
-                            <p class="text-sm text-gray-500">Mô tả</p>
-                            <p class="text-base text-gray-800 mt-1">
-                                Lắp đặt hệ thống giám sát camera an ninh và thiết bị IoT cho tòa nhà văn phòng tại khu vực trung tâm thành phố. Bao gồm 15 camera, 5 thiết bị trung tâm và phần mềm quản lý.
-                            </p>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Ngày bắt đầu</p>
+                            <p class="text-base text-gray-900">{{ \Carbon\Carbon::parse($project->start_date)->format('d/m/Y') }}</p>
                         </div>
-                        
-                        <div class="mt-4">
-                            <p class="text-sm text-gray-500">Ghi chú</p>
-                            <p class="text-base text-gray-800 mt-1">
-                                Yêu cầu hoàn thành đúng tiến độ, có đội kỹ thuật hỗ trợ 24/7 trong tuần đầu tiên sau khi bàn giao.
-                            </p>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Thời gian bảo hành</p>
+                            <p class="text-base text-gray-900">{{ $project->warranty_period }} tháng</p>
                         </div>
                     </div>
-                    
-                    <!-- Thiết bị dự án -->
-                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-                        <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
-                            <h2 class="text-lg font-semibold text-gray-800">Thiết bị dự án</h2>
-                            <a href="{{ url('/projects/1/edit') }}" class="text-blue-500 hover:text-blue-600 text-sm font-medium">
-                                <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị
-                            </a>
-                        </div>
-                        
-                        <!-- Kho xuất thiết bị -->
-                        <div class="mb-4 p-3 bg-blue-50 rounded-lg">
-                            <div class="flex items-center">
-                                <i class="fas fa-warehouse text-blue-500 mr-2"></i>
                                 <div>
-                                    <p class="text-sm text-gray-500">Kho xuất thiết bị:</p>
-                                    <p class="text-base text-gray-800 font-medium">
-                                        {{ isset($warehouse) ? $warehouse->name . ' (' . $warehouse->code . ')' : 'Kho Trung tâm (KTC01)' }}
-                                    </p>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Công ty khách hàng</p>
+                            <p class="text-base text-gray-900">{{ $project->customer->company_name }}</p>
                                 </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Người đại diện</p>
+                            <p class="text-base text-gray-900">{{ $project->customer->name }}</p>
                             </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Ngày kết thúc dự kiến</p>
+                            <p class="text-base text-gray-900">{{ \Carbon\Carbon::parse($project->end_date)->format('d/m/Y') }}</p>
                         </div>
-                        
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    @if(isset($project_equipment) && count($project_equipment) > 0)
-                                        @foreach($project_equipment as $equipment)
-                                            <tr class="hover:bg-gray-50">
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{{ $equipment->code }}</td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $equipment->name }}</td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                    @switch($equipment->type)
-                                                        @case('camera')
-                                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Camera</span>
-                                                            @break
-                                                        @case('nvr')
-                                                            <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">NVR/DVR</span>
-                                                            @break
-                                                        @case('sensor')
-                                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Cảm biến</span>
-                                                            @break
-                                                        @case('controller')
-                                                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Bộ điều khiển</span>
-                                                            @break
-                                                        @default
-                                                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Khác</span>
-                                                    @endswitch
-                                                </td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">{{ $equipment->quantity }}</td>
-                                                <td class="px-4 py-3 text-sm text-gray-700">{{ $equipment->note }}</td>
-                                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                                    </button>
-                                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    @else
-                                        {{-- Example data for demonstration --}}
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">CAM-101</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Camera Dome 2MP</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Camera</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">8</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">Lắp đặt hành lang tầng 1-2</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                                </button>
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">CAM-102</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Camera PTZ 5MP</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Camera</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">4</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">Lắp đặt khu vực sảnh</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                                </button>
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">NVR-001</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">NVR 16 kênh</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">NVR/DVR</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">1</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">Phòng kỹ thuật</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                                </button>
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">SEN-101</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Cảm biến chuyển động</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Cảm biến</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">6</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">Khu vực hành lang và cửa ra vào</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                                </button>
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">CTRL-001</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Bộ điều khiển trung tâm</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Bộ điều khiển</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">1</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">Phòng điều hành</td>
-                                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                                </button>
-                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endif
-                                </tbody>
-                            </table>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Ngày tạo</p>
+                            <p class="text-base text-gray-900">{{ \Carbon\Carbon::parse($project->created_at)->format('d/m/Y H:i') }}</p>
                         </div>
                     </div>
-                    
-                    <!-- Theo dõi thiết bị bảo hành -->
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
-                            <h2 class="text-lg font-semibold text-gray-800">Theo dõi bảo hành thiết bị</h2>
-                            <a href="{{ url('/projects/1/edit') }}" class="text-blue-500 hover:text-blue-600 text-sm font-medium">
-                                <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị bảo hành
-                            </a>
-                        </div>
-                        
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày bảo hành</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vấn đề</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">CAM-001</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Camera Dome 2MP</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">15/06/2024</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">Lỗi kết nối</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đã sửa</span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                            </button>
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">CAM-005</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Camera PTZ 5MP</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">18/06/2024</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">Không quay được</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Đang xử lý</span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                            </button>
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">NVR-002</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Đầu ghi hình NVR 8 kênh</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">20/06/2024</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">Lỗi ổ cứng</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đã sửa</span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700 flex space-x-2">
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                            </button>
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="col-span-1 md:col-span-2">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Mô tả</p>
+                        <p class="text-base text-gray-900 whitespace-pre-line">{{ $project->description ?? 'Không có mô tả' }}</p>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Sidebar thông tin -->
-                <div class="lg:col-span-1">
-                    
-                    <!-- Thời gian bảo hành còn lại -->
-                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Thời gian bảo hành còn lại</h2>
-                        
-                        <div class="flex items-center justify-center">
-                            <div class="inline-flex items-center justify-center rounded-full h-20 w-20 bg-blue-100 text-blue-600 text-xl font-semibold">
-                                80%
-                            </div>
+            <!-- Thông tin khách hàng -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-user-tie mr-2 text-blue-500"></i> Thông tin người đại diện
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Họ và tên</p>
+                            <p class="text-base text-gray-900">{{ $project->customer->name }}</p>
                         </div>
-                        
-                        <div class="mt-4 text-center">
-                            <p class="text-sm text-gray-500">Thời gian còn lại</p>
-                            <p class="text-lg font-semibold text-gray-800">290 ngày</p>
-                            <p class="text-xs text-gray-500 mt-1">Hết hạn: 30/06/2025</p>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Số điện thoại</p>
+                            <p class="text-base text-gray-900">{{ $project->customer->phone }}</p>
                         </div>
                     </div>
-                    
-                    <!-- Thông tin liên hệ -->
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Liên hệ khách hàng</h2>
-                        
-                        <div class="space-y-3">
                             <div>
-                                <p class="text-sm text-gray-500">Người liên hệ</p>
-                                <p class="text-base text-gray-800 font-medium">Nguyễn Văn A</p>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Email</p>
+                            <p class="text-base text-gray-900">{{ $project->customer->email ?? 'N/A' }}</p>
                             </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Số điện thoại</p>
-                                <p class="text-base text-gray-800 font-medium">0912345678</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Email</p>
-                                <p class="text-base text-gray-800 font-medium">nguyenvana@abc.com</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Địa chỉ</p>
-                                <p class="text-base text-gray-800 font-medium">123 Lê Lợi, Quận 1, TP.HCM</p>
-                            </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Địa chỉ</p>
+                            <p class="text-base text-gray-900">{{ $project->customer->address ?? 'N/A' }}</p>
                         </div>
                     </div>
                 </div>
@@ -441,48 +172,7 @@
         </main>
     </div>
 
-    <!-- Delete Modal -->
-    <div id="deleteModal" class="modal-overlay">
-        <div class="modal">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Xác nhận xóa</h3>
-                <p class="text-gray-600 mb-6">Bạn có chắc chắn muốn xóa dự án <span id="deleteProjectId" class="font-medium">PRJ-2406001</span>?</p>
-                <div class="flex justify-end space-x-3">
-                    <button onclick="closeDeleteModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                        Hủy
-                    </button>
-                    <form id="deleteForm" method="POST" action="{{ url('/projects/1') }}" class="inline">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                            Xóa
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // Delete modal functionality
-        function openDeleteModal(id, name) {
-            document.getElementById('deleteProjectId').textContent = name;
-            document.getElementById('deleteForm').action = '/projects/' + id;
-            document.getElementById('deleteModal').classList.add('show');
-        }
-
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('show');
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('deleteModal');
-            if (event.target === modal) {
-                closeDeleteModal();
-            }
-        }
-
         // Dropdown Menus
         function toggleDropdown(id) {
             const dropdown = document.getElementById(id);

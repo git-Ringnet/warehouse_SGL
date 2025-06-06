@@ -15,6 +15,7 @@ use App\Http\Controllers\UserLogController;
 use App\Http\Controllers\InventoryImportController;
 use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\SoftwareController;
+use App\Http\Controllers\ProjectController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -201,38 +202,10 @@ Route::delete('/testing/{id}', function ($id) {
 });
 
 // Quản lý dự án
-Route::get('/projects', function () {
-    return view('projects.index');
-});
+Route::resource('projects', ProjectController::class);
 
-Route::get('/projects/create', function () {
-    return view('projects.create');
-});
-
-Route::get('/projects/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('projects.show');
-})->where('id', '[0-9]+');
-
-Route::get('/projects/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('projects.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/projects', function () {
-    // Xử lý lưu dự án mới
-    return redirect('/projects');
-});
-
-Route::put('/projects/{id}', function ($id) {
-    // Xử lý cập nhật dự án
-    return redirect('/projects/' . $id);
-});
-
-Route::delete('/projects/{id}', function ($id) {
-    // Xử lý xóa dự án
-    return redirect('/projects');
-});
+// API để lấy thông tin khách hàng
+Route::get('/api/customers/{id}', [CustomerController::class, 'getCustomerInfo']);
 
 // Quản lý cho thuê
 Route::get('/rentals', function () {
