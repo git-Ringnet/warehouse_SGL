@@ -16,6 +16,7 @@ use App\Http\Controllers\InventoryImportController;
 use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\RentalController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -208,44 +209,8 @@ Route::resource('projects', ProjectController::class);
 Route::get('/api/customers/{id}', [CustomerController::class, 'getCustomerInfo']);
 
 // Quản lý cho thuê
-Route::get('/rentals', function () {
-    return view('rentals.index');
-});
-
-Route::get('/rentals/create', function () {
-    return view('rentals.create');
-});
-
-Route::get('/rentals/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('rentals.show');
-})->where('id', '[0-9]+');
-
-Route::get('/rentals/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('rentals.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/rentals', function () {
-    // Xử lý lưu phiếu cho thuê mới
-    return redirect('/rentals');
-});
-
-Route::put('/rentals/{id}', function ($id) {
-    // Xử lý cập nhật phiếu cho thuê
-    return redirect('/rentals/' . $id);
-});
-
-Route::delete('/rentals/{id}', function ($id) {
-    // Xử lý xóa phiếu cho thuê
-    return redirect('/rentals');
-});
-
-// Gia hạn phiếu cho thuê
-Route::post('/rentals/{id}/extend', function ($id) {
-    // Xử lý gia hạn phiếu cho thuê
-    return redirect('/rentals/' . $id);
-});
+Route::resource('rentals', RentalController::class);
+Route::post('/rentals/{rental}/extend', [RentalController::class, 'extend'])->name('rentals.extend');
 
 // Quản lý phiếu yêu cầu
 Route::get('/requests', function () {

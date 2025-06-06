@@ -77,23 +77,27 @@
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu cho thuê</h1>
                 <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    RNT-2406001
-                </div>
-                <div class="ml-2 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                    Đang cho thuê
+                    {{ $rental->rental_code }}
                 </div>
             </div>
             <div class="flex items-center space-x-2">
-                <a href="{{ url('/rentals') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+                <a href="{{ route('rentals.index') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
-                <a href="{{ url('/rentals/1/edit') }}" class="h-10 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <a href="{{ route('rentals.edit', $rental->id) }}" class="h-10 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
             </div>
         </header>
 
         <main class="p-6">
+            @if(session('success'))
+                <x-alert type="success" :message="session('success')" />
+            @endif
+            @if(session('error'))
+                <x-alert type="error" :message="session('error')" />
+            @endif
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Thông tin phiếu cho thuê -->
                 <div class="lg:col-span-2">
@@ -103,84 +107,43 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
                             <div>
                                 <p class="text-sm text-gray-500">Mã phiếu</p>
-                                <p class="text-base text-gray-800 font-medium">RNT-2406001</p>
+                                <p class="text-base text-gray-800 font-medium">{{ $rental->rental_code }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Tên phiếu</p>
+                                <p class="text-base text-gray-800 font-medium">{{ $rental->rental_name }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Khách hàng</p>
-                                <p class="text-base text-gray-800 font-medium">Công ty ABC</p>
+                                <p class="text-base text-gray-800 font-medium">{{ $rental->customer->company_name }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Người đại diện</p>
+                                <p class="text-base text-gray-800 font-medium">{{ $rental->customer->name }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Ngày cho thuê</p>
-                                <p class="text-base text-gray-800 font-medium">01/06/2024</p>
+                                <p class="text-base text-gray-800 font-medium">{{ \Carbon\Carbon::parse($rental->rental_date)->format('d/m/Y') }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Ngày hẹn trả</p>
-                                <p class="text-base text-gray-800 font-medium">30/06/2024</p>
+                                <p class="text-base text-gray-800 font-medium">{{ \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y') }}</p>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Tiền đặt cọc</p>
-                                <p class="text-base text-gray-800 font-medium">5,000,000 VNĐ</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Trạng thái</p>
-                                <p class="text-base text-gray-800 font-medium">
-                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đang cho thuê</span>
-                                </p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Người liên hệ</p>
-                                <p class="text-base text-gray-800 font-medium">Nguyễn Văn A</p>
+                                <p class="text-sm text-gray-500">Email liên hệ</p>
+                                <p class="text-base text-gray-800 font-medium">{{ $rental->customer->email ?? 'N/A' }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Số điện thoại</p>
-                                <p class="text-base text-gray-800 font-medium">0912345678</p>
+                                <p class="text-base text-gray-800 font-medium">{{ $rental->customer->phone ?? 'N/A' }}</p>
                             </div>
                         </div>
                         
                         <div class="mt-4">
                             <p class="text-sm text-gray-500">Ghi chú</p>
                             <p class="text-base text-gray-800 mt-1">
-                                Khách hàng yêu cầu giao thiết bị vào buổi sáng. Đã đặt cọc 50% giá trị thuê.
+                                {{ $rental->notes ?? 'Không có ghi chú' }}
                             </p>
-                        </div>
-                    </div>
-                    
-                    <!-- Danh sách thiết bị cho thuê -->
-                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Danh sách thiết bị cho thuê</h2>
-                        
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn giá thuê</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thành tiền</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">EQ-001</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Camera Dome 2MP</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">5</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">500,000 VNĐ</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">2,500,000 VNĐ</td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">EQ-003</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Đầu ghi NVR 8 kênh</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">1</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">1,500,000 VNĐ</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">1,500,000 VNĐ</td>
-                                    </tr>
-                                    <tr class="bg-gray-50 font-semibold">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900" colspan="4">Tổng cộng</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">4,000,000 VNĐ</td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                     
@@ -193,28 +156,24 @@
                             </button>
                         </div>
                         
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày gia hạn</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người thực hiện</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày hẹn trả cũ</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày hẹn trả mới</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">15/06/2024</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Nhân viên A</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">15/06/2024</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">30/06/2024</td>
-                                        <td class="px-4 py-3 text-sm text-gray-700">Khách hàng yêu cầu gia hạn thêm 15 ngày</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        @if(strpos($rental->notes ?? '', 'Gia hạn') !== false)
+                            <div class="space-y-3">
+                                @php
+                                    $notes = explode("\n", $rental->notes);
+                                    $extensionNotes = array_filter($notes, function($note) {
+                                        return strpos($note, 'Gia hạn') !== false;
+                                    });
+                                @endphp
+                                
+                                @foreach($extensionNotes as $note)
+                                    <div class="p-3 bg-gray-50 rounded-lg">
+                                        <p class="text-sm text-gray-800">{{ $note }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="text-sm text-gray-500 text-center py-4">Chưa có lịch sử gia hạn</p>
+                        @endif
                     </div>
                 </div>
                 
@@ -225,23 +184,41 @@
                         <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Tình trạng phiếu thuê</h2>
                         
                         <div class="mb-6">
+                            @php
+                                $startDate = \Carbon\Carbon::parse($rental->rental_date);
+                                $endDate = \Carbon\Carbon::parse($rental->due_date);
+                                $today = \Carbon\Carbon::now();
+                                
+                                $totalDays = $startDate->diffInDays($endDate);
+                                $daysElapsed = $startDate->diffInDays($today);
+                                
+                                $progress = $totalDays > 0 ? min(100, round(($daysElapsed / $totalDays) * 100)) : 0;
+                                $daysRemaining = $rental->daysRemaining();
+                            @endphp
+                            
                             <div class="flex justify-between items-center mb-2">
                                 <span class="text-sm text-gray-500">Tiến độ thuê</span>
-                                <span class="text-sm font-medium text-gray-800">50%</span>
+                                <span class="text-sm font-medium text-gray-800">{{ $progress }}%</span>
                             </div>
                             <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div class="bg-blue-500 h-2.5 rounded-full" style="width: 50%"></div>
+                                <div class="bg-blue-500 h-2.5 rounded-full" style="width: {{ $progress }}%"></div>
                             </div>
                         </div>
                         
                         <div class="space-y-4">
                             <div>
                                 <p class="text-sm text-gray-500">Thời gian còn lại</p>
-                                <p class="text-xl font-semibold text-gray-800">15 ngày</p>
+                                @if($rental->isOverdue())
+                                    <p class="text-xl font-semibold text-red-600">Quá hạn {{ abs($daysRemaining) }} ngày</p>
+                                @else
+                                    <p class="text-xl font-semibold text-gray-800">{{ $daysRemaining }} ngày</p>
+                                @endif
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Ngày hẹn trả</p>
-                                <p class="text-xl font-semibold text-gray-800">30/06/2024</p>
+                                <p class="text-xl font-semibold {{ $rental->isOverdue() ? 'text-red-600' : 'text-gray-800' }}">
+                                    {{ \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y') }}
+                                </p>
                             </div>
                             <div class="mt-2">
                                 <button onclick="openExtendModal()" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center transition-colors">
@@ -250,37 +227,18 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Thông tin khách hàng -->
+
+                    <!-- Hành động -->
                     <div class="bg-white rounded-xl shadow-md p-6">
-                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Thông tin khách hàng</h2>
+                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Hành động</h2>
                         
                         <div class="space-y-3">
-                            <div>
-                                <p class="text-sm text-gray-500">Khách hàng</p>
-                                <p class="text-base text-gray-800 font-medium">Công ty ABC</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Người liên hệ</p>
-                                <p class="text-base text-gray-800 font-medium">Nguyễn Văn A</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Số điện thoại</p>
-                                <p class="text-base text-gray-800 font-medium">0912345678</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Email</p>
-                                <p class="text-base text-gray-800 font-medium">nguyenvana@abc.com</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Địa chỉ</p>
-                                <p class="text-base text-gray-800 font-medium">123 Lê Lợi, Quận 1, TP.HCM</p>
-                            </div>
-                            <div class="pt-3 border-t border-gray-200">
-                                <a href="{{ url('/customers/1') }}" class="text-blue-500 hover:text-blue-600 text-sm flex items-center">
-                                    <i class="fas fa-external-link-alt mr-2"></i> Xem chi tiết khách hàng
-                                </a>
-                            </div>
+                            <a href="{{ route('rentals.edit', $rental->id) }}" class="w-full px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center justify-center transition-colors">
+                                <i class="fas fa-edit mr-2"></i> Chỉnh sửa phiếu
+                            </a>
+                            <button onclick="confirmDelete()" class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-colors">
+                                <i class="fas fa-trash mr-2"></i> Xóa phiếu
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -288,61 +246,67 @@
         </main>
     </div>
 
-    <!-- Modal gia hạn -->
+    <!-- Modal gia hạn phiếu thuê -->
     <div id="extendModal" class="modal-overlay">
-        <div class="modal">
-            <div class="p-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-4">Gia hạn phiếu cho thuê</h3>
-                <form id="extendForm" method="POST" action="{{ url('/rentals/1/extend') }}">
-                    @csrf
-                    <div class="space-y-4">
-                        <div>
-                            <label for="current_due_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày hẹn trả hiện tại</label>
-                            <input type="date" id="current_due_date" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100" value="2024-06-30" readonly>
-                        </div>
-                        <div>
-                            <label for="new_due_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày hẹn trả mới</label>
-                            <input type="date" name="new_due_date" id="new_due_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="extend_notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                            <textarea name="extend_notes" id="extend_notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                        </div>
-                    </div>
-                    <div class="mt-6 flex justify-end space-x-3">
-                        <button type="button" onclick="closeExtendModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                            Hủy
-                        </button>
-                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                            <i class="fas fa-save mr-2"></i> Lưu thay đổi
-                        </button>
-                    </div>
-                </form>
-            </div>
+        <div class="modal p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Gia hạn phiếu thuê</h3>
+            
+            <form action="{{ route('rentals.extend', $rental->id) }}" method="POST">
+                @csrf
+                <div class="mb-4">
+                    <label for="extend_days" class="block text-sm font-medium text-gray-700 mb-1">Số ngày gia hạn</label>
+                    <input type="number" name="extend_days" id="extend_days" min="1" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="7">
+                </div>
+                <div class="mb-4">
+                    <label for="extend_notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                    <textarea name="extend_notes" id="extend_notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeExtendModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                        Hủy
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-check mr-2"></i> Xác nhận gia hạn
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        // Modal functionality
+        // Mở modal gia hạn phiếu thuê
         function openExtendModal() {
             document.getElementById('extendModal').classList.add('show');
-            
-            // Set default new due date to current due date + 15 days
-            const currentDueDate = new Date(document.getElementById('current_due_date').value);
-            const newDueDate = new Date(currentDueDate);
-            newDueDate.setDate(newDueDate.getDate() + 15);
-            document.getElementById('new_due_date').value = newDueDate.toISOString().split('T')[0];
+            document.body.style.overflow = 'hidden';
         }
-
+        
+        // Đóng modal gia hạn phiếu thuê
         function closeExtendModal() {
             document.getElementById('extendModal').classList.remove('show');
+            document.body.style.overflow = '';
         }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('extendModal');
-            if (event.target === modal) {
-                closeExtendModal();
+        
+        // Xác nhận xóa phiếu
+        function confirmDelete() {
+            if (confirm('Bạn có chắc chắn muốn xóa phiếu cho thuê này không?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route('rentals.destroy', $rental->id) }}';
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                
+                const method = document.createElement('input');
+                method.type = 'hidden';
+                method.name = '_method';
+                method.value = 'DELETE';
+                
+                form.appendChild(csrfToken);
+                form.appendChild(method);
+                document.body.appendChild(form);
+                form.submit();
             }
         }
     </script>

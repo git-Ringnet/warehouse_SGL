@@ -77,185 +77,125 @@
         <header class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý cho thuê</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm theo mã, khách hàng..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64 h-10" />
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
-                        <option value="">Trạng thái</option>
-                        <option value="active">Đang cho thuê</option>
-                        <option value="overdue">Quá hạn</option>
-                        <option value="returned">Đã trả</option>
-                        <option value="extended">Đã gia hạn</option>
+                <form action="{{ route('rentals.index') }}" method="GET" class="flex gap-2 w-full md:w-auto">
+                    <input type="text" name="search" placeholder="Tìm kiếm theo mã, tên, khách hàng..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64 h-10" value="{{ $search ?? '' }}" />
+                    <select name="filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
+                        <option value="">Tất cả</option>
+                        <option value="rental_code" {{ isset($filter) && $filter == 'rental_code' ? 'selected' : '' }}>Mã phiếu</option>
+                        <option value="rental_name" {{ isset($filter) && $filter == 'rental_name' ? 'selected' : '' }}>Tên phiếu</option>
+                        <option value="customer" {{ isset($filter) && $filter == 'customer' ? 'selected' : '' }}>Khách hàng</option>
                     </select>
-                </div>
-                <a href="{{ url('/rentals/create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
-                    <i class="fas fa-plus-circle mr-2"></i> Tạo phiếu cho thuê
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors h-10">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+                <a href="{{ route('rentals.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
+                    <i class="fas fa-plus-circle mr-2"></i> Tạo phiếu thuê mới
                 </a>
             </div>
         </header>
         
+        @if(session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        @if(session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
+        
         <main class="p-6">
+            <!-- Rentals Table -->
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã phiếu</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên phiếu</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Khách hàng</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thiết bị</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày cho thuê</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người đại diện</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày thuê</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày hẹn trả</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        <!-- Phiếu cho thuê 1 -->
+                        @forelse($rentals as $rental)
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">RNT-2406001</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty ABC</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Camera Dome 2MP (5)</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">30/06/2024</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $rental->rental_code }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $rental->rental_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $rental->customer->company_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $rental->customer->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ \Carbon\Carbon::parse($rental->rental_date)->format('d/m/Y') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đang cho thuê</span>
+                                <span class="{{ $rental->isOverdue() ? 'text-red-600 font-medium' : '' }}">
+                                    {{ \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y') }}
+                                    @if($rental->isOverdue())
+                                        <span class="ml-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Quá hạn</span>
+                                    @elseif($rental->daysRemaining() <= 7)
+                                        <span class="ml-1 text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">{{ $rental->daysRemaining() }} ngày</span>
+                                    @endif
+                                </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/rentals/1') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                <a href="{{ route('rentals.show', $rental->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </a>
-                                <a href="{{ url('/rentals/1/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                <a href="{{ route('rentals.edit', $rental->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="openDeleteModal(1, 'RNT-2406001')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <button type="button" onclick="openDeleteModal('{{ $rental->id }}', '{{ $rental->rental_code }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
-
-                        <!-- Phiếu cho thuê 2 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">RNT-2406002</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty XYZ</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Đầu ghi NVR (2)</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/07/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Đã gia hạn</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/rentals/2') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/rentals/2/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(2, 'RNT-2406002')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
+                        @empty
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Không có phiếu cho thuê nào</td>
                         </tr>
-
-                        <!-- Phiếu cho thuê 3 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">RNT-2405003</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty DEF</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ đàm (10)</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Quá hạn</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/rentals/3') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/rentals/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(3, 'RNT-2405003')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <!-- Phiếu cho thuê 4 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">RNT-2405004</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty GHI</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị đo lường (3)</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/06/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Đã trả</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/rentals/4') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/rentals/4/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal(4, 'RNT-2405004')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
 
             <!-- Pagination -->
             <div class="mt-6 flex justify-between items-center">
-                <div class="text-sm text-gray-500">Hiển thị 1-4 của 16 phiếu cho thuê</div>
-                <div class="flex space-x-1">
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <a href="#" class="px-3 py-1 rounded border border-blue-500 bg-blue-500 text-white">1</a>
-                    <a href="#" class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100">2</a>
-                    <a href="#" class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100">3</a>
-                    <a href="#" class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100">4</a>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
+                <div class="text-sm text-gray-500">
+                    Hiển thị {{ $rentals->firstItem() ?? 0 }}-{{ $rentals->lastItem() ?? 0 }} của {{ $rentals->total() }} phiếu cho thuê
+                </div>
+                <div>
+                    {{ $rentals->links() }}
                 </div>
             </div>
         </main>
     </div>
 
-  
-
     <script>
-        // Dropdown Menus
-        function toggleDropdown(id) {
-            const dropdown = document.getElementById(id);
-            const allDropdowns = document.querySelectorAll('.dropdown-content');
+        // Khởi tạo modal khi trang được tải
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
+        });
+        
+        // Ghi đè hàm deleteCustomer để xử lý xóa rental
+        function deleteCustomer(id) {
+            // Tạo và gửi form xóa
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/rentals/' + id;
             
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
-                if (d.id !== id) {
-                    d.classList.remove('show');
-                }
-            });
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
             
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrfToken);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
         }
-
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown')) {
-                document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                    dropdown.classList.remove('show');
-                });
-            }
-        });
-
-        // Prevent dropdown from closing when clicking inside
-        document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-        });
     </script>
 </body>
 </html> 
