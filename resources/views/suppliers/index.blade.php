@@ -186,9 +186,17 @@
                     </a>
                     @endif
                 </form>
-                <a href="{{ route('suppliers.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                    <i class="fas fa-plus mr-2"></i> Thêm nhà cung cấp
-                </a>
+                <div class="flex flex-wrap gap-2">
+                    <a href="#" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+                    </a>
+                    <a href="#" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-file-excel mr-2"></i> Xuất Excel
+                    </a>
+                    <a href="{{ route('suppliers.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-plus mr-2"></i> Thêm nhà cung cấp
+                    </a>
+                </div>
             </div>
         </header>
 
@@ -205,9 +213,11 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên nhà cung cấp</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người đại diện</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số điện thoại</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Địa chỉ</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tổng SL đã nhập</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
@@ -216,10 +226,13 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $suppliers->firstItem() + $key }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $supplier->name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $supplier->representative ?? 'N/A' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $supplier->phone }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $supplier->email ?? 'N/A' }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $supplier->address ?? 'N/A' }}</td>
-                           
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">{{ $supplier->total_items ?? 0 }}</span>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <a href="{{ route('suppliers.show', $supplier->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>

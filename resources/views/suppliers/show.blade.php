@@ -37,34 +37,54 @@
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-6">Thông tin nhà cung cấp</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Tên nhà cung cấp</h3>
-                            <p class="text-base text-gray-900">{{ $supplier->name }}</p>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Số điện thoại</h3>
-                            <p class="text-base text-gray-900">{{ $supplier->phone }}</p>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
-                            <p class="text-base text-gray-900">{{ $supplier->email ?? 'Không có' }}</p>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Địa chỉ</h3>
-                            <p class="text-base text-gray-900">{{ $supplier->address ?? 'Không có' }}</p>
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Thông tin cơ bản</h2>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium">Tên nhà cung cấp</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->name }}</p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium">Người đại diện</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->representative ?? 'Chưa cập nhật' }}</p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium">Số điện thoại</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->phone }}</p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium">Email</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->email ?? 'Chưa cập nhật' }}</p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium">Địa chỉ</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->address ?? 'Chưa cập nhật' }}</p>
+                            </div>
                         </div>
                     </div>
+                    
                     <div>
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Ngày tạo</h3>
-                            <p class="text-base text-gray-900">{{ $supplier->created_at->format('d/m/Y H:i') }}</p>
-                        </div>
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Cập nhật lần cuối</h3>
-                            <p class="text-base text-gray-900">{{ $supplier->updated_at->format('d/m/Y H:i') }}</p>
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Thống kê</h2>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium">Tổng số lượng đã nhập</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl font-bold text-blue-600">{{ $supplier->total_items ?? 0 }}</span>
+                                    <span class="text-sm text-gray-500">vật tư/hàng hóa</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <p class="text-sm text-gray-500 font-medium">Lần nhập hàng gần nhất</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->last_import_date ?? 'Chưa có' }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>

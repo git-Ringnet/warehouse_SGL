@@ -48,6 +48,11 @@
                             </div>
                             
                             <div>
+                                <label for="representative" class="block text-sm font-medium text-gray-700 mb-1">Tên người đại diện</label>
+                                <input type="text" id="representative" name="representative" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('representative', $supplier->representative) }}" placeholder="Nhập tên người đại diện">
+                            </div>
+                            
+                            <div>
                                 <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
                                 <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('phone', $supplier->phone) }}" placeholder="Nhập số điện thoại" required pattern="[0-9]{10,11}" title="Số điện thoại chỉ được nhập số và có độ dài từ 10 đến 11 số" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                 <small class="text-gray-500">Chỉ được nhập số, 10-11 chữ số</small>
