@@ -44,9 +44,6 @@
                                 STT</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Mã thiết bị</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Khách hàng</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -68,7 +65,6 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">DEV-SPA-001</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty TNHH ABC</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Viễn thông Hà Nội</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/01/2023</td>
@@ -101,7 +97,6 @@
 
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">DEV-GPS-002</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Tập đoàn XYZ</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Giám sát vận tải</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/05/2023</td>
@@ -134,7 +129,6 @@
 
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">DEV-CAM-003</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty An ninh MNP</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Camera an ninh</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/11/2022</td>
@@ -162,7 +156,6 @@
 
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">DEV-RAD-004</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Viễn thông PQR</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Radio SPA</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">--/--/----</td>

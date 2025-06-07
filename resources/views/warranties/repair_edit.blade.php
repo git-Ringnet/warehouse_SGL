@@ -38,11 +38,6 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label for="repair_id" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu</label>
-                            <input type="text" id="repair_id" name="repair_id" value="REP001" readonly
-                                class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
-                        </div>
-                        <div>
                             <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1">Mã Bảo hành
                                 hoặc thiết bị</label>
                             <div class="relative">
@@ -63,9 +58,9 @@
                         <div>
                             <label for="device_info" class="block text-sm font-medium text-gray-700 mb-1">Thiết
                                 bị</label>
-                            <input type="text" id="device_info" name="device_info"
-                                value="DEV001 - Bộ điều khiển chính" readonly
-                                class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
+                            <div id="selected_devices" class="space-y-2">
+                                <!-- Selected devices will be displayed here -->
+                            </div>
                         </div>
                     </div>
 
@@ -77,23 +72,23 @@
                                 <thead class="bg-gray-50 sticky top-0">
                                     <tr>
                                         <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Mã thiết bị
                                         </th>
                                         <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tên thiết bị
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Mã vật tư
                                         </th>
                                         <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Serial
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Tên vật tư
                                         </th>
                                         <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Trạng thái
                                         </th>
                                         <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Thao tác
                                         </th>
                                     </tr>
@@ -177,52 +172,6 @@
 Thiết bị hoạt động bình thường sau khi bảo trì, không phát hiện lỗi hay vấn đề bất thường nào.</textarea>
                     </div>
 
-                    <!-- Linh kiện thay thế -->
-                    <div class="mt-4">
-                        <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
-                            <i class="fas fa-microchip text-blue-500 mr-2"></i>
-                            Linh kiện thay thế
-                        </h3>
-
-                        <div id="parts-container">
-                            <!-- Mẫu linh kiện đầu tiên -->
-                            <div class="part-item border border-gray-200 rounded-lg p-4 mb-4">
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div>
-                                        <label for="part_name_1"
-                                            class="block text-sm font-medium text-gray-700 mb-1">Tên linh kiện</label>
-                                        <input type="text" id="part_name_1" name="part_name[]" value=""
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    </div>
-                                    <div>
-                                        <label for="part_code_1"
-                                            class="block text-sm font-medium text-gray-700 mb-1">Mã linh kiện</label>
-                                        <input type="text" id="part_code_1" name="part_code[]" value=""
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    </div>
-                                    <div>
-                                        <label for="part_quantity_1"
-                                            class="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
-                                        <input type="number" id="part_quantity_1" name="part_quantity[]"
-                                            min="1" value="1"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    </div>
-                                    <div class="flex items-end">
-                                        <button type="button"
-                                            class="bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 transition-colors part-remove hidden">
-                                            <i class="fas fa-trash"></i> Xóa
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="button" id="add-part"
-                            class="mt-2 bg-blue-100 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors flex items-center">
-                            <i class="fas fa-plus mr-2"></i> Thêm linh kiện
-                        </button>
-                    </div>
-
                     <!-- Chi tiết vật tư thiết bị -->
                     <div class="mt-6 border-t border-gray-200 pt-4">
                         <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
@@ -236,23 +185,15 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                                     <tr>
                                         <th scope="col"
                                             class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Mã thiết bị
+                                        </th>
+                                        <th scope="col"
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Mã vật tư
                                         </th>
                                         <th scope="col"
                                             class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Tên vật tư
-                                        </th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Trạng thái
-                                        </th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tình trạng
-                                        </th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Kho chuyển đến
                                         </th>
                                         <th scope="col"
                                             class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -263,121 +204,65 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                                 <tbody class="bg-white divide-y divide-gray-200" id="device-parts-body">
                                     <!-- Mẫu dữ liệu vật tư -->
                                     <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">VT001-A</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Bo mạch chính
-                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Bo mạch chính</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                Hoạt động tốt
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <div class="flex items-center">
-                                                <input type="checkbox" id="damaged_part_1" name="damaged_parts[]"
-                                                    value="VT001-A"
-                                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox">
-                                                <label for="damaged_part_1" class="ml-2 text-sm text-gray-700">Hư
-                                                    hỏng</label>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" id="damaged_part_DEV001_VT001-A" name="damaged_parts[]" value="VT001-A"
+                                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
+                                                        data-device-code="DEV001">
+                                                    <label for="damaged_part_DEV001_VT001-A" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
+                                                </div>
+                                                <button type="button" data-part-id="VT001-A" data-device-code="DEV001"
+                                                    class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
+                                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
+                                                </button>
                                             </div>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm warehouse-cell">
-                                            <select name="part_warehouse_VT001-A"
-                                                class="warehouse-select border border-gray-300 rounded-lg px-2 py-1 text-xs w-full hidden">
-                                                <option value="">-- Chọn kho --</option>
-                                                <option value="3">Kho linh kiện</option>
-                                                <option value="4">Kho bảo hành</option>
-                                                <option value="5">Kho vật tư hỏng</option>
-                                                <option value="6">Kho tái chế</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <button type="button" data-part-id="VT001-A"
-                                                class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs">
-                                                <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                            </button>
                                         </td>
                                     </tr>
                                     <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">VT001-B</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Cảm biến nhiệt độ
-                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Cảm biến nhiệt độ</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                Cần kiểm tra
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <div class="flex items-center">
-                                                <input type="checkbox" id="damaged_part_2" name="damaged_parts[]"
-                                                    value="VT001-B"
-                                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox">
-                                                <label for="damaged_part_2" class="ml-2 text-sm text-gray-700">Hư
-                                                    hỏng</label>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" id="damaged_part_DEV001_VT001-B" name="damaged_parts[]" value="VT001-B"
+                                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
+                                                        data-device-code="DEV001">
+                                                    <label for="damaged_part_DEV001_VT001-B" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
+                                                </div>
+                                                <button type="button" data-part-id="VT001-B" data-device-code="DEV001"
+                                                    class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
+                                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
+                                                </button>
                                             </div>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm warehouse-cell">
-                                            <select name="part_warehouse_VT001-B"
-                                                class="warehouse-select border border-gray-300 rounded-lg px-2 py-1 text-xs w-full hidden">
-                                                <option value="">-- Chọn kho --</option>
-                                                <option value="3">Kho linh kiện</option>
-                                                <option value="4">Kho bảo hành</option>
-                                                <option value="5">Kho vật tư hỏng</option>
-                                                <option value="6">Kho tái chế</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <button type="button" data-part-id="VT001-B"
-                                                class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs">
-                                                <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                            </button>
                                         </td>
                                     </tr>
                                     <tr>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">VT001-C</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Bộ nhớ Flash</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <span
-                                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                                Hư hỏng
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <div class="flex items-center">
-                                                <input type="checkbox" id="damaged_part_3" name="damaged_parts[]"
-                                                    value="VT001-C" checked
-                                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox">
-                                                <label for="damaged_part_3" class="ml-2 text-sm text-gray-700">Hư
-                                                    hỏng</label>
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center">
+                                                    <input type="checkbox" id="damaged_part_DEV001_VT001-C" name="damaged_parts[]" value="VT001-C"
+                                                        checked
+                                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
+                                                        data-device-code="DEV001">
+                                                    <label for="damaged_part_DEV001_VT001-C" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
+                                                </div>
+                                                <button type="button" data-part-id="VT001-C" data-device-code="DEV001"
+                                                    class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
+                                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
+                                                </button>
                                             </div>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm warehouse-cell">
-                                            <select name="part_warehouse_VT001-C"
-                                                class="warehouse-select border border-gray-300 rounded-lg px-2 py-1 text-xs w-full">
-                                                <option value="">-- Chọn kho --</option>
-                                                <option value="3">Kho linh kiện</option>
-                                                <option value="4">Kho bảo hành</option>
-                                                <option value="5">Kho vật tư hỏng</option>
-                                                <option value="6">Kho tái chế</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <button type="button" data-part-id="VT001-C"
-                                                class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs">
-                                                <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
-
-                        <div class="mt-4 flex justify-end">
-                            <button type="button" id="add-new-part-btn"
-                                class="bg-blue-100 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors flex items-center">
-                                <i class="fas fa-plus mr-2"></i> Thêm vật tư mới
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -396,7 +281,7 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                         <!-- Hiển thị hình ảnh đã tải lên -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-3">
                             <div class="border border-gray-200 rounded-lg overflow-hidden relative">
-                                <img src="https://via.placeholder.com/300x200?text=Thiết+bị+trước+khi+bảo+trì"
+                                <img src="#"
                                     alt="Thiết bị trước khi bảo trì" class="w-full h-auto">
                                 <div class="p-2 bg-gray-50 flex justify-between items-center">
                                     <p class="text-sm text-gray-600">Thiết bị trước khi bảo trì</p>
@@ -406,7 +291,7 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                                 </div>
                             </div>
                             <div class="border border-gray-200 rounded-lg overflow-hidden relative">
-                                <img src="https://via.placeholder.com/300x200?text=Thiết+bị+sau+khi+bảo+trì"
+                                <img src="#"
                                     alt="Thiết bị sau khi bảo trì" class="w-full h-auto">
                                 <div class="p-2 bg-gray-50 flex justify-between items-center">
                                     <p class="text-sm text-gray-600">Thiết bị sau khi bảo trì</p>
@@ -627,7 +512,10 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
             const devicesList = document.getElementById('devices_list');
             const devicePartsBody = document.getElementById('device-parts-body');
             const customerNameInput = document.getElementById('customer_name');
-            const deviceInfoInput = document.getElementById('device_info');
+            const selectedDevicesContainer = document.getElementById('selected_devices');
+
+            // Mảng lưu trữ các thiết bị đã chọn
+            let selectedDevices = [];
 
             // Dữ liệu mẫu cho demo (trong thực tế sẽ được lấy từ API)
             const sampleData = {
@@ -823,8 +711,7 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                             // Tìm thiết bị trong dữ liệu
                             let selectedDevice;
                             for (const key in sampleData) {
-                                const foundDevice = sampleData[key].devices.find(d => d.id ==
-                                    deviceId);
+                                const foundDevice = sampleData[key].devices.find(d => d.id == deviceId);
                                 if (foundDevice) {
                                     selectedDevice = foundDevice;
                                     break;
@@ -832,135 +719,135 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                             }
 
                             if (selectedDevice) {
-                                // Cập nhật thông tin thiết bị được chọn
-                                deviceInfoInput.value =
-                                    `${selectedDevice.code} - ${selectedDevice.name}`;
-
-                                // Hiển thị linh kiện của thiết bị
-                                showDeviceParts(selectedDevice);
+                                // Kiểm tra xem thiết bị đã được chọn chưa
+                                if (!selectedDevices.some(d => d.id == selectedDevice.id)) {
+                                    // Thêm thiết bị vào danh sách đã chọn
+                                    selectedDevices.push(selectedDevice);
+                                    
+                                    // Hiển thị thiết bị đã chọn
+                                    updateSelectedDevicesDisplay();
+                                    
+                                    // Cập nhật danh sách linh kiện
+                                    updatePartsDisplay();
+                                }
                             }
                         });
                     });
-
-                    // Nếu chỉ có 1 thiết bị, tự động chọn
-                    if (sampleData[searchCode].devices.length === 1) {
-                        const device = sampleData[searchCode].devices[0];
-                        deviceInfoInput.value = `${device.code} - ${device.name}`;
-                        showDeviceParts(device);
-                    } else {
-                        // Xóa thông tin thiết bị nếu có nhiều thiết bị
-                        deviceInfoInput.value = '';
-                        devicePartsBody.innerHTML = '';
-                    }
                 } else {
                     alert('Không tìm thấy thông tin với mã này!');
                 }
             }
-
-            // Hiển thị danh sách linh kiện của thiết bị được chọn
-            function showDeviceParts(device) {
+            
+            // Hiển thị danh sách thiết bị đã chọn
+            function updateSelectedDevicesDisplay() {
+                selectedDevicesContainer.innerHTML = '';
+                
+                selectedDevices.forEach((device, index) => {
+                    const deviceDiv = document.createElement('div');
+                    deviceDiv.className = 'flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200';
+                    deviceDiv.innerHTML = `
+                        <input type="hidden" name="selected_devices[]" value="${device.id}">
+                        <div class="flex-1 text-sm text-gray-900">${device.code} - ${device.name}</div>
+                        <button type="button" class="remove-device-btn text-red-500 hover:text-red-700 ml-2" data-index="${index}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    selectedDevicesContainer.appendChild(deviceDiv);
+                });
+                
+                // Thêm sự kiện xóa thiết bị
+                const removeDeviceBtns = document.querySelectorAll('.remove-device-btn');
+                removeDeviceBtns.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const index = parseInt(this.getAttribute('data-index'));
+                        selectedDevices.splice(index, 1);
+                        updateSelectedDevicesDisplay();
+                        updatePartsDisplay();
+                    });
+                });
+            }
+            
+            // Cập nhật hiển thị danh sách linh kiện từ tất cả thiết bị đã chọn
+            function updatePartsDisplay() {
                 // Xóa danh sách linh kiện cũ
                 devicePartsBody.innerHTML = '';
-
-                // Thêm linh kiện mới vào danh sách
-                device.parts.forEach((part, index) => {
-                    const row = document.createElement('tr');
-
-                    // Status class và text
-                    let statusClass, statusText;
-                    switch (part.status) {
-                        case 'good':
-                            statusClass = 'bg-green-100 text-green-800';
-                            statusText = 'Hoạt động tốt';
-                            break;
-                        case 'check':
-                            statusClass = 'bg-yellow-100 text-yellow-800';
-                            statusText = 'Cần kiểm tra';
-                            break;
-                        case 'damaged':
-                            statusClass = 'bg-red-100 text-red-800';
-                            statusText = 'Hư hỏng';
-                            break;
-                        default:
-                            statusClass = 'bg-gray-100 text-gray-800';
-                            statusText = 'Không xác định';
-                    }
-
-                    const isDamaged = part.status === 'damaged';
-
-                    row.innerHTML = `
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${part.code}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${part.name}</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                                ${statusText}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                            <div class="flex items-center">
-                                <input type="checkbox" id="damaged_part_${index + 1}" name="damaged_parts[]" value="${part.code}" 
-                                    ${isDamaged ? 'checked' : ''}
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox">
-                                <label for="damaged_part_${index + 1}" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm warehouse-cell">
-                            <select name="part_warehouse_${part.code}" class="warehouse-select border border-gray-300 rounded-lg px-2 py-1 text-xs w-full ${!isDamaged ? 'hidden' : ''}">
-                                <option value="">-- Chọn kho --</option>
-                                <option value="3">Kho linh kiện</option>
-                                <option value="4">Kho bảo hành</option>
-                                <option value="5" ${isDamaged ? 'selected' : ''}>Kho vật tư hỏng</option>
-                                <option value="6">Kho tái chế</option>
-                            </select>
-                        </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm">
-                            <button type="button" data-part-id="${part.code}"
-                                class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs">
-                                <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                            </button>
-                        </td>
-                    `;
-
-                    devicePartsBody.appendChild(row);
+                
+                // Nếu không có thiết bị nào được chọn, không hiển thị gì
+                if (selectedDevices.length === 0) {
+                    return;
+                }
+                
+                // Thêm linh kiện từ tất cả thiết bị đã chọn
+                selectedDevices.forEach(device => {
+                    device.parts.forEach((part, index) => {
+                        const row = document.createElement('tr');
+                        
+                        // Status class và text
+                        let statusClass, statusText;
+                        switch (part.status) {
+                            case 'good':
+                                statusClass = 'bg-green-100 text-green-800';
+                                statusText = 'Hoạt động tốt';
+                                break;
+                            case 'check':
+                                statusClass = 'bg-yellow-100 text-yellow-800';
+                                statusText = 'Cần kiểm tra';
+                                break;
+                            case 'damaged':
+                                statusClass = 'bg-red-100 text-red-800';
+                                statusText = 'Hư hỏng';
+                                break;
+                            default:
+                                statusClass = 'bg-gray-100 text-gray-800';
+                                statusText = 'Không xác định';
+                        }
+                        
+                        const isDamaged = part.status === 'damaged';
+                        
+                        row.innerHTML = `
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${device.code}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">${part.code}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">${part.name}</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="damaged_part_${device.code}_${index}" name="damaged_parts[]" value="${part.code}" 
+                                            ${isDamaged ? 'checked' : ''}
+                                            class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
+                                            data-device-code="${device.code}">
+                                        <label for="damaged_part_${device.code}_${index}" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
+                                    </div>
+                                    <button type="button" data-part-id="${part.code}" data-device-code="${device.code}"
+                                        class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
+                                        <i class="fas fa-exchange-alt mr-1"></i> Thay thế
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        
+                        devicePartsBody.appendChild(row);
+                    });
                 });
-
+                
                 // Cập nhật đăng ký sự kiện cho các checkbox và nút thay thế mới
                 updateDamagedPartsCheckboxes();
-
+                
                 // Cập nhật sự kiện cho các nút thay thế
                 const replacePartBtns = document.querySelectorAll('.replace-part-btn');
                 replacePartBtns.forEach(btn => {
                     btn.addEventListener('click', function() {
                         const partId = this.getAttribute('data-part-id');
-                        showReplacePartDialog(partId);
+                        const deviceCode = this.getAttribute('data-device-code');
+                        showReplacePartDialog(partId, deviceCode);
                     });
                 });
-
-                // Xử lý các checkbox đánh dấu hư hỏng và chọn kho
+                
+                // Xử lý các checkbox đánh dấu hư hỏng
                 function setupDamageCheckboxListeners() {
                     const damageCheckboxes = document.querySelectorAll('.damage-checkbox');
                     damageCheckboxes.forEach(checkbox => {
-                        // Thiết lập trạng thái ban đầu
-                        const partCode = checkbox.value;
-                        const warehouseSelect = document.querySelector(
-                            `select[name="part_warehouse_${partCode}"]`);
-                        if (warehouseSelect) {
-                            warehouseSelect.classList.toggle('hidden', !checkbox.checked);
-                        }
-
                         // Xử lý sự kiện thay đổi
                         checkbox.addEventListener('change', function() {
-                            const partCode = this.value;
-                            const warehouseSelect = document.querySelector(
-                                `select[name="part_warehouse_${partCode}"]`);
-                            if (warehouseSelect) {
-                                warehouseSelect.classList.toggle('hidden', !this.checked);
-                                if (this.checked && warehouseSelect.value === '') {
-                                    // Mặc định chọn "Kho vật tư hỏng" khi đánh dấu hư hỏng
-                                    warehouseSelect.value = '5';
-                                }
-                            }
-
                             // Cập nhật danh sách vật tư hư hỏng
                             updateDamagedPartsList();
                         });
@@ -970,66 +857,6 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                 // Thiết lập các sự kiện cho checkbox khi trang được tải
                 setupDamageCheckboxListeners();
             }
-
-            // Xử lý thêm/xóa linh kiện
-            const partsContainer = document.getElementById('parts-container');
-            const addPartBtn = document.getElementById('add-part');
-            let partCount = 1;
-
-            addPartBtn.addEventListener('click', function() {
-                partCount++;
-
-                const partItem = document.createElement('div');
-                partItem.className = 'part-item border border-gray-200 rounded-lg p-4 mb-4';
-                partItem.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                            <label for="part_name_${partCount}" class="block text-sm font-medium text-gray-700 mb-1">Tên linh kiện</label>
-                            <input type="text" id="part_name_${partCount}" name="part_name[]"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Tên linh kiện">
-                        </div>
-                        <div>
-                            <label for="part_code_${partCount}" class="block text-sm font-medium text-gray-700 mb-1">Mã linh kiện</label>
-                            <input type="text" id="part_code_${partCount}" name="part_code[]"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Mã linh kiện">
-                        </div>
-                        <div>
-                            <label for="part_quantity_${partCount}" class="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
-                            <input type="number" id="part_quantity_${partCount}" name="part_quantity[]" min="1"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="1">
-                        </div>
-                        <div class="flex items-end">
-                            <button type="button" class="bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 transition-colors part-remove">
-                                <i class="fas fa-trash"></i> Xóa
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                partsContainer.appendChild(partItem);
-
-                // Hiển thị nút xóa cho linh kiện đầu tiên nếu có nhiều hơn 1
-                if (partCount === 2) {
-                    document.querySelector('.part-remove').classList.remove('hidden');
-                }
-
-                // Thêm sự kiện xóa linh kiện
-                const removeButtons = document.querySelectorAll('.part-remove');
-                removeButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        this.closest('.part-item').remove();
-                        partCount--;
-
-                        // Ẩn nút xóa nếu chỉ còn 1 linh kiện
-                        if (partCount === 1) {
-                            document.querySelector('.part-remove').classList.add('hidden');
-                        }
-                    });
-                });
-            });
 
             // Xử lý xóa hình ảnh
             const imageDeleteButtons = document.querySelectorAll('.text-red-500');
@@ -1042,9 +869,7 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
             });
 
             // Xử lý các vật tư thiết bị
-            const damagedCheckboxes = document.querySelectorAll('input[name="damaged_parts[]"]');
             const replacePartBtns = document.querySelectorAll('.replace-part-btn');
-            const addNewPartBtn = document.getElementById('add-new-part-btn');
             const submitBtn = document.getElementById('submit-btn');
 
             // Modal chuyển kho
@@ -1056,6 +881,9 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
 
             // Mảng lưu trữ các vật tư hư hỏng đã chọn
             let selectedDamagedParts = [];
+            
+            // Khai báo biến để lưu trữ danh sách checkbox hư hỏng
+            let damagedCheckboxes = document.querySelectorAll('input[name="damaged_parts[]"]');
 
             // Cập nhật trạng thái khi checkbox thay đổi
             damagedCheckboxes.forEach(checkbox => {
@@ -1068,44 +896,16 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
             replacePartBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     const partId = this.getAttribute('data-part-id');
-                    showReplacePartDialog(partId);
+                    const deviceCode = this.getAttribute('data-device-code');
+                    showReplacePartDialog(partId, deviceCode);
                 });
-            });
-
-            // Xử lý thêm vật tư mới
-            addNewPartBtn.addEventListener('click', function() {
-                showAddNewPartDialog();
             });
 
             // Xử lý nút Cập nhật - kiểm tra các vật tư hư hỏng có chọn kho chưa
             submitBtn.addEventListener('click', function(e) {
                 e.preventDefault();
-
-                // Kiểm tra tất cả các vật tư được đánh dấu hư hỏng đã chọn kho chưa
-                let allWarehousesSelected = true;
-                let unselectedParts = [];
-
-                const damagedCheckboxes = document.querySelectorAll('.damage-checkbox:checked');
-                damagedCheckboxes.forEach(checkbox => {
-                    const partCode = checkbox.value;
-                    const warehouseSelect = document.querySelector(
-                        `select[name="part_warehouse_${partCode}"]`);
-                    if (warehouseSelect && warehouseSelect.value === '') {
-                        allWarehousesSelected = false;
-                        // Lấy tên vật tư
-                        const partRow = checkbox.closest('tr');
-                        const partName = partRow.cells[1].textContent;
-                        unselectedParts.push(`${partCode} - ${partName}`);
-                    }
-                });
-
-                if (!allWarehousesSelected) {
-                    alert(
-                        `Vui lòng chọn kho chuyển đến cho các vật tư hư hỏng sau:\n${unselectedParts.join('\n')}`);
-                    return;
-                }
-
-                // Nếu không có vật tư hư hỏng hoặc tất cả đã chọn kho thì submit form
+                
+                // Just submit the form without warehouse validation
                 document.querySelector('form').submit();
             });
 
@@ -1133,27 +933,26 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                 document.querySelector('form').submit();
             });
 
-            // Cập nhật danh sách vật tư hỏng được chọn
+            // Cập nhật danh sách vật tư hư hỏng được chọn
             function updateDamagedPartsList() {
                 selectedDamagedParts = [];
                 damagedPartsList.innerHTML = '';
 
-                damagedCheckboxes.forEach(checkbox => {
-                    if (checkbox.checked) {
-                        const partRow = checkbox.closest('tr');
-                        const partCode = partRow.cells[0].textContent;
-                        const partName = partRow.cells[1].textContent;
+                let checkedDamagedCheckboxes = document.querySelectorAll('.damage-checkbox:checked');
+                checkedDamagedCheckboxes.forEach(checkbox => {
+                    const partRow = checkbox.closest('tr');
+                    const partCode = partRow.cells[1].textContent;
+                    const partName = partRow.cells[2].textContent;
 
-                        selectedDamagedParts.push({
-                            code: partCode,
-                            name: partName
-                        });
+                    selectedDamagedParts.push({
+                        code: partCode,
+                        name: partName
+                    });
 
-                        // Thêm vào danh sách hiển thị trong modal
-                        const listItem = document.createElement('li');
-                        listItem.textContent = `${partCode} - ${partName}`;
-                        damagedPartsList.appendChild(listItem);
-                    }
+                    // Thêm vào danh sách hiển thị trong modal
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${partCode} - ${partName}`;
+                    damagedPartsList.appendChild(listItem);
                 });
             }
 
@@ -1168,11 +967,11 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
             }
 
             // Hiển thị dialog thay thế vật tư
-            function showReplacePartDialog(partId) {
+            function showReplacePartDialog(partId, deviceCode) {
                 // Tìm thông tin vật tư từ ID
-                const partRow = document.querySelector(`button[data-part-id="${partId}"]`).closest('tr');
-                const partCode = partRow.cells[0].textContent;
-                const partName = partRow.cells[1].textContent;
+                const partRow = document.querySelector(`button[data-part-id="${partId}"][data-device-code="${deviceCode}"]`).closest('tr');
+                const partCode = partRow.cells[1].textContent;
+                const partName = partRow.cells[2].textContent;
 
                 // Cập nhật thông tin trong modal
                 document.getElementById('old-part-code').textContent = partCode;
@@ -1221,7 +1020,7 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                     const warehouseName = warehouseSelect.options[warehouseSelect.selectedIndex].text;
 
                     // Cập nhật UI để hiển thị trạng thái đã thay thế
-                    const statusCell = partRow.cells[2];
+                    const statusCell = partRow.cells[3];
                     statusCell.innerHTML = `
                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                             Đã thay thế
@@ -1303,21 +1102,13 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                             <div class="flex items-center">
                                 <input type="checkbox" id="${newPartId}" name="damaged_parts[]" value="${partCode}" 
                                     ${isDamaged ? 'checked' : ''} 
-                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox">
+                                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
+                                    data-device-code="${deviceCode}">
                                 <label for="${newPartId}" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
                             </div>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm warehouse-cell">
-                            <select name="part_warehouse_${partCode}" class="warehouse-select border border-gray-300 rounded-lg px-2 py-1 text-xs w-full ${!isDamaged ? 'hidden' : ''}">
-                                <option value="">-- Chọn kho --</option>
-                                <option value="3">Kho linh kiện</option>
-                                <option value="4">Kho bảo hành</option>
-                                <option value="5" ${isDamaged ? 'selected' : ''}>Kho vật tư hỏng</option>
-                                <option value="6">Kho tái chế</option>
-                            </select>
-                        </td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                            <button type="button" data-part-id="${partCode}"
+                            <button type="button" data-part-id="${partCode}" data-device-code="${deviceCode}"
                                 class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs">
                                 <i class="fas fa-exchange-alt mr-1"></i> Thay thế
                             </button>
@@ -1330,7 +1121,7 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                     const newReplaceBtn = newRow.querySelector('.replace-part-btn');
                     newReplaceBtn.addEventListener('click', function() {
                         const partId = this.getAttribute('data-part-id');
-                        showReplacePartDialog(partId);
+                        showReplacePartDialog(partId, deviceCode);
                     });
 
                     // Cập nhật danh sách checkbox và trình xử lý sự kiện cho chúng

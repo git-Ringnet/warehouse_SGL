@@ -23,7 +23,7 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết sửa chữa & bảo trì</h1>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ asset('warranties/repair_edit') }}">
+                <a href="{{ asset('repair_edit') }}">
                     <button
                         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
@@ -157,10 +157,6 @@
                         <h3 class="text-sm font-medium text-gray-700 mb-1">Ngày sản xuất:</h3>
                         <p class="text-gray-900">01/01/2022</p>
                     </div>
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-700 mb-1">Phiên bản:</h3>
-                        <p class="text-gray-900">v2.1</p>
-                    </div>
                 </div>
 
                 <div>
@@ -169,9 +165,6 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Mã phiếu
-                                    </th>
                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Ngày
                                     </th>
@@ -188,7 +181,6 @@
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <tr class="bg-blue-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">REP001</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15/05/2023</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <span
