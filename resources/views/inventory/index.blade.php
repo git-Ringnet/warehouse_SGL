@@ -32,7 +32,7 @@
                     <div class="flex-1">
                         <div class="relative">
                             <input type="text" id="search_input"
-                                placeholder="Tìm kiếm mã phiếu, sản phẩm, khách hàng..."
+                                placeholder="Tìm kiếm mã phiếu, thành phẩm, khách hàng..."
                                 class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-search text-gray-400"></i>
@@ -94,6 +94,14 @@
                                 </th>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Dự án
+                                </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Người đại diện dự án
+                                </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Người tạo
                                 </th>
                                 <th scope="col"
@@ -113,6 +121,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">05/05/2023</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Công ty TNHH ABC</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">5</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Dự án IoT A1</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Nguyễn Văn A</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Nguyễn Văn A</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span
@@ -137,9 +147,14 @@
                                             </button>
                                         </a>
                                         <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                            title="Xóa">
-                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
+                                            title="Duyệt phiếu xuất" data-id="XK001">
+                                            <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                        </button>
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
+                                            title="Hủy phiếu xuất" data-id="XK001">
+                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -149,6 +164,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15/05/2023</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho Hà Nội</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">12</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Trần Văn B</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span
@@ -173,9 +190,14 @@
                                             </button>
                                         </a>
                                         <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                            title="Xóa">
-                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
+                                            title="Duyệt phiếu xuất" data-id="XK002">
+                                            <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                        </button>
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
+                                            title="Hủy phiếu xuất" data-id="XK002">
+                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -185,6 +207,8 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">20/05/2023</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Công ty CP XYZ</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">2</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Dự án Xanh XYZ-1</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Trần Thị B</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Lê Thị C</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span
@@ -209,9 +233,14 @@
                                             </button>
                                         </a>
                                         <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                            title="Xóa">
-                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
+                                            title="Duyệt phiếu xuất" data-id="XK003">
+                                            <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                        </button>
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
+                                            title="Hủy phiếu xuất" data-id="XK003">
+                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -339,6 +368,50 @@
                     if (confirm('Bạn có chắc chắn muốn xóa phiếu xuất kho này?')) {
                         // Xử lý xóa bản ghi
                         alert('Đã xóa phiếu xuất kho!');
+                    }
+                });
+            });
+
+            // Các nút thao tác duyệt và hủy phiếu
+            const approveButtons = document.querySelectorAll('.approve-btn');
+            const cancelButtons = document.querySelectorAll('.cancel-btn');
+            
+            // Xử lý duyệt phiếu xuất
+            approveButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const dispatchId = this.getAttribute('data-id');
+                    if (confirm(`Bạn có chắc chắn muốn duyệt phiếu xuất ${dispatchId}?`)) {
+                        // Gọi API hoặc xử lý duyệt phiếu
+                        alert(`Đã duyệt phiếu xuất ${dispatchId}`);
+                        
+                        // Cập nhật trạng thái phiếu (trong thực tế sẽ reload từ server)
+                        const row = this.closest('tr');
+                        const statusCell = row.querySelector('td:nth-child(8)');
+                        statusCell.innerHTML = `
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Đã hoàn thành
+                            </span>
+                        `;
+                    }
+                });
+            });
+            
+            // Xử lý hủy phiếu xuất
+            cancelButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const dispatchId = this.getAttribute('data-id');
+                    if (confirm(`Bạn có chắc chắn muốn hủy phiếu xuất ${dispatchId}?`)) {
+                        // Gọi API hoặc xử lý hủy phiếu
+                        alert(`Đã hủy phiếu xuất ${dispatchId}`);
+                        
+                        // Cập nhật trạng thái phiếu (trong thực tế sẽ reload từ server)
+                        const row = this.closest('tr');
+                        const statusCell = row.querySelector('td:nth-child(8)');
+                        statusCell.innerHTML = `
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Đã hủy
+                            </span>
+                        `;
                     }
                 });
             });

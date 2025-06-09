@@ -17,6 +17,7 @@ use App\Http\Controllers\WarehouseTransferController;
 use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RentalController;
+use App\Http\Controllers\GoodController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -246,8 +247,11 @@ Route::resource('assemblies', AssemblyController::class);
 // Route for material search in assemblies
 Route::get('/materials/search', [AssemblyController::class, 'searchMaterials'])->name('materials.search');
 
-// Route for checking serial duplicates
+// API route for checking serial duplicates
 Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');
+
+// API route for product components
+Route::get('/api/products/{id}/components', [ProductController::class, 'getComponents'])->name('api.products.components');
 
 // Thêm phần routes phân quyền
 // Routes cho nhóm quyền (roles)
@@ -291,5 +295,14 @@ Route::get('/debug/materials', function () {
         ];
     }
 });
+
+// Goods (Hàng hóa)
+// Route::resource('goods', GoodController::class);
+Route::get('/goods', [GoodController::class, 'index'])->name('goods.index');
+Route::get('/goods/create', [GoodController::class, 'create'])->name('goods.create');
+Route::get('/goods/show', [GoodController::class, 'show'])->name('goods.show');
+Route::get('/goods/edit', [GoodController::class, 'edit'])->name('goods.edit');
+Route::delete('goods/images/{id}', [GoodController::class, 'deleteImage'])->name('goods.images.delete');
+Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages'])->name('api.goods.images');
 
 

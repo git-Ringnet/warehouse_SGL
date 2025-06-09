@@ -82,11 +82,6 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <div class="flex items-center cursor-pointer" id="sort_id">
-                                        ID <i class="fas fa-sort ml-1 text-gray-400"></i>
-                                    </div>
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     <div class="flex items-center cursor-pointer" id="sort_date">
                                         Ngày <i class="fas fa-sort ml-1 text-gray-400"></i>
                                     </div>
@@ -120,7 +115,6 @@
                         <tbody class="bg-white divide-y divide-gray-200" id="repairs_table_body">
                             <!-- Sample data rows will be replaced with actual data -->
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">REP001</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2023-05-15</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="font-medium text-blue-600">W12345</span>
@@ -170,7 +164,6 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">REP002</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2023-08-20</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="font-medium text-blue-600">W12345</span>
@@ -220,7 +213,6 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">REP003</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2023-10-05</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="font-medium text-blue-600">W67890</span>

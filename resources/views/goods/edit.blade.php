@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chỉnh sửa vật tư - SGL</title>
+    <title>Chỉnh sửa hàng hóa - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -18,12 +18,12 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <h1 class="text-xl font-bold text-gray-800">Chỉnh sửa vật tư</h1>
+                <h1 class="text-xl font-bold text-gray-800">Chỉnh sửa hàng hóa</h1>
                 <div class="ml-4 px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                    ID: {{ $material->code }}
+                    ID: {{ $good->code ?? 'HH-101' }}
                 </div>
             </div>
-            <a href="{{ route('materials.show', $material->id) }}"
+            <a href="{{ route('goods.show') }}"
                 class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Quay lại
             </a>
@@ -31,8 +31,7 @@
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <form action="{{ route('materials.update', $material->id) }}" method="POST"
-                    enctype="multipart/form-data">
+                <form action="#" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -47,35 +46,35 @@
                         </div>
                     @endif
 
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Thông tin vật tư</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Thông tin hàng hóa</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <div>
                                 <label for="code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã
-                                    vật tư <span class="text-red-500">*</span></label>
-                                <input type="text" id="code" name="code" value="{{ $material->code }}"
+                                    hàng hóa <span class="text-red-500">*</span></label>
+                                <input type="text" id="code" name="code" value="{{ $good->code ?? 'HH-101' }}"
                                     required
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
 
                             <div>
                                 <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên
-                                    vật tư <span class="text-red-500">*</span></label>
-                                <input type="text" id="name" name="name" value="{{ $material->name }}"
+                                    hàng hóa <span class="text-red-500">*</span></label>
+                                <input type="text" id="name" name="name" value="{{ $good->name ?? 'Hàng hóa mẫu 1' }}"
                                     required
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
 
                             <div>
                                 <label for="category" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
-                                    vật tư <span class="text-red-500">*</span></label>
+                                    hàng hóa <span class="text-red-500">*</span></label>
                                 <div class="flex">
                                     <select id="category" name="category" required
                                         class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="">Chọn loại vật tư</option>
+                                        <option value="">Chọn loại hàng hóa</option>
                                         @foreach ($categories as $category)
-                                            <option value="{{ $category }}"
-                                                {{ $material->category == $category ? 'selected' : '' }}>
+                                            <option value="{{ $category }}" 
+                                                {{ ($good->category ?? 'Loại 1') == $category ? 'selected' : '' }}>
                                                 {{ $category }}</option>
                                         @endforeach
                                     </select>
@@ -94,14 +93,11 @@
                                 <select id="supplier" name="supplier_id"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">Chọn nhà cung cấp</option>
-                                    <option value="1"
-                                        {{ $material->supplier == 'Công ty TNHH Điện tử ABC' ? 'selected' : '' }}>Công
-                                        ty TNHH Điện tử ABC</option>
-                                    <option value="2"
-                                        {{ $material->supplier == 'Công ty CP Thiết bị XYZ' ? 'selected' : '' }}>Công
+                                    <option value="1" {{ ($good->supplier_id ?? '') == 1 ? 'selected' : '' }}>
+                                        Công ty TNHH Điện tử ABC</option>
+                                    <option value="2" {{ ($good->supplier_id ?? '') == 2 ? 'selected' : '' }}>Công
                                         ty CP Thiết bị XYZ</option>
-                                    <option value="3"
-                                        {{ $material->supplier == 'Công ty TNHH Linh kiện DEF' ? 'selected' : '' }}>
+                                    <option value="3" {{ ($good->supplier_id ?? '') == 3 ? 'selected' : '' }}>
                                         Công ty TNHH Linh kiện DEF</option>
                                 </select>
                             </div>
@@ -112,21 +108,17 @@
                                 <select id="unit" name="unit" required
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">Chọn đơn vị</option>
-                                    <option value="Cái" {{ $material->unit == 'Cái' ? 'selected' : '' }}>Cái
-                                    </option>
-                                    <option value="Bộ" {{ $material->unit == 'Bộ' ? 'selected' : '' }}>Bộ</option>
-                                    <option value="Chiếc" {{ $material->unit == 'Chiếc' ? 'selected' : '' }}>Chiếc
-                                    </option>
-                                    <option value="Mét" {{ $material->unit == 'Mét' ? 'selected' : '' }}>Mét
-                                    </option>
-                                    <option value="Cuộn" {{ $material->unit == 'Cuộn' ? 'selected' : '' }}>Cuộn
-                                    </option>
-                                    <option value="Kg" {{ $material->unit == 'Kg' ? 'selected' : '' }}>Kg</option>
+                                    <option value="Cái" {{ ($good->unit ?? '') == 'Cái' ? 'selected' : '' }}>Cái</option>
+                                    <option value="Bộ" {{ ($good->unit ?? '') == 'Bộ' ? 'selected' : '' }}>Bộ</option>
+                                    <option value="Chiếc" {{ ($good->unit ?? '') == 'Chiếc' ? 'selected' : '' }}>Chiếc</option>
+                                    <option value="Mét" {{ ($good->unit ?? '') == 'Mét' ? 'selected' : '' }}>Mét</option>
+                                    <option value="Cuộn" {{ ($good->unit ?? '') == 'Cuộn' ? 'selected' : '' }}>Cuộn</option>
+                                    <option value="Kg" {{ ($good->unit ?? '') == 'Kg' ? 'selected' : '' }}>Kg</option>
                                 </select>
                             </div>
                         </div>
 
-                        <!-- Hình ảnh -->
+                        <!-- Hình ảnh hiện tại -->
                         <div class="md:col-span-2">
                             <label for="images" class="block text-sm font-medium text-gray-700 mb-1">Hình ảnh</label>
                             <div class="flex flex-col space-y-2">
@@ -149,17 +141,32 @@
                                 
                                 <div id="imagePreviewContainer" class="flex flex-wrap gap-4 mt-2">
                                     <!-- Existing images -->
-                                    @foreach($material->images as $image)
-                                    <div class="relative" id="existing-image-{{ $image->id }}">
-                                        <div class="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden">
-                                            <img src="{{ asset('storage/' . $image->image_path) }}" alt="{{ $material->name }}" 
-                                                class="w-full h-full object-cover">
+                                    @if(isset($good) && $good->images && count($good->images) > 0)
+                                        @foreach($good->images as $image)
+                                        <div class="relative" id="existing-image-{{ $image->id }}">
+                                            <div class="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden">
+                                                <img src="{{ asset('storage/' . $image->image_path) }}" alt="{{ $good->name ?? 'Hàng hóa' }}" 
+                                                    class="w-full h-full object-cover">
+                                            </div>
+                                            <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 delete-existing-image" data-image-id="{{ $image->id }}">
+                                                <i class="fas fa-times text-xs"></i>
+                                            </button>
                                         </div>
-                                        <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 delete-existing-image" data-image-id="{{ $image->id }}">
-                                            <i class="fas fa-times text-xs"></i>
-                                        </button>
-                                    </div>
-                                    @endforeach
+                                        @endforeach
+                                    @else
+                                        <!-- Demo images when testing -->
+                                        @for($i = 1; $i <= 3; $i++)
+                                        <div class="relative" id="existing-image-{{ $i }}">
+                                            <div class="w-32 h-32 border border-gray-200 rounded-lg overflow-hidden">
+                                                <img src="https://source.unsplash.com/random/300x300?product&sig={{ $i }}" alt="Demo Image {{ $i }}" 
+                                                    class="w-full h-full object-cover">
+                                            </div>
+                                            <button type="button" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 delete-existing-image" data-image-id="{{ $i }}">
+                                                <i class="fas fa-times text-xs"></i>
+                                            </button>
+                                        </div>
+                                        @endfor
+                                    @endif
                                     
                                     <!-- New image previews will be inserted here -->
                                 </div>
@@ -169,7 +176,7 @@
                         <div class="md:col-span-2">
                             <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
                             <textarea id="notes" name="notes" rows="3"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ $material->notes }}</textarea>
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ $good->notes ?? '' }}</textarea>
                         </div>
 
                         <!-- Cách tính tồn kho -->
@@ -177,30 +184,38 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn kho</label>
                             <div class="space-y-2">
                                 @foreach(App\Models\Warehouse::orderBy('name')->get() as $warehouse)
-                                <div class="flex items-center">
-                                    <input type="checkbox" id="warehouse_{{ $warehouse->id }}" name="inventory_warehouses[]" 
-                                        value="{{ $warehouse->id }}" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                        {{ is_array($material->inventory_warehouses) && in_array($warehouse->id, $material->inventory_warehouses) ? 'checked' : '' }}>
-                                    <label for="warehouse_{{ $warehouse->id }}" class="ml-2 block text-sm text-gray-700">
-                                        {{ $warehouse->name }}
-                                    </label>
-                                </div>
+                                    @php
+                                        $isSelected = isset($good) && is_array($good->inventory_warehouses) && in_array($warehouse->id, $good->inventory_warehouses);
+                                    @endphp
+                                    <div class="flex items-center">
+                                        <input type="checkbox" id="warehouse_{{ $warehouse->id }}" name="inventory_warehouses[]" 
+                                            value="{{ $warehouse->id }}" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            {{ $isSelected ? 'checked' : '' }}>
+                                        <label for="warehouse_{{ $warehouse->id }}" class="ml-2 block text-sm text-gray-700">
+                                            {{ $warehouse->name }}
+                                        </label>
+                                    </div>
                                 @endforeach
                                 <div class="flex items-center mt-2">
+                                    @php
+                                        $allSelected = !isset($good) || !is_array($good->inventory_warehouses) || 
+                                                      in_array('all', $good->inventory_warehouses) || 
+                                                      empty($good->inventory_warehouses);
+                                    @endphp
                                     <input type="checkbox" id="warehouse_all" name="inventory_warehouses[]" 
                                         value="all" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                        {{ is_array($material->inventory_warehouses) && in_array('all', $material->inventory_warehouses) ? 'checked' : '' }}>
+                                        {{ $allSelected ? 'checked' : '' }}>
                                     <label for="warehouse_all" class="ml-2 block text-sm text-gray-700 font-medium">
                                         Tất cả các kho
                                     </label>
                                 </div>
                             </div>
-                            <p class="text-sm text-gray-500 mt-1">Lựa chọn kho để thực hiện đếm số lượng vật tư tồn trong kho đó.</p>
+                            <p class="text-sm text-gray-500 mt-1">Lựa chọn kho để thực hiện đếm số lượng hàng hóa tồn trong kho đó.</p>
                         </div>
                     </div>
 
                     <div class="mt-6 flex justify-end space-x-3">
-                        <a href="{{ route('materials.show', $material->id) }}"
+                        <a href="{{ route('goods.show', $good->id ?? 1) }}"
                             class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
                             Hủy
                         </a>
@@ -219,14 +234,14 @@
         class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Thêm loại vật tư mới</h3>
+                <h3 class="text-lg font-bold text-gray-900">Thêm loại hàng hóa mới</h3>
                 <button type="button" class="text-gray-400 hover:text-gray-600" id="closeModalBtn">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <form id="addCategoryForm">
                 <div class="mb-4">
-                    <label for="newCategoryName" class="block text-sm font-medium text-gray-700 mb-1">Tên loại vật tư
+                    <label for="newCategoryName" class="block text-sm font-medium text-gray-700 mb-1">Tên loại hàng hóa
                         <span class="text-red-500">*</span></label>
                     <input type="text" id="newCategoryName" name="newCategoryName" required
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -246,11 +261,11 @@
     </div>
 
     <!-- Include common JS file -->
-    <script src="{{ asset('js/material-form.js') }}"></script>
+    <script src="{{ asset('js/good-form.js') }}"></script>
     <script>
-        // Initialize the material form
+        // Initialize the good form
         document.addEventListener('DOMContentLoaded', function() {
-            initializeMaterialForm(true); // true = edit form
+            initializeGoodForm(true); // true = edit form
             
             // Handle warehouse checkboxes
             const allWarehouseCheckbox = document.getElementById('warehouse_all');
@@ -262,7 +277,7 @@
                     warehouseCheckboxes.forEach(checkbox => {
                         checkbox.checked = false;
                     });
-        }
+                }
             });
             
             // When any other warehouse is checked, uncheck "All"
@@ -270,7 +285,7 @@
                 checkbox.addEventListener('change', function() {
                     if (this.checked) {
                         allWarehouseCheckbox.checked = false;
-            }
+                    }
                     
                     // If no warehouses are checked, check "All"
                     const anyChecked = Array.from(warehouseCheckboxes).some(cb => cb.checked);
@@ -279,8 +294,24 @@
                     }
                 });
             });
+
+            // Add handling for existing image deletion
+            document.querySelectorAll('.delete-existing-image').forEach(button => {
+                button.addEventListener('click', function() {
+                    const imageId = this.dataset.imageId;
+                    const deletedImagesInput = document.getElementById('deletedImages');
+                    const currentDeleted = deletedImagesInput.value ? deletedImagesInput.value.split(',') : [];
+                    
+                    if (!currentDeleted.includes(imageId)) {
+                        currentDeleted.push(imageId);
+                        deletedImagesInput.value = currentDeleted.join(',');
+                    }
+                    
+                    document.getElementById('existing-image-' + imageId).remove();
+                });
+            });
         });
     </script>
 </body>
 
-</html>
+</html> 

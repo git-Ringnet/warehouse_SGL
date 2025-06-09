@@ -90,7 +90,7 @@
                         
                         <div class="border-t border-gray-200 pt-4 mb-6">
                             <p class="text-sm text-gray-500">Mô tả thiết bị</p>
-                            <p class="text-gray-900 mt-1">Radio SPA Pro là thiết bị viễn thông thế hệ mới nhất của SGL, được trang bị module GPS NEO-6M và hệ thống thu phát sóng hai chiều tiên tiến. Sản phẩm phù hợp cho các công trình viễn thông và trạm phát sóng.</p>
+                            <p class="text-gray-900 mt-1">Radio SPA Pro là thiết bị viễn thông thế hệ mới nhất của SGL, được trang bị module GPS NEO-6M và hệ thống thu phát sóng hai chiều tiên tiến. thành phẩm phù hợp cho các công trình viễn thông và trạm phát sóng.</p>
                         </div>
 
                         <!-- Module Components -->
@@ -174,7 +174,7 @@
                         <div class="space-y-4">
                             <div>
                                 <p class="text-sm text-gray-500">Gói bảo hành</p>
-                                <p class="text-gray-900 font-medium">Gói Premium - 2 năm</p>
+                                <p class="text-gray-900 font-medium">2 năm</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Ngày kích hoạt</p>

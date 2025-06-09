@@ -50,7 +50,7 @@
                             <span class="text-sm text-gray-700">{{ \Carbon\Carbon::parse($assembly->date)->format('d/m/Y') }}</span>
                         </div>
                         <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Sản phẩm:</span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">thành phẩm:</span>
                             <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
                         </div>
                         <div class="flex items-center mt-2">
@@ -60,8 +60,24 @@
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Thành phẩm:</span>
+                            <div class="flex flex-col">
+                                @if(isset($assembly->products) && count($assembly->products) > 0)
+                                    @foreach($assembly->products as $product)
+                                        <span class="text-sm text-gray-700">{{ $product->name }}</span>
+                                    @endforeach
+                                @else
+                                    <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người phụ trách:</span>
                             <span class="text-sm text-gray-700">{{ $assembly->assigned_to }}</span>
+                        </div>
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Người tiếp nhận kiểm thử:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->tester_id ?? 'Chưa phân công' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất linh kiện:</span>
@@ -76,16 +92,47 @@
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
                             <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                {{ ucfirst($assembly->status) }}
+                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                @if($assembly->status == 'completed') bg-green-100 text-green-800
+                                @elseif($assembly->status == 'in_progress') bg-yellow-100 text-yellow-800
+                                @elseif($assembly->status == 'pending') bg-blue-100 text-blue-800
+                                @else bg-red-100 text-red-800 @endif">
+                                @if($assembly->status == 'completed')
+                                    Hoàn thành
+                                @elseif($assembly->status == 'in_progress')
+                                    Đang thực hiện
+                                @elseif($assembly->status == 'pending')
+                                    Chờ xử lý
+                                @else
+                                    Đã hủy
+                                @endif
                             </span>
                         </div>
+                        <div class="flex items-center mt-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Mục đích:</span>
+                            <span class="text-sm text-gray-700">
+                                {{-- @if($assembly->purpose == 'storage')
+                                    Lưu kho
+                                @elseif($assembly->purpose == 'project')
+                                    Xuất đi dự án
+                                @else
+                                    {{ $assembly->purpose ?? 'Không xác định' }}
+                                @endif --}}
+                                Lưu kho
+                            </span>
+                        </div>
+                        @if($assembly->purpose == 'project' && isset($assembly->project))
+                        <div class="flex items-center mt-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Dự án:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->project->name ?? '' }}</span>
+                        </div>
+                        @endif
                     </div>
                 </div>
 
                 @if($assembly->product_serials)
                 <div class="mt-4 border-t border-gray-200 pt-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-2">Serial sản phẩm:</h3>
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Serial thành phẩm:</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                         @foreach(explode(',', $assembly->product_serials) as $serial)
                             @if(!empty($serial))

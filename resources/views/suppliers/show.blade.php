@@ -96,15 +96,15 @@
                 </div>
             </div>
 
-            <!-- Danh sách sản phẩm của nhà cung cấp (mẫu) -->
+            <!-- Danh sách thành phẩm của nhà cung cấp (mẫu) -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Sản phẩm liên quan</h2>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">thành phẩm liên quan</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã sản phẩm</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên sản phẩm</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã thành phẩm</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thành phẩm</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Danh mục</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng tồn</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
@@ -124,7 +124,7 @@
                     </table>
                 </div>
                 <div class="mt-4 flex justify-center">
-                    <p class="text-gray-500 text-sm italic">Chức năng liên kết sản phẩm sẽ được cập nhật sau</p>
+                    <p class="text-gray-500 text-sm italic">Chức năng liên kết thành phẩm sẽ được cập nhật sau</p>
                 </div>
             </div>
         </main>
