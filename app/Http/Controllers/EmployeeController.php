@@ -8,6 +8,7 @@ use App\Models\UserLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class EmployeeController extends Controller
 {
@@ -92,7 +93,8 @@ class EmployeeController extends Controller
             'phone' => 'required|numeric|digits_between:10,11',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
-            'hire_date' => 'required|date',
+            'department' => 'nullable|string|max:255',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'notes' => 'nullable|string',
             'role_id' => 'nullable|exists:roles,id',
             'scope_type' => 'nullable|string',
@@ -113,16 +115,24 @@ class EmployeeController extends Controller
             'phone.digits_between' => 'Số điện thoại phải có từ 10 đến 11 số',
             'email.email' => 'Địa chỉ email không hợp lệ',
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
-            'hire_date.required' => 'Ngày tuyển dụng không được để trống',
-            'hire_date.date' => 'Ngày tuyển dụng không đúng định dạng',
+            'department.max' => 'Tên phòng ban không được vượt quá 255 ký tự',
             'is_active.required' => 'Trạng thái không được để trống',
-            'role_id.exists' => 'Chức vụ không hợp lệ',
+            'role_id.exists' => 'Vai trò không hợp lệ',
+            'avatar.image' => 'Tệp phải là hình ảnh',
+            'avatar.mimes' => 'Hình ảnh phải có định dạng: jpeg, png, jpg, gif',
+            'avatar.max' => 'Kích thước hình ảnh không được vượt quá 2MB',
         ]);
 
         // Đặt vai trò mặc định là 'staff' nếu không có
-        $data = $request->all();
+        $data = $request->except('avatar');
         $data['role'] = 'staff'; // Mặc định là nhân viên
         $data['status'] = $data['is_active'] ? 'active' : 'inactive'; // Đồng bộ status cũ với is_active mới
+
+        // Xử lý upload avatar nếu có
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $request->file('avatar')->store('employees/avatars', 'public');
+            $data['avatar'] = $avatarPath;
+        }
 
         $employee = Employee::create($data);
         
@@ -177,7 +187,8 @@ class EmployeeController extends Controller
             'phone' => 'required|numeric|digits_between:10,11',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
-            'hire_date' => 'required|date',
+            'department' => 'nullable|string|max:255',
+            'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'notes' => 'nullable|string',
             'role_id' => 'nullable|exists:roles,id',
             'scope_type' => 'nullable|string',
@@ -204,10 +215,12 @@ class EmployeeController extends Controller
             'phone.digits_between' => 'Số điện thoại phải có từ 10 đến 11 số',
             'email.email' => 'Địa chỉ email không hợp lệ',
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
-            'hire_date.required' => 'Ngày tuyển dụng không được để trống',
-            'hire_date.date' => 'Ngày tuyển dụng không đúng định dạng',
+            'department.max' => 'Tên phòng ban không được vượt quá 255 ký tự',
             'is_active.required' => 'Trạng thái không được để trống',
-            'role_id.exists' => 'Chức vụ không hợp lệ',
+            'role_id.exists' => 'Vai trò không hợp lệ',
+            'avatar.image' => 'Tệp phải là hình ảnh',
+            'avatar.mimes' => 'Hình ảnh phải có định dạng: jpeg, png, jpg, gif',
+            'avatar.max' => 'Kích thước hình ảnh không được vượt quá 2MB',
         ];
 
         $request->validate($rules, $messages);
@@ -215,7 +228,7 @@ class EmployeeController extends Controller
         $oldData = $employee->toArray();
 
         // Cập nhật thông tin
-        $data = $request->except(['password', 'password_confirmation']);
+        $data = $request->except(['password', 'password_confirmation', 'avatar']);
         
         // Đồng bộ status cũ với is_active mới
         $data['status'] = $data['is_active'] ? 'active' : 'inactive';
@@ -224,6 +237,17 @@ class EmployeeController extends Controller
         // Cập nhật mật khẩu nếu có nhập
         if ($request->filled('password')) {
             $data['password'] = $request->password;
+        }
+        
+        // Xử lý upload avatar nếu có
+        if ($request->hasFile('avatar')) {
+            // Xóa avatar cũ nếu tồn tại
+            if ($employee->avatar && Storage::disk('public')->exists($employee->avatar)) {
+                Storage::disk('public')->delete($employee->avatar);
+            }
+            
+            $avatarPath = $request->file('avatar')->store('employees/avatars', 'public');
+            $data['avatar'] = $avatarPath;
         }
         
         $employee->update($data);
