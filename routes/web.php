@@ -298,11 +298,15 @@ Route::get('/debug/materials', function () {
 });
 
 // Goods (Hàng hóa)
+
 // Route::resource('goods', GoodController::class);
 Route::get('/goods', [GoodController::class, 'index'])->name('goods.index');
 Route::get('/goods/create', [GoodController::class, 'create'])->name('goods.create');
+// Route::get('/goods/{id}', [GoodController::class, 'show'])->name('goods.show');
+// Route::get('/goods/{id}/edit', [GoodController::class, 'edit'])->name('goods.edit');
 Route::get('/goods/show', [GoodController::class, 'show'])->name('goods.show');
 Route::get('/goods/edit', [GoodController::class, 'edit'])->name('goods.edit');
+
 Route::delete('goods/images/{id}', [GoodController::class, 'deleteImage'])->name('goods.images.delete');
 Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages'])->name('api.goods.images');
 

@@ -19,6 +19,23 @@ class Supplier extends Model
         'phone',
         'email',
         'address',
-        'notes'
+        'notes',
+        'representative'
     ];
+
+    /**
+     * Relationship với vật tư
+     */
+    public function materials()
+    {
+        return $this->hasMany(Material::class);
+    }
+    
+    /**
+     * Relationship với hàng hóa
+     */
+    public function goods()
+    {
+        return $this->hasMany(Good::class);
+    }
 }

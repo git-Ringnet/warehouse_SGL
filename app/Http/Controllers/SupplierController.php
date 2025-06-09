@@ -72,6 +72,7 @@ class SupplierController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'representative' => 'nullable|string|max:255',
             'phone' => 'required|numeric|digits_between:10,11',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
@@ -80,6 +81,8 @@ class SupplierController extends Controller
             'name.required' => 'Tên nhà cung cấp không được để trống',
             'name.string' => 'Tên nhà cung cấp phải là chuỗi ký tự',
             'name.max' => 'Tên nhà cung cấp không được vượt quá 255 ký tự',
+            'representative.string' => 'Tên người đại diện phải là chuỗi ký tự',
+            'representative.max' => 'Tên người đại diện không được vượt quá 255 ký tự',
             'phone.required' => 'Số điện thoại không được để trống',
             'phone.numeric' => 'Số điện thoại chỉ được nhập số',
             'phone.digits_between' => 'Số điện thoại phải có từ 10 đến 11 số',
@@ -98,7 +101,7 @@ class SupplierController extends Controller
      */
     public function show(string $id)
     {
-        $supplier = Supplier::findOrFail($id);
+        $supplier = Supplier::with(['materials', 'goods'])->findOrFail($id);
         return view('suppliers.show', compact('supplier'));
     }
 
@@ -118,6 +121,7 @@ class SupplierController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'representative' => 'nullable|string|max:255',
             'phone' => 'required|numeric|digits_between:10,11',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
@@ -126,6 +130,8 @@ class SupplierController extends Controller
             'name.required' => 'Tên nhà cung cấp không được để trống',
             'name.string' => 'Tên nhà cung cấp phải là chuỗi ký tự',
             'name.max' => 'Tên nhà cung cấp không được vượt quá 255 ký tự',
+            'representative.string' => 'Tên người đại diện phải là chuỗi ký tự',
+            'representative.max' => 'Tên người đại diện không được vượt quá 255 ký tự',
             'phone.required' => 'Số điện thoại không được để trống',
             'phone.numeric' => 'Số điện thoại chỉ được nhập số',
             'phone.digits_between' => 'Số điện thoại phải có từ 10 đến 11 số',

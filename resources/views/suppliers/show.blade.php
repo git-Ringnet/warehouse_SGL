@@ -76,7 +76,7 @@
                             <div>
                                 <p class="text-sm text-gray-500 font-medium">Tổng số lượng đã nhập</p>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-2xl font-bold text-blue-600">{{ $supplier->total_items ?? 0 }}</span>
+                                    <span class="text-2xl font-bold text-blue-600">{{ $supplier->materials->count() ?? 0 }}</span>
                                     <span class="text-sm text-gray-500">vật tư/hàng hóa</span>
                                 </div>
                             </div>
@@ -84,6 +84,16 @@
                             <div class="mt-4">
                                 <p class="text-sm text-gray-500 font-medium">Lần nhập hàng gần nhất</p>
                                 <p class="text-base text-gray-800 font-semibold">{{ $supplier->last_import_date ?? 'Chưa có' }}</p>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <p class="text-sm text-gray-500 font-medium">Ngày tạo</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->created_at->format('d/m/Y H:i') }}</p>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <p class="text-sm text-gray-500 font-medium">Cập nhật lần cuối</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->updated_at->format('d/m/Y H:i') }}</p>
                             </div>
                         </div>
                     </div>
@@ -96,35 +106,81 @@
                 </div>
             </div>
 
-            <!-- Danh sách thành phẩm của nhà cung cấp (mẫu) -->
+            <!-- Danh sách vật tư của nhà cung cấp -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">thành phẩm liên quan</h2>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Vật tư liên quan</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã thành phẩm</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thành phẩm</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã vật tư</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên vật tư</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Danh mục</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng tồn</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
+                            @forelse($supplier->materials as $material)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SP001</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Thiết bị mạng Router</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị mạng</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">25</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->code }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $material->name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->category }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->unit }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 py-1 text-xs font-semibold {{ $material->status == 'active' ? 'text-green-800 bg-green-100' : 'text-gray-800 bg-gray-100' }} rounded-full">
+                                        {{ $material->status == 'active' ? 'Đang sử dụng' : 'Không sử dụng' }}
+                                    </span>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    <a href="#" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
+                                    <a href="{{ route('materials.show', $material->id) }}" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
                                 </td>
                             </tr>
+                            @empty
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">Không có vật tư nào từ nhà cung cấp này</td>
+                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-4 flex justify-center">
-                    <p class="text-gray-500 text-sm italic">Chức năng liên kết thành phẩm sẽ được cập nhật sau</p>
+            </div>
+
+            <!-- Danh sách thành phẩm của nhà cung cấp (mẫu) -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Hàng hóa liên quan</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã hàng hóa</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên hàng hóa</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Danh mục</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Series</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            @forelse($supplier->goods as $good)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->code }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $good->name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->category }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->unit }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->serial }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <a href="{{ route('goods.show', $good->id) }}" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">Không có hàng hóa nào từ nhà cung cấp này</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
