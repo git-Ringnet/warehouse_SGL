@@ -23,6 +23,7 @@ class Customer extends Model
         'address',
         'notes',
         'has_account',
+        'is_locked',
         'account_username',
         'account_password'
     ];

@@ -49,7 +49,7 @@
                             <p class="text-base text-gray-900">{{ $customer->company_name }}</p>
                         </div>
                         <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">Số điện thoại</h3>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Số điện thoại người đại diện</h3>
                             <p class="text-base text-gray-900">{{ $customer->phone }}</p>
                         </div>
                         <div class="mb-4">
@@ -79,6 +79,11 @@
                             @if($customer->has_account)
                                 <div>
                                     <span class="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">Đã kích hoạt</span>
+                                    @if(isset($customer->is_locked))
+                                        <span class="ml-2 px-2 py-1 {{ $customer->is_locked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' }} text-sm rounded-full">
+                                            {{ $customer->is_locked ? 'Đã khóa' : 'Đang hoạt động' }}
+                                        </span>
+                                    @endif
                                 </div>
                                 <div class="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
                                     <h4 class="text-sm font-medium text-blue-800 mb-2">Thông tin đăng nhập</h4>
@@ -92,6 +97,12 @@
                                             <span class="font-medium ml-1">{{ $customer->account_password }}</span>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="mt-2">
+                                    <a href="{{ route('customers.toggle-lock', $customer->id) }}" class="text-sm px-3 py-1 rounded-md {{ $customer->is_locked ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600' }} text-white inline-flex items-center">
+                                        <i class="fas {{ $customer->is_locked ? 'fa-unlock' : 'fa-lock' }} mr-1"></i>
+                                        {{ $customer->is_locked ? 'Mở khóa tài khoản' : 'Khóa tài khoản' }}
+                                    </a>
                                 </div>
                             @else
                                 <div class="flex items-center">

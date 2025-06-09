@@ -253,4 +253,49 @@ class CustomerController extends Controller
             ], 404);
         }
     }
+
+    /**
+     * Khóa hoặc mở khóa tài khoản khách hàng
+     *
+     * @param string $id
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function toggleLock(string $id)
+    {
+        $customer = Customer::findOrFail($id);
+        
+        // Kiểm tra nếu chưa có tài khoản
+        if (!$customer->has_account) {
+            return redirect()->back()
+                ->with('error', 'Khách hàng chưa có tài khoản nên không thể khóa/mở khóa.');
+        }
+        
+        // Tìm tài khoản người dùng liên kết với khách hàng
+        $user = User::where('customer_id', $customer->id)->first();
+        
+        if (!$user) {
+            return redirect()->back()
+                ->with('error', 'Không tìm thấy tài khoản người dùng liên kết với khách hàng này.');
+        }
+        
+        // Đảo trạng thái khóa tài khoản
+        $isLocked = !($customer->is_locked ?? false);
+        
+        // Cập nhật trạng thái khóa trong bảng customers
+        $customer->update([
+            'is_locked' => $isLocked
+        ]);
+        
+        // Cập nhật trạng thái kích hoạt trong bảng users
+        $user->update([
+            'active' => !$isLocked
+        ]);
+        
+        $message = $isLocked 
+            ? 'Tài khoản khách hàng đã được khóa thành công.' 
+            : 'Tài khoản khách hàng đã được mở khóa thành công.';
+        
+        return redirect()->back()
+            ->with('success', $message);
+    }
 }

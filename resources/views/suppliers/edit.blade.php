@@ -29,7 +29,7 @@
                     @csrf
                     @method('PUT')
                     <h2 class="text-lg font-semibold text-gray-800 mb-4">Thông tin nhà cung cấp</h2>
-                    
+                 
                     @if ($errors->any())
                     <div class="mb-4 bg-red-50 p-3 rounded border border-red-200">
                         <ul class="list-disc list-inside text-red-500">
@@ -43,7 +43,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="space-y-4">
                             <div>
-                                <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhà cung cấp</label>
+                                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Tên nhà cung cấp <span class="text-red-500">*</span></label>
                                 <input type="text" id="name" name="name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('name', $supplier->name) }}" placeholder="Nhập tên nhà cung cấp" required>
                             </div>
                             
@@ -53,7 +53,7 @@
                             </div>
                             
                             <div>
-                                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
+                                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại <span class="text-red-500">*</span></label>
                                 <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('phone', $supplier->phone) }}" placeholder="Nhập số điện thoại" required pattern="[0-9]{10,11}" title="Số điện thoại chỉ được nhập số và có độ dài từ 10 đến 11 số" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                 <small class="text-gray-500">Chỉ được nhập số, 10-11 chữ số</small>
                             </div>
