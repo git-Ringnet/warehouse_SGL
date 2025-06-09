@@ -51,8 +51,8 @@
                             </div>
                             
                             <div>
-                                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
-                                <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập số điện thoại" required value="{{ old('phone') }}" pattern="[0-9]{10,11}" title="Số điện thoại chỉ được nhập số và có độ dài từ 10 đến 11 số" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại người đại diện</label>
+                                <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập số điện thoại người đại diện" required value="{{ old('phone') }}" pattern="[0-9]{10,11}" title="Số điện thoại chỉ được nhập số và có độ dài từ 10 đến 11 số" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                                 <small class="text-gray-500">Chỉ được nhập số, 10-11 chữ số</small>
                             </div>
                             

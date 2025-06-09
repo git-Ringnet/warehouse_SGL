@@ -21,6 +21,10 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'username',
+        'role',
+        'customer_id',
+        'active',
     ];
 
     /**
@@ -43,6 +47,15 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'active' => 'boolean',
         ];
+    }
+
+    /**
+     * Get the customer associated with the user.
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
     }
 }

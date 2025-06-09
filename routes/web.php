@@ -30,6 +30,7 @@ Route::get('/dashboard', function () {
 // Thay thế routes customers cũ bằng resource controller
 Route::resource('customers', CustomerController::class);
 Route::get('customers/{customer}/activate', [CustomerController::class, 'activateAccount'])->name('customers.activate');
+Route::get('customers/{customer}/toggle-lock', [CustomerController::class, 'toggleLock'])->name('customers.toggle-lock');
 
 //Materials
 Route::resource('materials', MaterialController::class);

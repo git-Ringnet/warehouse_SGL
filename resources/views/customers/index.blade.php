@@ -229,7 +229,7 @@
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên người đại diện</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Công ty</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số điện thoại</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">SĐT công ty</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Địa chỉ công ty</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày tạo</th>
@@ -262,9 +262,9 @@
                                     <i class="fas fa-user-check text-green-500 group-hover:text-white"></i>
                                 </a>
                                 @else
-                                <span class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100" title="Đã kích hoạt">
-                                    <i class="fas fa-user-check text-gray-400"></i>
-                                </span>
+                                <a href="{{ route('customers.toggle-lock', $customer->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full {{ $customer->is_locked ? 'bg-orange-100 hover:bg-orange-500' : 'bg-gray-100 hover:bg-gray-500' }} transition-colors group" title="{{ $customer->is_locked ? 'Mở khóa tài khoản' : 'Khóa tài khoản' }}">
+                                    <i class="fas {{ $customer->is_locked ? 'fa-unlock' : 'fa-lock' }} {{ $customer->is_locked ? 'text-orange-500' : 'text-gray-500' }} group-hover:text-white"></i>
+                                </a>
                                 @endif
                             </td>
                         </tr>
