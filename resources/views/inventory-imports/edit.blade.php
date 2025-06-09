@@ -102,13 +102,22 @@
                         <div id="materials-container">
                             @forelse($inventoryImport->materials as $key => $item)
                             <div class="material-row border border-gray-200 rounded-lg p-4 mb-4">
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
                                         <select name="materials[{{ $key }}][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                             <option value="">-- Chọn vật tư/ thành phẩm --</option>
                                             @foreach($materials as $material)
                                                 <option value="{{ $material->id }}" {{ $item->material_id == $material->id ? 'selected' : '' }}>{{ $material->code }} - {{ $material->name }} ({{ $material->unit }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập</label>
+                                        <select name="materials[{{ $key }}][warehouse_id]" class="warehouse-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                            <option value="">-- Chọn kho nhập --</option>
+                                            @foreach($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}" {{ $item->warehouse_id == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -134,13 +143,22 @@
                             </div>
                             @empty
                             <div class="material-row border border-gray-200 rounded-lg p-4 mb-4">
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
                                         <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                             <option value="">-- Chọn vật tư/ thành phẩm --</option>
                                             @foreach($materials as $material)
                                                 <option value="{{ $material->id }}">{{ $material->code }} - {{ $material->name }} ({{ $material->unit }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập</label>
+                                        <select name="materials[0][warehouse_id]" class="warehouse-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                            <option value="">-- Chọn kho nhập --</option>
+                                            @foreach($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -174,6 +192,30 @@
                         </div>
                     </div>
                     
+                    <!-- Bảng tổng hợp các vật tư đã thêm -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-md font-semibold text-gray-800 mb-4">Tổng hợp vật tư, hàng hoá đã thêm</h3>
+                        <div class="overflow-x-auto">
+                            <table id="summary-table" class="min-w-full bg-white border border-gray-200 rounded-lg">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã - Tên vật tư</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kho nhập</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn vị</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
                     <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
                         <a href="{{ route('inventory-imports.show', $inventoryImport->id) }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
                             Hủy
@@ -197,6 +239,12 @@
             
             // Tự động hiển thị gợi ý từ dữ liệu đã có
             setupAutoSuggestion();
+            
+            // Cập nhật bảng tổng hợp ban đầu
+            updateSummaryTable();
+            
+            // Đăng ký sự kiện change cho các input để cập nhật bảng tổng hợp
+            registerChangeEvents();
         });
         
         // Biến đếm số lượng hàng vật tư
@@ -237,13 +285,20 @@
             if(newSelect) {
                 newSelect.addEventListener('change', function() {
                     handleMaterialChange(this);
+                    updateSummaryTable();
                 });
             }
+            
+            // Đăng ký sự kiện cho các input khác để cập nhật bảng tổng hợp
+            registerChangeEventsForRow(template);
             
             materialCount++;
             
             // Cập nhật hiển thị của các nút xóa
             updateRemoveButtons();
+            
+            // Cập nhật bảng tổng hợp
+            updateSummaryTable();
         }
         
         // Hàm xóa hàng vật tư
@@ -253,6 +308,9 @@
             
             // Cập nhật hiển thị của các nút xóa
             updateRemoveButtons();
+            
+            // Cập nhật bảng tổng hợp
+            updateSummaryTable();
         }
         
         // Cập nhật hiển thị của các nút xóa
@@ -274,6 +332,7 @@
             document.querySelectorAll('.material-select').forEach(select => {
                 select.addEventListener('change', function() {
                     handleMaterialChange(this);
+                    updateSummaryTable();
                 });
             });
         }
@@ -306,6 +365,7 @@
                         if (quantityInput) {
                             quantityInput.addEventListener('change', function() {
                                 suggestSerialNumbers(materialRow, material, this.value);
+                                updateSummaryTable();
                             });
                         }
                     }
@@ -340,6 +400,87 @@
                 }
                 
                 serialNumbersTextarea.value = suggestedSerials.join('\n');
+            }
+        }
+        
+        // Đăng ký sự kiện change cho tất cả các input để cập nhật bảng tổng hợp
+        function registerChangeEvents() {
+            const rows = document.querySelectorAll('.material-row');
+            rows.forEach(row => {
+                registerChangeEventsForRow(row);
+            });
+        }
+        
+        // Đăng ký sự kiện change cho một hàng
+        function registerChangeEventsForRow(row) {
+            const inputs = row.querySelectorAll('select, input, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('change', updateSummaryTable);
+            });
+        }
+        
+        // Cập nhật bảng tổng hợp
+        function updateSummaryTable() {
+            const table = document.getElementById('summary-table');
+            const tbody = table.querySelector('tbody');
+            
+            // Lấy tất cả các hàng vật tư
+            const materialRows = document.querySelectorAll('.material-row');
+            
+            // Xóa tất cả các hàng trong bảng tổng hợp
+            tbody.innerHTML = '';
+            
+            // Nếu không có vật tư nào, hiển thị dòng thông báo
+            if (materialRows.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `<td colspan="6" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>`;
+                tbody.appendChild(emptyRow);
+                return;
+            }
+            
+            // Tạo các hàng mới cho bảng tổng hợp
+            materialRows.forEach((row, index) => {
+                const materialSelect = row.querySelector('select[name*="material_id"]');
+                const warehouseSelect = row.querySelector('select[name*="warehouse_id"]');
+                const quantityInput = row.querySelector('input[name*="quantity"]');
+                const notesTextarea = row.querySelector('textarea[name*="notes"]');
+                
+                // Kiểm tra xem đã chọn vật tư chưa
+                if (!materialSelect.value) return;
+                
+                const materialOption = materialSelect.options[materialSelect.selectedIndex];
+                const materialText = materialOption ? materialOption.text : 'Chưa chọn';
+                
+                const warehouseOption = warehouseSelect.options[warehouseSelect.selectedIndex];
+                const warehouseText = warehouseOption ? warehouseOption.text : 'Chưa chọn';
+                
+                const quantity = quantityInput ? quantityInput.value : '0';
+                const notes = notesTextarea ? notesTextarea.value : '';
+                
+                // Trích xuất đơn vị từ tên vật tư (giả sử định dạng là "mã - tên (đơn vị)")
+                let unit = '';
+                const match = materialText.match(/\(([^)]+)\)$/);
+                if (match) {
+                    unit = match[1];
+                }
+                
+                const summaryRow = document.createElement('tr');
+                summaryRow.innerHTML = `
+                    <td class="px-4 py-2 text-sm text-gray-900">${index + 1}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${materialText}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${warehouseText}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${unit}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${quantity}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${notes}</td>
+                `;
+                tbody.appendChild(summaryRow);
+            });
+            
+            // Nếu sau khi duyệt qua tất cả vẫn không có hàng nào được thêm
+            if (tbody.children.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `<td colspan="6" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm hoặc vật tư chưa được chọn đầy đủ</td>`;
+                tbody.appendChild(emptyRow);
             }
         }
     </script>

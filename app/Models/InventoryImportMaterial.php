@@ -17,6 +17,7 @@ class InventoryImportMaterial extends Model
     protected $fillable = [
         'inventory_import_id',
         'material_id',
+        'warehouse_id',
         'quantity',
         'serial',
         'serial_numbers',
@@ -31,6 +32,7 @@ class InventoryImportMaterial extends Model
     protected $casts = [
         'inventory_import_id' => 'integer',
         'material_id' => 'integer',
+        'warehouse_id' => 'integer',
         'quantity' => 'integer',
         'serial_numbers' => 'json',
     ];
@@ -49,5 +51,13 @@ class InventoryImportMaterial extends Model
     public function material()
     {
         return $this->belongsTo(Material::class);
+    }
+    
+    /**
+     * Get the warehouse for this inventory import material.
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 } 

@@ -84,20 +84,18 @@ class InventoryImportController extends Controller
         // Validation cơ bản
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
             'import_code' => 'required|string|max:255|unique:inventory_imports',
             'import_date' => 'required|date',
             'order_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'materials' => 'required|array|min:1',
             'materials.*.material_id' => 'required|exists:materials,id',
+            'materials.*.warehouse_id' => 'required|exists:warehouses,id',
             'materials.*.quantity' => 'required|integer|min:1',
             'materials.*.serial_numbers' => 'nullable|string',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
-            'warehouse_id.required' => 'Kho nhập không được để trống',
-            'warehouse_id.exists' => 'Kho nhập không tồn tại',
             'import_code.required' => 'Mã phiếu nhập không được để trống',
             'import_code.unique' => 'Mã phiếu nhập đã tồn tại',
             'import_date.required' => 'Ngày nhập kho không được để trống',
@@ -106,6 +104,8 @@ class InventoryImportController extends Controller
             'materials.min' => 'Vui lòng thêm ít nhất một vật tư',
             'materials.*.material_id.required' => 'Vật tư không được để trống',
             'materials.*.material_id.exists' => 'Vật tư không tồn tại',
+            'materials.*.warehouse_id.required' => 'Kho nhập không được để trống',
+            'materials.*.warehouse_id.exists' => 'Kho nhập không tồn tại',
             'materials.*.quantity.required' => 'Số lượng không được để trống',
             'materials.*.quantity.integer' => 'Số lượng phải là số nguyên',
             'materials.*.quantity.min' => 'Số lượng phải lớn hơn hoặc bằng 1',
@@ -140,10 +140,9 @@ class InventoryImportController extends Controller
 
         DB::beginTransaction();
         try {
-            // Tạo phiếu nhập kho
+            // Tạo phiếu nhập kho - không còn cần warehouse_id
             $inventoryImport = InventoryImport::create([
                 'supplier_id' => $request->supplier_id,
-                'warehouse_id' => $request->warehouse_id,
                 'import_code' => $request->import_code,
                 'import_date' => $request->import_date,
                 'order_code' => $request->order_code,
@@ -164,9 +163,12 @@ class InventoryImportController extends Controller
                     }
                 }
                 
+                $warehouseId = $material['warehouse_id'];
+                
                 InventoryImportMaterial::create([
                     'inventory_import_id' => $inventoryImport->id,
                     'material_id' => $material['material_id'],
+                    'warehouse_id' => $warehouseId,
                     'quantity' => $material['quantity'],
                     'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
@@ -174,7 +176,7 @@ class InventoryImportController extends Controller
                 
                 // Cập nhật số lượng vật tư trong kho
                 $warehouseMaterial = WarehouseMaterial::firstOrNew([
-                    'warehouse_id' => $request->warehouse_id,
+                    'warehouse_id' => $warehouseId,
                     'material_id' => $material['material_id'],
                     'item_type' => 'material'
                 ]);
@@ -244,20 +246,18 @@ class InventoryImportController extends Controller
         // Validation cơ bản
         $validator = Validator::make($request->all(), [
             'supplier_id' => 'required|exists:suppliers,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
             'import_code' => 'required|string|max:255|unique:inventory_imports,import_code,'.$id,
             'import_date' => 'required|date',
             'order_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'materials' => 'required|array|min:1',
             'materials.*.material_id' => 'required|exists:materials,id',
+            'materials.*.warehouse_id' => 'required|exists:warehouses,id',
             'materials.*.quantity' => 'required|integer|min:1',
             'materials.*.serial_numbers' => 'nullable|string',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
-            'warehouse_id.required' => 'Kho nhập không được để trống',
-            'warehouse_id.exists' => 'Kho nhập không tồn tại',
             'import_code.required' => 'Mã phiếu nhập không được để trống',
             'import_code.unique' => 'Mã phiếu nhập đã tồn tại',
             'import_date.required' => 'Ngày nhập kho không được để trống',
@@ -266,6 +266,8 @@ class InventoryImportController extends Controller
             'materials.min' => 'Vui lòng thêm ít nhất một vật tư',
             'materials.*.material_id.required' => 'Vật tư không được để trống',
             'materials.*.material_id.exists' => 'Vật tư không tồn tại',
+            'materials.*.warehouse_id.required' => 'Kho nhập không được để trống',
+            'materials.*.warehouse_id.exists' => 'Kho nhập không tồn tại',
             'materials.*.quantity.required' => 'Số lượng không được để trống',
             'materials.*.quantity.integer' => 'Số lượng phải là số nguyên',
             'materials.*.quantity.min' => 'Số lượng phải lớn hơn hoặc bằng 1',
@@ -302,20 +304,20 @@ class InventoryImportController extends Controller
         try {
             // Lấy phiếu nhập kho hiện tại và các vật tư liên quan
             $inventoryImport = InventoryImport::with('materials')->findOrFail($id);
-            $oldWarehouseId = $inventoryImport->warehouse_id;
             $oldMaterials = $inventoryImport->materials->toArray();
             
             // Trước khi cập nhật, cần giảm số lượng vật tư trong kho cũ
             foreach ($oldMaterials as $oldMaterial) {
                 $materialId = $oldMaterial['material_id'];
                 $quantity = $oldMaterial['quantity'];
+                $warehouseId = $oldMaterial['warehouse_id'];
                 $serialNumbers = $oldMaterial['serial_numbers'] ?? null;
                 
                 // Nếu có serial numbers, xóa từng bản ghi theo serial
                 if (!empty($serialNumbers) && is_array($serialNumbers)) {
                     foreach ($serialNumbers as $serial) {
                         WarehouseMaterial::where([
-                            'warehouse_id' => $oldWarehouseId,
+                            'warehouse_id' => $warehouseId,
                             'material_id' => $materialId,
                             'item_type' => 'material',
                             'serial_number' => $serial
@@ -324,7 +326,7 @@ class InventoryImportController extends Controller
                 } else {
                     // Nếu không có serial, giảm số lượng trong kho
                     $warehouseMaterial = WarehouseMaterial::where([
-                        'warehouse_id' => $oldWarehouseId,
+                        'warehouse_id' => $warehouseId,
                         'material_id' => $materialId,
                         'item_type' => 'material'
                     ])->first();
@@ -340,10 +342,9 @@ class InventoryImportController extends Controller
                 }
             }
             
-            // Cập nhật phiếu nhập kho
+            // Cập nhật phiếu nhập kho - không còn cần warehouse_id
             $inventoryImport->update([
                 'supplier_id' => $request->supplier_id,
-                'warehouse_id' => $request->warehouse_id,
                 'import_code' => $request->import_code,
                 'import_date' => $request->import_date,
                 'order_code' => $request->order_code,
@@ -367,9 +368,12 @@ class InventoryImportController extends Controller
                     }
                 }
                 
+                $warehouseId = $material['warehouse_id'];
+                
                 InventoryImportMaterial::create([
                     'inventory_import_id' => $inventoryImport->id,
                     'material_id' => $material['material_id'],
+                    'warehouse_id' => $warehouseId,
                     'quantity' => $material['quantity'],
                     'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
@@ -377,7 +381,7 @@ class InventoryImportController extends Controller
                 
                 // Cập nhật số lượng vật tư trong kho mới
                 $warehouseMaterial = WarehouseMaterial::firstOrNew([
-                    'warehouse_id' => $request->warehouse_id,
+                    'warehouse_id' => $warehouseId,
                     'material_id' => $material['material_id'],
                     'item_type' => 'material'
                 ]);

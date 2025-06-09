@@ -16,7 +16,6 @@ class InventoryImport extends Model
      */
     protected $fillable = [
         'supplier_id',
-        'warehouse_id',
         'import_code',
         'import_date',
         'order_code',
@@ -31,7 +30,6 @@ class InventoryImport extends Model
     protected $casts = [
         'import_date' => 'date',
         'supplier_id' => 'integer',
-        'warehouse_id' => 'integer',
     ];
 
     /**
@@ -40,14 +38,6 @@ class InventoryImport extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
-    }
-
-    /**
-     * Get the warehouse that owns this inventory import.
-     */
-    public function warehouse()
-    {
-        return $this->belongsTo(Warehouse::class);
     }
 
     /**
