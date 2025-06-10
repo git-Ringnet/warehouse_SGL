@@ -91,6 +91,13 @@
                 <a href="{{ url('/requests/maintenance/'.$id.'/edit') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
+                <form action="{{ url('/requests/maintenance/'.$id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu bảo trì này?');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i> Xóa
+                    </button>
+                </form>
                 <a href="{{ url('/requests') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
@@ -111,9 +118,6 @@
                         <a href="{{ url('/requests/maintenance/'.$id.'/copy') }}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                             <i class="fas fa-copy mr-2"></i> Sao chép
                         </a>
-                        <button onclick="openDeleteModal('{{ $id }}', 'phiếu bảo trì dự án')" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-trash mr-2"></i> Xóa
-                        </button>
                     </div>
                 </div>
 

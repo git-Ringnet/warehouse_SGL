@@ -32,6 +32,9 @@
                 <a href="{{ route('software.edit', $software->id) }}" class="h-10 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
+                <button onclick="openDeleteModal('{{ $software->id }}', '{{ $software->name }}')" class="h-10 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
             </div>
         </header>
 
