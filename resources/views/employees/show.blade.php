@@ -55,7 +55,11 @@
                         <div class="flex flex-col lg:flex-row justify-between">
                             <div class="flex flex-col md:flex-row items-start gap-6">
                                 <div class="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 overflow-hidden">
-                                    <i class="fas fa-user-circle text-6xl"></i>
+                                    @if($employee->avatar)
+                                        <img src="{{ asset('storage/' . $employee->avatar) }}" alt="{{ $employee->name }}" class="w-full h-full object-cover">
+                                    @else
+                                        <i class="fas fa-user-circle text-6xl"></i>
+                                    @endif
                                 </div>
                                 <div>
                                     <h2 class="text-2xl font-bold text-gray-800">{{ $employee->name }}</h2>
@@ -152,15 +156,21 @@
                     
                     <div class="space-y-4">
                         <div>
-                            <p class="text-sm text-gray-500">Chức vụ</p>
+                            <p class="text-sm text-gray-500">Vai trò</p>
                             <p class="font-medium text-gray-800">
                                 @if($employee->roleGroup)
                                     <span class="px-2 py-1 {{ $employee->roleGroup->is_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600' }} rounded-full text-xs font-semibold">
                                         {{ $employee->roleGroup->name }}
                                     </span>
                                 @else
-                                    <span class="text-gray-500">Chưa được gán chức vụ</span>
+                                    <span class="text-gray-500">Chưa được gán vai trò</span>
                                 @endif
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Phòng ban</p>
+                            <p class="font-medium text-gray-800">
+                                {{ $employee->department ?? 'Chưa phân công' }}
                             </p>
                         </div>
                         <div>
@@ -176,10 +186,6 @@
                                     </span>
                                 @endif
                             </p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Ngày vào làm</p>
-                            <p class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($employee->hire_date)->format('d/m/Y') }}</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-500">Ghi chú</p>

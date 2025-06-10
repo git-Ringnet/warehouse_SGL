@@ -58,10 +58,6 @@
                             </div>
                             <div class="space-y-4">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-500">Kho nhập</p>
-                                    <p class="text-base text-gray-900">{{ $inventoryImport->warehouse->name }}</p>
-                                </div>
-                                <div>
                                     <p class="text-sm font-medium text-gray-500">Mã đơn hàng</p>
                                     <p class="text-base text-gray-900">{{ $inventoryImport->order_code ?? 'Không có' }}</p>
                                 </div>
@@ -83,6 +79,7 @@
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã vật tư</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên vật tư/ thành phẩm/ hàng hoá</th>
+                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kho nhập</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
                                         <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số seri</th>
@@ -95,6 +92,7 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $key + 1 }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->material->code }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->material->name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->warehouse->name }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->material->unit }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->quantity }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-700">
@@ -115,7 +113,7 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu vật tư</td>
+                                        <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu vật tư</td>
                                     </tr>
                                     @endforelse
                                 </tbody>

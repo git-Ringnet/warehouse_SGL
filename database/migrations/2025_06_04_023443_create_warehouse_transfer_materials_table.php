@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('material_id')->constrained();
             $table->integer('quantity');
             $table->string('type')->nullable();
+            $table->json('serial_numbers')->nullable()->comment('Danh sách các số serial');
             $table->text('notes')->nullable();
             $table->timestamps();
         });

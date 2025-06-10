@@ -15,7 +15,17 @@ class WarehouseTransferMaterial extends Model
         'material_id',
         'quantity',
         'type',
+        'serial_numbers',
         'notes',
+    ];
+    
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'serial_numbers' => 'json',
     ];
 
     /**

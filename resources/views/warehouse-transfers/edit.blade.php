@@ -61,11 +61,6 @@
                             </div>
                             
                             <div>
-                                <label for="serial" class="block text-sm font-medium text-gray-700 mb-1 required">Serial được chuyển</label>
-                                <input type="text" id="serial" name="serial" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ old('serial', $warehouseTransfer->serial) }}" required>
-                            </div>
-                            
-                            <div>
                                 <label for="source_warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho nguồn</label>
                                 <select id="source_warehouse_id" name="source_warehouse_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn kho nguồn --</option>
@@ -116,50 +111,94 @@
                     </div>
                     
                     <!-- Phần chọn vật tư -->
-                    <div class="mt-6">
-                        <h3 class="text-md font-semibold text-gray-800 mb-3">Danh sách vật tư chuyển kho</h3>
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-md font-semibold text-gray-800 mb-4">Danh sách vật tư chuyển kho</h3>
                         
-                        <!-- Bộ lọc loại vật tư -->
-                        <div class="mb-3 flex items-center space-x-4">
-                            <span class="text-sm font-medium text-gray-700">Loại vật tư:</span>
-                            <div class="flex items-center space-x-4">
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="material_type" value="all" class="form-radio text-blue-500" checked>
-                                    <span class="ml-2 text-sm text-gray-700">Tất cả</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="material_type" value="component" class="form-radio text-blue-500">
-                                    <span class="ml-2 text-sm text-gray-700">Linh kiện</span>
-                                </label>
-                                <label class="inline-flex items-center">
-                                    <input type="radio" name="material_type" value="product" class="form-radio text-blue-500">
-                                    <span class="ml-2 text-sm text-gray-700">Thành phẩm</span>
-                                </label>
+                        <div id="materials-container">
+                            <!-- Mẫu một hàng vật tư -->
+                            <div class="material-row border border-gray-200 rounded-lg p-4 mb-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
+                                        <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                            <option value="">-- Chọn vật tư --</option>
+                                            @foreach($materials as $material)
+                                                <option value="{{ $material->id }}" data-type="{{ $material->category }}">{{ $material->code }} - {{ $material->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                                        <input type="number" name="materials[0][quantity]" class="quantity-input w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số lượng" value="1" min="1" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư</label>
+                                        <div class="flex items-center space-x-4 mt-2">
+                                            <label class="inline-flex items-center">
+                                                <input type="radio" name="materials[0][type]" value="component" class="form-radio text-blue-500">
+                                                <span class="ml-2 text-sm text-gray-700">Linh kiện</span>
+                                            </label>
+                                            <label class="inline-flex items-center">
+                                                <input type="radio" name="materials[0][type]" value="product" class="form-radio text-blue-500">
+                                                <span class="ml-2 text-sm text-gray-700">Thành phẩm</span>
+                                            </label>
+                                            <label class="inline-flex items-center">
+                                                <input type="radio" name="materials[0][type]" value="other" class="form-radio text-blue-500" checked>
+                                                <span class="ml-2 text-sm text-gray-700">Khác</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">List số seri</label>
+                                    <textarea name="materials[0][serial_numbers]" class="serial-input w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" rows="2" placeholder="Nhập danh sách số seri, mỗi số seri trên một dòng hoặc ngăn cách bằng dấu phẩy"></textarea>
+                                    <p class="text-xs text-gray-500 mt-1">Số lượng seri nên trùng khớp với số lượng vật tư chuyển</p>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                                    <textarea name="materials[0][notes]" class="notes-input w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" rows="2" placeholder="Ghi chú cho vật tư này (nếu có)"></textarea>
+                                </div>
+                                <div class="mt-3 flex justify-end">
+                                    <button type="button" class="remove-material text-red-500 hover:text-red-700" style="display: none;">
+                                        <i class="fas fa-trash mr-1"></i> Xóa
+                                    </button>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="border rounded-lg border-gray-300 p-4 bg-gray-50">
-                            <div class="flex items-center space-x-2 mb-3">
-                                <select id="material_select" class="flex-grow h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                    <option value="">-- Chọn vật tư --</option>
-                                    @foreach($materials as $material)
-                                        <option value="{{ $material->id }}" data-type="{{ $material->category }}">{{ $material->code }} - {{ $material->name }}</option>
-                                    @endforeach
-                                </select>
-                                <input type="number" id="material_quantity" class="w-24 h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="SL" min="1" value="1">
-                                <button type="button" id="add_material" class="h-10 w-10 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            
-                            <div id="selected_materials" class="border rounded-lg border-gray-200 p-2 bg-white min-h-[100px] max-h-[200px] overflow-y-auto">
-                                <!-- Danh sách vật tư được chọn sẽ xuất hiện ở đây -->
-                            </div>
+                        
+                        <div class="mt-2">
+                            <button type="button" id="add-material" class="flex items-center text-blue-500 hover:text-blue-700">
+                                <i class="fas fa-plus-circle mr-1"></i> Thêm vật tư
+                            </button>
                         </div>
                     </div>
                     
                     <!-- Phần hidden input sẽ lưu dữ liệu để submit -->
-                    <input type="hidden" id="materials_json" name="materials_json" value="{{ old('materials_json', json_encode($selectedMaterials)) }}">
+                    <input type="hidden" id="materials_json" name="materials_json" value="{{ old('materials_json') ?: json_encode($selectedMaterials) }}">
+                    <input type="hidden" id="quantity" name="quantity" value="{{ old('quantity', $warehouseTransfer->quantity) }}">
+                    
+                    <!-- Bảng tổng hợp các vật tư đã thêm -->
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <h3 class="text-md font-semibold text-gray-800 mb-4">Tổng hợp vật tư, hàng hoá đã thêm</h3>
+                        <div class="overflow-x-auto">
+                            <table id="summary-table" class="min-w-full bg-white border border-gray-200 rounded-lg">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã - Tên vật tư</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số seri</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     
                     <!-- Ghi chú -->
                     <div class="mt-6">
@@ -181,13 +220,124 @@
     </div>
 
     <script>
-        // Khởi tạo modal khi trang được tải
+        // Debug giá trị $selectedMaterials
+        const selectedMaterialsData = {!! json_encode($selectedMaterials) !!};
+        console.log("Selected Materials from PHP:", selectedMaterialsData);
+
+        // Khởi tạo khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM Content Loaded");
             initDeleteModal();
             
-            // Hiển thị danh sách vật tư đã chọn
-            renderSelectedMaterials();
+            // Thêm sự kiện cho nút "Thêm vật tư"
+            document.getElementById('add-material').addEventListener('click', addMaterialRow);
+            
+            // Khởi tạo các sự kiện cho hàng vật tư đầu tiên
+            setupMaterialRowEvents(document.querySelector('.material-row'));
+            
+            // Quan trọng: Nạp dữ liệu từ selectedMaterials
+            // Đảm bảo rằng việc này được thực hiện sau khi các phần tử DOM đã sẵn sàng
+            setTimeout(() => {
+                loadExistingMaterials();
+                updateRemoveButtons();
+                updateSummaryTable();
+            }, 100);
         });
+        
+        // Biến đếm số lượng hàng vật tư
+        let materialCount = 1;
+        
+        // Nạp dữ liệu từ selectedMaterials vào các hàng vật tư
+        function loadExistingMaterials() {
+            const materialsJson = document.getElementById('materials_json').value;
+            if (!materialsJson) return;
+            
+            try {
+                console.log("Loading existing materials from:", materialsJson);
+                const materials = JSON.parse(materialsJson);
+                
+                // Nếu không có vật tư, dừng
+                if (materials.length === 0) return;
+                
+                // Tạo lại tất cả các hàng vật tư
+                renderMaterialRows(materials);
+                
+                updateSummaryTable();
+            } catch (error) {
+                console.error('Lỗi khi nạp dữ liệu vật tư:', error);
+            }
+        }
+        
+        // Hàm để tạo lại tất cả các hàng vật tư từ mảng dữ liệu
+        function renderMaterialRows(materials) {
+            // Lấy container
+            const container = document.getElementById('materials-container');
+            
+            // Xóa tất cả các hàng hiện có, trừ hàng đầu tiên
+            while (container.children.length > 1) {
+                container.removeChild(container.lastChild);
+            }
+            
+            // Lấy hàng đầu tiên và đặt giá trị
+            const firstRow = container.querySelector('.material-row');
+            if (materials.length > 0) {
+                setMaterialRowValues(firstRow, materials[0]);
+            }
+            
+            // Tạo các hàng còn lại
+            for (let i = 1; i < materials.length; i++) {
+                const newRow = addMaterialRow();
+                setMaterialRowValues(newRow, materials[i]);
+            }
+            
+            // Cập nhật hiển thị nút xóa
+            updateRemoveButtons();
+        }
+        
+        // Đặt giá trị cho một hàng vật tư
+        function setMaterialRowValues(row, material) {
+            console.log("Setting values for material:", material);
+            const materialSelect = row.querySelector('.material-select');
+            const quantityInput = row.querySelector('.quantity-input');
+            const serialInput = row.querySelector('.serial-input');
+            const notesInput = row.querySelector('.notes-input');
+            
+            // Chọn vật tư
+            for (let i = 0; i < materialSelect.options.length; i++) {
+                if (materialSelect.options[i].value === material.id.toString()) {
+                    materialSelect.selectedIndex = i;
+                    console.log("Selected material index:", i, "for id:", material.id);
+                    break;
+                }
+            }
+            
+            // Đặt số lượng
+            quantityInput.value = material.quantity || 1;
+            
+            // Đặt số seri
+            serialInput.value = Array.isArray(material.serial_numbers) 
+                ? material.serial_numbers.join('\n') 
+                : material.serial_numbers || '';
+            
+            // Đặt ghi chú
+            notesInput.value = material.notes || '';
+            
+            // Đặt loại vật tư
+            const typeInputs = row.querySelectorAll('input[type="radio"]');
+            typeInputs.forEach(input => {
+                if (material.type && input.value === material.type) {
+                    input.checked = true;
+                    console.log("Setting type radio:", input.value);
+                }
+            });
+            
+            // Nếu không có loại nào được chọn, chọn loại mặc định là 'other'
+            const checkedType = row.querySelector('input[type="radio"]:checked');
+            if (!checkedType) {
+                const otherType = row.querySelector('input[type="radio"][value="other"]');
+                if (otherType) otherType.checked = true;
+            }
+        }
         
         // Ngăn chặn việc chọn cùng một kho cho cả nguồn và đích
         document.getElementById('source_warehouse_id').addEventListener('change', function() {
@@ -208,139 +358,245 @@
             }
         }
         
-        // Quản lý chọn nhiều vật tư
-        let selectedMaterials = JSON.parse(document.getElementById('materials_json').value) || [];
-        
-        // Quản lý bộ lọc loại vật tư
-        document.querySelectorAll('input[name="material_type"]').forEach(radio => {
-            radio.addEventListener('change', filterMaterials);
-        });
-        
-        function filterMaterials() {
-            const filterValue = document.querySelector('input[name="material_type"]:checked').value;
-            const materialOptions = document.querySelectorAll('#material_select option');
+        // Hàm thêm hàng vật tư mới
+        function addMaterialRow() {
+            const container = document.getElementById('materials-container');
+            const template = container.querySelector('.material-row').cloneNode(true);
             
-            materialOptions.forEach(option => {
-                if (option.value === '') return; // Skip placeholder
-                
-                const type = option.getAttribute('data-type');
-                if (filterValue === 'all' || type === filterValue) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
+            // Cập nhật các attributes
+            const inputs = template.querySelectorAll('select, input, textarea');
+            inputs.forEach(input => {
+                const nameAttr = input.getAttribute('name');
+                if (nameAttr) {
+                    input.setAttribute('name', nameAttr.replace(/\[\d+\]/, `[${materialCount}]`));
+                    
+                    // Reset giá trị
+                    if (input.tagName === 'SELECT') {
+                        input.selectedIndex = 0;
+                    } else if (input.type === 'number' && input.name.includes('quantity')) {
+                        input.value = '1';
+                    } else if (input.type === 'radio') {
+                        if (input.value === 'other') {
+                            input.checked = true;
+                        } else {
+                            input.checked = false;
+                        }
+                    } else {
+                        input.value = '';
+                    }
                 }
             });
             
-            // Reset selection
-            document.getElementById('material_select').value = '';
-        }
-        
-        // Khởi tạo dữ liệu
-        document.addEventListener('DOMContentLoaded', function() {
-            updateSelectedMaterialsDisplay();
-        });
-        
-        document.getElementById('add_material').addEventListener('click', function() {
-            const materialSelect = document.getElementById('material_select');
-            const materialId = materialSelect.value;
-            const materialText = materialSelect.options[materialSelect.selectedIndex].text;
-            const quantity = document.getElementById('material_quantity').value;
-            const materialType = materialSelect.options[materialSelect.selectedIndex].getAttribute('data-type');
-            
-            if (!materialId) {
-                alert('Vui lòng chọn vật tư');
-                return;
-            }
-            
-            if (quantity < 1) {
-                alert('Số lượng phải lớn hơn 0');
-                return;
-            }
-            
-            // Kiểm tra nếu vật tư đã được chọn
-            const existingIndex = selectedMaterials.findIndex(m => m.id === materialId);
-            if (existingIndex >= 0) {
-                alert('Vật tư này đã được thêm vào danh sách');
-                return;
-            }
-            
-            // Thêm vật tư vào danh sách
-            selectedMaterials.push({
-                id: materialId,
-                name: materialText,
-                type: materialType || '',
-                quantity: quantity
+            // Hiển thị nút xóa
+            const removeButton = template.querySelector('.remove-material');
+            removeButton.style.display = 'inline-flex';
+            removeButton.addEventListener('click', function() {
+                removeMaterialRow(template);
             });
             
-            // Cập nhật hiển thị
-            updateSelectedMaterialsDisplay();
+            // Thêm hàng mới vào container
+            container.appendChild(template);
             
-            // Reset lựa chọn
-            materialSelect.value = '';
-            document.getElementById('material_quantity').value = '1';
-        });
+            // Thiết lập các sự kiện
+            setupMaterialRowEvents(template);
+            
+            materialCount++;
+            
+            // Cập nhật hiển thị của các nút xóa
+            updateRemoveButtons();
+            
+            console.log("Added new material row", template);
+            return template;
+        }
         
-        function updateSelectedMaterialsDisplay() {
-            const container = document.getElementById('selected_materials');
+        // Thiết lập các sự kiện cho một hàng vật tư
+        function setupMaterialRowEvents(row) {
+            // Lắng nghe sự kiện thay đổi để cập nhật bảng tổng hợp
+            const inputs = row.querySelectorAll('select, input, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    updateSummaryTable();
+                    updateMaterialsJson();
+                });
+            });
+        }
+        
+        // Xóa một hàng vật tư
+        function removeMaterialRow(row) {
+            if (confirm('Bạn có chắc chắn muốn xóa vật tư này không?')) {
+                row.remove();
+                updateRemoveButtons();
+                updateSummaryTable();
+                updateMaterialsJson();
+            }
+        }
+        
+        // Cập nhật hiển thị của các nút xóa
+        function updateRemoveButtons() {
+            const rows = document.querySelectorAll('.material-row');
+            const removeButtons = document.querySelectorAll('.remove-material');
             
-            if (selectedMaterials.length === 0) {
-                container.classList.add('hidden');
-                container.innerHTML = '';
-                document.getElementById('materials_json').value = '[]';
+            if (rows.length <= 1) {
+                removeButtons.forEach(btn => btn.style.display = 'none');
+            } else {
+                removeButtons.forEach(btn => btn.style.display = 'inline-flex');
+            }
+        }
+        
+        // Cập nhật bảng tổng hợp vật tư
+        function updateSummaryTable() {
+            const table = document.getElementById('summary-table');
+            const tbody = table.querySelector('tbody');
+            
+            // Xóa tất cả các hàng hiện tại
+            tbody.innerHTML = '';
+            
+            // Lấy thông tin từ tất cả các hàng vật tư
+            const materialRows = document.querySelectorAll('.material-row');
+            const materials = [];
+            
+            materialRows.forEach((row, index) => {
+                const materialSelect = row.querySelector('.material-select');
+                if (materialSelect.value) {
+                    const materialId = materialSelect.value;
+                    const materialName = materialSelect.options[materialSelect.selectedIndex].text;
+                    const quantity = row.querySelector('.quantity-input').value;
+                    const serialNumbers = row.querySelector('.serial-input').value;
+                    const notes = row.querySelector('.notes-input').value;
+                    
+                    // Xác định loại vật tư
+                    let type = 'other';
+                    const typeInputs = row.querySelectorAll('input[type="radio"]');
+                    typeInputs.forEach(input => {
+                        if (input.checked) {
+                            type = input.value;
+                        }
+                    });
+                    
+                    materials.push({
+                        id: materialId,
+                        name: materialName,
+                        quantity: quantity,
+                        type: type,
+                        serial_numbers: serialNumbers,
+                        notes: notes
+                    });
+                }
+            });
+            
+            // Nếu không có vật tư nào được chọn, hiển thị dòng thông báo
+            if (materials.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = '<td colspan="5" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>';
+                tbody.appendChild(emptyRow);
                 return;
             }
             
-            container.classList.remove('hidden');
-            container.innerHTML = '';
-            
-            selectedMaterials.forEach((material, index) => {
-                const materialElem = document.createElement('div');
-                materialElem.className = 'flex items-center justify-between py-2 px-3 border-b border-gray-200 last:border-b-0';
+            // Tạo các hàng mới cho bảng tổng hợp
+            materials.forEach((material, index) => {
+                const row = document.createElement('tr');
                 
-                // Hiển thị loại vật tư 
-                const typeLabel = material.type === 'component' ? 
-                    '<span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs mr-2">Linh kiện</span>' : 
-                    (material.type === 'product' ? 
-                        '<span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs mr-2">Thành phẩm</span>' : '');
+                // Xác định loại vật tư để hiển thị
+                let typeDisplay = 'Khác';
+                let typeClass = 'bg-gray-100 text-gray-800';
                 
-                materialElem.innerHTML = `
-                    <div class="flex items-center">
-                        ${typeLabel}
-                        <div class="flex flex-col">
-                            <span class="text-sm font-medium text-gray-700">${material.name}</span>
-                            <span class="text-xs text-gray-500">Số lượng: ${material.quantity}</span>
-                        </div>
-                    </div>
-                    <button type="button" class="text-red-500 hover:text-red-700" data-index="${index}">
-                        <i class="fas fa-times"></i>
-                    </button>
+                if (material.type === 'component') {
+                    typeDisplay = 'Linh kiện';
+                    typeClass = 'bg-blue-100 text-blue-800';
+                } else if (material.type === 'product') {
+                    typeDisplay = 'Thành phẩm';
+                    typeClass = 'bg-green-100 text-green-800';
+                }
+                
+                // Tóm tắt số seri để hiển thị
+                let serialDisplay = 'Không có';
+                if (material.serial_numbers) {
+                    const serials = material.serial_numbers.split(/[,;\n\r]+/).filter(s => s.trim());
+                    if (serials.length > 0) {
+                        serialDisplay = serials.length > 3 
+                            ? `${serials.slice(0, 3).join(', ')}... (${serials.length} số seri)` 
+                            : serials.join(', ');
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td class="px-4 py-2 text-sm text-gray-900">${index + 1}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${material.name}</td>
+                    <td class="px-4 py-2 text-sm">
+                        <span class="px-2 py-1 rounded-full text-xs font-medium ${typeClass}">${typeDisplay}</span>
+                    </td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${material.quantity}</td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${serialDisplay}</td>
                 `;
                 
-                // Thêm sự kiện xóa
-                const deleteButton = materialElem.querySelector('button');
-                deleteButton.addEventListener('click', function() {
-                    selectedMaterials.splice(index, 1);
-                    updateSelectedMaterialsDisplay();
-                });
-                
-                container.appendChild(materialElem);
+                tbody.appendChild(row);
             });
-            
-            // Cập nhật hidden input
-            document.getElementById('materials_json').value = JSON.stringify(selectedMaterials);
         }
         
-        // Kiểm tra form submit để đảm bảo có ít nhất một vật tư
-        document.querySelector('form').addEventListener('submit', function(event) {
-            if (selectedMaterials.length === 0) {
-                event.preventDefault();
-                alert('Vui lòng thêm ít nhất một vật tư');
+        // Cập nhật dữ liệu JSON để submit
+        function updateMaterialsJson() {
+            const materials = [];
+            const materialRows = document.querySelectorAll('.material-row');
+            
+            materialRows.forEach(row => {
+                const materialSelect = row.querySelector('.material-select');
+                if (materialSelect.value) {
+                    const materialId = materialSelect.value;
+                    const materialName = materialSelect.options[materialSelect.selectedIndex].text;
+                    const quantity = row.querySelector('.quantity-input').value;
+                    const serialNumbers = row.querySelector('.serial-input').value;
+                    const notes = row.querySelector('.notes-input').value;
+                    
+                    // Xác định loại vật tư
+                    let type = 'other';
+                    const typeInputs = row.querySelectorAll('input[type="radio"]');
+                    typeInputs.forEach(input => {
+                        if (input.checked) {
+                            type = input.value;
+                        }
+                    });
+                    
+                    materials.push({
+                        id: materialId,
+                        name: materialName,
+                        quantity: quantity,
+                        type: type,
+                        serial_numbers: serialNumbers,
+                        notes: notes
+                    });
+                }
+            });
+            
+            document.getElementById('materials_json').value = JSON.stringify(materials);
+        }
+        
+        // Kiểm tra trước khi submit form
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // Cập nhật JSON data trước khi submit
+            updateMaterialsJson();
+            
+            // Lấy dữ liệu từ input hidden
+            const materialsJson = document.getElementById('materials_json').value;
+            let materials = [];
+            
+            try {
+                materials = JSON.parse(materialsJson);
+            } catch (error) {
+                console.error('Lỗi khi phân tích dữ liệu JSON:', error);
+            }
+            
+            // Kiểm tra xem có ít nhất một vật tư nào được chọn không
+            if (materials.length === 0) {
+                e.preventDefault();
+                alert('Vui lòng thêm ít nhất một vật tư vào danh sách trước khi cập nhật phiếu chuyển kho.');
                 return false;
             }
+            
+            // Cập nhật trường quantity (sử dụng số lượng của vật tư đầu tiên)
+            if (materials.length > 0) {
+                document.getElementById('quantity').value = materials[0].quantity || 1;
+            }
         });
-        
-        // Áp dụng bộ lọc ban đầu
-        filterMaterials();
     </script>
 </body>
 </html> 
