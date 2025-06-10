@@ -188,7 +188,7 @@
                 </form>
                 <div class="flex flex-wrap gap-2">
                     <a href="#" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+                        <i class="fas fa-file-pdf mr-2"></i> Xuất FDF
                     </a>
                     <a href="#" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
                         <i class="fas fa-file-excel mr-2"></i> Xuất Excel

@@ -103,14 +103,17 @@
                                 <div class="flex items-center mb-1">
                                     <i class="fas fa-building text-gray-400 mr-2"></i>
                                     <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Thép Hoàng Hà</a>
+                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
                                 </div>
                                 <div class="flex items-center mb-1">
                                     <i class="fas fa-building text-gray-400 mr-2"></i>
                                     <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Vật tư Tân Phát</a>
+                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
                                 </div>
                                 <div class="flex items-center mb-1">
                                     <i class="fas fa-building text-gray-400 mr-2"></i>
                                     <a href="#" class="text-blue-600 hover:underline">Công ty CP Kim khí Đại Dương</a>
+                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
                                 </div>
                             @endif
                         </div>

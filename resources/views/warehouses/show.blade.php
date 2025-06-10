@@ -165,6 +165,9 @@
                                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Đơn vị
                                             </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Thao tác
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
@@ -175,6 +178,7 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Điện tử</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">150</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">Xem chi tiết</td>
                                         </tr>
                                         <tr>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LK002</td>
@@ -182,6 +186,7 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Điện tử</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">85</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">Xem chi tiết</td>
                                         </tr>
                                         <tr>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">LK003</td>
@@ -189,6 +194,7 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Phụ kiện</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">52</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">Xem chi tiết</td>
                                         </tr>
                                     </tbody>
                                 </table>
