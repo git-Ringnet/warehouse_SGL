@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phiếu đề xuất bảo trì dự án - SGL</title>
+    <title>Phiếu bảo trì dự án - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -46,9 +46,9 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <h1 class="text-xl font-bold text-gray-800">Phiếu đề xuất bảo trì dự án</h1>
+                <h1 class="text-xl font-bold text-gray-800">Phiếu bảo trì dự án</h1>
                 <div class="ml-4 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-                    Mẫu REQ-MNT
+                    Mẫu REQ-MAINT
                 </div>
             </div>
             <a href="{{ url('/requests') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
@@ -71,31 +71,11 @@
                             <label for="technician" class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ thuật đề xuất</label>
                             <input type="text" name="technician" id="technician" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                        <div>
-                            <label for="maintenance_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại bảo trì</label>
-                            <select name="maintenance_type" id="maintenance_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Chọn loại bảo trì --</option>
-                                <option value="regular">Bảo trì định kỳ</option>
-                                <option value="repair">Sửa chữa</option>
-                                <option value="upgrade">Nâng cấp</option>
-                                <option value="emergency">Khẩn cấp</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="maintenance_priority" class="block text-sm font-medium text-gray-700 mb-1 required">Mức độ ưu tiên</label>
-                            <select name="maintenance_priority" id="maintenance_priority" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Chọn mức độ ưu tiên --</option>
-                                <option value="low">Thấp</option>
-                                <option value="medium">Trung bình</option>
-                                <option value="high">Cao</option>
-                                <option value="urgent">Khẩn cấp</option>
-                            </select>
-                        </div>
                     </div>
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án bảo trì</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
@@ -109,65 +89,35 @@
                             <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
                             <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin bảo trì</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="maintenance_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày bảo trì dự kiến</label>
+                            <input type="date" name="maintenance_date" id="maintenance_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="maintenance_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại bảo trì</label>
+                            <select name="maintenance_type" id="maintenance_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Chọn loại bảo trì --</option>
+                                <option value="regular">Định kỳ</option>
+                                <option value="emergency">Khẩn cấp</option>
+                                <option value="preventive">Phòng ngừa</option>
+                            </select>
+                        </div>
                         <div class="md:col-span-2">
-                            <label for="project_status" class="block text-sm font-medium text-gray-700 mb-1 required">Tình trạng hiện tại của dự án</label>
-                            <textarea name="project_status" id="project_status" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-6 border-b border-gray-200 pb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Chi tiết công việc bảo trì</h2>
-                    <div id="task_container">
-                        <div class="task-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
-                            <div class="md:col-span-4">
-                                <label for="task_description_0" class="block text-sm font-medium text-gray-700 mb-1 required">Mô tả công việc</label>
-                                <input type="text" name="tasks[0][description]" id="task_description_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div class="md:col-span-1 flex items-end">
-                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="button" id="add_task" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                            <i class="fas fa-plus-circle mr-1"></i> Thêm công việc
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="mb-6 border-b border-gray-200 pb-4">
-                    <div class="flex justify-between items-center mb-3">
-                        <h2 class="text-lg font-semibold text-gray-800">Thiết bị cần thay thế</h2>
-                        <button type="button" id="add_equipment" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                            <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị
-                        </button>
-                    </div>
-                    
-                    <div id="equipment_container">
-                        <div class="equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
-                            <div class="md:col-span-3">
-                                <label for="equipment_name_0" class="block text-sm font-medium text-gray-700 mb-1 required">Tên thiết bị</label>
-                                <input type="text" name="equipment[0][name]" id="equipment_name_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div class="md:col-span-1">
-                                <label for="equipment_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                                <input type="number" name="equipment[0][quantity]" id="equipment_quantity_0" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            </div>
-                            <div class="md:col-span-1 flex items-end">
-                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </div>
+                            <label for="maintenance_reason" class="block text-sm font-medium text-gray-700 mb-1 required">Lý do bảo trì</label>
+                            <textarea name="maintenance_reason" id="maintenance_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                         </div>
                     </div>
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
                     <div class="flex justify-between items-center mb-3">
-                        <h2 class="text-lg font-semibold text-gray-800">Vật tư cần bổ sung</h2>
+                        <h2 class="text-lg font-semibold text-gray-800">Vật tư cần thiết</h2>
                         <button type="button" id="add_material" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
                             <i class="fas fa-plus-circle mr-1"></i> Thêm vật tư
                         </button>
@@ -211,15 +161,18 @@
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thời gian thực hiện</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày bắt đầu</label>
-                            <input type="date" name="start_date" id="start_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày dự kiến hoàn thành</label>
-                            <input type="date" name="end_date" id="end_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Nhân sự thực hiện</h2>
+                    <div id="staff_container">
+                        <div class="staff-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
+                            <div class="md:col-span-3">
+                                <label for="staff_name_0" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhân viên</label>
+                                <input type="text" name="staff[0][name]" id="staff_name_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" id="add_staff" class="h-10 px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center">
+                                    <i class="fas fa-plus mr-2"></i> Thêm
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -230,6 +183,9 @@
                 </div>
                 
                 <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="copyForm()" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
+                        <i class="fas fa-copy mr-2"></i> Sao chép phiếu
+                    </button>
                     <button type="button" class="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 flex items-center">
                         <i class="fas fa-print mr-2"></i> Xem trước
                     </button>
@@ -242,33 +198,6 @@
     </div>
 
     <script>
-        // Thêm thiết bị
-        let equipmentCount = 1;
-        document.getElementById('add_equipment').addEventListener('click', function() {
-            const container = document.getElementById('equipment_container');
-            const newRow = document.createElement('div');
-            newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
-            newRow.innerHTML = `
-                <div class="md:col-span-3">
-                    <label for="equipment_name_${equipmentCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Tên thiết bị</label>
-                    <input type="text" name="equipment[${equipmentCount}][name]" id="equipment_name_${equipmentCount}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="md:col-span-1">
-                    <label for="equipment_quantity_${equipmentCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                    <input type="number" name="equipment[${equipmentCount}][quantity]" id="equipment_quantity_${equipmentCount}" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="md:col-span-1 flex items-end">
-                    <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
-                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                    </button>
-                </div>
-            `;
-            container.appendChild(newRow);
-            equipmentCount++;
-            
-            addRemoveRowEventListeners();
-        });
-        
         // Thêm vật tư
         let materialCount = 1;
         document.getElementById('add_material').addEventListener('click', function() {
@@ -296,16 +225,16 @@
             addRemoveRowEventListeners();
         });
         
-        // Thêm công việc
-        let taskCount = 1;
-        document.getElementById('add_task').addEventListener('click', function() {
-            const container = document.getElementById('task_container');
+        // Thêm nhân viên
+        let staffCount = 1;
+        document.getElementById('add_staff').addEventListener('click', function() {
+            const container = document.getElementById('staff_container');
             const newRow = document.createElement('div');
-            newRow.className = 'task-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
+            newRow.className = 'staff-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-3';
             newRow.innerHTML = `
-                <div class="md:col-span-4">
-                    <label for="task_description_${taskCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Mô tả công việc</label>
-                    <input type="text" name="tasks[${taskCount}][description]" id="task_description_${taskCount}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="md:col-span-3">
+                    <label for="staff_name_${staffCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhân viên</label>
+                    <input type="text" name="staff[${staffCount}][name]" id="staff_name_${staffCount}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="md:col-span-1 flex items-end">
                     <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
@@ -314,7 +243,7 @@
                 </div>
             `;
             container.appendChild(newRow);
-            taskCount++;
+            staffCount++;
             
             addRemoveRowEventListeners();
         });
@@ -323,23 +252,16 @@
         function addRemoveRowEventListeners() {
             document.querySelectorAll('.remove-row').forEach(button => {
                 button.addEventListener('click', function() {
-                    this.closest('.equipment-row, .material-row, .task-row').remove();
+                    this.closest('.material-row, .staff-row').remove();
                 });
             });
         }
         
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            addRemoveRowEventListeners();
-            
-            // Thiết lập ngày dự kiến ban đầu 
-            const today = new Date();
-            const nextWeek = new Date();
-            nextWeek.setDate(today.getDate() + 7);
-            
-            document.getElementById('start_date').value = today.toISOString().split('T')[0];
-            document.getElementById('end_date').value = nextWeek.toISOString().split('T')[0];
-        });
+        // Sao chép phiếu
+        function copyForm() {
+            alert('Đã sao chép phiếu này thành một phiếu mới!');
+            // Thực tế sẽ lưu dữ liệu form hiện tại và chuyển hướng đến trang tạo phiếu mới với dữ liệu đã được điền sẵn
+        }
     </script>
 </body>
 </html> 

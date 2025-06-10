@@ -178,8 +178,8 @@ Route::get('/requests', function () {
 });
 
 // Phiếu đề xuất triển khai dự án
-Route::get('/requests/project', function () {
-    return view('requests.project');
+Route::get('/requests/project/create', function () {
+    return view('requests.project.create');
 });
 
 Route::post('/requests/project', function () {
@@ -199,13 +199,17 @@ Route::get('/requests/project/{id}/preview', function ($id) {
     return view('requests.project.preview', ['id' => $id]);
 })->where('id', '[0-9]+');
 
-// Phiếu đề xuất bảo trì dự án
-Route::get('/requests/maintenance', function () {
-    return view('requests.maintenance');
+Route::get('/requests/project/{id}/copy', function ($id) {
+    return view('requests.project.copy', ['id' => $id]);
+})->where('id', '[0-9]+');
+
+// Phiếu bảo trì dự án
+Route::get('/requests/maintenance/create', function () {
+    return view('requests.maintenance.create');
 });
 
 Route::post('/requests/maintenance', function () {
-    // Xử lý tạo phiếu đề xuất bảo trì dự án
+    // Xử lý tạo phiếu bảo trì dự án
     return redirect('/requests');
 });
 
@@ -221,26 +225,54 @@ Route::get('/requests/maintenance/{id}/preview', function ($id) {
     return view('requests.maintenance.preview', ['id' => $id]);
 })->where('id', '[0-9]+');
 
-// Phiếu đề xuất nhập thêm linh kiện
-Route::get('/requests/components', function () {
-    return view('requests.components');
+Route::get('/requests/maintenance/{id}/copy', function ($id) {
+    return view('requests.maintenance.copy', ['id' => $id]);
+})->where('id', '[0-9]+');
+
+Route::patch('/requests/maintenance/{id}', function ($id) {
+    // Xử lý cập nhật phiếu bảo trì dự án
+    return redirect('/requests/maintenance/' . $id);
+})->where('id', '[0-9]+');
+
+Route::delete('/requests/maintenance/{id}', function ($id) {
+    // Xử lý xóa phiếu bảo trì dự án
+    return redirect('/requests');
+})->where('id', '[0-9]+');
+
+// Phiếu khách yêu cầu bảo trì
+Route::get('/requests/customer-maintenance/create', function () {
+    return view('requests.customer-maintenance.create');
 });
 
-Route::post('/requests/components', function () {
-    // Xử lý tạo phiếu đề xuất nhập thêm linh kiện
+Route::post('/requests/customer-maintenance', function () {
+    // Xử lý tạo phiếu khách yêu cầu bảo trì
     return redirect('/requests');
 });
 
-Route::get('/requests/components/{id}', function ($id) {
-    return view('requests.components.show', ['id' => $id]);
+Route::get('/requests/customer-maintenance/{id}', function ($id) {
+    return view('requests.customer-maintenance.show', ['id' => $id]);
 })->where('id', '[0-9]+');
 
-Route::get('/requests/components/{id}/edit', function ($id) {
-    return view('requests.components.edit', ['id' => $id]);
+Route::get('/requests/customer-maintenance/{id}/edit', function ($id) {
+    return view('requests.customer-maintenance.edit', ['id' => $id]);
 })->where('id', '[0-9]+');
 
-Route::get('/requests/components/{id}/preview', function ($id) {
-    return view('requests.components.preview', ['id' => $id]);
+Route::get('/requests/customer-maintenance/{id}/preview', function ($id) {
+    return view('requests.customer-maintenance.preview', ['id' => $id]);
+})->where('id', '[0-9]+');
+
+Route::get('/requests/customer-maintenance/{id}/copy', function ($id) {
+    return view('requests.customer-maintenance.copy', ['id' => $id]);
+})->where('id', '[0-9]+');
+
+Route::patch('/requests/customer-maintenance/{id}', function ($id) {
+    // Xử lý cập nhật phiếu khách yêu cầu bảo trì
+    return redirect('/requests/customer-maintenance/' . $id);
+})->where('id', '[0-9]+');
+
+Route::delete('/requests/customer-maintenance/{id}', function ($id) {
+    // Xử lý xóa phiếu khách yêu cầu bảo trì
+    return redirect('/requests');
 })->where('id', '[0-9]+');
 
 // Assembly routes
@@ -275,11 +307,6 @@ Route::get('/requests/project/create', function () {
 Route::get('/requests/maintenance/create', function () {
     return view('requests.maintenance.create');
 });
-
-Route::get('/requests/components/create', function () {
-    return view('requests.components.create');
-});
-
 
 // Temporary debug route
 Route::get('/debug/materials', function () {

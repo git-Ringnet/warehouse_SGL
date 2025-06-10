@@ -83,7 +83,7 @@
                         <option value="">Loại phiếu</option>
                         <option value="project">Triển khai dự án</option>
                         <option value="maintenance">Bảo trì dự án</option>
-                        <option value="components">Nhập linh kiện</option>
+                        <option value="customer-maintenance">Khách yêu cầu bảo trì</option>
                     </select>
                 </div>
                 <div class="dropdown relative">
@@ -92,13 +92,13 @@
                     </button>
                     <div id="dropdownMenu" class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200">
                         <a href="{{ url('/requests/project/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
-                            <i class="fas fa-project-diagram mr-2"></i> Phiếu đề xuất triển khai dự án
+                            <i class="fas fa-project-diagram mr-2"></i> Phiếu đề xuất triển khai
                         </a>
                         <a href="{{ url('/requests/maintenance/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
-                            <i class="fas fa-tools mr-2"></i> Phiếu đề xuất bảo trì dự án
+                            <i class="fas fa-tools mr-2"></i> Phiếu bảo trì dự án
                         </a>
-                        <a href="{{ url('/requests/components/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
-                            <i class="fas fa-microchip mr-2"></i> Phiếu đề xuất nhập linh kiện
+                        <a href="{{ url('/requests/customer-maintenance/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
+                            <i class="fas fa-headset mr-2"></i> Phiếu khách yêu cầu bảo trì
                         </a>
                     </div>
                 </div>
@@ -185,7 +185,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">22/05/2024</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Hoàng Nam</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">Nhập linh kiện</span>
+                                <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">Phiếu khách yêu cầu bảo trì</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bình Châu</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">FPT Telecom</td>
@@ -193,16 +193,16 @@
                                 <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Từ chối</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/requests/components/3') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                <a href="{{ url('/requests/customer-maintenance/3') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </a>
-                                <a href="{{ url('/requests/components/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                <a href="{{ url('/requests/customer-maintenance/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
                                 <button onclick="openDeleteModal(3, 'Bình Châu')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
-                                <a href="{{ url('/requests/components/3/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
+                                <a href="{{ url('/requests/customer-maintenance/3/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
                                     <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
                                 </a>
                             </td>
@@ -282,7 +282,7 @@
                 route = '/requests/project/' + id;
             } else if (type.includes('bảo trì')) {
                 route = '/requests/maintenance/' + id;
-            } else if (type.includes('nhập linh kiện')) {
+            } else if (type.includes('Phiếu khách yêu cầu bảo trì')) {
                 route = '/requests/components/' + id;
             }
             
