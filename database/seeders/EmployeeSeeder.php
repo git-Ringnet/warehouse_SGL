@@ -21,7 +21,7 @@ class EmployeeSeeder extends Seeder
                 'email' => 'an.nguyen@example.com',
                 'phone' => '0987654321',
                 'address' => 'Số 123 Đường Lê Lợi, Quận 1, TP.HCM',
-                'hire_date' => '2022-01-01',
+            
                 'notes' => 'Giám đốc điều hành',
                 'role' => 'admin',
                 'status' => 'active',
@@ -33,7 +33,7 @@ class EmployeeSeeder extends Seeder
                 'email' => 'binh.tran@example.com',
                 'phone' => '0912345678',
                 'address' => 'Số 456 Đường Nguyễn Huệ, Quận 1, TP.HCM',
-                'hire_date' => '2022-02-15',
+              
                 'notes' => 'Phụ trách tuyển dụng và đào tạo',
                 'role' => 'manager',
                 'status' => 'active',
@@ -45,7 +45,7 @@ class EmployeeSeeder extends Seeder
                 'email' => 'cuong.le@example.com',
                 'phone' => '0901234567',
                 'address' => 'Số 789 Đường Hai Bà Trưng, Quận 3, TP.HCM',
-                'hire_date' => '2022-03-10',
+             
                 'notes' => 'Chuyên viên kỹ thuật',
                 'role' => 'staff',
                 'status' => 'active',
@@ -57,7 +57,7 @@ class EmployeeSeeder extends Seeder
                 'email' => 'dung.pham@example.com',
                 'phone' => '0922222222',
                 'address' => 'Số 101 Đường Cách Mạng Tháng 8, Quận 10, TP.HCM',
-                'hire_date' => '2022-04-20',
+               
                 'notes' => 'Kế toán viên',
                 'role' => 'staff',
                 'status' => 'leave',
@@ -69,7 +69,7 @@ class EmployeeSeeder extends Seeder
                 'email' => 'em.hoang@example.com',
                 'phone' => '0933333333',
                 'address' => 'Số 202 Đường Nguyễn Thị Minh Khai, Quận 3, TP.HCM',
-                'hire_date' => '2022-05-05',
+               
                 'notes' => 'Kỹ thuật viên bảo trì',
                 'role' => 'tech',
                 'status' => 'inactive',

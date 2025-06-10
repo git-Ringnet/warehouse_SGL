@@ -74,16 +74,6 @@
                         <!-- Cột 2 -->
                         <div class="space-y-4">
                             <div>
-                                <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập</label>
-                                <select id="warehouse_id" name="warehouse_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn kho --</option>
-                                    @foreach($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}" {{ old('warehouse_id', $inventoryImport->warehouse_id) == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            
-                            <div>
                                 <label for="order_code" class="block text-sm font-medium text-gray-700 mb-1">Mã đơn hàng</label>
                                 <input type="text" id="order_code" name="order_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã đơn hàng liên quan (nếu có)" value="{{ old('order_code', $inventoryImport->order_code) }}">
                             </div>
