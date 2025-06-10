@@ -76,10 +76,6 @@
                             <span class="text-sm text-gray-700">Nguyễn Văn A</span>
                         </div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Người duyệt:</span>
-                            <span class="text-sm text-gray-700">Trần Văn B</span>
-                        </div>
-                        <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người đại diện công ty:</span>
                             <span class="text-sm text-gray-700">Nguyễn Văn A (Giám đốc dự án)</span>
                         </div>
@@ -109,7 +105,7 @@
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <i class="fas fa-boxes text-blue-500 mr-2"></i>
-                    Danh sách thành phẩm
+                    Danh sách xuất
                 </h2>
 
                 <div class="overflow-x-auto">

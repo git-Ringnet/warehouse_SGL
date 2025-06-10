@@ -80,13 +80,25 @@
                             <div>
                                 <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung
                                     cấp</label>
-                                <select id="supplier" name="supplier_id"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Chọn nhà cung cấp</option>
-                                    <option value="1">Công ty TNHH Điện tử ABC</option>
-                                    <option value="2">Công ty CP Thiết bị XYZ</option>
-                                    <option value="3">Công ty TNHH Linh kiện DEF</option>
-                                </select>
+                                <div class="space-y-2">
+                                    <div class="flex">
+                                        <select id="supplier_select"
+                                            class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            <option value="">Chọn nhà cung cấp</option>
+                                            <option value="1">Công ty TNHH Điện tử ABC</option>
+                                            <option value="2">Công ty CP Thiết bị XYZ</option>
+                                            <option value="3">Công ty TNHH Linh kiện DEF</option>
+                                        </select>
+                                        <button type="button" id="addSupplierBtn"
+                                            class="bg-green-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-green-600 transition-colors">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="selectedSuppliers" class="mt-2 space-y-2">
+                                        <!-- Selected suppliers will be added here -->
+                                    </div>
+                                </div>
                             </div>
 
                             <div>
@@ -239,6 +251,57 @@
                     if (!anyChecked) {
                         allWarehouseCheckbox.checked = true;
                     }
+                });
+            });
+
+            // Handle supplier selection
+            const supplierSelect = document.getElementById('supplier_select');
+            const addSupplierBtn = document.getElementById('addSupplierBtn');
+            const selectedSuppliersContainer = document.getElementById('selectedSuppliers');
+            
+            // Add supplier button click
+            addSupplierBtn.addEventListener('click', function() {
+                const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
+                if (selectedOption.value === '') {
+                    return; // No supplier selected
+                }
+                
+                // Check if this supplier is already added
+                const existingSuppliers = document.querySelectorAll('input[name="supplier_ids[]"]');
+                for (const existingSupplier of existingSuppliers) {
+                    if (existingSupplier.value === selectedOption.value) {
+                        return; // Already added
+                    }
+                }
+                
+                // Create supplier item
+                const supplierItem = document.createElement('div');
+                supplierItem.className = 'flex items-center justify-between bg-gray-100 p-2 rounded-lg supplier-item';
+                supplierItem.innerHTML = `
+                    <span>${selectedOption.text}</span>
+                    <input type="hidden" name="supplier_ids[]" value="${selectedOption.value}">
+                    <button type="button" class="text-red-500 hover:text-red-700 remove-supplier">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                // Add item to container
+                selectedSuppliersContainer.appendChild(supplierItem);
+                
+                // Add event listener for remove button
+                const removeBtn = supplierItem.querySelector('.remove-supplier');
+                removeBtn.addEventListener('click', function() {
+                    supplierItem.remove();
+                });
+                
+                // Reset select to default
+                supplierSelect.value = '';
+            });
+            
+            // Handle existing remove buttons
+            document.querySelectorAll('.remove-supplier').forEach(button => {
+                button.addEventListener('click', function() {
+                    this.closest('.supplier-item').remove();
                 });
             });
         });

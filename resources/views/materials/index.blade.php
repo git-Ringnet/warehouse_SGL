@@ -70,7 +70,7 @@
                                 <i class="fas fa-file-excel text-green-500 mr-2"></i> Xuất Excel
                             </button>
                             <button id="exportPdfButton" class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
+                                <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất FDF
                             </button>
                         </div>
                     </div>
@@ -95,14 +95,7 @@
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Đơn vị</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                                title="Tổng số lượng vật tư ở tất cả các kho, dự án, cho thuê, bảo hành, sửa chữa...">
-                                <div class="flex items-center">
-                                    Tổng vật tư
-                                    <i class="fas fa-info-circle ml-1 text-gray-400"></i>
-                                </div>
-                            </th>
+
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
                                 title="Số lượng vật tư tồn kho">
@@ -126,11 +119,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->category }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->unit }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    <span class="font-medium px-2 py-1 rounded {{ $material->total_quantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800' }}">
-                                        {{ number_format($material->total_quantity, 0, ',', '.') }}
-                                    </span>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <span class="font-medium px-2 py-1 rounded {{ $material->inventory_quantity > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}"
                                     @php

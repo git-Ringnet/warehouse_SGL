@@ -51,12 +51,6 @@
                                     <i class="fas fa-tag text-gray-400 mr-2"></i>
                                     <span class="text-gray-800 font-medium">{{ $good->category ?? 'Loại 1' }}</span>
                                 </div>
-                                <div class="flex items-center mt-1">
-                                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                                    <span class="text-green-500 font-medium">
-                                        Sẵn hàng
-                                    </span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -85,8 +79,37 @@
                         <p class="text-gray-900">{{ $good->unit ?? 'Cái' }}</p>
                     </div>
                     <div>
+                        <p class="text-sm text-gray-500">Ngày tạo</p>
+                        <p class="text-gray-900">06/06/2025</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
+                        <p class="text-gray-900">06/06/2025</p>
+                    </div>
+                    <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
-                        <p class="text-gray-900">{{ $good->supplier->name ?? 'Công ty TNHH Điện tử ABC' }}</p>
+                        <div class="text-gray-900">
+                            @if(isset($good->suppliers) && count($good->suppliers) > 0)
+                                @foreach($good->suppliers as $supplier)
+                                    <div class="flex items-center mb-1">
+                                        <i class="fas fa-building text-gray-400 mr-2"></i>
+                                        <a href="{{ route('suppliers.show', $supplier->id) }}" class="text-blue-600 hover:underline">
+                                            {{ $supplier->name }}
+                                        </a>
+                                    </div>
+                                @endforeach
+                            @else
+                                <!-- Sample supplier data -->
+                                <div class="flex items-center mb-1">
+                                    <i class="fas fa-building text-gray-400 mr-2"></i>
+                                    <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Điện tử ABC</a>
+                                </div>
+                                <div class="flex items-center mb-1">
+                                    <i class="fas fa-building text-gray-400 mr-2"></i>
+                                    <a href="#" class="text-blue-600 hover:underline">Công ty CP Thiết bị XYZ</a>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
@@ -94,15 +117,6 @@
                 <div class="border-t border-gray-200 pt-4 mt-4">
                     <h4 class="text-md font-semibold text-gray-700 mb-3">Thông tin số lượng</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
-                        <div>
-                            <p class="text-sm text-gray-500">Tổng số lượng hàng hóa</p>
-                            <p class="text-gray-900 font-medium mt-1">
-                                <span class="px-3 py-1.5 rounded-md bg-blue-100 text-blue-800 inline-flex items-center">
-                                    <i class="fas fa-cubes mr-2 text-blue-600"></i>
-                                    <span class="text-lg">100</span>
-                                </span>
-                            </p>
-                        </div>
                         <div>
                             <p class="text-sm text-gray-500">Tổng số lượng tồn kho</p>
                             <p class="text-gray-900 font-medium mt-1">

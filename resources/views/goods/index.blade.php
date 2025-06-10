@@ -70,7 +70,7 @@
                                 <i class="fas fa-file-excel text-green-500 mr-2"></i> Xuất Excel
                             </button>
                             <button id="exportPdfButton" class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
+                                <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất FDF
                             </button>
                         </div>
                     </div>
@@ -97,14 +97,6 @@
                                 Đơn vị</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                                title="Tổng số lượng hàng hóa ở tất cả các kho, dự án, cho thuê, bảo hành, sửa chữa...">
-                                <div class="flex items-center">
-                                    Tổng hàng hóa
-                                    <i class="fas fa-info-circle ml-1 text-gray-400"></i>
-                                </div>
-                            </th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
                                 title="Số lượng hàng hóa tồn kho">
                                 <div class="flex items-center">
                                     Tổng tồn kho
@@ -116,56 +108,7 @@
                                 Hành động</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                        @foreach ($goods as $index => $good)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->code ?? 'HH-'.str_pad($index+101, 3, '0', STR_PAD_LEFT) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ $good->name ?? 'Hàng hóa mẫu '.($index+1) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->category ?? 'Loại '.($index % 5 + 1) }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->unit ?? 'Cái' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    <span class="font-medium px-2 py-1 rounded {{ $good->total_quantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800' }}">
-                                        {{ number_format($good->total_quantity ?? rand(10, 100), 0, ',', '.') }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    <span class="font-medium px-2 py-1 rounded {{ $good->inventory_quantity > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}"
-                                    title="Tính theo: Tất cả các kho">
-                                        {{ number_format($good->inventory_quantity ?? rand(5, min(($good->total_quantity ?? 50), 50)), 0, ',', '.') }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                    <a href="{{ route('goods.show', $good->id ?? 1) }}">
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                            title="Xem">
-                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                        </button>
-                                    </a>
-                                    <a href="{{ route('goods.edit', $good->id ?? 1) }}">
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                            title="Sửa">
-                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                        </button>
-                                    </a>
-                                    <button type="button" onclick="showImagesModal('{{ $good->id ?? 1 }}', '{{ $good->name ?? 'Hàng hóa mẫu '.($index+1) }}')"
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
-                                        title="Xem hình ảnh">
-                                        <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
-                                    </button>
-                                    <button onclick="openDeleteModal('{{ $good->id ?? 1 }}', '{{ $good->code ?? 'HH-'.str_pad($index+101, 3, '0', STR_PAD_LEFT) }}')"
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                        title="Xóa">
-                                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        @endforeach
-                        
+                    <tbody class="bg-white divide-y divide-gray-100">                        
                         @if(count($goods) === 0)
                             @for($i = 0; $i < 5; $i++)
                                 <tr class="hover:bg-gray-50">
@@ -176,11 +119,6 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Loại {{ $i % 5 + 1 }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <span class="font-medium px-2 py-1 rounded bg-blue-100 text-blue-800">
-                                            {{ number_format(rand(10, 100), 0, ',', '.') }}
-                                        </span>
-                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         <span class="font-medium px-2 py-1 rounded bg-green-100 text-green-800"
                                         title="Tính theo: Tất cả các kho">

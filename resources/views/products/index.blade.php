@@ -72,7 +72,7 @@
                                 </button>
                                 <button id="exportPdfButton"
                                     class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
+                                    <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất FDF
                                 </button>
                             </div>
                         </div>
@@ -89,16 +89,7 @@
                                 Tên thành phẩm</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                                Loại</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                                Tổng SL</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                                 Tồn kho</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                                Đơn vị</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                                 Hành động</th>
@@ -114,16 +105,6 @@
                                         <div class="text-xs text-gray-500">Model: {{ $product->model }}</div>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $product->category?->name ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="flex items-center">
-                                        <span
-                                            class="px-2.5 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800">
-                                            125
-                                        </span>
-                                    </div>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <span
@@ -135,7 +116,6 @@
                                         </span>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $product->unit }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium space-x-1">
                                     <div class="flex justify-start space-x-2">
                                     <a href="{{ route('products.show', $product->id) }}">
