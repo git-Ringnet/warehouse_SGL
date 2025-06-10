@@ -18,6 +18,9 @@ class Software extends Model
         'file_name',
         'file_size',
         'file_type',
+        'manual_path',
+        'manual_name',
+        'manual_size',
         'release_date',
         'platform',
         'status',
@@ -76,6 +79,11 @@ class Software extends Model
     public function getDownloadUrlAttribute()
     {
         return route('software.download', $this->id);
+    }
+
+    public function getManualDownloadUrlAttribute()
+    {
+        return route('software.download_manual', $this->id);
     }
 
     public function incrementDownloadCount()

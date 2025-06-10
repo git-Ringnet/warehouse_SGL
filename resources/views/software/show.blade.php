@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
 </head>
 <body>
     <x-sidebar-component />
@@ -35,15 +36,11 @@
         </header>
 
         @if(session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 m-6" role="alert">
-                <p>{{ session('success') }}</p>
-            </div>
+            <x-alert type="success" :message="session('success')" />
         @endif
 
         @if(session('error'))
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6" role="alert">
-                <p>{{ session('error') }}</p>
-            </div>
+            <x-alert type="error" :message="session('error')" />
         @endif
 
         <main class="p-6 space-y-6">
@@ -117,6 +114,40 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Tài liệu hướng dẫn -->
+                @if(!empty($software->manual_path))
+                <div class="mt-6 border-t border-gray-200 pt-6">
+                    <h3 class="text-md font-semibold text-gray-800 mb-4">Tài liệu hướng dẫn</h3>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                @php
+                                    $extension = pathinfo($software->manual_name, PATHINFO_EXTENSION);
+                                    $iconClass = 'fas fa-file text-gray-500';
+                                    
+                                    if ($extension == 'pdf') {
+                                        $iconClass = 'fas fa-file-pdf text-red-500';
+                                    } elseif (in_array($extension, ['doc', 'docx'])) {
+                                        $iconClass = 'fas fa-file-word text-blue-500';
+                                    } elseif ($extension == 'txt') {
+                                        $iconClass = 'fas fa-file-alt text-gray-500';
+                                    }
+                                @endphp
+                                <i class="{{ $iconClass }} text-2xl mr-3"></i>
+                                <div>
+                                    <p class="font-medium text-gray-800">{{ $software->manual_name }}</p>
+                                    <p class="text-sm text-gray-500">{{ $software->manual_size ?? 'Không rõ kích thước' }}</p>
+                                </div>
+                            </div>
+                            <a href="{{ route('software.download_manual', $software->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center transition-colors">
+                                <i class="fas fa-download mr-2"></i> Tải tài liệu hướng dẫn
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @endif
                 
                 <!-- Mô tả -->
                 @if($software->description)
@@ -155,19 +186,27 @@
                     </button>
                 </div>
             </div>
-        </main>
-    </div>
 
-    <!-- Modal xác nhận xóa -->
-    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg p-8 max-w-md w-full">
-            <h2 class="text-xl font-bold mb-4">Xác nhận xóa</h2>
-            <p class="mb-6">Bạn có chắc chắn muốn xóa phần mềm <span id="softwareNameToDelete" class="font-bold"></span> không?</p>
-            <div class="flex justify-end space-x-3">
-                <button id="cancelDeleteBtn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">Hủy</button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded">Xóa</button>
+            <!-- Card tải xuống tài liệu -->
+            <!-- @if(!empty($software->manual_path))
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
+                <div class="flex flex-col md:flex-row items-center justify-between">
+                    <div class="flex items-center mb-4 md:mb-0">
+                        <div class="bg-blue-100 p-3 rounded-full mr-4">
+                            <i class="{{ $iconClass }} text-2xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800">Tài liệu hướng dẫn sử dụng</h3>
+                            <p class="text-sm text-gray-500">{{ $software->manual_name }} ({{ $software->manual_size ?? 'Không rõ kích thước' }})</p>
+                        </div>
+                    </div>
+                    <a href="{{ route('software.download_manual', $software->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-download mr-2"></i> Tải xuống
+                    </a>
+                </div>
             </div>
-        </div>
+            @endif -->
+        </main>
     </div>
 
     <!-- Form ẩn để xóa phần mềm -->
@@ -209,21 +248,16 @@
             });
         });
 
-        // Xử lý xóa phần mềm
-        function openDeleteModal(id, name) {
-            document.getElementById('softwareNameToDelete').textContent = name;
-            document.getElementById('deleteModal').classList.remove('hidden');
-            
-            // Set up action for confirm button
-            document.getElementById('confirmDeleteBtn').onclick = function() {
-                const form = document.getElementById('deleteSoftwareForm');
-                form.action = `/software/${id}`;
-                form.submit();
-            };
+        // Xử lý xóa phần mềm - sử dụng delete-modal.js
+        function deleteCustomer(id) {
+            const form = document.getElementById('deleteSoftwareForm');
+            form.action = `/software/${id}`;
+            form.submit();
         }
-        
-        document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
-            document.getElementById('deleteModal').classList.add('hidden');
+
+        // Khi trang đã tải xong
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
         });
     </script>
 </body>

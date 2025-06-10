@@ -121,11 +121,8 @@
                                 <a href="{{ url('/testing/2') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="approveTest(2)" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Duyệt">
+                                <button onclick="approveTest(2)" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Hoàn thành">
                                     <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                </button>
-                                <button onclick="rejectTest(2)" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Từ chối">
-                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
@@ -159,7 +156,7 @@
                             </td>
                         </tr>
 
-                        <!-- Phiếu kiểm thử 4: Vật tư/Hàng hóa đã hủy -->
+                        <!-- Phiếu kiểm thử 4: Vật tư/Hàng hóa đang xử lý lại -->
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">QA-24060004</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -170,14 +167,17 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Phạm Văn D</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">13/06/2024</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Đã hủy</span>
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Chờ xử lý</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Không có</span>
+                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <a href="{{ url('/testing/4') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                </a>
+                                <a href="{{ url('/testing/4/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
                             </td>
                         </tr>
@@ -289,7 +289,7 @@
     <div id="approveModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div class="flex justify-between items-center px-6 py-4 border-b">
-                <h3 class="text-lg font-medium text-gray-800">Duyệt phiếu kiểm thử</h3>
+                <h3 class="text-lg font-medium text-gray-800">Hoàn thành phiếu kiểm thử</h3>
                 <button onclick="closeApproveModal()" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
@@ -317,33 +317,6 @@
                     </button>
                     <button type="submit" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
                         <i class="fas fa-check mr-2"></i> Xác nhận
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Reject Modal -->
-    <div id="rejectModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden z-50 flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div class="flex justify-between items-center px-6 py-4 border-b">
-                <h3 class="text-lg font-medium text-gray-800">Từ chối phiếu kiểm thử</h3>
-                <button onclick="closeRejectModal()" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="rejectForm" class="px-6 py-4">
-                <input type="hidden" id="reject_test_id" name="reject_test_id">
-                <div class="mb-4">
-                    <label for="reject_reason" class="block text-sm font-medium text-gray-700 mb-1 required">Lý do từ chối</label>
-                    <textarea id="reject_reason" name="reject_reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập lý do từ chối phiếu kiểm thử" required></textarea>
-                </div>
-                <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-                    <button type="button" onclick="closeRejectModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                        Hủy
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                        <i class="fas fa-times mr-2"></i> Xác nhận từ chối
                     </button>
                 </div>
             </form>
@@ -389,7 +362,7 @@
             document.getElementById('updateInventoryModal').classList.add('hidden');
         }
 
-        // Approve Modal
+        // Approve Modal (Hoàn thành)
         function approveTest(id) {
             document.getElementById('approve_test_id').value = id;
             document.getElementById('approveModal').classList.remove('hidden');
@@ -397,16 +370,6 @@
 
         function closeApproveModal() {
             document.getElementById('approveModal').classList.add('hidden');
-        }
-
-        // Reject Modal
-        function rejectTest(id) {
-            document.getElementById('reject_test_id').value = id;
-            document.getElementById('rejectModal').classList.remove('hidden');
-        }
-
-        function closeRejectModal() {
-            document.getElementById('rejectModal').classList.add('hidden');
         }
 
         // Receive Test
@@ -433,18 +396,8 @@
             const assignedTo = document.getElementById('assigned_to').value;
             
             // In a real application, this would be an API call
-            alert(`Đã duyệt phiếu #${id} và giao cho người phụ trách: ${assignedTo}`);
+            alert(`Đã hoàn thành phiếu #${id} và giao cho người phụ trách: ${assignedTo}`);
             closeApproveModal();
-        });
-
-        document.getElementById('rejectForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const id = document.getElementById('reject_test_id').value;
-            const reason = document.getElementById('reject_reason').value;
-            
-            // In a real application, this would be an API call
-            alert(`Đã từ chối phiếu #${id}. Lý do: ${reason}`);
-            closeRejectModal();
         });
     </script>
 </body>

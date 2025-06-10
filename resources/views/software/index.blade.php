@@ -40,15 +40,11 @@
         </header>
 
         @if(session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 m-6" role="alert">
-                <p>{{ session('success') }}</p>
-            </div>
+            <x-alert type="success" :message="session('success')" />
         @endif
 
         @if(session('error'))
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-6" role="alert">
-                <p>{{ session('error') }}</p>
-            </div>
+            <x-alert type="error" :message="session('error')" />
         @endif
 
         <main class="p-6">
@@ -90,9 +86,14 @@
                                 <button onclick="openDeleteModal('{{ $item->id }}', '{{ $item->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
-                                <a href="{{ route('software.download', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống">
+                                <a href="{{ route('software.download', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống phần mềm">
                                     <i class="fas fa-download text-purple-500 group-hover:text-white"></i>
                                 </a>
+                                @if(!empty($item->manual_path))
+                                <a href="{{ route('software.download_manual', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Tải tài liệu hướng dẫn">
+                                    <i class="fas fa-file-pdf text-green-500 group-hover:text-white"></i>
+                                </a>
+                                @endif
                             </td>
                         </tr>
                         @empty
@@ -116,18 +117,6 @@
         </main>
     </div>
 
-    <!-- Modal xác nhận xóa -->
-    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
-        <div class="bg-white rounded-lg p-8 max-w-md w-full">
-            <h2 class="text-xl font-bold mb-4">Xác nhận xóa</h2>
-            <p class="mb-6">Bạn có chắc chắn muốn xóa phần mềm <span id="softwareNameToDelete" class="font-bold"></span> không?</p>
-            <div class="flex justify-end space-x-3">
-                <button id="cancelDeleteBtn" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">Hủy</button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded">Xóa</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Form ẩn để xóa phần mềm -->
     <form id="deleteSoftwareForm" method="POST" style="display: none;">
         @csrf
@@ -135,21 +124,16 @@
     </form>
 
     <script>
-        // Xử lý xóa phần mềm
-        function openDeleteModal(id, name) {
-            document.getElementById('softwareNameToDelete').textContent = name;
-            document.getElementById('deleteModal').classList.remove('hidden');
-            
-            // Set up action for confirm button
-            document.getElementById('confirmDeleteBtn').onclick = function() {
-                const form = document.getElementById('deleteSoftwareForm');
-                form.action = `/software/${id}`;
-                form.submit();
-            };
+        // Xử lý xóa phần mềm - sử dụng delete-modal.js
+        function deleteCustomer(id) {
+            const form = document.getElementById('deleteSoftwareForm');
+            form.action = `/software/${id}`;
+            form.submit();
         }
-        
-        document.getElementById('cancelDeleteBtn').addEventListener('click', function() {
-            document.getElementById('deleteModal').classList.add('hidden');
+
+        // Khi trang đã tải xong
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
         });
 
         // Hàm toggleDropdown cho sidebar

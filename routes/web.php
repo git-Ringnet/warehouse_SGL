@@ -125,7 +125,8 @@ Route::resource('warehouse-transfers', WarehouseTransferController::class);
 
 // Quản lý phần mềm
 Route::resource('software', SoftwareController::class);
-Route::get('/software/{software}/download', [SoftwareController::class, 'download'])->name('software.download');
+Route::get('software/{software}/download', [SoftwareController::class, 'download'])->name('software.download');
+Route::get('software/{software}/download-manual', [SoftwareController::class, 'downloadManual'])->name('software.download_manual');
 
 // Quản lý kiểm thử (QA)
 Route::get('/testing', function () {

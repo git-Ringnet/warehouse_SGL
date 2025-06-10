@@ -163,6 +163,77 @@
                         </div>
                     </div>
                     
+                    <!-- Manual upload section -->
+                    <div class="mt-6">
+                        @if(!empty($software->manual_path))
+                        <h3 class="text-md font-semibold text-gray-800 mb-3">Tài liệu hướng dẫn hiện tại</h3>
+                        <div class="bg-white p-4 border border-gray-200 rounded-lg mb-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    @php
+                                        $extension = pathinfo($software->manual_name, PATHINFO_EXTENSION);
+                                        $iconClass = 'fas fa-file text-gray-500';
+                                        
+                                        if ($extension == 'pdf') {
+                                            $iconClass = 'fas fa-file-pdf text-red-500';
+                                        } elseif (in_array($extension, ['doc', 'docx'])) {
+                                            $iconClass = 'fas fa-file-word text-blue-500';
+                                        } elseif ($extension == 'txt') {
+                                            $iconClass = 'fas fa-file-alt text-gray-500';
+                                        }
+                                    @endphp
+                                    <i class="{{ $iconClass }} text-2xl mr-3"></i>
+                                    <div>
+                                        <p class="font-medium text-gray-800">{{ $software->manual_name }}</p>
+                                        <p class="text-sm text-gray-500">{{ $software->manual_size ?? 'Không rõ kích thước' }}</p>
+                                    </div>
+                                </div>
+                                <a href="{{ route('software.download_manual', $software->id) }}" class="text-blue-500 hover:text-blue-700">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                        @endif
+                        
+                        <h3 class="text-md font-semibold text-gray-800 mb-3">Tải lên tài liệu hướng dẫn mới (không bắt buộc)</h3>
+                        <div class="border-dashed border-2 border-gray-300 rounded-lg p-6 bg-gray-50">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-center">
+                                    <label for="manual_file" class="cursor-pointer flex flex-col items-center justify-center w-full">
+                                        <div class="flex flex-col items-center justify-center">
+                                            <i class="fas fa-file-pdf text-4xl text-red-400 mb-2"></i>
+                                            <p class="text-gray-700 font-medium">Kéo và thả tài liệu hoặc</p>
+                                            <p class="mt-1 text-sm text-gray-500">
+                                                Hỗ trợ: PDF, DOC, DOCX, TXT (Tối đa 10MB)
+                                            </p>
+                                            <button type="button" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm" id="browseManualBtn">
+                                                Chọn tài liệu
+                                            </button>
+                                        </div>
+                                        <input type="file" id="manual_file" name="manual_file" class="hidden" accept=".pdf,.doc,.docx,.txt">
+                                    </label>
+                                </div>
+                                
+                                <div id="manual_file_details" class="hidden bg-white p-4 border border-gray-200 rounded-lg">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center">
+                                            <i id="manual_file_icon" class="fas fa-file-pdf text-red-500 text-2xl mr-3"></i>
+                                            <div>
+                                                <p id="manual_file_name" class="font-medium text-gray-800"></p>
+                                                <p id="manual_file_size" class="text-sm text-gray-500"></p>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="remove_manual_file" class="text-red-500 hover:text-red-700">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="manual_upload_error" class="hidden text-red-500 text-sm"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <!-- Description -->
                     <div class="mt-6">
                         <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô tả phần mềm</label>
@@ -200,9 +271,24 @@
             const uploadError = document.getElementById('upload_error');
             const browseBtn = document.getElementById('browseBtn');
             
+            // Manual file upload preview
+            const manualFileInput = document.getElementById('manual_file');
+            const manualFileDetails = document.getElementById('manual_file_details');
+            const manualFileName = document.getElementById('manual_file_name');
+            const manualFileSize = document.getElementById('manual_file_size');
+            const manualFileIcon = document.getElementById('manual_file_icon');
+            const removeManualFileBtn = document.getElementById('remove_manual_file');
+            const manualUploadError = document.getElementById('manual_upload_error');
+            const browseManualBtn = document.getElementById('browseManualBtn');
+            
             // Click browse button to trigger file input
             browseBtn.addEventListener('click', function() {
                 fileInput.click();
+            });
+            
+            // Click browse manual button to trigger manual file input
+            browseManualBtn.addEventListener('click', function() {
+                manualFileInput.click();
             });
             
             // Handle file selection
@@ -265,11 +351,75 @@
                 }
             });
             
+            // Handle manual file selection
+            manualFileInput.addEventListener('change', function() {
+                if (manualFileInput.files.length > 0) {
+                    const file = manualFileInput.files[0];
+                    
+                    // Check file type
+                    const allowedTypes = ['.pdf', '.doc', '.docx', '.txt'];
+                    const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                    
+                    if (!allowedTypes.some(type => fileExtension.endsWith(type))) {
+                        manualUploadError.textContent = 'Loại file không được hỗ trợ. Vui lòng chọn PDF, DOC, DOCX hoặc TXT.';
+                        manualUploadError.classList.remove('hidden');
+                        manualFileInput.value = '';
+                        return;
+                    }
+                    
+                    // Check file size (max 10MB)
+                    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+                    if (file.size > maxSize) {
+                        manualUploadError.textContent = 'File quá lớn. Kích thước tối đa là 10MB.';
+                        manualUploadError.classList.remove('hidden');
+                        manualFileInput.value = '';
+                        return;
+                    }
+                    
+                    // Display file details
+                    manualFileName.textContent = file.name;
+                    
+                    // Format file size
+                    let size = file.size;
+                    const units = ['B', 'KB', 'MB', 'GB'];
+                    let unitIndex = 0;
+                    
+                    while (size >= 1024 && unitIndex < units.length - 1) {
+                        size /= 1024;
+                        unitIndex++;
+                    }
+                    
+                    manualFileSize.textContent = `${size.toFixed(2)} ${units[unitIndex]}`;
+                    
+                    // Show file details and hide error
+                    manualFileDetails.classList.remove('hidden');
+                    manualUploadError.classList.add('hidden');
+                    
+                    // Set file icon based on type
+                    if (fileExtension === '.pdf') {
+                        manualFileIcon.className = 'fas fa-file-pdf text-red-500 text-2xl mr-3';
+                    } else if (fileExtension === '.doc' || fileExtension === '.docx') {
+                        manualFileIcon.className = 'fas fa-file-word text-blue-500 text-2xl mr-3';
+                    } else if (fileExtension === '.txt') {
+                        manualFileIcon.className = 'fas fa-file-alt text-gray-500 text-2xl mr-3';
+                    } else {
+                        manualFileIcon.className = 'fas fa-file text-gray-500 text-2xl mr-3';
+                    }
+                }
+            });
+            
             // Remove selected file
             removeFileBtn.addEventListener('click', function() {
                 fileInput.value = '';
                 fileDetails.classList.add('hidden');
                 uploadError.classList.add('hidden');
+            });
+            
+            // Remove selected manual file
+            removeManualFileBtn.addEventListener('click', function() {
+                manualFileInput.value = '';
+                manualFileDetails.classList.add('hidden');
+                manualUploadError.classList.add('hidden');
             });
         });
 
