@@ -24,6 +24,9 @@
                     class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-qrcode mr-2"></i> Tạo QR Code
                 </button>
+                <button id="export-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                    Hủy phiếu
+                </button>
                 <a href="{{ asset('warranties') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại

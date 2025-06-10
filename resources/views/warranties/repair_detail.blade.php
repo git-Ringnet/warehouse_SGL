@@ -29,6 +29,9 @@
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                     </button>
                 </a>
+                <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
                 <button id="print-btn"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-print mr-2"></i> In phiếu
