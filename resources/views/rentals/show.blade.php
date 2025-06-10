@@ -147,6 +147,114 @@
                         </div>
                     </div>
                     
+                    <!-- Thiết bị hàng hóa theo hợp đồng -->
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Thiết bị hàng hóa theo hợp đồng</h2>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">STT</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Mã thiết bị</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tên thiết bị</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Serial</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Mock data - Thay thế bằng dữ liệu thực tế từ database -->
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="py-2 px-4 border-b">1</td>
+                                        <td class="py-2 px-4 border-b">RENT001</td>
+                                        <td class="py-2 px-4 border-b">Máy chiếu Epson</td>
+                                        <td class="py-2 px-4 border-b">EPS2023001</td>
+                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Đang sử dụng</span></td>
+                                        <td class="py-2 px-4 border-b">
+                                            <div class="flex space-x-2">
+                                                <button type="button" onclick="openModal('convert-modal', 1, 'RENT001')" class="text-blue-500 hover:text-blue-700">
+                                                    <i class="fas fa-exchange-alt mr-1"></i> Chuyển dự phòng
+                                                </button>
+                                                <button type="button" onclick="openModal('return-modal', 1, 'RENT001')" class="text-red-500 hover:text-red-700">
+                                                    <i class="fas fa-undo-alt mr-1"></i> Thu hồi
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="py-2 px-4 border-b">2</td>
+                                        <td class="py-2 px-4 border-b">RENT002</td>
+                                        <td class="py-2 px-4 border-b">Laptop Dell XPS</td>
+                                        <td class="py-2 px-4 border-b">DELL2023078</td>
+                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Đang sử dụng</span></td>
+                                        <td class="py-2 px-4 border-b">
+                                            <div class="flex space-x-2">
+                                                <button type="button" onclick="openModal('convert-modal', 2, 'RENT002')" class="text-blue-500 hover:text-blue-700">
+                                                    <i class="fas fa-exchange-alt mr-1"></i> Chuyển dự phòng
+                                                </button>
+                                                <button type="button" onclick="openModal('return-modal', 2, 'RENT002')" class="text-red-500 hover:text-red-700">
+                                                    <i class="fas fa-undo-alt mr-1"></i> Thu hồi
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Thiết bị dự phòng -->
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                        <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
+                            <h2 class="text-lg font-semibold text-gray-800">Thiết bị dự phòng</h2>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">STT</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Mã thiết bị</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tên thiết bị</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Serial</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Mock data - Thay thế bằng dữ liệu thực tế từ database -->
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="py-2 px-4 border-b">1</td>
+                                        <td class="py-2 px-4 border-b">RENT003</td>
+                                        <td class="py-2 px-4 border-b">Bộ âm thanh hội nghị</td>
+                                        <td class="py-2 px-4 border-b">AUDIO2023045</td>
+                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Dự phòng</span></td>
+                                        <td class="py-2 px-4 border-b">
+                                            <button type="button" onclick="openModal('return-modal', 3, 'RENT003')" class="text-red-500 hover:text-red-700">
+                                                <i class="fas fa-undo-alt mr-1"></i> Thu hồi
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="py-2 px-4 border-b">2</td>
+                                        <td class="py-2 px-4 border-b">RENT004</td>
+                                        <td class="py-2 px-4 border-b">Camera hội nghị Logitech</td>
+                                        <td class="py-2 px-4 border-b">LOG2023056</td>
+                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đã được thay đổi</span></td>
+                                        <td class="py-2 px-4 border-b">
+                                            <button type="button" onclick="openModal('return-modal', 4, 'RENT004')" class="text-red-500 hover:text-red-700">
+                                                <i class="fas fa-undo-alt mr-1"></i> Thu hồi
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
                     <!-- Lịch sử gia hạn -->
                     <div class="bg-white rounded-xl shadow-md p-6">
                         <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
@@ -183,35 +291,17 @@
                     <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                         <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Tình trạng phiếu thuê</h2>
                         
-                        <div class="mb-6">
-                            @php
-                                $startDate = \Carbon\Carbon::parse($rental->rental_date);
-                                $endDate = \Carbon\Carbon::parse($rental->due_date);
-                                $today = \Carbon\Carbon::now();
-                                
-                                $totalDays = $startDate->diffInDays($endDate);
-                                $daysElapsed = $startDate->diffInDays($today);
-                                
-                                $progress = $totalDays > 0 ? min(100, round(($daysElapsed / $totalDays) * 100)) : 0;
-                                $daysRemaining = $rental->daysRemaining();
-                            @endphp
-                            
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="text-sm text-gray-500">Tiến độ thuê</span>
-                                <span class="text-sm font-medium text-gray-800">{{ $progress }}%</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div class="bg-blue-500 h-2.5 rounded-full" style="width: {{ $progress }}%"></div>
-                            </div>
-                        </div>
+                        @php
+                            $daysRemaining = $rental->daysRemaining();
+                        @endphp
                         
                         <div class="space-y-4">
                             <div>
                                 <p class="text-sm text-gray-500">Thời gian còn lại</p>
                                 @if($rental->isOverdue())
-                                    <p class="text-xl font-semibold text-red-600">Quá hạn {{ abs($daysRemaining) }} ngày</p>
+                                    <p class="text-xl font-semibold text-red-600">Quá hạn {{ abs(intval($daysRemaining)) }} ngày</p>
                                 @else
-                                    <p class="text-xl font-semibold text-gray-800">{{ $daysRemaining }} ngày</p>
+                                    <p class="text-xl font-semibold text-gray-800">{{ intval($daysRemaining) }} ngày</p>
                                 @endif
                             </div>
                             <div>
@@ -233,9 +323,6 @@
                         <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Hành động</h2>
                         
                         <div class="space-y-3">
-                            <a href="{{ route('rentals.edit', $rental->id) }}" class="w-full px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center justify-center transition-colors">
-                                <i class="fas fa-edit mr-2"></i> Chỉnh sửa phiếu
-                            </a>
                             <button onclick="confirmDelete()" class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg flex items-center justify-center transition-colors">
                                 <i class="fas fa-trash mr-2"></i> Xóa phiếu
                             </button>
@@ -270,6 +357,93 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Chuyển sang dự phòng -->
+    <div id="convert-modal" class="modal-overlay">
+        <div class="modal max-w-md w-full">
+            <div class="p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Chuyển thiết bị sang dự phòng</h3>
+                    <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('convert-modal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="convert-form" action="#" method="POST">
+                    @csrf
+                    <input type="hidden" id="convert-equipment-id" name="equipment_id">
+                    
+                    <p class="mb-4">Bạn muốn chuyển thiết bị <span id="convert-equipment-code" class="font-semibold"></span> sang trạng thái dự phòng?</p>
+                    
+                    <div class="mb-4">
+                        <label for="convert-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do</label>
+                        <textarea id="convert-reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 mt-5">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300" onclick="closeModal('convert-modal')">
+                            Hủy bỏ
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            Xác nhận
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thu hồi thiết bị -->
+    <div id="return-modal" class="modal-overlay">
+        <div class="modal max-w-md w-full">
+            <div class="p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Thu hồi thiết bị</h3>
+                    <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('return-modal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="return-form" action="#" method="POST">
+                    @csrf
+                    <input type="hidden" id="return-equipment-id" name="equipment_id">
+                    
+                    <p class="mb-4">Bạn muốn thu hồi thiết bị <span id="return-equipment-code" class="font-semibold"></span> trả về kho?</p>
+                    
+                    <div class="mb-4">
+                        <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn kho</label>
+                        <select id="warehouse_id" name="warehouse_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="">-- Chọn kho --</option>
+                            <option value="1">Kho Hà Nội</option>
+                            <option value="2">Kho Hồ Chí Minh</option>
+                            <option value="3">Kho Đà Nẵng</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="return-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do thu hồi</label>
+                        <textarea id="return-reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="condition" class="block text-sm font-medium text-gray-700 mb-1">Tình trạng thiết bị</label>
+                        <select id="condition" name="condition" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="good">Hoạt động tốt</option>
+                            <option value="damaged">Hư hỏng nhẹ</option>
+                            <option value="broken">Hư hỏng nặng</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 mt-5">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300" onclick="closeModal('return-modal')">
+                            Hủy bỏ
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            Xác nhận
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -309,6 +483,24 @@
                 form.submit();
             }
         }
+
+        // Mở modal
+        function openModal(modalId, equipmentId, equipmentCode) {
+            document.getElementById(modalId).classList.add('show');
+            
+            if (modalId === 'convert-modal') {
+                document.getElementById('convert-equipment-id').value = equipmentId;
+                document.getElementById('convert-equipment-code').textContent = equipmentCode;
+            } else if (modalId === 'return-modal') {
+                document.getElementById('return-equipment-id').value = equipmentId;
+                document.getElementById('return-equipment-code').textContent = equipmentCode;
+            }
+        }
+        
+        // Đóng modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        }
     </script>
 </body>
-</html> 
+</html>
