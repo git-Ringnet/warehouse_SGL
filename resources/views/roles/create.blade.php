@@ -209,6 +209,108 @@
                     </div>
                 </div>
                 
+                <!-- Quản lý nhân viên trong nhóm -->
+                <div class="mb-6 bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Quản lý nhân viên</h2>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Chọn nhân viên thuộc nhóm quyền này</label>
+                        <div class="border border-gray-300 rounded-lg p-4 max-h-80 overflow-y-auto">
+                            @if($employees->count() > 0)
+                            <div class="mb-2 flex items-center">
+                                <button type="button" id="select-all-employees" class="text-sm text-blue-600 hover:text-blue-800">Chọn tất cả</button>
+                                <span class="mx-2">|</span>
+                                <button type="button" id="deselect-all-employees" class="text-sm text-blue-600 hover:text-blue-800">Bỏ chọn tất cả</button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                @foreach($employees as $employee)
+                                <div class="flex items-start">
+                                    <input type="checkbox" name="employees[]" id="employee-{{ $employee->id }}" value="{{ $employee->id }}" class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <label for="employee-{{ $employee->id }}" class="ml-2 block text-sm text-gray-700">
+                                        <div class="font-medium">{{ $employee->name }}</div>
+                                        <div class="text-xs text-gray-500">{{ $employee->position ?? 'Không có chức vụ' }}</div>
+                                    </label>
+                                </div>
+                                @endforeach
+                            </div>
+                            @else
+                            <p class="text-gray-500 italic">Không có nhân viên nào trong hệ thống.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quản lý dự án có quyền truy cập -->
+                <div class="mb-6 bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Phân quyền dự án</h2>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Chọn dự án mà nhóm quyền này có thể truy cập</label>
+                        <div class="border border-gray-300 rounded-lg p-4 max-h-80 overflow-y-auto">
+                            @if($projects->count() > 0)
+                            <div class="mb-2 flex items-center">
+                                <button type="button" id="select-all-projects" class="text-sm text-blue-600 hover:text-blue-800">Chọn tất cả</button>
+                                <span class="mx-2">|</span>
+                                <button type="button" id="deselect-all-projects" class="text-sm text-blue-600 hover:text-blue-800">Bỏ chọn tất cả</button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                @foreach($projects as $project)
+                                <div class="flex items-start">
+                                    <input type="checkbox" name="projects[]" id="project-{{ $project->id }}" value="{{ $project->id }}" class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <label for="project-{{ $project->id }}" class="ml-2 block text-sm text-gray-700">
+                                        <div class="font-medium">{{ $project->project_name }}</div>
+                                        <div class="text-xs text-gray-500">
+                                            @if($project->customer)
+                                                {{ $project->customer->name }}
+                                            @else
+                                                Không có khách hàng
+                                            @endif
+                                        </div>
+                                    </label>
+                                </div>
+                                @endforeach
+                            </div>
+                            @else
+                            <p class="text-gray-500 italic">Không có dự án nào đang hoạt động.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quản lý hợp đồng cho thuê có quyền truy cập -->
+                <div class="mb-6 bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Phân quyền hợp đồng cho thuê</h2>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Chọn hợp đồng cho thuê mà nhóm quyền này có thể truy cập</label>
+                        <div class="border border-gray-300 rounded-lg p-4 max-h-80 overflow-y-auto">
+                            @if($rentals->count() > 0)
+                            <div class="mb-2 flex items-center">
+                                <button type="button" id="select-all-rentals" class="text-sm text-blue-600 hover:text-blue-800">Chọn tất cả</button>
+                                <span class="mx-2">|</span>
+                                <button type="button" id="deselect-all-rentals" class="text-sm text-blue-600 hover:text-blue-800">Bỏ chọn tất cả</button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                @foreach($rentals as $rental)
+                                <div class="flex items-start">
+                                    <input type="checkbox" name="rentals[]" id="rental-{{ $rental->id }}" value="{{ $rental->id }}" class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                    <label for="rental-{{ $rental->id }}" class="ml-2 block text-sm text-gray-700">
+                                        <div class="font-medium">Hợp đồng #{{ $rental->id }}</div>
+                                        <div class="text-xs text-gray-500">
+                                            @if($rental->customer)
+                                                {{ $rental->customer->name }}
+                                            @else
+                                                Không có khách hàng
+                                            @endif
+                                        </div>
+                                    </label>
+                                </div>
+                                @endforeach
+                            </div>
+                            @else
+                            <p class="text-gray-500 italic">Không có hợp đồng cho thuê nào đang hoạt động.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="flex justify-end space-x-4">
                     <a href="{{ route('roles.index') }}" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
                         Hủy
@@ -410,6 +512,58 @@
                 // Khởi tạo trạng thái ban đầu
                 updateSelectAllEmployeesStatus();
             }
+            
+            // Hàm để chọn/bỏ chọn tất cả quyền
+            document.getElementById('select-all-permissions').addEventListener('click', function() {
+                document.querySelectorAll('input[name="permissions[]"]').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+            
+            document.getElementById('deselect-all-permissions').addEventListener('click', function() {
+                document.querySelectorAll('input[name="permissions[]"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+            
+            // Hàm để chọn/bỏ chọn tất cả nhân viên
+            document.getElementById('select-all-employees').addEventListener('click', function() {
+                document.querySelectorAll('input[name="employees[]"]').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+            
+            document.getElementById('deselect-all-employees').addEventListener('click', function() {
+                document.querySelectorAll('input[name="employees[]"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+            
+            // Hàm để chọn/bỏ chọn tất cả dự án
+            document.getElementById('select-all-projects').addEventListener('click', function() {
+                document.querySelectorAll('input[name="projects[]"]').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+            
+            document.getElementById('deselect-all-projects').addEventListener('click', function() {
+                document.querySelectorAll('input[name="projects[]"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+            
+            // Hàm để chọn/bỏ chọn tất cả hợp đồng cho thuê
+            document.getElementById('select-all-rentals').addEventListener('click', function() {
+                document.querySelectorAll('input[name="rentals[]"]').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+            
+            document.getElementById('deselect-all-rentals').addEventListener('click', function() {
+                document.querySelectorAll('input[name="rentals[]"]').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
         });
     </script>
 </body>

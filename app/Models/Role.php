@@ -49,6 +49,24 @@ class Role extends Model
     }
 
     /**
+     * Lấy các dự án được gán cho nhóm quyền này
+     */
+    public function projects()
+    {
+        return $this->belongsToMany(Project::class, 'project_role')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Lấy các hợp đồng cho thuê được gán cho nhóm quyền này
+     */
+    public function rentals()
+    {
+        return $this->belongsToMany(Rental::class, 'rental_role')
+                    ->withTimestamps();
+    }
+
+    /**
      * Kiểm tra role có quyền nào đó không
      */
     public function hasPermission($permissionName)

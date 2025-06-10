@@ -28,6 +28,13 @@
                 <a href="{{ route('suppliers.edit', $supplier->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
+                <form action="{{ route('suppliers.destroy', $supplier->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này?');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i> Xóa
+                    </button>
+                </form>
             </div>
         </header>
 

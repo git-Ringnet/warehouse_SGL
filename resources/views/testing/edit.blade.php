@@ -97,12 +97,88 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
-                                    <input type="text" id="supplier" name="supplier" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="Công ty ABC Electronics">
+                                    <select id="supplier" name="supplier" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                        <option value="">-- Chọn nhà cung cấp --</option>
+                                        <option value="1" selected>ABC Electronics</option>
+                                        <option value="2">Tech Solutions</option>
+                                        <option value="3">VN Components</option>
+                                        <option value="4">Global Tech</option>
+                                        <option value="5">Mega Components</option>
+                                    </select>
                                 </div>
                                 
                                 <div>
                                     <label for="batch_number" class="block text-sm font-medium text-gray-700 mb-1">Mã lô</label>
                                     <input type="text" id="batch_number" name="batch_number" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="LOT-2405-01">
+                                </div>
+                            </div>
+                            
+                            <!-- Serial Management -->
+                            <div class="mt-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium text-gray-700">Quản lý Serial</label>
+                                    <div class="flex items-center gap-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="serial_mode" value="select" class="h-4 w-4 text-blue-600 focus:ring-blue-500" checked onclick="toggleSerialMode('select')">
+                                            <span class="ml-2 text-sm text-gray-700">Chọn từ danh sách</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="serial_mode" value="manual" class="h-4 w-4 text-blue-600 focus:ring-blue-500" onclick="toggleSerialMode('manual')">
+                                            <span class="ml-2 text-sm text-gray-700">Nhập thủ công</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            
+                                <!-- Chọn serial từ danh sách -->
+                                <div id="select_serial_container" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h3 class="text-md font-medium text-gray-800">Chọn Serial</h3>
+                                        <span class="text-sm text-gray-500" id="serial_count">Đã chọn: 0/0</span>
+                                    </div>
+                                    <div id="serial_list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
+                                        <!-- Serials will be added here dynamically -->
+                                        <div class="flex items-center space-x-2">
+                                            <input type="checkbox" id="serial_4G-MOD-2305621" name="serials[]" value="4G-MOD-2305621" class="serial-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" checked>
+                                            <label for="serial_4G-MOD-2305621" class="text-sm text-gray-700">4G-MOD-2305621</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-4 pt-3 border-t border-gray-200">
+                                        <div class="flex items-center gap-4">
+                                            <label class="block text-sm font-medium text-gray-700">Số lượng</label>
+                                            <div class="relative rounded-md shadow-sm w-32">
+                                                <input type="number" id="select_quantity" min="1" value="1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+                                                oninput="updateSelectedSerialsFromQuantity()">
+                                            </div>
+                                            <p class="text-xs text-gray-500">Nhập số lượng sẽ tự động chọn các serial đầu tiên</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Nhập serial thủ công -->
+                                <div id="manual_serial_container" class="hidden border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                    <div class="mb-3">
+                                        <div class="flex justify-between items-center mb-2">
+                                            <h3 class="text-md font-medium text-gray-800">Nhập Serial mới</h3>
+                                            <span class="text-sm text-blue-600 font-medium" id="manual_serial_count">0 serial</span>
+                                        </div>
+                                        <p class="text-sm text-gray-500 mb-2">Mỗi serial trên một dòng</p>
+                                        <textarea id="manual_serial" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" placeholder="Nhập danh sách serial, mỗi serial một dòng" oninput="updateManualSerialCount()">4G-MOD-2305621</textarea>
+                                    </div>
+                                    
+                                    <div class="flex gap-2 items-center">
+                                        <div class="flex-1">
+                                            <label for="serial_prefix" class="block text-sm text-gray-600 mb-1">Tiền tố</label>
+                                            <input type="text" id="serial_prefix" class="w-full h-8 border border-gray-300 rounded px-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" placeholder="Ví dụ: 4G-MOD-">
+                                        </div>
+                                        <div class="flex-1">
+                                            <label for="serial_count_input" class="block text-sm text-gray-600 mb-1">Số lượng</label>
+                                            <input type="number" id="serial_count_input" min="1" value="1" class="w-full h-8 border border-gray-300 rounded px-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
+                                        </div>
+                                        <div class="mt-6">
+                                            <button type="button" class="h-8 bg-blue-500 text-white rounded px-4 text-sm hover:bg-blue-600" onclick="generateSerials()">Tạo</button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -231,6 +307,39 @@
     </div>
 
     <script>
+        // Sample data - this would come from database
+        const itemTypes = {
+            material: ['Module 4G', 'Module Công suất', 'Module IoTs', 'Ăng-ten', 'Bộ nguồn', 'Mạch điều khiển'],
+            product: ['Bộ điều khiển SGL-500', 'Thiết bị đo nhiệt độ', 'Bộ phát wifi công nghiệp', 'Bộ chuyển đổi tín hiệu'],
+            finished_product: ['Bộ thu phát SGL-4G-Premium', 'Thiết bị giám sát IOT-SGL-01', 'Hệ thống điều khiển thông minh SGL-Smart']
+        };
+        
+        // Sample serial data per item - this would come from database
+        const serialData = {
+            'Module 4G': ['4G-MOD-2305621', '4G-MOD-2305622', '4G-MOD-2305623', '4G-MOD-2305624', '4G-MOD-2305625'],
+            'Module Công suất': ['PWR-MOD-230101', 'PWR-MOD-230102', 'PWR-MOD-230103'],
+            'Module IoTs': ['IOT-MOD-230201', 'IOT-MOD-230202', 'IOT-MOD-230203'],
+            'Bộ điều khiển SGL-500': ['SGL-500-230001', 'SGL-500-230002'],
+            'Bộ thu phát SGL-4G-Premium': ['SGL-4GP-230055', 'SGL-4GP-230056']
+        };
+        
+        // Mapping of items to their suppliers
+        const itemSupplierMapping = {
+            'Module 4G': '1', // ABC Electronics
+            'Module Công suất': '3', // VN Components
+            'Module IoTs': '2', // Tech Solutions
+            'Ăng-ten': '3', // VN Components
+            'Bộ nguồn': '4', // Global Tech
+            'Mạch điều khiển': '5', // Mega Components
+            'Bộ điều khiển SGL-500': '1', // ABC Electronics
+            'Thiết bị đo nhiệt độ': '2', // Tech Solutions
+            'Bộ phát wifi công nghiệp': '4', // Global Tech
+            'Bộ chuyển đổi tín hiệu': '5', // Mega Components
+            'Bộ thu phát SGL-4G-Premium': '1', // ABC Electronics
+            'Thiết bị giám sát IOT-SGL-01': '2', // Tech Solutions
+            'Hệ thống điều khiển thông minh SGL-Smart': '5' // Mega Components
+        };
+
         // Toggle fields based on test type
         function toggleTestTypeFields() {
             const testType = document.getElementById('test_type').value;
@@ -245,6 +354,178 @@
             } else if(testType === 'finished_product') {
                 document.getElementById('finished_product_fields').classList.remove('hidden');
             }
+        }
+        
+        // Toggle between serial selection modes
+        function toggleSerialMode(mode) {
+            if (mode === 'select') {
+                document.getElementById('select_serial_container').classList.remove('hidden');
+                document.getElementById('manual_serial_container').classList.add('hidden');
+                updateSelectedCount();
+            } else {
+                document.getElementById('select_serial_container').classList.add('hidden');
+                document.getElementById('manual_serial_container').classList.remove('hidden');
+                updateManualSerialCount();
+            }
+            updateQuantityFields();
+        }
+        
+        // Generate serials based on prefix and count
+        function generateSerials() {
+            const prefix = document.getElementById('serial_prefix').value.trim();
+            const count = parseInt(document.getElementById('serial_count_input').value) || 0;
+            
+            if (count <= 0) {
+                alert('Số lượng phải lớn hơn 0');
+                return;
+            }
+            
+            const today = new Date();
+            const dateStr = today.getFullYear().toString().slice(-2) + 
+                           (today.getMonth() + 1).toString().padStart(2, '0') + 
+                           today.getDate().toString().padStart(2, '0');
+            
+            let serials = [];
+            for (let i = 1; i <= count; i++) {
+                const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                serials.push(`${prefix}${dateStr}-${randomDigits}`);
+            }
+            
+            const serialTextarea = document.getElementById('manual_serial');
+            const existingSerials = serialTextarea.value.trim();
+            
+            serialTextarea.value = existingSerials 
+                ? existingSerials + '\n' + serials.join('\n') 
+                : serials.join('\n');
+            
+            updateManualSerialCount();
+        }
+        
+        // Update manual serial count
+        function updateManualSerialCount() {
+            const serialText = document.getElementById('manual_serial').value.trim();
+            const serialLines = serialText ? serialText.split('\n').filter(line => line.trim()) : [];
+            
+            document.getElementById('manual_serial_count').textContent = `${serialLines.length} serial`;
+            updateQuantityFields();
+        }
+        
+        // Update selected count
+        function updateSelectedCount() {
+            const checkboxes = document.querySelectorAll('.serial-checkbox');
+            const checkedCount = document.querySelectorAll('.serial-checkbox:checked').length;
+            const totalCount = checkboxes.length;
+            
+            const serialCount = document.getElementById('serial_count');
+            if (serialCount) {
+                serialCount.textContent = `Đã chọn: ${checkedCount}/${totalCount}`;
+            }
+            
+            updateQuantityFields();
+        }
+        
+        // Auto select serials based on quantity
+        function updateSelectedSerialsFromQuantity() {
+            const qty = parseInt(document.getElementById('select_quantity').value) || 0;
+            const checkboxes = document.querySelectorAll('.serial-checkbox');
+            
+            if (checkboxes.length === 0 || qty <= 0) return;
+            
+            // Uncheck all first
+            checkboxes.forEach(cb => cb.checked = false);
+            
+            // Then check the first qty checkboxes
+            for (let i = 0; i < Math.min(qty, checkboxes.length); i++) {
+                checkboxes[i].checked = true;
+            }
+            
+            // Update count
+            updateSelectedCount();
+        }
+        
+        // Update quantity fields based on serial selections
+        function updateQuantityFields() {
+            let quantity = 0;
+            
+            // Determine which mode is active
+            const serialMode = document.querySelector('input[name="serial_mode"]:checked');
+            if (!serialMode) return;
+            
+            if (serialMode.value === 'select') {
+                // Count selected serials
+                quantity = document.querySelectorAll('.serial-checkbox:checked').length;
+            } else {
+                // Count manual serials
+                const serialText = document.getElementById('manual_serial').value.trim();
+                quantity = serialText ? serialText.split('\n').filter(line => line.trim()).length : 0;
+            }
+            
+            // Update the main quantity field
+            if (quantity > 0) {
+                document.getElementById('quantity').value = quantity;
+            }
+        }
+
+        // Add event listeners to update fields when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update material type to supplier mapping
+            document.getElementById('material_type').addEventListener('change', function() {
+                const materialTypeSelect = document.getElementById('material_type');
+                const materialTypeOption = materialTypeSelect.options[materialTypeSelect.selectedIndex].text;
+                const supplierId = itemSupplierMapping[materialTypeOption] || '';
+                
+                if (supplierId) {
+                    document.getElementById('supplier').value = supplierId;
+                }
+            });
+            
+            // Initialize serial management
+            initSerialManagement();
+            
+            // Add event listeners to quantity fields
+            document.getElementById('quantity').addEventListener('change', function() {
+                const total = parseInt(this.value) || 0;
+                const passQty = document.getElementById('pass_quantity');
+                const failQty = document.getElementById('fail_quantity');
+                
+                // If pass and fail quantities exist, adjust them to match the total
+                if (passQty && failQty) {
+                    const currentPass = parseInt(passQty.value) || 0;
+                    const currentFail = parseInt(failQty.value) || 0;
+                    const currentTotal = currentPass + currentFail;
+                    
+                    if (currentTotal > 0 && currentTotal !== total) {
+                        const ratio = currentPass / currentTotal;
+                        passQty.value = Math.round(total * ratio);
+                        failQty.value = total - passQty.value;
+                    }
+                }
+            });
+            
+            // Initialize the test type fields
+            toggleTestTypeFields();
+        });
+        
+        // Initialize serial management based on existing data
+        function initSerialManagement() {
+            // Set up event listeners for serial checkboxes
+            const checkboxes = document.querySelectorAll('.serial-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    updateSelectedCount();
+                    
+                    // Update quantity field to match selected count
+                    const selectQty = document.getElementById('select_quantity');
+                    if (selectQty) {
+                        const checkedCount = document.querySelectorAll('.serial-checkbox:checked').length;
+                        selectQty.value = checkedCount || 1;
+                    }
+                });
+            });
+            
+            // Initialize serial counts
+            updateSelectedCount();
+            updateManualSerialCount();
         }
         
         // Add new test item row
@@ -305,7 +586,5 @@
             window.print();
         }
     </script>
-</body>
-</html> 
 </body>
 </html> 

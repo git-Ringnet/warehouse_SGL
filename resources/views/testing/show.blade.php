@@ -159,6 +159,130 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Danh sách thiết bị và vật tư -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Danh sách thiết bị và vật tư kiểm thử</h2>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại thiết bị</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kết quả</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vật tư</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module 4G</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4G-MOD-2305621</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vật tư</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Module 4G</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4G-MOD-2305622</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Hàng hóa</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Bộ điều khiển SGL-500</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SGL-500-230001</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Không đạt</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thành phẩm</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Bộ thu phát SGL-4G-Premium</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SGL-4GP-230055</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chi tiết thiết bị thành phẩm -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết thiết bị thành phẩm</h2>
+
+                <div class="mb-6">
+                    <h3 class="text-md font-medium text-gray-800 mb-3">Bộ thu phát SGL-4G-Premium (SGL-4GP-230055)</h3>
+                    
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Thành phần vật tư:
+                            <br>    
+                             số lượng: 4</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Tên vật tư</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Serial</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-500">Kết quả</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-50">
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-700">Module 4G</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">4G-MOD-2305621</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-700">Bộ nguồn</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">PWR-230089</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-700">Bộ xử lý tín hiệu</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">SIG-230033</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-4 py-2 text-sm text-gray-700">Ăng-ten</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">ANT-230021</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Kết quả kiểm thử thiết bị:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700">
+                            <li>Kiểm tra kết nối: <span class="font-medium text-green-700">Đạt</span></li>
+                            <li>Kiểm tra tín hiệu: <span class="font-medium text-green-700">Đạt</span></li>
+                            <li>Kiểm tra độ ổn định: <span class="font-medium text-green-700">Đạt</span></li>
+                            <li>Kiểm tra hiệu năng: <span class="font-medium text-green-700">Đạt</span></li>
+                            <li>Kiểm tra dung lượng pin: <span class="font-medium text-green-700">Đạt</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
             
             <!-- Hạng mục kiểm thử và kết quả -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
@@ -257,7 +381,7 @@
             
             <!-- Xác nhận và phê duyệt -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Xác nhận và phê duyệt</h2>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Xác nhận và hoàn thành</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="text-center p-4">
@@ -281,7 +405,7 @@
                     </div>
                     
                     <div class="text-center p-4">
-                        <div class="font-medium text-gray-800 mb-2">Phê duyệt</div>
+                        <div class="font-medium text-gray-800 mb-2">Hoàn thành</div>
                         <div class="h-20 flex items-end justify-center">
                             <p class="font-medium">Lê Văn C</p>
                         </div>

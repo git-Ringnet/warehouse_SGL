@@ -61,7 +61,13 @@ class RoleController extends Controller
         // Lấy tất cả nhân viên
         $employees = \App\Models\Employee::orderBy('name')->get();
         
-        return view('roles.create', compact('permissions', 'employees'));
+        // Lấy tất cả dự án (sử dụng project_name thay vì name)
+        $projects = \App\Models\Project::orderBy('project_name')->get();
+        
+        // Lấy tất cả hợp đồng cho thuê (không lọc theo status vì cột không tồn tại)
+        $rentals = \App\Models\Rental::orderBy('created_at', 'desc')->get();
+        
+        return view('roles.create', compact('permissions', 'employees', 'projects', 'rentals'));
     }
 
     /**
@@ -77,6 +83,10 @@ class RoleController extends Controller
             'permissions.*' => 'exists:permissions,id',
             'employees' => 'nullable|array',
             'employees.*' => 'exists:employees,id',
+            'projects' => 'nullable|array',
+            'projects.*' => 'exists:projects,id',
+            'rentals' => 'nullable|array',
+            'rentals.*' => 'exists:rentals,id',
         ]);
 
         $role = Role::create([
@@ -104,6 +114,40 @@ class RoleController extends Controller
                     'Gán ' . count($request->employees) . ' nhân viên vào nhóm quyền ' . $role->name,
                     null,
                     ['role_id' => $role->id, 'employees' => $request->employees]
+                );
+            }
+        }
+        
+        // Gán dự án cho nhóm quyền
+        if ($request->has('projects')) {
+            $role->projects()->sync($request->projects);
+            
+            // Ghi nhật ký cho việc gán dự án
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'project_role',
+                    'Gán ' . count($request->projects) . ' dự án cho nhóm quyền ' . $role->name,
+                    null,
+                    ['role_id' => $role->id, 'projects' => $request->projects]
+                );
+            }
+        }
+        
+        // Gán hợp đồng cho thuê cho nhóm quyền
+        if ($request->has('rentals')) {
+            $role->rentals()->sync($request->rentals);
+            
+            // Ghi nhật ký cho việc gán hợp đồng cho thuê
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'rental_role',
+                    'Gán ' . count($request->rentals) . ' hợp đồng cho thuê cho nhóm quyền ' . $role->name,
+                    null,
+                    ['role_id' => $role->id, 'rentals' => $request->rentals]
                 );
             }
         }
@@ -138,7 +182,13 @@ class RoleController extends Controller
                                ->get()
                                ->groupBy('group');
         
-        return view('roles.show', compact('role', 'permissions', 'rolePermissions'));
+        // Lấy dự án được gán cho nhóm quyền này
+        $projects = $role->projects;
+        
+        // Lấy hợp đồng cho thuê được gán cho nhóm quyền này
+        $rentals = $role->rentals;
+        
+        return view('roles.show', compact('role', 'permissions', 'rolePermissions', 'projects', 'rentals'));
     }
 
     /**
@@ -167,7 +217,29 @@ class RoleController extends Controller
         // Lấy danh sách id nhân viên đang thuộc nhóm quyền này
         $roleEmployees = $role->employees->pluck('id')->toArray();
         
-        return view('roles.edit', compact('role', 'permissions', 'rolePermissions', 'employees', 'roleEmployees'));
+        // Lấy tất cả dự án (sử dụng project_name thay vì name)
+        $projects = \App\Models\Project::orderBy('project_name')->get();
+        
+        // Lấy danh sách id dự án đã được gán cho nhóm quyền này
+        $roleProjects = $role->projects->pluck('id')->toArray();
+        
+        // Lấy tất cả hợp đồng cho thuê (không lọc theo status vì cột không tồn tại)
+        $rentals = \App\Models\Rental::orderBy('created_at', 'desc')->get();
+        
+        // Lấy danh sách id hợp đồng cho thuê đã được gán cho nhóm quyền này
+        $roleRentals = $role->rentals->pluck('id')->toArray();
+        
+        return view('roles.edit', compact(
+            'role', 
+            'permissions', 
+            'rolePermissions', 
+            'employees', 
+            'roleEmployees', 
+            'projects', 
+            'roleProjects', 
+            'rentals', 
+            'roleRentals'
+        ));
     }
 
     /**
@@ -189,6 +261,10 @@ class RoleController extends Controller
             'permissions.*' => 'exists:permissions,id',
             'employees' => 'nullable|array',
             'employees.*' => 'exists:employees,id',
+            'projects' => 'nullable|array',
+            'projects.*' => 'exists:projects,id',
+            'rentals' => 'nullable|array',
+            'rentals.*' => 'exists:rentals,id',
         ]);
 
         $oldData = $role->toArray();
@@ -224,6 +300,68 @@ class RoleController extends Controller
                     'Cập nhật nhân viên trong nhóm quyền ' . $role->name,
                     ['old_employees' => $role->employees->pluck('id')->toArray()],
                     ['new_employees' => $request->employees]
+                );
+            }
+        }
+        
+        // Cập nhật dự án cho nhóm quyền
+        $oldProjects = $role->projects->pluck('id')->toArray();
+        if ($request->has('projects')) {
+            $role->projects()->sync($request->projects);
+            
+            // Ghi nhật ký cho việc cập nhật dự án
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'project_role',
+                    'Cập nhật dự án cho nhóm quyền ' . $role->name,
+                    ['old_projects' => $oldProjects],
+                    ['new_projects' => $request->projects]
+                );
+            }
+        } else {
+            $role->projects()->detach();
+            
+            if (count($oldProjects) > 0 && Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'project_role',
+                    'Xóa tất cả dự án khỏi nhóm quyền ' . $role->name,
+                    ['old_projects' => $oldProjects],
+                    ['new_projects' => []]
+                );
+            }
+        }
+        
+        // Cập nhật hợp đồng cho thuê cho nhóm quyền
+        $oldRentals = $role->rentals->pluck('id')->toArray();
+        if ($request->has('rentals')) {
+            $role->rentals()->sync($request->rentals);
+            
+            // Ghi nhật ký cho việc cập nhật hợp đồng cho thuê
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'rental_role',
+                    'Cập nhật hợp đồng cho thuê cho nhóm quyền ' . $role->name,
+                    ['old_rentals' => $oldRentals],
+                    ['new_rentals' => $request->rentals]
+                );
+            }
+        } else {
+            $role->rentals()->detach();
+            
+            if (count($oldRentals) > 0 && Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'rental_role',
+                    'Xóa tất cả hợp đồng cho thuê khỏi nhóm quyền ' . $role->name,
+                    ['old_rentals' => $oldRentals],
+                    ['new_rentals' => []]
                 );
             }
         }

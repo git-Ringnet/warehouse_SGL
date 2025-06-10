@@ -21,6 +21,9 @@
                 <a href="{{ route('inventory-imports.edit', $inventoryImport->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white h-10 px-4 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Sửa
                 </a>
+                <button onclick="openDeleteModal('{{ $inventoryImport->id }}', '{{ $inventoryImport->import_code }}')" class="bg-red-500 hover:bg-red-600 text-white h-10 px-4 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
                 <a href="{{ route('inventory-imports.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>

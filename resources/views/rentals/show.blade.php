@@ -87,6 +87,13 @@
                 <a href="{{ route('rentals.edit', $rental->id) }}" class="h-10 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
+                <form action="{{ route('rentals.destroy', $rental->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu cho thuê này?');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="h-10 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i> Xóa
+                    </button>
+                </form>
             </div>
         </header>
 

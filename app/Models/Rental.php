@@ -32,6 +32,15 @@ class Rental extends Model
     }
 
     /**
+     * Lấy các nhóm quyền có quyền với hợp đồng cho thuê này
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'rental_role')
+                    ->withTimestamps();
+    }
+
+    /**
      * Kiểm tra xem phiếu cho thuê có quá hạn không.
      */
     public function isOverdue()

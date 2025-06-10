@@ -95,6 +95,22 @@
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Phương thức xử lý khi duyệt</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center">
+                                <input type="radio" name="approval_method" id="production" value="production" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" checked>
+                                <label for="production" class="ml-2 block text-sm font-medium text-gray-700">Sản xuất lắp ráp</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="radio" name="approval_method" id="warehouse" value="warehouse" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                <label for="warehouse" class="ml-2 block text-sm font-medium text-gray-700">Xuất kho</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
                     <div class="flex justify-between items-center mb-3">
                         <h2 class="text-lg font-semibold text-gray-800">Thiết bị đề xuất</h2>
                         <button type="button" id="add_equipment" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">

@@ -31,4 +31,13 @@ class Project extends Model
     {
         return $this->belongsTo(Customer::class);
     }
+
+    /**
+     * Lấy các nhóm quyền có quyền với dự án này
+     */
+    public function roles()
+    {
+        return $this->belongsToMany(Role::class, 'project_role')
+                    ->withTimestamps();
+    }
 } 

@@ -54,6 +54,7 @@ class SoftwareController extends Controller
             'type' => 'required|string',
             'status' => 'required|string|in:active,inactive,beta',
             'software_file' => 'required|file|max:40960', // 40MB (để phù hợp với post_max_size của server)
+            'manual_file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB cho tài liệu hướng dẫn
             'platform' => 'nullable|string',
             'release_date' => 'nullable|date',
             'description' => 'nullable|string',
@@ -72,7 +73,8 @@ class SoftwareController extends Controller
             // Lưu file vào storage/app/public/software
             $filePath = $file->storeAs('software', $fileName, 'public');
             
-            Software::create([
+            // Tạo dữ liệu cơ bản
+            $data = [
                 'name' => $request->name,
                 'version' => $request->version,
                 'type' => $request->type,
@@ -85,7 +87,28 @@ class SoftwareController extends Controller
                 'status' => $request->status,
                 'description' => $request->description,
                 'changelog' => $request->changelog,
-            ]);
+            ];
+            
+            // Xử lý tài liệu hướng dẫn nếu có
+            if ($request->hasFile('manual_file')) {
+                $manualFile = $request->file('manual_file');
+                $originalManualFileName = $manualFile->getClientOriginalName();
+                $manualFileType = strtolower($manualFile->getClientOriginalExtension());
+                $manualFileSize = $this->formatSizeUnits($manualFile->getSize());
+                
+                // Tạo tên file duy nhất
+                $manualFileName = Str::slug($request->name) . '-manual-' . $request->version . '-' . time() . '.' . $manualFileType;
+                
+                // Lưu file vào storage/app/public/manuals
+                $manualFilePath = $manualFile->storeAs('manuals', $manualFileName, 'public');
+                
+                // Thêm thông tin tài liệu hướng dẫn vào dữ liệu
+                $data['manual_path'] = $manualFilePath;
+                $data['manual_name'] = $originalManualFileName;
+                $data['manual_size'] = $manualFileSize;
+            }
+            
+            Software::create($data);
             
             return redirect()->route('software.index')->with('success', 'Phần mềm đã được tạo thành công');
         } catch (\Exception $e) {
@@ -121,6 +144,7 @@ class SoftwareController extends Controller
             'type' => 'required|string',
             'status' => 'required|string|in:active,inactive,beta',
             'software_file' => 'nullable|file|max:40960', // 40MB (để phù hợp với post_max_size của server)
+            'manual_file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB cho tài liệu hướng dẫn
             'platform' => 'nullable|string',
             'release_date' => 'nullable|date',
             'description' => 'nullable|string',
@@ -164,6 +188,30 @@ class SoftwareController extends Controller
                 $data['file_type'] = $fileType;
             }
             
+            // Nếu có tài liệu hướng dẫn mới được tải lên
+            if ($request->hasFile('manual_file')) {
+                $manualFile = $request->file('manual_file');
+                $originalManualFileName = $manualFile->getClientOriginalName();
+                $manualFileType = strtolower($manualFile->getClientOriginalExtension());
+                $manualFileSize = $this->formatSizeUnits($manualFile->getSize());
+                
+                // Tạo tên file duy nhất
+                $manualFileName = Str::slug($request->name) . '-manual-' . $request->version . '-' . time() . '.' . $manualFileType;
+                
+                // Xóa file cũ nếu có
+                if (!empty($software->manual_path) && Storage::disk('public')->exists($software->manual_path)) {
+                    Storage::disk('public')->delete($software->manual_path);
+                }
+                
+                // Lưu file mới
+                $manualFilePath = $manualFile->storeAs('manuals', $manualFileName, 'public');
+                
+                // Cập nhật thông tin tài liệu hướng dẫn
+                $data['manual_path'] = $manualFilePath;
+                $data['manual_name'] = $originalManualFileName;
+                $data['manual_size'] = $manualFileSize;
+            }
+            
             $software->update($data);
             
             return redirect()->route('software.show', $software)->with('success', 'Phần mềm đã được cập nhật thành công');
@@ -179,9 +227,14 @@ class SoftwareController extends Controller
     public function destroy(Software $software)
     {
         try {
-            // Xóa file
+            // Xóa file phần mềm
             if (Storage::disk('public')->exists($software->file_path)) {
                 Storage::disk('public')->delete($software->file_path);
+            }
+            
+            // Xóa file tài liệu hướng dẫn nếu có
+            if (!empty($software->manual_path) && Storage::disk('public')->exists($software->manual_path)) {
+                Storage::disk('public')->delete($software->manual_path);
             }
             
             $software->delete();
@@ -213,6 +266,30 @@ class SoftwareController extends Controller
         } catch (\Exception $e) {
             Log::error('Lỗi khi tải xuống phần mềm: ' . $e->getMessage());
             return back()->with('error', 'Đã xảy ra lỗi khi tải xuống phần mềm');
+        }
+    }
+    
+    /**
+     * Download the manual file.
+     */
+    public function downloadManual(Software $software)
+    {
+        try {
+            if (empty($software->manual_path)) {
+                return back()->with('error', 'Không có tài liệu hướng dẫn cho phần mềm này');
+            }
+            
+            $filePath = storage_path('app/public/' . $software->manual_path);
+            
+            if (!file_exists($filePath)) {
+                return back()->with('error', 'Tài liệu hướng dẫn không tồn tại');
+            }
+            
+            // Trả về file để tải xuống
+            return response()->download($filePath, $software->manual_name);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tải xuống tài liệu hướng dẫn: ' . $e->getMessage());
+            return back()->with('error', 'Đã xảy ra lỗi khi tải xuống tài liệu hướng dẫn');
         }
     }
     
