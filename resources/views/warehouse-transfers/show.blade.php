@@ -59,11 +59,6 @@
                     <!-- Cột 1 -->
                     <div>
                         <div class="mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium mb-1">Serial được chuyển</p>
-                            <p class="text-base text-gray-800 font-semibold">{{ $warehouseTransfer->serial }}</p>
-                        </div>
-                        
-                        <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">Kho nguồn</p>
                             <p class="text-base text-gray-800 font-semibold">{{ $warehouseTransfer->source_warehouse->name }}</p>
                         </div>
@@ -94,8 +89,6 @@
                                 <span class="text-base text-gray-800 font-semibold">{{ $warehouseTransfer->employee->name }}</span>
                             </div>
                         </div>
-                        
-                       
                     </div>
                 </div>
                 
@@ -134,18 +127,41 @@
                 @if(count($selectedMaterials) > 0)
                 <div class="border rounded-lg border-gray-200 p-2 bg-white">
                     @foreach($selectedMaterials as $material)
-                    <div class="flex items-center justify-between py-2 px-3 border-b border-gray-200 last:border-b-0">
-                        <div class="flex items-center">
-                            @if($material['type'] == 'component')
-                            <span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs mr-2">Linh kiện</span>
-                            @elseif($material['type'] == 'product')
-                            <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs mr-2">Thành phẩm</span>
-                            @endif
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium text-gray-700">{{ $material['name'] }}</span>
-                                <span class="text-xs text-gray-500">Số lượng: {{ $material['quantity'] }}</span>
+                    <div class="p-3 border-b border-gray-200 last:border-b-0">
+                        <!-- Thông tin chính của vật tư -->
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                @if($material['type'] == 'component')
+                                <span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs mr-2">Linh kiện</span>
+                                @elseif($material['type'] == 'product')
+                                <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs mr-2">Thành phẩm</span>
+                                @endif
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-gray-700">{{ $material['name'] }}</span>
+                                    <span class="text-xs text-gray-500">Số lượng: {{ $material['quantity'] }}</span>
+                                </div>
                             </div>
                         </div>
+                        
+                        <!-- Hiển thị số serial nếu có -->
+                        @if(!empty($material['serial_numbers']))
+                        <div class="mt-2 bg-gray-50 p-2 rounded">
+                            <p class="text-xs font-medium text-gray-600 mb-1">Danh sách số seri:</p>
+                            <div class="flex flex-wrap gap-1">
+                                @foreach((is_array($material['serial_numbers']) ? $material['serial_numbers'] : explode(',', $material['serial_numbers'])) as $serial)
+                                    <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">{{ trim($serial) }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+                        @endif
+                        
+                        <!-- Hiển thị ghi chú nếu có -->
+                        @if(!empty($material['notes']))
+                        <div class="mt-2">
+                            <p class="text-xs font-medium text-gray-600 mb-1">Ghi chú:</p>
+                            <p class="text-xs text-gray-700">{{ $material['notes'] }}</p>
+                        </div>
+                        @endif
                     </div>
                     @endforeach
                 </div>

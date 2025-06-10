@@ -90,7 +90,6 @@ class WarehouseTransferController extends Controller
     {
         $request->validate([
             'transfer_code' => 'required|string|max:50|unique:warehouse_transfers',
-            'serial' => 'nullable|string|max:100',
             'source_warehouse_id' => 'required|exists:warehouses,id',
             'destination_warehouse_id' => 'required|exists:warehouses,id|different:source_warehouse_id',
             'transfer_date' => 'required|date',
@@ -124,7 +123,6 @@ class WarehouseTransferController extends Controller
             // Tạo phiếu chuyển kho
             $warehouseTransfer = WarehouseTransfer::create([
                 'transfer_code' => $request->transfer_code,
-                'serial' => $request->serial,
                 'source_warehouse_id' => $request->source_warehouse_id,
                 'destination_warehouse_id' => $request->destination_warehouse_id,
                 'material_id' => $materialId,
@@ -137,11 +135,22 @@ class WarehouseTransferController extends Controller
 
             // Lưu chi tiết vật tư
             foreach ($materialsData as $material) {
+                // Xử lý danh sách số serial
+                $serialNumbers = null;
+                if (!empty($material['serial_numbers'])) {
+                    $serialArray = preg_split('/[,;\n\r]+/', $material['serial_numbers']);
+                    $serialArray = array_map('trim', $serialArray);
+                    $serialArray = array_filter($serialArray);
+                    $serialNumbers = !empty($serialArray) ? $serialArray : null;
+                }
+                
                 WarehouseTransferMaterial::create([
                     'warehouse_transfer_id' => $warehouseTransfer->id,
                     'material_id' => $material['id'],
                     'quantity' => $material['quantity'],
                     'type' => $material['type'] ?? null,
+                    'serial_numbers' => $serialNumbers,
+                    'notes' => $material['notes'] ?? null,
                 ]);
             }
 
@@ -165,7 +174,9 @@ class WarehouseTransferController extends Controller
                 'id' => $item->material_id,
                 'name' => $item->material->code . ' - ' . $item->material->name,
                 'type' => $item->material->category ?? 'other',
-                'quantity' => $item->quantity
+                'quantity' => $item->quantity,
+                'serial_numbers' => $item->serial_numbers,
+                'notes' => $item->notes
             ];
         })->toArray();
         
@@ -187,7 +198,9 @@ class WarehouseTransferController extends Controller
                 'id' => $item->material_id,
                 'name' => $item->material->code . ' - ' . $item->material->name,
                 'type' => $item->material->category ?? 'other',
-                'quantity' => $item->quantity
+                'quantity' => $item->quantity,
+                'serial_numbers' => $item->serial_numbers,
+                'notes' => $item->notes
             ];
         })->toArray();
         
@@ -207,7 +220,6 @@ class WarehouseTransferController extends Controller
     {
         $request->validate([
             'transfer_code' => 'required|string|max:50|unique:warehouse_transfers,transfer_code,'.$warehouseTransfer->id,
-            'serial' => 'nullable|string|max:100',
             'source_warehouse_id' => 'required|exists:warehouses,id',
             'destination_warehouse_id' => 'required|exists:warehouses,id|different:source_warehouse_id',
             'quantity' => 'required|integer|min:1',
@@ -243,7 +255,6 @@ class WarehouseTransferController extends Controller
             // Cập nhật phiếu chuyển kho
             $warehouseTransfer->update([
                 'transfer_code' => $request->transfer_code,
-                'serial' => $request->serial,
                 'source_warehouse_id' => $request->source_warehouse_id,
                 'destination_warehouse_id' => $request->destination_warehouse_id,
                 'material_id' => $materialId,
@@ -259,11 +270,22 @@ class WarehouseTransferController extends Controller
 
             // Tạo lại chi tiết vật tư
             foreach ($materialsData as $material) {
+                // Xử lý danh sách số serial
+                $serialNumbers = null;
+                if (!empty($material['serial_numbers'])) {
+                    $serialArray = preg_split('/[,;\n\r]+/', $material['serial_numbers']);
+                    $serialArray = array_map('trim', $serialArray);
+                    $serialArray = array_filter($serialArray);
+                    $serialNumbers = !empty($serialArray) ? $serialArray : null;
+                }
+                
                 WarehouseTransferMaterial::create([
                     'warehouse_transfer_id' => $warehouseTransfer->id,
                     'material_id' => $material['id'],
                     'quantity' => $material['quantity'],
                     'type' => $material['type'] ?? null,
+                    'serial_numbers' => $serialNumbers,
+                    'notes' => $material['notes'] ?? null,
                 ]);
             }
 
