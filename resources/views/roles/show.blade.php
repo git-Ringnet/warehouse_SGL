@@ -367,6 +367,106 @@
                     @endif
                 </div>
             </div>
+
+            <!-- Danh sách dự án -->
+            <div class="mb-6 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Dự án được phân quyền ({{ $projects->count() }})</h2>
+                @if($projects->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Tên dự án
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Khách hàng
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($projects as $project)
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">{{ $project->project_name }}</div>
+                                            @if(isset($project->contract_code))
+                                                <div class="text-xs text-gray-500">Mã HĐ: {{ $project->contract_code }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                @if($project->customer)
+                                                    {{ $project->customer->name }}
+                                                @else
+                                                    <span class="text-gray-500 italic">Không có</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-gray-500 italic">Không có dự án nào được phân quyền cho nhóm này.</p>
+                @endif
+            </div>
+
+            <!-- Danh sách hợp đồng cho thuê -->
+            <div class="mb-6 bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Hợp đồng cho thuê được phân quyền ({{ $rentals->count() }})</h2>
+                @if($rentals->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Mã hợp đồng
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Khách hàng
+                                    </th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Ngày bắt đầu
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($rentals as $rental)
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm font-medium text-gray-900">#{{ $rental->id }}</div>
+                                            @if(isset($rental->contract_code))
+                                                <div class="text-xs text-gray-500">{{ $rental->contract_code }}</div>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                @if($rental->customer)
+                                                    {{ $rental->customer->name }}
+                                                @else
+                                                    <span class="text-gray-500 italic">Không có</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="text-sm text-gray-900">
+                                                @if($rental->start_date)
+                                                    {{ \Carbon\Carbon::parse($rental->start_date)->format('d/m/Y') }}
+                                                @else
+                                                    <span class="text-gray-500 italic">Chưa xác định</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <p class="text-gray-500 italic">Không có hợp đồng cho thuê nào được phân quyền cho nhóm này.</p>
+                @endif
+            </div>
         </main>
     </div>
 
