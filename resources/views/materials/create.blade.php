@@ -78,9 +78,9 @@
 
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp <span class="text-red-500">*</span></label>
                                 <div class="flex">
-                                    <select id="supplier-select" 
+                                    <select id="supplier-select" required
                                         class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">Chọn nhà cung cấp</option>
                                     @foreach($suppliers as $supplier)
@@ -310,6 +310,68 @@
                         allWarehouseCheckbox.checked = true;
                     }
                 });
+            });
+
+            // Auto-add supplier from dropdown when form is submitted
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                // First, check if we have any suppliers selected
+                const existingSuppliers = document.querySelectorAll('input[name="supplier_ids[]"]');
+                
+                let hasSupplier = existingSuppliers.length > 0 || supplierSelect.value !== '';
+                
+                // If no suppliers at all, prevent submission and show error
+                if (!hasSupplier) {
+                    e.preventDefault();
+                    
+                    // Remove any existing error message
+                    const existingError = document.getElementById('supplier-error');
+                    if (existingError) {
+                        existingError.remove();
+                    }
+                    
+                    // Show error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.id = 'supplier-error';
+                    errorDiv.className = 'text-red-500 text-sm mt-1';
+                    errorDiv.textContent = 'Vui lòng chọn ít nhất một nhà cung cấp';
+                    
+                    // Insert error message after supplier container
+                    const suppliersContainer = document.getElementById('suppliers-container');
+                    suppliersContainer.parentElement.appendChild(errorDiv);
+                    
+                    // Scroll to supplier section
+                    suppliersContainer.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+                
+                // Remove error message if validation passes
+                const existingError = document.getElementById('supplier-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                // Auto-add supplier from dropdown if selected
+                if (supplierSelect.value !== '') {
+                    // Check if this supplier is already added
+                    let alreadyExists = false;
+                    
+                    for (const existingSupplier of existingSuppliers) {
+                        if (existingSupplier.value === supplierSelect.value) {
+                            alreadyExists = true;
+                            break;
+                        }
+                    }
+                    
+                    // If not already added, create hidden input to include in form submission
+                    if (!alreadyExists) {
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'supplier_ids[]';
+                        hiddenInput.value = supplierSelect.value;
+                        form.appendChild(hiddenInput);
+                    }
+                }
             });
         });
     </script>

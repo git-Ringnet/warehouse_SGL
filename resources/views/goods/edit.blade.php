@@ -23,7 +23,7 @@
                     ID: {{ $good->code ?? 'HH-101' }}
                 </div>
             </div>
-            <a href="{{ route('goods.show') }}"
+            <a href="{{ route('goods.show', $good->id) }}"
                 class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Quay lại
             </a>
@@ -31,7 +31,7 @@
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <form action="#" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('goods.update', $good->id) }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     @method('PUT')
 
@@ -89,15 +89,15 @@
                         <div class="space-y-4">
                             <div>
                                 <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung
-                                    cấp</label>
+                                    cấp <span class="text-red-500">*</span></label>
                                 <div class="space-y-2">
                                     <div class="flex">
                                         <select id="supplier_select"
                                             class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                             <option value="">Chọn nhà cung cấp</option>
-                                            <option value="1">Công ty TNHH Điện tử ABC</option>
-                                            <option value="2">Công ty CP Thiết bị XYZ</option>
-                                            <option value="3">Công ty TNHH Linh kiện DEF</option>
+                                            @foreach($suppliers as $supplier)
+                                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                                            @endforeach
                                         </select>
                                         <button type="button" id="addSupplierBtn"
                                             class="bg-green-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-green-600 transition-colors">
@@ -107,7 +107,7 @@
                                     
                                     <div id="selectedSuppliers" class="mt-2 space-y-2">
                                         <!-- Existing suppliers -->
-                                        @if(isset($good->suppliers) && count($good->suppliers) > 0)
+                                        @if($good->suppliers->count() > 0)
                                             @foreach($good->suppliers as $supplier)
                                             <div class="flex items-center justify-between bg-gray-100 p-2 rounded-lg supplier-item">
                                                 <span>{{ $supplier->name }}</span>
@@ -118,21 +118,21 @@
                                             </div>
                                             @endforeach
                                         @else
-                                            <!-- Sample supplier data -->
-                                            <div class="flex items-center justify-between bg-gray-100 p-2 rounded-lg supplier-item">
-                                                <span>Công ty TNHH Điện tử ABC</span>
-                                                <input type="hidden" name="supplier_ids[]" value="1">
-                                                <button type="button" class="text-red-500 hover:text-red-700 remove-supplier">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
-                                            <div class="flex items-center justify-between bg-gray-100 p-2 rounded-lg supplier-item">
-                                                <span>Công ty CP Thiết bị XYZ</span>
-                                                <input type="hidden" name="supplier_ids[]" value="2">
-                                                <button type="button" class="text-red-500 hover:text-red-700 remove-supplier">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
+                                            <!-- Fallback to single supplier if available -->
+                                            @if(isset($good->supplier_id) && $good->supplier_id)
+                                                @php
+                                                    $supplier = App\Models\Supplier::find($good->supplier_id);
+                                                @endphp
+                                                @if($supplier)
+                                                <div class="flex items-center justify-between bg-gray-100 p-2 rounded-lg supplier-item">
+                                                    <span>{{ $supplier->name }}</span>
+                                                    <input type="hidden" name="supplier_ids[]" value="{{ $supplier->id }}">
+                                                    <button type="button" class="text-red-500 hover:text-red-700 remove-supplier">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                                @endif
+                                            @endif
                                         @endif
                                     </div>
                                 </div>
@@ -396,6 +396,69 @@
                     
                     document.getElementById('existing-image-' + imageId).remove();
                 });
+            });
+
+            // Auto-add supplier from dropdown when form is submitted
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                // First, check if we have any suppliers selected
+                const existingSuppliers = document.querySelectorAll('input[name="supplier_ids[]"]');
+                const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
+                
+                let hasSupplier = existingSuppliers.length > 0 || selectedOption.value !== '';
+                
+                // If no suppliers at all, prevent submission and show error
+                if (!hasSupplier) {
+                    e.preventDefault();
+                    
+                    // Remove any existing error message
+                    const existingError = document.getElementById('supplier-error');
+                    if (existingError) {
+                        existingError.remove();
+                    }
+                    
+                    // Show error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.id = 'supplier-error';
+                    errorDiv.className = 'text-red-500 text-sm mt-1';
+                    errorDiv.textContent = 'Vui lòng chọn ít nhất một nhà cung cấp';
+                    
+                    // Insert error message after supplier section
+                    const supplierSection = document.querySelector('label[for="supplier"]').parentElement;
+                    supplierSection.appendChild(errorDiv);
+                    
+                    // Scroll to supplier section
+                    supplierSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+                
+                // Remove error message if validation passes
+                const existingError = document.getElementById('supplier-error');
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                // Auto-add supplier from dropdown if selected
+                if (selectedOption.value !== '') {
+                    // Check if this supplier is already added
+                    let alreadyExists = false;
+                    
+                    for (const existingSupplier of existingSuppliers) {
+                        if (existingSupplier.value === selectedOption.value) {
+                            alreadyExists = true;
+                            break;
+                        }
+                    }
+                    
+                    // If not already added, create hidden input to include in form submission
+                    if (!alreadyExists) {
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'supplier_ids[]';
+                        hiddenInput.value = selectedOption.value;
+                        form.appendChild(hiddenInput);
+                    }
+                }
             });
         });
     </script>

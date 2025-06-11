@@ -48,12 +48,24 @@ class WarehouseMaterial extends Model
     }
     
     /**
-     * Get the item, either material or product based on item_type.
+     * Get the good (when item_type is 'good').
+     */
+    public function good()
+    {
+        return $this->belongsTo(Good::class, 'material_id');
+    }
+    
+    /**
+     * Get the item, either material, product, or good based on item_type.
      */
     public function item()
     {
-        return $this->item_type === 'product' 
-            ? $this->belongsTo(Product::class, 'material_id')
-            : $this->belongsTo(Material::class, 'material_id');
+        if ($this->item_type === 'product') {
+            return $this->belongsTo(Product::class, 'material_id');
+        } elseif ($this->item_type === 'good') {
+            return $this->belongsTo(Good::class, 'material_id');
+        } else {
+            return $this->belongsTo(Material::class, 'material_id');
+        }
     }
 } 
