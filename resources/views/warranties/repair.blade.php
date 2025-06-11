@@ -94,6 +94,14 @@
                                             </th>
                                             <th scope="col"
                                                 class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Chú thích
+                                            </th>
+                                            <th scope="col"
+                                                class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Hình ảnh
+                                            </th>
+                                            <th scope="col"
+                                                class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Thao tác
                                             </th>
                                         </tr>
@@ -188,10 +196,8 @@
                                     class="text-red-500">*</span></label>
                             <select id="repair_status" name="repair_status" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="completed">Hoàn thành</option>
-                                <option value="in_progress">Đang tiến hành</option>
-                                <option value="pending">Chờ xử lý</option>
-                                <option value="canceled">Đã hủy</option>
+                                <option value="completed">Đã xử lý</option>
+                                <option value="in_progress">Đang xử lý</option>
                             </select>
                         </div>
                     </div>
@@ -474,11 +480,26 @@
                                     ${statusText}
                                 </span>
                             </td>
+                            <td class="px-3 py-2 text-sm">
+                                <textarea name="device_notes[${device.code}]" rows="2" 
+                                    class="w-full text-xs border border-gray-300 rounded px-2 py-1" 
+                                    placeholder="Nhập chú thích..."></textarea>
+                            </td>
+                            <td class="px-3 py-2 text-sm">
+                                <input type="file" name="device_images[${device.code}][]" multiple accept="image/*" 
+                                    class="text-xs border border-gray-300 rounded px-2 py-1">
+                            </td>
                             <td class="px-3 py-2 whitespace-nowrap text-sm">
-                                <button type="button" class="select-device-btn bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs"
-                                    data-device-id="${device.id}" data-device-code="${device.code}">
-                                    <i class="fas fa-check-circle mr-1"></i> Chọn
-                                </button>
+                                <div class="flex space-x-1">
+                                    <button type="button" class="select-device-btn bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs"
+                                        data-device-id="${device.id}" data-device-code="${device.code}">
+                                        <i class="fas fa-check-circle mr-1"></i> Chọn
+                                    </button>
+                                    <button type="button" class="reject-device-btn bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs"
+                                        data-device-id="${device.id}" data-device-code="${device.code}" data-device-name="${device.name}">
+                                        <i class="fas fa-times mr-1"></i> Từ chối
+                                    </button>
+                                </div>
                             </td>
                         `;
 
@@ -519,6 +540,19 @@
                                     selectedDeviceInfo.classList.remove('hidden');
                                 }
                             }
+                        });
+                    });
+
+                    // Thêm sự kiện từ chối thiết bị
+                    const rejectDeviceBtns = document.querySelectorAll('.reject-device-btn');
+                    rejectDeviceBtns.forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const deviceId = this.getAttribute('data-device-id');
+                            const deviceCode = this.getAttribute('data-device-code');
+                            const deviceName = this.getAttribute('data-device-name');
+                            
+                            // Hiển thị modal từ chối thiết bị
+                            showRejectDeviceModal(deviceId, deviceCode, deviceName);
                         });
                     });
 
@@ -739,8 +773,210 @@
             // Tự động đặt ngày hiện tại cho ngày sửa chữa
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('repair_date').value = today;
+
+            // Hàm hiển thị modal từ chối thiết bị
+            window.showRejectDeviceModal = function(deviceId, deviceCode, deviceName) {
+                const rejectModal = document.getElementById('reject-device-modal');
+                const deviceIdField = document.getElementById('reject-device-id');
+                const deviceCodeField = document.getElementById('reject-device-code');
+                
+                document.getElementById('reject-device-name').textContent = deviceName;
+                deviceIdField.value = deviceId;
+                deviceCodeField.value = deviceCode;
+                
+                rejectModal.classList.remove('hidden');
+            };
+
+            // Đóng modal từ chối
+            document.getElementById('close-reject-modal').addEventListener('click', function() {
+                document.getElementById('reject-device-modal').classList.add('hidden');
+            });
+
+            document.getElementById('cancel-reject-btn').addEventListener('click', function() {
+                document.getElementById('reject-device-modal').classList.add('hidden');
+            });
+
+            // Xác nhận từ chối thiết bị
+            document.getElementById('confirm-reject-btn').addEventListener('click', function() {
+                const deviceId = document.getElementById('reject-device-id').value;
+                const deviceCode = document.getElementById('reject-device-code').value;
+                const rejectReason = document.getElementById('reject-reason').value;
+                const rejectWarehouse = document.getElementById('reject-warehouse').value;
+
+                if (!rejectReason.trim()) {
+                    alert('Vui lòng nhập lý do từ chối!');
+                    return;
+                }
+
+                if (!rejectWarehouse) {
+                    alert('Vui lòng chọn kho lưu trữ thiết bị từ chối!');
+                    return;
+                }
+
+                // Tìm và ẩn hàng thiết bị bị từ chối
+                const deviceRows = document.querySelectorAll('#devices_list tr');
+                deviceRows.forEach(row => {
+                    const selectBtn = row.querySelector(`[data-device-id="${deviceId}"]`);
+                    if (selectBtn) {
+                        row.style.backgroundColor = '#fef2f2'; // Màu nền đỏ nhạt
+                        row.style.opacity = '0.6';
+                        
+                        // Vô hiệu hóa các nút
+                        const actionButtons = row.querySelectorAll('button');
+                        actionButtons.forEach(btn => {
+                            btn.disabled = true;
+                            btn.classList.add('cursor-not-allowed', 'opacity-50');
+                        });
+                        
+                        // Thêm nhãn "Đã từ chối"
+                        const statusCell = row.cells[3];
+                        statusCell.innerHTML = `
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Đã từ chối
+                            </span>
+                        `;
+                    }
+                });
+
+                const warehouseName = document.getElementById('reject-warehouse').selectedOptions[0].text;
+
+                // Đóng modal
+                document.getElementById('reject-device-modal').classList.add('hidden');
+
+                alert(`Đã từ chối thiết bị ${deviceCode}.\nLý do: ${rejectReason}\nThiết bị sẽ được chuyển đến ${warehouseName}.`);
+
+                // Reset form
+                document.getElementById('reject-reason').value = '';
+                document.getElementById('reject-warehouse').value = '';
+            });
+
+            // Hàm hiển thị modal hình ảnh
+            window.showImageModal = function(imageSrc) {
+                const modal = document.getElementById('imageModal');
+                const modalImage = document.getElementById('modalImage');
+                modalImage.src = imageSrc;
+                modal.classList.remove('hidden');
+            };
+
+            // Hàm đóng modal hình ảnh
+            window.closeImageModal = function() {
+                const modal = document.getElementById('imageModal');
+                modal.classList.add('hidden');
+            };
+
+            // Đóng modal khi click vào backdrop
+            document.addEventListener('click', function(e) {
+                if (e.target && e.target.id === 'imageModal') {
+                    closeImageModal();
+                }
+            });
+
+            // Xử lý preview hình ảnh khi upload
+            document.addEventListener('change', function(e) {
+                if (e.target && e.target.type === 'file' && e.target.accept === 'image/*') {
+                    const files = e.target.files;
+                    const deviceCode = e.target.name.match(/device_images\[([^\]]+)\]/)?.[1];
+                    
+                    if (files.length > 0 && deviceCode) {
+                        // Tạo container preview nếu chưa có
+                        let previewContainer = e.target.parentNode.querySelector('.image-preview-container');
+                        if (!previewContainer) {
+                            previewContainer = document.createElement('div');
+                            previewContainer.className = 'image-preview-container mt-2 flex flex-wrap gap-2';
+                            e.target.parentNode.appendChild(previewContainer);
+                        }
+                        
+                        // Xóa preview cũ
+                        previewContainer.innerHTML = '';
+                        
+                        // Hiển thị preview từng file
+                        Array.from(files).forEach((file, index) => {
+                            if (file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = function(e) {
+                                    const imgWrapper = document.createElement('div');
+                                    imgWrapper.className = 'relative';
+                                    imgWrapper.innerHTML = `
+                                        <img src="${e.target.result}" alt="Preview ${index + 1}" 
+                                             class="w-12 h-12 object-cover rounded border cursor-pointer" 
+                                             onclick="showImageModal('${e.target.result}')">
+                                        <button type="button" 
+                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center"
+                                                onclick="this.parentElement.remove()">×</button>
+                                    `;
+                                    previewContainer.appendChild(imgWrapper);
+                                };
+                                reader.readAsDataURL(file);
+                            }
+                        });
+                    }
+                }
+            });
         });
     </script>
+
+    <!-- Modal xem hình ảnh -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg max-w-3xl max-h-[90%] overflow-auto">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-lg font-semibold">Xem hình ảnh</h3>
+                <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <img id="modalImage" src="" alt="Device image" class="max-w-full h-auto">
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal từ chối thiết bị -->
+    <div id="reject-device-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Từ chối thiết bị</h3>
+                <button type="button" id="close-reject-modal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-gray-700 mb-2">Thiết bị: <span id="reject-device-name" class="font-medium"></span></p>
+                <input type="hidden" id="reject-device-id" value="">
+                <input type="hidden" id="reject-device-code" value="">
+            </div>
+
+            <div class="mb-4">
+                <label for="reject-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối <span class="text-red-500">*</span></label>
+                <textarea id="reject-reason" rows="3" 
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Nhập lý do từ chối thiết bị..."></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label for="reject-warehouse" class="block text-sm font-medium text-gray-700 mb-1">Kho lưu trữ thiết bị từ chối <span class="text-red-500">*</span></label>
+                <select id="reject-warehouse"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    <option value="">-- Chọn kho lưu trữ --</option>
+                    <option value="5">Kho thiết bị từ chối</option>
+                    <option value="6">Kho tái chế</option>
+                    <option value="7">Kho phế liệu</option>
+                    <option value="8">Kho bảo hành hết hạn</option>
+                </select>
+            </div>
+
+            <div class="flex space-x-3">
+                <button type="button" id="cancel-reject-btn"
+                    class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
+                    Hủy
+                </button>
+                <button type="button" id="confirm-reject-btn"
+                    class="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    Xác nhận từ chối
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -137,26 +137,95 @@
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <i class="fas fa-microchip text-blue-500 mr-2"></i>
-                    Thông tin thiết bị
+                    Danh sách thiết bị sửa chữa
                 </h2>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-700 mb-1">Mã thiết bị:</h3>
-                        <p class="text-gray-900">DEV001</p>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-700 mb-1">Tên thiết bị:</h3>
-                        <p class="text-gray-900">Bộ điều khiển chính</p>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-700 mb-1">Serial:</h3>
-                        <p class="text-gray-900">SN001122</p>
-                    </div>
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-700 mb-1">Ngày sản xuất:</h3>
-                        <p class="text-gray-900">01/01/2022</p>
-                    </div>
+                <!-- Danh sách thiết bị -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Mã thiết bị
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tên thiết bị
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Serial
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Trạng thái
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Chú thích
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Hình ảnh
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">DEV001</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ điều khiển chính</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN001122</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Đã xử lý
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-700">
+                                    <div class="max-w-xs">
+                                        <p>Thiết bị hoạt động tốt sau bảo trì. Đã làm sạch và thay thế một số linh kiện nhỏ.</p>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <div class="flex space-x-2">
+                                        <img src="https://via.placeholder.com/40x40" alt="Device 1" class="w-10 h-10 rounded object-cover cursor-pointer" onclick="showImageModal(this.src)">
+                                        <img src="https://via.placeholder.com/40x40" alt="Device 2" class="w-10 h-10 rounded object-cover cursor-pointer" onclick="showImageModal(this.src)">
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">DEV002</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cảm biến nhiệt độ</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN002233</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                        Đang xử lý
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-700">
+                                    <div class="max-w-xs">
+                                        <p>Cảm biến có dấu hiệu hỏng. Đang chờ linh kiện thay thế.</p>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <span class="text-gray-400 text-xs">Chưa có ảnh</span>
+                                </td>
+                            </tr>
+                            <tr class="bg-red-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">DEV003</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Màn hình hiển thị</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN003344</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                        Từ chối
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-700">
+                                    <div class="max-w-xs">
+                                        <p><strong>Lý do từ chối:</strong> Thiết bị đã hết thời gian bảo hành và có dấu hiệu bị tác động vật lý từ bên ngoài.</p>
+                                        <p class="mt-1 text-xs text-gray-500"><strong>Kho lưu trữ:</strong> Kho thiết bị từ chối</p>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm">
+                                    <img src="https://via.placeholder.com/40x40" alt="Rejected device" class="w-10 h-10 rounded object-cover cursor-pointer" onclick="showImageModal(this.src)">
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
                 <div>
@@ -237,6 +306,21 @@
         </main>
     </div>
 
+    <!-- Modal xem hình ảnh -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white rounded-lg max-w-3xl max-h-[90%] overflow-auto">
+            <div class="flex justify-between items-center p-4 border-b">
+                <h3 class="text-lg font-semibold">Xem hình ảnh</h3>
+                <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <img id="modalImage" src="" alt="Device image" class="max-w-full h-auto">
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Xử lý sự kiện in phiếu
@@ -244,6 +328,27 @@
             printBtn.addEventListener('click', function() {
                 window.print();
             });
+        });
+
+        // Hàm hiển thị modal hình ảnh
+        function showImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            modalImage.src = imageSrc;
+            modal.classList.remove('hidden');
+        }
+
+        // Hàm đóng modal hình ảnh
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.add('hidden');
+        }
+
+        // Đóng modal khi click vào backdrop
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
+            }
         });
     </script>
 </body>

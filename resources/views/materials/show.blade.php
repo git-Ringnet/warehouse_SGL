@@ -51,18 +51,6 @@
                                     <i class="fas fa-tag text-gray-400 mr-2"></i>
                                     <span class="text-gray-800 font-medium">{{ $material->category }}</span>
                                 </div>
-                                <div class="flex items-center mt-1">
-                                    <i class="fas fa-check-circle text-green-500 mr-2"></i>
-                                    <span class="text-green-500 font-medium">
-                                        @if ($material->status == 'new')
-                                            Mới
-                                        @elseif($material->status == 'used')
-                                            Cũ
-                                        @else
-                                            Hư hỏng
-                                        @endif
-                                    </span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -91,8 +79,41 @@
                         <p class="text-gray-900">{{ $material->unit }}</p>
                     </div>
                     <div>
+                        <p class="text-sm text-gray-500">Ngày tạo</p>
+                        <p class="text-gray-900">06/06/2025</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
+                        <p class="text-gray-900">06/06/2025</p>
+                    </div>
+                    <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
-                        <p class="text-gray-900">{{ $material->supplier->name ?? 'Không có' }}</p>
+                        <div class="text-gray-900">
+                            @if(isset($material->suppliers) && count($material->suppliers) > 0)
+                                @foreach($material->suppliers as $supplier)
+                                    <div class="flex items-center mb-1">
+                                        <i class="fas fa-building text-gray-400 mr-2"></i>
+                                        <a href="{{ route('suppliers.show', $supplier->id) }}" class="text-blue-600 hover:underline">
+                                            {{ $supplier->name }}
+                                        </a>
+                                    </div>
+                                @endforeach
+                            @else
+                                <!-- Sample supplier data -->
+                                <div class="flex items-center mb-1">
+                                    <i class="fas fa-building text-gray-400 mr-2"></i>
+                                    <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Thép Hoàng Hà</a>
+                                </div>
+                                <div class="flex items-center mb-1">
+                                    <i class="fas fa-building text-gray-400 mr-2"></i>
+                                    <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Vật tư Tân Phát</a>
+                                </div>
+                                <div class="flex items-center mb-1">
+                                    <i class="fas fa-building text-gray-400 mr-2"></i>
+                                    <a href="#" class="text-blue-600 hover:underline">Công ty CP Kim khí Đại Dương</a>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
@@ -100,17 +121,7 @@
                 <div class="border-t border-gray-200 pt-4 mt-4">
                     <h4 class="text-md font-semibold text-gray-700 mb-3">Thông tin số lượng</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
-                        <div>
-                            <p class="text-sm text-gray-500">Tổng số lượng vật tư</p>
-                            <p class="text-gray-900 font-medium mt-1">
-                                <span
-                                    class="px-3 py-1.5 rounded-md {{ $totalQuantity > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-700' }} inline-flex items-center">
-                                    <i
-                                        class="fas fa-cubes mr-2 {{ $totalQuantity > 0 ? 'text-blue-600' : 'text-gray-500' }}"></i>
-                                    <span class="text-lg">{{ number_format($totalQuantity, 0, ',', '.') }}</span>
-                                </span>
-                            </p>
-                        </div>
+
                         <div>
                             <p class="text-sm text-gray-500">Tổng số lượng tồn kho</p>
                             <p class="text-gray-900 font-medium mt-1">

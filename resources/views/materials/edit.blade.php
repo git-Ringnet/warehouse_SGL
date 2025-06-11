@@ -89,21 +89,50 @@
 
                         <div class="space-y-4">
                             <div>
-                                <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung
-                                    cấp</label>
-                                <select id="supplier" name="supplier_id"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Chọn nhà cung cấp</option>
-                                    <option value="1"
-                                        {{ $material->supplier == 'Công ty TNHH Điện tử ABC' ? 'selected' : '' }}>Công
-                                        ty TNHH Điện tử ABC</option>
-                                    <option value="2"
-                                        {{ $material->supplier == 'Công ty CP Thiết bị XYZ' ? 'selected' : '' }}>Công
-                                        ty CP Thiết bị XYZ</option>
-                                    <option value="3"
-                                        {{ $material->supplier == 'Công ty TNHH Linh kiện DEF' ? 'selected' : '' }}>
-                                        Công ty TNHH Linh kiện DEF</option>
-                                </select>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
+                                <div class="flex">
+                                    <select id="supplier-select" 
+                                        class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Chọn nhà cung cấp</option>
+                                        <option value="1">Công ty TNHH Điện tử ABC</option>
+                                        <option value="2">Công ty CP Thiết bị XYZ</option>
+                                        <option value="3">Công ty TNHH Linh kiện DEF</option>
+                                    </select>
+                                    <button type="button" id="add-supplier-btn"
+                                        class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="suppliers-container" class="mt-2">
+                                    <!-- Các nhà cung cấp đã liên kết sẽ được thêm vào đây -->
+                                    @if(isset($material->suppliers) && count($material->suppliers) > 0)
+                                        @foreach($material->suppliers as $supplier)
+                                        <div id="supplier-{{ $supplier->id }}" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
+                                            <input type="hidden" name="supplier_id[]" value="{{ $supplier->id }}">
+                                            <div>{{ $supplier->name }}</div>
+                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-{{ $supplier->id }}').remove()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        @endforeach
+                                    @else
+                                        <!-- Sample supplier data -->
+                                        <div id="supplier-1" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
+                                            <input type="hidden" name="supplier_id[]" value="1">
+                                            <div>Công ty TNHH Thép Hoàng Hà</div>
+                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-1').remove()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        <div id="supplier-3" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
+                                            <input type="hidden" name="supplier_id[]" value="3">
+                                            <div>Công ty CP Kim khí Đại Dương</div>
+                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-3').remove()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
 
                             <div>
@@ -252,6 +281,66 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeMaterialForm(true); // true = edit form
             
+            // Handle supplier add/remove functionality
+            const supplierSelect = document.getElementById('supplier-select');
+            const addSupplierBtn = document.getElementById('add-supplier-btn');
+            const suppliersContainer = document.getElementById('suppliers-container');
+            
+            console.log('Supplier elements (edit):', {
+                select: supplierSelect,
+                button: addSupplierBtn,
+                container: suppliersContainer
+            });
+            
+            // Add supplier when button is clicked
+            addSupplierBtn.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent form submission
+                console.log('Add button clicked (edit)', supplierSelect.value);
+                if (supplierSelect.value) {
+                    addSupplier(supplierSelect.value, supplierSelect.options[supplierSelect.selectedIndex].text);
+                    supplierSelect.value = '';
+                }
+            });
+            
+            // Function to add a supplier to the list
+            function addSupplier(value, text) {
+                console.log('Adding supplier (edit):', value, text);
+                // Check if supplier already exists
+                if (document.querySelector(`input[name="supplier_id[]"][value="${value}"]`)) {
+                    console.log('Supplier already exists');
+                    return;
+                }
+                
+                const supplierId = `supplier-${value}`;
+                const supplierRow = document.createElement('div');
+                supplierRow.id = supplierId;
+                supplierRow.className = 'flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2';
+                
+                const supplierText = document.createElement('div');
+                supplierText.className = 'text-gray-800';
+                supplierText.textContent = text;
+                
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'supplier_id[]';
+                hiddenInput.value = value;
+                
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'text-red-500 hover:text-red-700';
+                removeButton.innerHTML = '<i class="fas fa-times"></i>';
+                removeButton.onclick = function() {
+                    document.getElementById(supplierId).remove();
+                };
+                
+                supplierRow.appendChild(hiddenInput);
+                supplierRow.appendChild(supplierText);
+                supplierRow.appendChild(removeButton);
+                suppliersContainer.appendChild(supplierRow);
+                
+                console.log('Supplier added (edit):', supplierId);
+            }
+            
             // Handle warehouse checkboxes
             const allWarehouseCheckbox = document.getElementById('warehouse_all');
             const warehouseCheckboxes = document.querySelectorAll('input[name="inventory_warehouses[]"]:not([value="all"])');
@@ -262,7 +351,7 @@
                     warehouseCheckboxes.forEach(checkbox => {
                         checkbox.checked = false;
                     });
-        }
+                }
             });
             
             // When any other warehouse is checked, uncheck "All"
@@ -270,7 +359,7 @@
                 checkbox.addEventListener('change', function() {
                     if (this.checked) {
                         allWarehouseCheckbox.checked = false;
-            }
+                    }
                     
                     // If no warehouses are checked, check "All"
                     const anyChecked = Array.from(warehouseCheckboxes).some(cb => cb.checked);

@@ -154,10 +154,8 @@
                                     class="text-red-500">*</span></label>
                             <select id="repair_status" name="repair_status" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="completed" selected>Hoàn thành</option>
-                                <option value="in_progress">Đang tiến hành</option>
-                                <option value="pending">Chờ xử lý</option>
-                                <option value="canceled">Đã hủy</option>
+                                <option value="completed" selected>Đã xử lý</option>
+                                <option value="in_progress">Đang xử lý</option>
                             </select>
                         </div>
                     </div>
@@ -172,93 +170,120 @@
 Thiết bị hoạt động bình thường sau khi bảo trì, không phát hiện lỗi hay vấn đề bất thường nào.</textarea>
                     </div>
 
-                    <!-- Chi tiết vật tư thiết bị -->
+                    <!-- Chi tiết thiết bị cần sửa chữa -->
                     <div class="mt-6 border-t border-gray-200 pt-4">
                         <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
                             <i class="fas fa-list-check text-blue-500 mr-2"></i>
-                            Chi tiết vật tư thiết bị
+                            Chi tiết thiết bị cần sửa chữa
                         </h3>
 
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Mã thiết bị
                                         </th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Mã vật tư
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Tên thiết bị
                                         </th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tên vật tư
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Serial
                                         </th>
-                                        <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Trạng thái
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Chú thích
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Hình ảnh
+                                        </th>
+                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Thao tác
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white divide-y divide-gray-200" id="device-parts-body">
-                                    <!-- Mẫu dữ liệu vật tư -->
-                                    <tr>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">VT001-A</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Bo mạch chính</td>
+                                <tbody class="bg-white divide-y divide-gray-200" id="device-list-body">
+                                    <tr id="device-row-DEV001">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">DEV001</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Bộ điều khiển chính</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">SN001122</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center">
-                                                    <input type="checkbox" id="damaged_part_DEV001_VT001-A" name="damaged_parts[]" value="VT001-A"
-                                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
-                                                        data-device-code="DEV001">
-                                                    <label for="damaged_part_DEV001_VT001-A" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
-                                                </div>
-                                                <button type="button" data-part-id="VT001-A" data-device-code="DEV001"
-                                                    class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
-                                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                                </button>
-                                            </div>
+                                            <select name="device_status[DEV001]" class="text-xs border border-gray-300 rounded px-2 py-1">
+                                                <option value="processing" selected>Đang xử lý</option>
+                                                <option value="completed">Đã xử lý</option>
+                                                <option value="rejected">Từ chối</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <textarea name="device_notes[DEV001]" rows="2" 
+                                                class="w-full text-xs border border-gray-300 rounded px-2 py-1" 
+                                                placeholder="Nhập chú thích...">Thiết bị hoạt động tốt sau bảo trì</textarea>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <input type="file" name="device_images[DEV001][]" multiple accept="image/*" 
+                                                class="text-xs border border-gray-300 rounded px-2 py-1">
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <button type="button" onclick="rejectDevice('DEV001')" 
+                                                class="bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs">
+                                                <i class="fas fa-times mr-1"></i> Từ chối
+                                            </button>
                                         </td>
                                     </tr>
-                                    <tr>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">VT001-B</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Cảm biến nhiệt độ</td>
+                                    <tr id="device-row-DEV002">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">DEV002</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Cảm biến nhiệt độ</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">SN002233</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center">
-                                                    <input type="checkbox" id="damaged_part_DEV001_VT001-B" name="damaged_parts[]" value="VT001-B"
-                                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
-                                                        data-device-code="DEV001">
-                                                    <label for="damaged_part_DEV001_VT001-B" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
-                                                </div>
-                                                <button type="button" data-part-id="VT001-B" data-device-code="DEV001"
-                                                    class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
-                                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                                </button>
-                                            </div>
+                                            <select name="device_status[DEV002]" class="text-xs border border-gray-300 rounded px-2 py-1">
+                                                <option value="processing" selected>Đang xử lý</option>
+                                                <option value="completed">Đã xử lý</option>
+                                                <option value="rejected">Từ chối</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <textarea name="device_notes[DEV002]" rows="2" 
+                                                class="w-full text-xs border border-gray-300 rounded px-2 py-1" 
+                                                placeholder="Nhập chú thích...">Cảm biến cần thay thế</textarea>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <input type="file" name="device_images[DEV002][]" multiple accept="image/*" 
+                                                class="text-xs border border-gray-300 rounded px-2 py-1">
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <button type="button" onclick="rejectDevice('DEV002')" 
+                                                class="bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs">
+                                                <i class="fas fa-times mr-1"></i> Từ chối
+                                            </button>
                                         </td>
                                     </tr>
-                                    <tr>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">VT001-C</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">Bộ nhớ Flash</td>
+                                    <tr id="device-row-DEV003">
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">DEV003</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Màn hình hiển thị</td>
+                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">SN003344</td>
                                         <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                            <div class="flex items-center justify-between">
-                                                <div class="flex items-center">
-                                                    <input type="checkbox" id="damaged_part_DEV001_VT001-C" name="damaged_parts[]" value="VT001-C"
-                                                        checked
-                                                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
-                                                        data-device-code="DEV001">
-                                                    <label for="damaged_part_DEV001_VT001-C" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
-                                                </div>
-                                                <button type="button" data-part-id="VT001-C" data-device-code="DEV001"
-                                                    class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
-                                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                                </button>
-                                            </div>
+                                            <select name="device_status[DEV003]" class="text-xs border border-gray-300 rounded px-2 py-1">
+                                                <option value="processing">Đang xử lý</option>
+                                                <option value="completed">Đã xử lý</option>
+                                                <option value="rejected" selected>Từ chối</option>
+                                            </select>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <textarea name="device_notes[DEV003]" rows="2" 
+                                                class="w-full text-xs border border-gray-300 rounded px-2 py-1" 
+                                                placeholder="Nhập chú thích...">Thiết bị hỏng không thể sửa chữa</textarea>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <input type="file" name="device_images[DEV003][]" multiple accept="image/*" 
+                                                class="text-xs border border-gray-300 rounded px-2 py-1">
+                                        </td>
+                                        <td class="px-4 py-3 text-sm">
+                                            <button type="button" onclick="rejectDevice('DEV003')" 
+                                                class="bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs">
+                                                <i class="fas fa-times mr-1"></i> Từ chối
+                                            </button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1141,8 +1166,111 @@ Thiết bị hoạt động bình thường sau khi bảo trì, không phát hi�
                     });
                 });
             }
+            // Hàm từ chối thiết bị
+            window.rejectDevice = function(deviceId) {
+                const rejectModal = document.getElementById('reject-device-modal');
+                const deviceIdField = document.getElementById('reject-device-id');
+                const deviceRow = document.getElementById(`device-row-${deviceId}`);
+                const deviceName = deviceRow.cells[1].textContent;
+                
+                document.getElementById('reject-device-name').textContent = deviceName;
+                deviceIdField.value = deviceId;
+                
+                rejectModal.classList.remove('hidden');
+            };
+
+            // Đóng modal từ chối
+            document.getElementById('close-reject-modal').addEventListener('click', function() {
+                document.getElementById('reject-device-modal').classList.add('hidden');
+            });
+
+            document.getElementById('cancel-reject-btn').addEventListener('click', function() {
+                document.getElementById('reject-device-modal').classList.add('hidden');
+            });
+
+            // Xác nhận từ chối thiết bị
+            document.getElementById('confirm-reject-btn').addEventListener('click', function() {
+                const deviceId = document.getElementById('reject-device-id').value;
+                const rejectReason = document.getElementById('reject-reason').value;
+                const rejectWarehouse = document.getElementById('reject-warehouse').value;
+
+                if (!rejectReason.trim()) {
+                    alert('Vui lòng nhập lý do từ chối!');
+                    return;
+                }
+
+                if (!rejectWarehouse) {
+                    alert('Vui lòng chọn kho lưu trữ thiết bị từ chối!');
+                    return;
+                }
+
+                // Cập nhật trạng thái thiết bị thành "Từ chối"
+                const deviceRow = document.getElementById(`device-row-${deviceId}`);
+                const statusSelect = deviceRow.querySelector('select[name*="device_status"]');
+                statusSelect.value = 'rejected';
+
+                // Cập nhật chú thích với thông tin từ chối
+                const notesTextarea = deviceRow.querySelector('textarea[name*="device_notes"]');
+                const warehouseName = document.getElementById('reject-warehouse').selectedOptions[0].text;
+                notesTextarea.value = `Lý do từ chối: ${rejectReason}\nKho lưu trữ: ${warehouseName}`;
+
+                // Thêm màu nền đỏ nhạt cho hàng bị từ chối
+                deviceRow.classList.add('bg-red-50');
+
+                // Đóng modal
+                document.getElementById('reject-device-modal').classList.add('hidden');
+
+                alert(`Đã từ chối thiết bị ${deviceId}. Thiết bị sẽ được chuyển đến ${warehouseName}.`);
+            });
         });
     </script>
+
+    <!-- Modal từ chối thiết bị -->
+    <div id="reject-device-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Từ chối thiết bị</h3>
+                <button type="button" id="close-reject-modal" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-gray-700 mb-2">Thiết bị: <span id="reject-device-name" class="font-medium"></span></p>
+                <input type="hidden" id="reject-device-id" value="">
+            </div>
+
+            <div class="mb-4">
+                <label for="reject-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối <span class="text-red-500">*</span></label>
+                <textarea id="reject-reason" rows="3" 
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    placeholder="Nhập lý do từ chối thiết bị..."></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label for="reject-warehouse" class="block text-sm font-medium text-gray-700 mb-1">Kho lưu trữ thiết bị từ chối <span class="text-red-500">*</span></label>
+                <select id="reject-warehouse"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                    <option value="">-- Chọn kho lưu trữ --</option>
+                    <option value="5">Kho thiết bị từ chối</option>
+                    <option value="6">Kho tái chế</option>
+                    <option value="7">Kho phế liệu</option>
+                    <option value="8">Kho bảo hành hết hạn</option>
+                </select>
+            </div>
+
+            <div class="flex space-x-3">
+                <button type="button" id="cancel-reject-btn"
+                    class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
+                    Hủy
+                </button>
+                <button type="button" id="confirm-reject-btn"
+                    class="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                    Xác nhận từ chối
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

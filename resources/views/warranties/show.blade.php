@@ -103,6 +103,7 @@
                                             <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">STT</th>
                                             <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Mã module</th>
                                             <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Tên module</th>
+                                            <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Serial Number</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-gray-200">
@@ -110,21 +111,25 @@
                                             <td class="py-2 text-sm text-gray-700">1</td>
                                             <td class="py-2 text-sm text-gray-700">MOD-GPS-001</td>
                                             <td class="py-2 text-sm text-gray-700">GPS Module</td>
+                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
                                         </tr>
                                         <tr>
                                             <td class="py-2 text-sm text-gray-700">2</td>
                                             <td class="py-2 text-sm text-gray-700">MOD-CPU-002</td>
                                             <td class="py-2 text-sm text-gray-700">CPU Module</td>
+                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
                                         </tr>
                                         <tr>
                                             <td class="py-2 text-sm text-gray-700">3</td>
                                             <td class="py-2 text-sm text-gray-700">MOD-ANT-003</td>
                                             <td class="py-2 text-sm text-gray-700">Antenna Module</td>
+                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
                                         </tr>
                                         <tr>
                                             <td class="py-2 text-sm text-gray-700">4</td>
                                             <td class="py-2 text-sm text-gray-700">MOD-PWR-004</td>
                                             <td class="py-2 text-sm text-gray-700">Power Module</td>
+                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
                                         </tr>
                                     </tbody>
                                 </table>

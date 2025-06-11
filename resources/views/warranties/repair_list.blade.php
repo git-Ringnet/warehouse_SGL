@@ -40,10 +40,8 @@
                     <div class="flex flex-wrap gap-2">
                         <select id="status_filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Tất cả trạng thái</option>
-                            <option value="completed">Hoàn thành</option>
-                            <option value="in_progress">Đang tiến hành</option>
-                            <option value="pending">Chờ xử lý</option>
-                            <option value="canceled">Đã hủy</option>
+                            <option value="completed">Đã xử lý</option>
+                            <option value="in_progress">Đang xử lý</option>
                         </select>
                         <select id="repair_type_filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Tất cả loại sửa chữa</option>
@@ -136,7 +134,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho chính</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Hoàn thành
+                                        Đã xử lý
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -185,7 +183,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho chính</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Hoàn thành
+                                        Đã xử lý
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -234,7 +232,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho bảo hành</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                        Đang tiến hành
+                                        Đang xử lý
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

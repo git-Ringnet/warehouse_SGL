@@ -55,8 +55,8 @@
                             </div>
                             
                             <div>
-                                <label for="address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ <span class="text-red-500">*</span></label>
-                                <input type="text" id="address" name="address" placeholder="Nhập địa chỉ kho" required value="{{ old('address') }}"
+                                <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
+                                <input type="text" id="address" name="address" placeholder="Nhập địa chỉ kho" value="{{ old('address') }}"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
                         </div>
@@ -67,23 +67,11 @@
                                 <select id="manager" name="manager" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">-- Chọn người quản lý --</option>
                                     @foreach($employees as $employee)
-                                    <option value="{{ $employee->name }}" data-phone="{{ $employee->phone }}" data-email="{{ $employee->email }}">
+                                    <option value="{{ $employee->name }}">
                                         {{ $employee->name }}
                                     </option>
                                     @endforeach
                                 </select>
-                            </div>
-                            
-                            <div>
-                                <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại <span class="text-red-500">*</span></label>
-                                <input type="tel" id="phone" name="phone" placeholder="Nhập số điện thoại" required value="{{ old('phone') }}"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            
-                            <div>
-                                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <input type="email" id="email" name="email" placeholder="Nhập email người quản lý" value="{{ old('email') }}"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
                         </div>
                         
@@ -108,17 +96,7 @@
     </div>
 
     <script>
-        // Auto-fill phone and email when selecting manager
-        document.getElementById('manager').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.value) {
-                document.getElementById('phone').value = selectedOption.dataset.phone || '';
-                document.getElementById('email').value = selectedOption.dataset.email || '';
-            } else {
-                document.getElementById('phone').value = '';
-                document.getElementById('email').value = '';
-            }
-        });
+        // Remove the auto-fill script since phone and email fields are removed
     </script>
 </body>
 

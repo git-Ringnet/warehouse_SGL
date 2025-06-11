@@ -78,15 +78,23 @@
 
                         <div class="space-y-4">
                             <div>
-                                <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung
-                                    cấp</label>
-                                <select id="supplier" name="supplier_id"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
+                                <div class="flex">
+                                    <select id="supplier-select" 
+                                        class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">Chọn nhà cung cấp</option>
                                     <option value="1">Công ty TNHH Điện tử ABC</option>
                                     <option value="2">Công ty CP Thiết bị XYZ</option>
                                     <option value="3">Công ty TNHH Linh kiện DEF</option>
                                 </select>
+                                    <button type="button" id="add-supplier-btn"
+                                        class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="suppliers-container" class="mt-2">
+                                    <!-- Các nhà cung cấp sẽ được thêm vào đây -->
+                                </div>
                             </div>
 
                             <div>
@@ -215,6 +223,66 @@
         // Initialize the material form
         document.addEventListener('DOMContentLoaded', function() {
             initializeMaterialForm(false); // false = create form
+            
+            // Handle supplier add/remove functionality
+            const supplierSelect = document.getElementById('supplier-select');
+            const addSupplierBtn = document.getElementById('add-supplier-btn');
+            const suppliersContainer = document.getElementById('suppliers-container');
+            
+            console.log('Supplier elements:', {
+                select: supplierSelect,
+                button: addSupplierBtn,
+                container: suppliersContainer
+            });
+            
+            // Add supplier when button is clicked
+            addSupplierBtn.addEventListener('click', function(event) {
+                event.preventDefault(); // Prevent form submission
+                console.log('Add button clicked', supplierSelect.value);
+                if (supplierSelect.value) {
+                    addSupplier(supplierSelect.value, supplierSelect.options[supplierSelect.selectedIndex].text);
+                    supplierSelect.value = '';
+                }
+            });
+            
+            // Function to add a supplier to the list
+            function addSupplier(value, text) {
+                console.log('Adding supplier:', value, text);
+                // Check if supplier already exists
+                if (document.querySelector(`input[name="supplier_id[]"][value="${value}"]`)) {
+                    console.log('Supplier already exists');
+                    return;
+                }
+                
+                const supplierId = `supplier-${value}`;
+                const supplierRow = document.createElement('div');
+                supplierRow.id = supplierId;
+                supplierRow.className = 'flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2';
+                
+                const supplierText = document.createElement('div');
+                supplierText.className = 'text-gray-800';
+                supplierText.textContent = text;
+                
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'supplier_id[]';
+                hiddenInput.value = value;
+                
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'text-red-500 hover:text-red-700';
+                removeButton.innerHTML = '<i class="fas fa-times"></i>';
+                removeButton.onclick = function() {
+                    document.getElementById(supplierId).remove();
+                };
+                
+                supplierRow.appendChild(hiddenInput);
+                supplierRow.appendChild(supplierText);
+                supplierRow.appendChild(removeButton);
+                suppliersContainer.appendChild(supplierRow);
+                
+                console.log('Supplier added:', supplierId);
+            }
             
             // Handle warehouse checkboxes
             const allWarehouseCheckbox = document.getElementById('warehouse_all');

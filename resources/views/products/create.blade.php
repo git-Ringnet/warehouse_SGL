@@ -66,17 +66,6 @@
                         </div>
 
                         <div class="space-y-4">
-                            <div>
-                                <label for="type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
-                                    thành phẩm <span class="text-red-500">*</span>
-                                </label>
-                                <select id="type" name="type" required
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="Mới" {{ old('type') == 'Mới' ? 'selected' : '' }}>Mới</option>
-                                    <option value="Bảo hành" {{ old('type') == 'Bảo hành' ? 'selected' : '' }}>Bảo hành
-                                    </option>
-                                </select>
-                            </div>
                             <div class="mb-4">
                                 <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Mô
                                     tả</label>

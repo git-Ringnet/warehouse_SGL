@@ -75,9 +75,6 @@
                                 Phê duyệt</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Tiếp nhận</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Hành động</th>
                         </tr>
                     </thead>
@@ -118,31 +115,6 @@
                                     @elseif($assembly->status == 'cancelled')
                                         <span
                                             class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Từ chối</span>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    @if ($assembly->status != 'cancelled')
-                                        <div class="flex space-x-2">
-                                            <form action="#" method="POST">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
-                                                    title="Duyệt">
-                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                                </button>
-                                            </form>
-                                            <form action="#" method="POST"
-                                                onsubmit="return confirm('Bạn có chắc chắn muốn từ chối phiếu lắp ráp này?');">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                                    title="Từ chối">
-                                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    @else
-                                        <span class="text-gray-400 text-xs italic">Không khả dụng</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">

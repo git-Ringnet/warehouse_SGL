@@ -24,7 +24,7 @@
                 </button>
                 <button id="export-pdf-btn"
                     class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                    <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+                    <i class="fas fa-file-pdf mr-2"></i> Xuất FDF
                 </button>
             </div>
         </header>
@@ -47,30 +47,26 @@
                         <input type="date" id="date_to" name="date_to" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     <div>
-                        <label for="change_type" class="block text-sm font-medium text-gray-700 mb-1">Loại thay đổi</label>
-                        <select id="change_type" name="change_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <label for="activity_type" class="block text-sm font-medium text-gray-700 mb-1">Loại hình</label>
+                        <select id="activity_type" name="activity_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">Tất cả</option>
-                            <option value="add">Thêm mới</option>
-                            <option value="remove">Loại bỏ</option>
-                            <option value="replace">Thay thế</option>
-                            <option value="move">Di chuyển</option>
-                            <option value="update">Cập nhật thông tin</option>
+                            <option value="assembly">Lắp ráp</option>
+                            <option value="export">Xuất kho</option>
+                            <option value="repair">Sửa chữa</option>
+                            <option value="recall">Thu hồi</option>
+                            <option value="import">Nhập kho</option>
+                            <option value="transfer">Chuyển kho</option>
                         </select>
                     </div>
                     <div>
-                        <label for="item_type" class="block text-sm font-medium text-gray-700 mb-1">Loại mục</label>
-                        <select id="item_type" name="item_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">Tất cả</option>
-                            <option value="material">Vật tư</option>
-                            <option value="equipment">Thiết bị</option>
-                            <option value="component">Linh kiện</option>
-                        </select>
+                        <label for="document_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu</label>
+                        <input type="text" id="document_code" name="document_code" placeholder="Nhập mã phiếu..." class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     </div>
                 </div>
 
                 <div class="mt-4">
                     <div class="relative">
-                        <input type="text" id="search" placeholder="Tìm kiếm theo serial, tên thiết bị, người thực hiện..."
+                        <input type="text" id="search" placeholder="Tìm kiếm theo mã vật tư, tên vật tư, người thực hiện..."
                             class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <i class="fas fa-search text-gray-400"></i>
@@ -90,204 +86,135 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thời gian</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại mục</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên mục</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại thay đổi</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mô tả thay đổi</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người thực hiện</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thời gian</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã Vật tư/Thành Phẩm/Hàng Hóa</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên Vật tư/Thành Phẩm/Hàng Hóa</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại hình</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã phiếu</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mô tả</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người thực hiện</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Chú thích</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Xem Chi tiết</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <!-- Sample data -->
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/06/2023 08:30:12</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN001</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">CPU Intel i5</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">15/12/2023 08:30:12</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">VT001</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Bo mạch điều khiển chính v2.1</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Thêm mới
+                                    Lắp ráp
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Thêm mới linh kiện vào kho</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nguyễn Văn A</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">LR001</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">5</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Sử dụng vật tư cho phiếu lắp ráp thiết bị IoT</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Nguyễn Văn A</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">Đã kiểm tra chất lượng</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/06/2023 09:15:45</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN002</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">RAM 8GB DDR4</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Thêm mới
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Thêm mới linh kiện vào kho</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nguyễn Văn A</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">16/06/2023 10:30:00</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN003</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Radio SPA Pro</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    Di chuyển
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Di chuyển từ kho Hà Nội đến kho Hồ Chí Minh</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Trần Thị B</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">17/06/2023 14:22:30</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN004</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SSD 256GB</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">15/12/2023 10:15:45</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">SP002</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Cảm biến nhiệt độ độ chính xác cao</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    Thay thế
+                                    Xuất kho
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Thay thế linh kiện do hỏng</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Lê Văn C</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">XK002</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">10</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Xuất kho giao cho khách hàng ABC</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Trần Thị B</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">Giao hàng theo hợp đồng HD001</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">5</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">18/06/2023 09:45:15</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN005</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vật tư</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dây cáp điện</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">16/12/2023 14:30:00</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">DEV001</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Bộ điều khiển chính - SN001122</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                    Sửa chữa
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">SC003</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">1</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Bảo trì định kỳ và thay thế linh kiện</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Lê Văn C</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">Thiết bị hoạt động bình thường</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
+                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">17/12/2023 09:22:30</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">SP003</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Màn hình hiển thị TFT 7 inch</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                    Loại bỏ
+                                    Thu hồi
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Loại bỏ vật tư hết hạn sử dụng</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Phạm Thị D</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">TH004</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">3</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Thu hồi sản phẩm lỗi từ khách hàng</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Phạm Thị D</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">Lỗi màn hình hiển thị</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">6</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">19/06/2023 11:15:00</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN006</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Thiết bị</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Radio SPA Lite</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">18/12/2023 11:45:15</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">VT025</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Dây cáp nguồn 12V</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                                    Cập nhật thông tin
+                                    Nhập kho
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Cập nhật thông tin bảo hành thiết bị</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Ngô Văn E</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">NK005</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">50</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Nhập kho vật tư mới từ nhà cung cấp</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Hoàng Văn E</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">Đã kiểm tra chất lượng</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </button>
                             </td>
                         </tr>
                         <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">7</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">20/06/2023 15:30:45</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN007</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bàn phím 4x4</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Thêm mới
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">19/12/2023 15:20:00</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">HH010</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Hộp đựng thiết bị nhựa ABS</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                                    Chuyển kho
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Thêm mới linh kiện từ nhà cung cấp</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vũ Thị G</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">8</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">21/06/2023 09:10:30</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN008</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Anten 5G</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    Di chuyển
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Di chuyển đến vị trí lắp ráp</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Nguyễn Văn H</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">9</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">22/06/2023 13:45:00</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN009</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Linh kiện</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bo mạch khuếch đại</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                    Thay thế
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Thay thế linh kiện mới</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Trần Thị I</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">23/06/2023 16:00:30</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">SN010</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Vật tư</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Pin Lithium 5000mAh</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
-                                    Cập nhật thông tin
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">Cập nhật thông số kỹ thuật</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Lê Văn K</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">CK006</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">25</td>
+                            <td class="px-4 py-3 text-sm text-gray-700">Chuyển từ kho Hà Nội sang kho Hồ Chí Minh</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">Vũ Thị F</td>
+                            <td class="px-4 py-3 text-sm text-gray-500">Phân phối theo kế hoạch</td>
+                            <td class="px-4 py-3 whitespace-nowrap">
                                 <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </button>
@@ -300,7 +227,7 @@
             <!-- Pagination -->
             <div class="mt-4 flex items-center justify-between">
                 <div class="text-sm text-gray-700">
-                    Hiển thị <span class="font-medium">1</span> đến <span class="font-medium">10</span> của <span class="font-medium">24</span> bản ghi
+                    Hiển thị <span class="font-medium">1</span> đến <span class="font-medium">6</span> của <span class="font-medium">6</span> bản ghi
                 </div>
                 <div class="flex space-x-2">
                     <button class="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
@@ -331,63 +258,55 @@
                 <div class="border-t border-gray-200 pt-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <p class="text-sm font-medium text-gray-500">Mã thay đổi:</p>
-                            <p class="text-sm text-gray-900">CHG-001</p>
-                        </div>
-                        <div>
                             <p class="text-sm font-medium text-gray-500">Thời gian:</p>
-                            <p class="text-sm text-gray-900">15/06/2023 08:30:12</p>
+                            <p class="text-sm text-gray-900">15/12/2023 08:30:12</p>
                         </div>
                         <div>
-                            <p class="text-sm font-medium text-gray-500">Mã serial:</p>
-                            <p class="text-sm text-gray-900">SN001</p>
+                            <p class="text-sm font-medium text-gray-500">Mã vật tư:</p>
+                            <p class="text-sm text-gray-900">VT001</p>
+                        </div>
+                        <div class="md:col-span-2">
+                            <p class="text-sm font-medium text-gray-500">Tên vật tư:</p>
+                            <p class="text-sm text-gray-900">Bo mạch điều khiển chính v2.1</p>
                         </div>
                         <div>
-                            <p class="text-sm font-medium text-gray-500">Loại mục:</p>
-                            <p class="text-sm text-gray-900">Linh kiện</p>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">Tên mục:</p>
-                            <p class="text-sm text-gray-900">CPU Intel i5</p>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">Loại thay đổi:</p>
+                            <p class="text-sm font-medium text-gray-500">Loại hình:</p>
                             <p class="text-sm">
                                 <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Thêm mới
+                                    Lắp ráp
                                 </span>
                             </p>
                         </div>
-                        <div class="md:col-span-2">
-                            <p class="text-sm font-medium text-gray-500">Mô tả thay đổi:</p>
-                            <p class="text-sm text-gray-900">Thêm mới linh kiện vào kho. Linh kiện được mua từ nhà cung cấp ABC và đã được kiểm tra chất lượng đạt yêu cầu.</p>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Mã phiếu:</p>
+                            <p class="text-sm text-gray-900">LR001</p>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">Số lượng:</p>
+                            <p class="text-sm text-gray-900">5 cái</p>
                         </div>
                         <div>
                             <p class="text-sm font-medium text-gray-500">Người thực hiện:</p>
                             <p class="text-sm text-gray-900">Nguyễn Văn A</p>
                         </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">Phòng ban:</p>
-                            <p class="text-sm text-gray-900">Phòng Kỹ thuật</p>
+                        <div class="md:col-span-2">
+                            <p class="text-sm font-medium text-gray-500">Mô tả:</p>
+                            <p class="text-sm text-gray-900">Sử dụng vật tư cho phiếu lắp ráp thiết bị IoT Smart City theo hợp đồng HD001/2024. Vật tư đã được kiểm tra chất lượng và đáp ứng yêu cầu kỹ thuật.</p>
                         </div>
                         <div class="md:col-span-2">
-                            <p class="text-sm font-medium text-gray-500">Thông tin trước khi thay đổi:</p>
-                            <p class="text-sm text-gray-900">Không có (thêm mới)</p>
+                            <p class="text-sm font-medium text-gray-500">Chú thích:</p>
+                            <p class="text-sm text-gray-900">Đã kiểm tra chất lượng - Vật tư đạt tiêu chuẩn ISO 9001 và đã qua kiểm định chất lượng đầu vào.</p>
                         </div>
                         <div class="md:col-span-2">
-                            <p class="text-sm font-medium text-gray-500">Thông tin sau khi thay đổi:</p>
+                            <p class="text-sm font-medium text-gray-500">Thông tin chi tiết:</p>
                             <p class="text-sm text-gray-900">
-                                - Mã thành phẩm: CPU-I5-10400<br>
-                                - Serial: SN001<br>
-                                - Nhà sản xuất: Intel<br>
-                                - Ngày sản xuất: 10/01/2023<br>
-                                - Tình trạng: Mới 100%<br>
-                                - Vị trí lưu trữ: Kho Hà Nội, Kệ A, Ngăn 2
+                                - Mã phiếu lắp ráp: LR001/2023<br>
+                                - Sản phẩm đích: Thiết bị IoT Smart City<br>
+                                - Kho xuất: Kho vật tư chính<br>
+                                - Vị trí: Kệ A-02, Ngăn 15<br>
+                                - Thời gian hoàn thành: 08:45:30<br>
+                                - Trạng thái: Đã hoàn thành
                             </p>
-                        </div>
-                        <div class="md:col-span-2">
-                            <p class="text-sm font-medium text-gray-500">Ghi chú:</p>
-                            <p class="text-sm text-gray-900">Linh kiện đã được dán tem kiểm tra và nhập kho theo quy trình QT-KT-001.</p>
                         </div>
                     </div>
                     

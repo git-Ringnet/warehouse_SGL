@@ -52,16 +52,6 @@
                                     <i class="fas fa-user text-blue-500 mr-2"></i>
                                     <span class="text-blue-500 font-medium">{{ $warehouse->manager }}</span>
                                 </div>
-                                <div class="flex items-center mt-1">
-                                    <i class="fas fa-phone text-blue-500 mr-2"></i>
-                                    <span class="text-blue-500">{{ $warehouse->phone }}</span>
-                                </div>
-                                @if($warehouse->email)
-                                <div class="flex items-center mt-1">
-                                    <i class="fas fa-envelope text-blue-500 mr-2"></i>
-                                    <span class="text-blue-500">{{ $warehouse->email }}</span>
-                                </div>
-                                @endif
                             </div>
                         </div>
                     </div>
@@ -88,14 +78,6 @@
                     <div>
                         <p class="text-sm text-gray-500">Người quản lý</p>
                         <p class="text-gray-900">{{ $warehouse->manager }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Số điện thoại</p>
-                        <p class="text-gray-900">{{ $warehouse->phone }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-gray-500">Email</p>
-                        <p class="text-gray-900">{{ $warehouse->email ?: 'Chưa có' }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
@@ -143,6 +125,18 @@
                                         aria-selected="false"
                                         onclick="openTab('products')">
                                     Thành phẩm
+                                </button>
+                            </li>
+                            <li class="mr-2" role="presentation">
+                                <button class="inline-block p-4 border-b-2 border-transparent rounded-t-lg text-gray-500 hover:text-gray-600 hover:border-gray-300"
+                                        id="goods-tab" 
+                                        data-tabs-target="#goods" 
+                                        type="button" 
+                                        role="tab" 
+                                        aria-controls="goods" 
+                                        aria-selected="false"
+                                        onclick="openTab('goods')">
+                                    Hàng hóa
                                 </button>
                             </li>
                         </ul>
@@ -240,6 +234,57 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Tablet Pro</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Tablet</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">32</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Hàng hóa tab -->
+                        <div class="hidden" id="goods" role="tabpanel" aria-labelledby="goods-tab">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Mã hàng hóa
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tên hàng hóa
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Loại
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Số lượng tồn
+                                            </th>
+                                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Đơn vị
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Dữ liệu mẫu - sẽ được thay thế bằng dữ liệu thực từ backend -->
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HH001</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Ốc vít 5mm</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Linh kiện</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2500</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cái</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HH002</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Băng keo điện</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Vật liệu</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">150</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Cuộn</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">HH003</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Keo dán đa năng</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Vật liệu</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">85</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Tuýp</td>
                                         </tr>
                                     </tbody>
                                 </table>
