@@ -82,12 +82,27 @@
                         <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="getCustomerInfo(this.value)">
                             <option value="">-- Chọn khách hàng --</option>
                             @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}" {{ (old('customer_id', $rental->customer_id) == $customer->id) ? 'selected' : '' }}>{{ $customer->company_name }}</option>
+                                <option value="{{ $customer->id }}" {{ $rental->customer_id == $customer->id ? 'selected' : '' }}>
+                                    {{ $customer->company_name }}
+                                </option>
                             @endforeach
                         </select>
                         @error('customer_id')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
+                    </div>
+
+                    <!-- Nhân viên phụ trách -->
+                    <div>
+                        <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên phụ trách</label>
+                        <select name="employee_id" id="employee_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Chọn nhân viên phụ trách --</option>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" {{ $rental->employee_id == $employee->id ? 'selected' : '' }}>
+                                    {{ $employee->name }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
 
                     <!-- Thông tin người đại diện -->

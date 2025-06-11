@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Supplier;
+use App\Models\Material;
+use App\Models\Good;
 use Illuminate\Http\Request;
 
 class SupplierController extends Controller
@@ -101,8 +103,21 @@ class SupplierController extends Controller
      */
     public function show(string $id)
     {
-        $supplier = Supplier::with(['materials', 'goods'])->findOrFail($id);
-        return view('suppliers.show', compact('supplier'));
+        $supplier = Supplier::findOrFail($id);
+        
+        // Lấy các vật tư có supplier_id = id của nhà cung cấp này
+        $directMaterials = Material::where('supplier_id', $id)->get();
+        
+        // Lấy các vật tư có supplier_ids chứa id của nhà cung cấp này
+        $indirectMaterials = Material::whereJsonContains('supplier_ids', $id)->get();
+        
+        // Gộp hai danh sách vật tư và loại bỏ các phần tử trùng lặp
+        $materials = $directMaterials->merge($indirectMaterials)->unique('id');
+        
+        // Lấy các hàng hóa có supplier_id = id của nhà cung cấp này
+        $goods = Good::where('supplier_id', $id)->get();
+        
+        return view('suppliers.show', compact('supplier', 'materials', 'goods'));
     }
 
     /**
@@ -152,6 +167,24 @@ class SupplierController extends Controller
     public function destroy(string $id)
     {
         $supplier = Supplier::findOrFail($id);
+        
+        // Kiểm tra xem nhà cung cấp có vật tư liên quan không
+        $directMaterialsCount = Material::where('supplier_id', $id)->count();
+        $indirectMaterialsCount = Material::whereJsonContains('supplier_ids', $id)->count();
+        
+        if ($directMaterialsCount > 0 || $indirectMaterialsCount > 0) {
+            return redirect()->route('suppliers.show', $id)
+                ->with('error', 'Không thể xóa nhà cung cấp này vì có vật tư liên quan. Vui lòng xóa các vật tư trước.');
+        }
+        
+        // Kiểm tra xem nhà cung cấp có hàng hóa liên quan không
+        $goodsCount = Good::where('supplier_id', $id)->count();
+        
+        if ($goodsCount > 0) {
+            return redirect()->route('suppliers.show', $id)
+                ->with('error', 'Không thể xóa nhà cung cấp này vì có hàng hóa liên quan. Vui lòng xóa các hàng hóa trước.');
+        }
+        
         $supplier->delete();
 
         return redirect()->route('suppliers.index')

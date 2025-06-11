@@ -372,6 +372,14 @@
                                     {{ \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y') }}
                                 </p>
                             </div>
+                            <div class="mb-4">
+                                <p class="text-sm font-medium text-gray-500 mb-1">Nhân viên phụ trách</p>
+                                <p class="text-base text-gray-900">{{ $rental->employee ? $rental->employee->name : 'Chưa phân công' }}</p>
+                            </div>
+                            <div class="mb-4">
+                                <p class="text-sm font-medium text-gray-500 mb-1">Ngày tạo</p>
+                                <p class="text-base text-gray-900">{{ \Carbon\Carbon::parse($rental->created_at)->format('d/m/Y H:i') }}</p>
+                            </div>
                             <div class="mt-2">
                                 <button onclick="openExtendModal()" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center transition-colors">
                                     <i class="fas fa-clock mr-2"></i> Gia hạn phiếu thuê

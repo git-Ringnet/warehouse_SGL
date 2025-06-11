@@ -137,6 +137,10 @@
                             <p class="text-base text-gray-900">{{ \Carbon\Carbon::parse($project->end_date)->format('d/m/Y') }}</p>
                         </div>
                         <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Nhân viên phụ trách</p>
+                            <p class="text-base text-gray-900">{{ $project->employee ? $project->employee->name : 'Chưa phân công' }}</p>
+                        </div>
+                        <div class="mb-4">
                             <p class="text-sm font-medium text-gray-500 mb-1">Ngày tạo</p>
                             <p class="text-base text-gray-900">{{ \Carbon\Carbon::parse($project->created_at)->format('d/m/Y H:i') }}</p>
                         </div>

@@ -157,8 +157,13 @@ class EmployeeController extends Controller
      */
     public function show(string $id)
     {
-        $employee = Employee::with('roleGroup')->findOrFail($id);
-        return view('employees.show', compact('employee'));
+        $employee = Employee::with(['roleGroup', 'projects', 'rentals'])->findOrFail($id);
+        
+        // Lấy danh sách dự án và phiếu cho thuê liên quan đến nhân viên
+        $projects = $employee->projects()->latest()->get();
+        $rentals = $employee->rentals()->latest()->get();
+        
+        return view('employees.show', compact('employee', 'projects', 'rentals'));
     }
 
     /**

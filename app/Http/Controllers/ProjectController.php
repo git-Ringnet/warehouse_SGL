@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\Customer;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -67,7 +68,8 @@ class ProjectController extends Controller
     public function create()
     {
         $customers = Customer::all();
-        return view('projects.create', compact('customers'));
+        $employees = Employee::where('is_active', true)->get();
+        return view('projects.create', compact('customers', 'employees'));
     }
 
     /**
@@ -80,6 +82,7 @@ class ProjectController extends Controller
             'project_code' => 'required|string|max:255|unique:projects',
             'project_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
+            'employee_id' => 'nullable|exists:employees,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'warranty_period' => 'required|integer|min:1',
@@ -90,6 +93,7 @@ class ProjectController extends Controller
             'project_name.required' => 'Tên dự án không được để trống',
             'customer_id.required' => 'Khách hàng không được để trống',
             'customer_id.exists' => 'Khách hàng không tồn tại',
+            'employee_id.exists' => 'Nhân viên phụ trách không tồn tại',
             'start_date.required' => 'Ngày bắt đầu không được để trống',
             'start_date.date' => 'Ngày bắt đầu không hợp lệ',
             'end_date.required' => 'Ngày kết thúc không được để trống',
@@ -112,6 +116,7 @@ class ProjectController extends Controller
             'project_code' => $request->project_code,
             'project_name' => $request->project_name,
             'customer_id' => $request->customer_id,
+            'employee_id' => $request->employee_id,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'warranty_period' => $request->warranty_period,
@@ -138,7 +143,8 @@ class ProjectController extends Controller
     {
         $project = Project::findOrFail($id);
         $customers = Customer::all();
-        return view('projects.edit', compact('project', 'customers'));
+        $employees = Employee::where('is_active', true)->get();
+        return view('projects.edit', compact('project', 'customers', 'employees'));
     }
 
     /**
@@ -151,6 +157,7 @@ class ProjectController extends Controller
             'project_code' => 'required|string|max:255|unique:projects,project_code,'.$id,
             'project_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
+            'employee_id' => 'nullable|exists:employees,id',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'warranty_period' => 'required|integer|min:1',
@@ -161,6 +168,7 @@ class ProjectController extends Controller
             'project_name.required' => 'Tên dự án không được để trống',
             'customer_id.required' => 'Khách hàng không được để trống',
             'customer_id.exists' => 'Khách hàng không tồn tại',
+            'employee_id.exists' => 'Nhân viên phụ trách không tồn tại',
             'start_date.required' => 'Ngày bắt đầu không được để trống',
             'start_date.date' => 'Ngày bắt đầu không hợp lệ',
             'end_date.required' => 'Ngày kết thúc không được để trống',
@@ -184,6 +192,7 @@ class ProjectController extends Controller
             'project_code' => $request->project_code,
             'project_name' => $request->project_name,
             'customer_id' => $request->customer_id,
+            'employee_id' => $request->employee_id,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'warranty_period' => $request->warranty_period,
