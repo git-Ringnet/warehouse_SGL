@@ -141,7 +141,12 @@
                                 <a href="{{ url('/requests/project/1/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="openDeleteModal(1, 'Đất Đỏ')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <button 
+                                    class="delete-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
+                                    title="Xóa" 
+                                    data-id="1" 
+                                    data-name="phiếu đề xuất dự án Đất Đỏ"
+                                    data-type="project">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                                 <a href="{{ url('/requests/project/1/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
@@ -170,7 +175,12 @@
                                 <a href="{{ url('/requests/maintenance/2/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="openDeleteModal(2, 'Tân Thành')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <button 
+                                    class="delete-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
+                                    title="Xóa" 
+                                    data-id="2" 
+                                    data-name="phiếu bảo trì dự án Tân Thành"
+                                    data-type="maintenance">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                                 <a href="{{ url('/requests/maintenance/2/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
@@ -199,7 +209,12 @@
                                 <a href="{{ url('/requests/customer-maintenance/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
-                                <button onclick="openDeleteModal(3, 'Bình Châu')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                <button 
+                                    class="delete-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
+                                    title="Xóa" 
+                                    data-id="3" 
+                                    data-name="phiếu yêu cầu bảo trì Bình Châu"
+                                    data-type="customer-maintenance">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
                                 <a href="{{ url('/requests/customer-maintenance/3/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
@@ -230,26 +245,6 @@
         </main>
     </div>
 
-    <!-- Delete Modal -->
-    <div id="deleteModal" class="modal-overlay">
-        <div class="modal p-5">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Xác nhận xóa</h3>
-            <p class="text-gray-600 mb-5">Bạn có chắc chắn muốn xóa phiếu yêu cầu <span id="deleteItemName" class="font-medium"></span>?</p>
-            <div class="flex justify-end space-x-2">
-                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
-                    Hủy
-                </button>
-                <form id="deleteForm" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                        Xóa
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <script>
         // Dropdown Menus - Sửa lại để đơn giản hơn
         document.addEventListener('DOMContentLoaded', function() {
@@ -267,31 +262,46 @@
                     dropdownMenu.classList.add('hidden');
                 }
             });
+
+            // Initialize delete modal
+            initDeleteModal();
+            
+            // Add click handlers to all delete buttons
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const name = this.getAttribute('data-name');
+                    const type = this.getAttribute('data-type');
+                    
+                    openDeleteModal(id, name);
+                });
+            });
         });
 
-        // Delete Modal Functions
-        function openDeleteModal(id, name) {
-            document.getElementById('deleteItemName').textContent = name;
+        // Override deleteCustomer function from delete-modal.js
+        function deleteCustomer(id) {
+            // Find the button with matching data-id
+            const button = document.querySelector(`.delete-btn[data-id="${id}"]`);
+            const type = button.getAttribute('data-type');
             
-            // Set the form action based on the phiếu type
-            const row = event.target.closest('tr');
-            const type = row.querySelector('td:nth-child(4) span').textContent.trim().toLowerCase();
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url('/requests') }}/" + type + "/" + id;
             
-            let route = '';
-            if (type.includes('triển khai')) {
-                route = '/requests/project/' + id;
-            } else if (type.includes('bảo trì')) {
-                route = '/requests/maintenance/' + id;
-            } else if (type.includes('Phiếu khách yêu cầu bảo trì')) {
-                route = '/requests/components/' + id;
-            }
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = "{{ csrf_token() }}";
             
-            document.getElementById('deleteForm').action = route;
-            document.getElementById('deleteModal').classList.add('show');
-        }
-
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('show');
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrfToken);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
         }
     </script>
 </body>

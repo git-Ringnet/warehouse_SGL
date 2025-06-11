@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -76,13 +77,12 @@
                 <a href="{{ url('/requests/project/'.$id.'/edit') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <form action="{{ url('/requests/project/'.$id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu đề xuất này?');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-trash-alt mr-2"></i> Xóa
-                    </button>
-                </form>
+                <button id="deleteButton" 
+                    data-id="{{ $id }}" 
+                    data-name="phiếu đề xuất triển khai dự án"
+                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
                 <a href="{{ url('/requests/project/'.$id.'/preview') }}" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors" target="_blank">
                     <i class="fas fa-file-excel mr-2"></i> Xem trước Excel
                 </a>
@@ -241,9 +241,39 @@
     </div>
 
     <script>
+        // Delete functionality setup
         document.addEventListener('DOMContentLoaded', function() {
-            // Các xử lý cho trang chi tiết nếu cần
+            initDeleteModal();
+            
+            // Attach click event to delete button
+            document.getElementById('deleteButton').addEventListener('click', function() {
+                const requestName = this.getAttribute('data-name');
+                const requestId = this.getAttribute('data-id');
+                openDeleteModal(requestId, requestName);
+            });
         });
+
+        // Override deleteCustomer function from delete-modal.js
+        function deleteCustomer(id) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url('/requests/project') }}/" + id;
+            
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = "{{ csrf_token() }}";
+            
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrfToken);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
+        }
     </script>
 </body>
 </html> 
