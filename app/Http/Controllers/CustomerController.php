@@ -123,7 +123,14 @@ class CustomerController extends Controller
     public function show(string $id)
     {
         $customer = Customer::findOrFail($id);
-        return view('customers.show', compact('customer'));
+        
+        // Lấy danh sách dự án liên quan đến khách hàng
+        $projects = $customer->projects()->latest()->get();
+        
+        // Lấy danh sách phiếu cho thuê liên quan đến khách hàng
+        $rentals = $customer->rentals()->latest()->get();
+        
+        return view('customers.show', compact('customer', 'projects', 'rentals'));
     }
 
     /**
@@ -226,6 +233,19 @@ class CustomerController extends Controller
     public function destroy(string $id)
     {
         $customer = Customer::findOrFail($id);
+        
+        // Kiểm tra xem khách hàng có dự án liên quan không
+        if ($customer->projects()->count() > 0) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Không thể xóa khách hàng này vì có dự án liên quan. Vui lòng xóa dự án trước.');
+        }
+        
+        // Kiểm tra xem khách hàng có phiếu cho thuê liên quan không
+        if ($customer->rentals()->count() > 0) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Không thể xóa khách hàng này vì có phiếu cho thuê liên quan. Vui lòng xóa phiếu cho thuê trước.');
+        }
+        
         $customer->delete();
 
         return redirect()->route('customers.index')

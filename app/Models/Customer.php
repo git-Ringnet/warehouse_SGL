@@ -27,4 +27,20 @@ class Customer extends Model
         'account_username',
         'account_password'
     ];
+
+    /**
+     * Lấy tất cả dự án của khách hàng
+     */
+    public function projects()
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    /**
+     * Lấy tất cả phiếu cho thuê của khách hàng
+     */
+    public function rentals()
+    {
+        return $this->hasMany(Rental::class);
+    }
 }

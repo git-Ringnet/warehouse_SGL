@@ -39,6 +39,10 @@
             <x-alert type="success" :message="session('success')" />
         @endif
 
+        @if(session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
+
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-6">Thông tin khách hàng</h2>
@@ -127,37 +131,73 @@
                 </div>
             </div>
 
-            <!-- Danh sách các dự án của khách hàng (mẫu) -->
+            <!-- Danh sách các dự án của khách hàng -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Dự án liên quan</h2>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã dự án</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên dự án</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày bắt đầu</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày kết thúc</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
+                            @forelse($projects as $project)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">PRJ001</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Hệ thống quản lý kho</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">Đang triển khai</span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/06/2023</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $project->project_code }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $project->project_name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ date('d/m/Y', strtotime($project->start_date)) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ date('d/m/Y', strtotime($project->end_date)) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    <a href="#" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
+                                    <a href="{{ route('projects.show', $project->id) }}" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
                                 </td>
                             </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Khách hàng chưa có dự án nào</td>
+                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-4 flex justify-center">
-                    <p class="text-gray-500 text-sm italic">Chức năng liên kết dự án sẽ được cập nhật sau</p>
+            </div>
+
+            <!-- Danh sách các phiếu cho thuê của khách hàng -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Phiếu cho thuê liên quan</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã phiếu</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên phiếu</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày thuê</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày hẹn trả</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            @forelse($rentals as $rental)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $rental->rental_code }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $rental->rental_name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ date('d/m/Y', strtotime($rental->rental_date)) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ date('d/m/Y', strtotime($rental->due_date)) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <a href="{{ route('rentals.show', $rental->id) }}" class="text-blue-500 hover:text-blue-700">Xem chi tiết</a>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">Khách hàng chưa có phiếu cho thuê nào</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
