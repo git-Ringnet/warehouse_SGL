@@ -13,16 +13,47 @@ use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\PDF;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MaterialsExport;
+use App\Exports\MaterialsTemplateExport;
+use App\Imports\MaterialsImport;
+use App\Models\Supplier;
 
 class MaterialController extends Controller
 {
     /**
      * Display a listing of the materials.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Get all materials
-        $materials = Material::all();
+        // Clear any remaining import results from session when visiting index
+        if (session()->has('import_results')) {
+            session()->forget('import_results');
+        }
+        
+        // Start with base query for active materials that are not hidden
+        $query = Material::where('status', 'active')
+            ->where('is_hidden', false);
+
+        // Apply filters if provided
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('unit')) {
+            $query->where('unit', $request->unit);
+        }
+
+        $materials = $query->get();
         
         // Initialize grand totals
         $grandTotalQuantity = 0;
@@ -50,8 +81,38 @@ class MaterialController extends Controller
             $grandTotalQuantity += $material->total_quantity;
             $grandInventoryQuantity += $material->inventory_quantity;
         }
+
+        // Apply stock filter after calculating quantities
+        if ($request->filled('stock')) {
+            if ($request->stock === 'in_stock') {
+                $materials = $materials->filter(function($material) {
+                    return $material->inventory_quantity > 0;
+                });
+            } elseif ($request->stock === 'out_of_stock') {
+                $materials = $materials->filter(function($material) {
+                    return $material->inventory_quantity == 0;
+                });
+            }
+        }
+
+        // Get unique categories and units for dropdowns
+        $categories = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->distinct()
+            ->pluck('category')
+            ->filter()
+            ->sort()
+            ->values();
+
+        $units = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->distinct()
+            ->pluck('unit')
+            ->filter()
+            ->sort()
+            ->values();
         
-        return view('materials.index', compact('materials', 'grandTotalQuantity', 'grandInventoryQuantity'));
+        return view('materials.index', compact('materials', 'grandTotalQuantity', 'grandInventoryQuantity', 'categories', 'units'));
     }
 
     /**
@@ -65,7 +126,10 @@ class MaterialController extends Controller
         // Sort categories alphabetically
         sort($categories);
         
-        return view('materials.create', compact('categories'));
+        // Get all suppliers
+        $suppliers = Supplier::orderBy('name')->get();
+        
+        return view('materials.create', compact('categories', 'suppliers'));
     }
 
     /**
@@ -80,9 +144,16 @@ class MaterialController extends Controller
             'unit' => 'required',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
             'inventory_warehouses' => 'nullable',
+            'supplier_ids' => 'nullable|array',
+            'supplier_ids.*' => 'exists:suppliers,id'
         ]);
 
-        $materialData = $request->except(['images', 'image']);
+        $materialData = $request->except(['images', 'image', 'supplier_ids']);
+        
+        // Handle supplier_ids
+        if ($request->has('supplier_ids')) {
+            $materialData['supplier_ids'] = $request->supplier_ids;
+        }
 
         // Create the material
         $material = Material::create($materialData);
@@ -144,10 +215,13 @@ class MaterialController extends Controller
         // Sort categories alphabetically
         sort($categories);
         
+        // Get all suppliers
+        $suppliers = Supplier::orderBy('name')->get();
+        
         // Load material images
         $material->load('images');
         
-        return view('materials.edit', compact('material', 'categories'));
+        return view('materials.edit', compact('material', 'categories', 'suppliers'));
     }
 
     /**
@@ -161,10 +235,17 @@ class MaterialController extends Controller
             'category' => 'required',
             'unit' => 'required',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:20480',
-            'inventory_warehouses' => 'nullable'
+            'inventory_warehouses' => 'nullable',
+            'supplier_ids' => 'nullable|array',
+            'supplier_ids.*' => 'exists:suppliers,id'
         ]);
 
-        $materialData = $request->except(['images', 'image', 'deleted_images']);
+        $materialData = $request->except(['images', 'image', 'deleted_images', 'supplier_ids']);
+        
+        // Handle supplier_ids
+        if ($request->has('supplier_ids')) {
+            $materialData['supplier_ids'] = $request->supplier_ids;
+        }
 
         // Update the material
         $material->update($materialData);
@@ -208,18 +289,47 @@ class MaterialController extends Controller
     /**
      * Remove the specified material from storage.
      */
-    public function destroy(Material $material)
+    public function destroy(Request $request, Material $material)
     {
-        // Delete all associated images
-        foreach ($material->images as $image) {
-            Storage::disk('public')->delete($image->image_path);
+        // Check if material has inventory quantity > 0
+        $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+            ->where('item_type', 'material');
+            
+        // Check inventory based on material's configuration
+        if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+            $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
         }
         
-        // Delete the material (images will be cascade deleted due to foreign key constraint)
-        $material->delete();
+        $inventoryQuantity = $warehouseQuery->sum('quantity');
+        
+        // Only allow deletion when inventory quantity is 0
+        if ($inventoryQuantity > 0) {
+            return redirect()->route('materials.index')
+                ->with('error', 'Không thể xóa vật tư khi còn tồn kho. Số lượng tồn kho hiện tại: ' . number_format($inventoryQuantity, 0, ',', '.'));
+        }
 
-        return redirect()->route('materials.index')
-            ->with('success', 'Vật tư đã được xóa thành công.');
+        // Check the deletion action type from request
+        $action = $request->input('action');
+        
+        if ($action === 'hide') {
+            // Hide the material instead of deleting
+            $material->update([
+                'is_hidden' => true,
+                'status' => 'active'
+            ]);
+            
+            return redirect()->route('materials.index')
+                ->with('success', 'Vật tư đã được ẩn thành công.');
+        } else {
+            // Mark as deleted but don't actually delete for history purposes
+            $material->update([
+                'status' => 'deleted',
+                'is_hidden' => false
+            ]);
+            
+            return redirect()->route('materials.index')
+                ->with('success', 'Vật tư đã được đánh dấu là đã xóa.');
+        }
     }
 
     /**
@@ -268,10 +378,11 @@ class MaterialController extends Controller
                 $query->whereRaw('LOWER(code) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                     ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                     ->orWhereRaw('LOWER(category) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
-                    ->orWhereRaw('LOWER(serial) LIKE ?', ['%' . strtolower($searchTerm) . '%']);
+                    ->orWhereRaw('LOWER(unit) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
+                    ->orWhereRaw('LOWER(notes) LIKE ?', ['%' . strtolower($searchTerm) . '%']);
             })
             ->limit(10)
-            ->get(['id', 'code', 'name', 'category', 'serial']);
+            ->get(['id', 'code', 'name', 'category', 'unit']);
             
             return response()->json($materials);
         } catch (\Exception $e) {
@@ -402,8 +513,363 @@ class MaterialController extends Controller
     /**
      * Export materials list to Excel
      */
-    public function exportExcel()
+    public function exportExcel(Request $request)
     {
+        try {
+            // Get current filters from request
+            $filters = [
+                'search' => $request->get('search'),
+                'category' => $request->get('category'),
+                'unit' => $request->get('unit'),
+                'stock' => $request->get('stock')
+            ];
+            
+            return Excel::download(new MaterialsExport($filters), 'danh-sach-vat-tu-' . date('Y-m-d') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Export Excel error: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Export materials list to FDF
+     */
+    public function exportFDF(Request $request)
+    {
+        try {
+            // Start with base query for active materials that are not hidden
+            $query = Material::where('status', 'active')
+                ->where('is_hidden', false);
+
+            // Apply filters if provided
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('code', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                      ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+
+            if ($request->filled('category')) {
+                $query->where('category', $request->category);
+            }
+
+            if ($request->filled('unit')) {
+                $query->where('unit', $request->unit);
+            }
+
+            $materials = $query->get();
+            
+            // Calculate quantities for each material
+            foreach ($materials as $material) {
+                $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
+                    ->where('item_type', 'material')
+                    ->sum('quantity');
+                
+                $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+                    ->where('item_type', 'material');
+                    
+                if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+                    $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
+                }
+                
+                $material->inventory_quantity = $warehouseQuery->sum('quantity');
+            }
+
+            // Apply stock filter after calculating quantities
+            if ($request->filled('stock')) {
+                if ($request->stock === 'in_stock') {
+                    $materials = $materials->filter(function($material) {
+                        return $material->inventory_quantity > 0;
+                    });
+                } elseif ($request->stock === 'out_of_stock') {
+                    $materials = $materials->filter(function($material) {
+                        return $material->inventory_quantity == 0;
+                    });
+                }
+            }
+            
+            // Create FDF content
+            $fdfContent = "%FDF-1.2\n";
+            $fdfContent .= "1 0 obj\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/FDF\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/Fields [\n";
+            
+            foreach ($materials as $index => $material) {
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (material_" . ($index + 1) . "_code)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($material->code) . ")\n";
+                $fdfContent .= ">>\n";
+                
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (material_" . ($index + 1) . "_name)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($material->name) . ")\n";
+                $fdfContent .= ">>\n";
+                
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (material_" . ($index + 1) . "_category)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($material->category) . ")\n";
+                $fdfContent .= ">>\n";
+                
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (material_" . ($index + 1) . "_unit)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($material->unit) . ")\n";
+                $fdfContent .= ">>\n";
+                
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (material_" . ($index + 1) . "_inventory_quantity)\n";
+                $fdfContent .= "/V (" . number_format($material->inventory_quantity, 0, ',', '.') . ")\n";
+                $fdfContent .= ">>\n";
+            }
+            
+            $fdfContent .= "]\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= "endobj\n";
+            $fdfContent .= "trailer\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/Root 1 0 R\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= "%%EOF\n";
+            
+            return response($fdfContent)
+                ->header('Content-Type', 'application/vnd.fdf')
+                ->header('Content-Disposition', 'attachment; filename="danh-sach-vat-tu-' . date('Y-m-d') . '.fdf"');
+                
+        } catch (\Exception $e) {
+            Log::error('Export FDF error: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất FDF: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Escape string for FDF format
+     */
+    private function escapeFDFString($string)
+    {
+        return str_replace(['(', ')', '\\'], ['\\(', '\\)', '\\\\'], $string);
+    }
+    
+    /**
+     * Download Excel template for materials import
+     */
+    public function downloadTemplate()
+    {
+        try {
+            return Excel::download(new MaterialsTemplateExport, 'mau-nhap-vat-tu-' . date('Y-m-d') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Download template error: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi tải mẫu: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Import materials from Excel file
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'import_file' => 'required|file|mimes:xlsx,xls,csv|max:10240' // Max 10MB
+            ]);
+            
+            // Clear any existing import results from session
+            session()->forget('import_results');
+            
+            $import = new MaterialsImport();
+            Excel::import($import, $request->file('import_file'));
+            
+            $results = $import->getImportResults();
+            
+            // Log results for debugging
+            Log::info('Import results:', $results);
+            
+            // Prepare success message
+            $message = "Import hoàn tất! ";
+            $message .= "Thành công: {$results['success_count']}, ";
+            $message .= "Lỗi: {$results['error_count']}, ";
+            $message .= "Trùng lặp: {$results['duplicate_count']}";
+            
+            // Store detailed results in session for the results page
+            session(['import_results' => $results]);
+            
+            if ($results['success_count'] > 0) {
+                return redirect()->route('materials.import.results')->with('success', $message);
+            } else {
+                return redirect()->route('materials.import.results')->with('warning', $message);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Import error: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi import: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Show import results
+     */
+    public function importResults()
+    {
+        $results = session('import_results');
         
+        if (!$results) {
+            return redirect()->route('materials.index')->with('error', 'Không tìm thấy kết quả import.');
+        }
+        
+        // Clear the session after retrieving the results to prevent reuse
+        session()->forget('import_results');
+        
+        return view('materials.import-results', compact('results'));
+    }
+    
+    /**
+     * Show hidden materials
+     */
+    public function showHidden()
+    {
+        $materials = Material::where('is_hidden', true)
+            ->get();
+            
+        // Calculate quantities for each material
+        foreach ($materials as $material) {
+            // Total quantity across all locations
+            $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
+                ->where('item_type', 'material')
+                ->sum('quantity');
+            
+            // Total quantity only in warehouses based on inventory_warehouses setting
+            $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+                ->where('item_type', 'material');
+                
+            // Check if inventory_warehouses is an array and contains specific warehouses
+            if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+                $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
+            }
+            
+            $material->inventory_quantity = $warehouseQuery->sum('quantity');
+        }
+        
+        return view('materials.hidden', compact('materials'));
+    }
+    
+    /**
+     * Show deleted materials
+     */
+    public function showDeleted()
+    {
+        $materials = Material::where('status', 'deleted')
+            ->get();
+            
+        // Calculate quantities for each material
+        foreach ($materials as $material) {
+            // Total quantity across all locations
+            $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
+                ->where('item_type', 'material')
+                ->sum('quantity');
+            
+            // Total quantity only in warehouses based on inventory_warehouses setting
+            $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+                ->where('item_type', 'material');
+                
+            // Check if inventory_warehouses is an array and contains specific warehouses
+            if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+                $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
+            }
+            
+            $material->inventory_quantity = $warehouseQuery->sum('quantity');
+        }
+        
+        return view('materials.deleted', compact('materials'));
+    }
+    
+    /**
+     * Restore a hidden material
+     */
+    public function restore($id)
+    {
+        $material = Material::findOrFail($id);
+        $material->update([
+            'is_hidden' => false,
+            'status' => 'active'
+        ]);
+        
+        return back()->with('success', 'Vật tư đã được khôi phục thành công.');
+    }
+    
+    /**
+     * Search materials via API for AJAX requests
+     */
+    public function searchMaterialsApi(Request $request)
+    {
+        // Start with base query for active materials that are not hidden
+        $query = Material::where('status', 'active')
+            ->where('is_hidden', false);
+
+        // Apply filters if provided
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->filled('unit')) {
+            $query->where('unit', $request->unit);
+        }
+
+        $materials = $query->get();
+        
+        // For each material, calculate quantities
+        foreach ($materials as $material) {
+            // Total quantity across all locations
+            $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
+                ->where('item_type', 'material')
+                ->sum('quantity');
+            
+            // Total quantity only in warehouses based on inventory_warehouses setting
+            $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+                ->where('item_type', 'material');
+                
+            if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+                $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
+            }
+            
+            $material->inventory_quantity = $warehouseQuery->sum('quantity');
+        }
+
+        // Apply stock filter after calculating quantities
+        if ($request->filled('stock')) {
+            if ($request->stock === 'in_stock') {
+                $materials = $materials->filter(function($material) {
+                    return $material->inventory_quantity > 0;
+                });
+            } elseif ($request->stock === 'out_of_stock') {
+                $materials = $materials->filter(function($material) {
+                    return $material->inventory_quantity == 0;
+                });
+            }
+        }
+
+        return response()->json([
+            'materials' => $materials->values(),
+            'count' => $materials->count()
+        ]);
     }
 } 

@@ -94,9 +94,9 @@
                                     <select id="supplier-select" 
                                         class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">Chọn nhà cung cấp</option>
-                                        <option value="1">Công ty TNHH Điện tử ABC</option>
-                                        <option value="2">Công ty CP Thiết bị XYZ</option>
-                                        <option value="3">Công ty TNHH Linh kiện DEF</option>
+                                        @foreach($suppliers as $supplier)
+                                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                                        @endforeach
                                     </select>
                                     <button type="button" id="add-supplier-btn"
                                         class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
@@ -105,32 +105,21 @@
                                 </div>
                                 <div id="suppliers-container" class="mt-2">
                                     <!-- Các nhà cung cấp đã liên kết sẽ được thêm vào đây -->
-                                    @if(isset($material->suppliers) && count($material->suppliers) > 0)
-                                        @foreach($material->suppliers as $supplier)
-                                        <div id="supplier-{{ $supplier->id }}" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
-                                            <input type="hidden" name="supplier_id[]" value="{{ $supplier->id }}">
-                                            <div>{{ $supplier->name }}</div>
-                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-{{ $supplier->id }}').remove()">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
+                                    @if(is_array($material->supplier_ids) && count($material->supplier_ids) > 0)
+                                        @foreach($material->supplier_ids as $supplierId)
+                                            @php
+                                                $supplier = $suppliers->where('id', $supplierId)->first();
+                                            @endphp
+                                            @if($supplier)
+                                            <div id="supplier-{{ $supplier->id }}" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
+                                                <input type="hidden" name="supplier_ids[]" value="{{ $supplier->id }}">
+                                                <div>{{ $supplier->name }}</div>
+                                                <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-{{ $supplier->id }}').remove()">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                            @endif
                                         @endforeach
-                                    @else
-                                        <!-- Sample supplier data -->
-                                        <div id="supplier-1" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
-                                            <input type="hidden" name="supplier_id[]" value="1">
-                                            <div>Công ty TNHH Thép Hoàng Hà</div>
-                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-1').remove()">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
-                                        <div id="supplier-3" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
-                                            <input type="hidden" name="supplier_id[]" value="3">
-                                            <div>Công ty CP Kim khí Đại Dương</div>
-                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-3').remove()">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </div>
                                     @endif
                                 </div>
                             </div>
@@ -306,7 +295,7 @@
             function addSupplier(value, text) {
                 console.log('Adding supplier (edit):', value, text);
                 // Check if supplier already exists
-                if (document.querySelector(`input[name="supplier_id[]"][value="${value}"]`)) {
+                if (document.querySelector(`input[name="supplier_ids[]"][value="${value}"]`)) {
                     console.log('Supplier already exists');
                     return;
                 }
@@ -322,7 +311,7 @@
                 
                 const hiddenInput = document.createElement('input');
                 hiddenInput.type = 'hidden';
-                hiddenInput.name = 'supplier_id[]';
+                hiddenInput.name = 'supplier_ids[]';
                 hiddenInput.value = value;
                 
                 const removeButton = document.createElement('button');
