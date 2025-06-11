@@ -29,6 +29,14 @@
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                     </button>
                 </a>
+                <div class="flex flex-wrap gap-3 justify-end">
+                    <button id="export-excel-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                        Duyệt phiếu
+                    </button>
+                    <button id="export-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                        Hủy phiếu
+                    </button>
+                </div>
                 <button id="print-btn"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-print mr-2"></i> In phiếu
