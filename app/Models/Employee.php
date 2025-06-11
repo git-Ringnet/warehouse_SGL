@@ -68,6 +68,22 @@ class Employee extends Model
     }
 
     /**
+     * Lấy danh sách dự án mà nhân viên phụ trách
+     */
+    public function projects()
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    /**
+     * Lấy danh sách phiếu cho thuê mà nhân viên phụ trách
+     */
+    public function rentals()
+    {
+        return $this->hasMany(Rental::class);
+    }
+
+    /**
      * Kiểm tra nhân viên có quyền nào đó không
      */
     public function hasPermission($permissionName)

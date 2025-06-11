@@ -18,6 +18,7 @@ class Project extends Model
         'project_code',
         'project_name',
         'customer_id',
+        'employee_id',
         'start_date',
         'end_date',
         'warranty_period',
@@ -30,6 +31,14 @@ class Project extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Lấy nhân viên phụ trách dự án.
+     */
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     /**

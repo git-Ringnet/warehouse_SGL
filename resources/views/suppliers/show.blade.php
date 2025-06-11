@@ -42,6 +42,10 @@
             <x-alert type="success" :message="session('success')" />
         @endif
 
+        @if(session('error'))
+            <x-alert type="error" :message="session('error')" />
+        @endif
+
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -83,8 +87,24 @@
                             <div>
                                 <p class="text-sm text-gray-500 font-medium">Tổng số lượng đã nhập</p>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-2xl font-bold text-blue-600">{{ $supplier->materials->count() ?? 0 }}</span>
+                                    <span class="text-2xl font-bold text-blue-600">{{ $materials->count() + $goods->count() }}</span>
                                     <span class="text-sm text-gray-500">vật tư/hàng hóa</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <p class="text-sm text-gray-500 font-medium">Vật tư</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl font-bold text-blue-600">{{ $materials->count() }}</span>
+                                    <span class="text-sm text-gray-500">vật tư</span>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <p class="text-sm text-gray-500 font-medium">Hàng hóa</p>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xl font-bold text-blue-600">{{ $goods->count() }}</span>
+                                    <span class="text-sm text-gray-500">hàng hóa</span>
                                 </div>
                             </div>
                             
@@ -129,7 +149,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
-                            @forelse($supplier->materials as $material)
+                            @forelse($materials as $material)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $material->name }}</td>
@@ -154,7 +174,7 @@
                 </div>
             </div>
 
-            <!-- Danh sách thành phẩm của nhà cung cấp (mẫu) -->
+            <!-- Danh sách hàng hóa của nhà cung cấp -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 mt-6 p-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Hàng hóa liên quan</h2>
                 <div class="overflow-x-auto">
@@ -170,7 +190,7 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-100">
-                            @forelse($supplier->goods as $good)
+                            @forelse($goods as $good)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $good->name }}</td>

@@ -18,6 +18,7 @@ class Rental extends Model
         'rental_code',
         'rental_name',
         'customer_id',
+        'employee_id',
         'rental_date',
         'due_date',
         'notes',
@@ -29,6 +30,14 @@ class Rental extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Lấy nhân viên phụ trách phiếu cho thuê.
+     */
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Rental;
 use App\Models\Customer;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -67,7 +68,8 @@ class RentalController extends Controller
     public function create()
     {
         $customers = Customer::all();
-        return view('rentals.create', compact('customers'));
+        $employees = Employee::where('is_active', true)->get();
+        return view('rentals.create', compact('customers', 'employees'));
     }
 
     /**
@@ -80,6 +82,7 @@ class RentalController extends Controller
             'rental_code' => 'required|string|max:255|unique:rentals',
             'rental_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
+            'employee_id' => 'nullable|exists:employees,id',
             'rental_date' => 'required|date',
             'due_date' => 'required|date|after_or_equal:rental_date',
             'notes' => 'nullable|string',
@@ -89,6 +92,7 @@ class RentalController extends Controller
             'rental_name.required' => 'Tên phiếu cho thuê không được để trống',
             'customer_id.required' => 'Khách hàng không được để trống',
             'customer_id.exists' => 'Khách hàng không tồn tại',
+            'employee_id.exists' => 'Nhân viên phụ trách không tồn tại',
             'rental_date.required' => 'Ngày cho thuê không được để trống',
             'rental_date.date' => 'Ngày cho thuê không hợp lệ',
             'due_date.required' => 'Ngày hẹn trả không được để trống',
@@ -109,6 +113,7 @@ class RentalController extends Controller
                 'rental_code' => $request->rental_code,
                 'rental_name' => $request->rental_name,
                 'customer_id' => $request->customer_id,
+                'employee_id' => $request->employee_id,
                 'rental_date' => $request->rental_date,
                 'due_date' => $request->due_date,
                 'notes' => $request->notes,
@@ -138,8 +143,9 @@ class RentalController extends Controller
     {
         $rental = Rental::with(['customer'])->findOrFail($id);
         $customers = Customer::all();
+        $employees = Employee::where('is_active', true)->get();
         
-        return view('rentals.edit', compact('rental', 'customers'));
+        return view('rentals.edit', compact('rental', 'customers', 'employees'));
     }
 
     /**
@@ -152,6 +158,7 @@ class RentalController extends Controller
             'rental_code' => 'required|string|max:255|unique:rentals,rental_code,'.$id,
             'rental_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
+            'employee_id' => 'nullable|exists:employees,id',
             'rental_date' => 'required|date',
             'due_date' => 'required|date|after_or_equal:rental_date',
             'notes' => 'nullable|string',
@@ -161,6 +168,7 @@ class RentalController extends Controller
             'rental_name.required' => 'Tên phiếu cho thuê không được để trống',
             'customer_id.required' => 'Khách hàng không được để trống',
             'customer_id.exists' => 'Khách hàng không tồn tại',
+            'employee_id.exists' => 'Nhân viên phụ trách không tồn tại',
             'rental_date.required' => 'Ngày cho thuê không được để trống',
             'rental_date.date' => 'Ngày cho thuê không hợp lệ',
             'due_date.required' => 'Ngày hẹn trả không được để trống',
@@ -182,6 +190,7 @@ class RentalController extends Controller
                 'rental_code' => $request->rental_code,
                 'rental_name' => $request->rental_name,
                 'customer_id' => $request->customer_id,
+                'employee_id' => $request->employee_id,
                 'rental_date' => $request->rental_date,
                 'due_date' => $request->due_date,
                 'notes' => $request->notes,

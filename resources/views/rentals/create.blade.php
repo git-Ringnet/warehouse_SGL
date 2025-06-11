@@ -91,6 +91,17 @@
                         @enderror
                     </div>
 
+                    <!-- Nhân viên phụ trách -->
+                    <div>
+                        <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên phụ trách</label>
+                        <select name="employee_id" id="employee_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Chọn nhân viên phụ trách --</option>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- Thông tin người đại diện -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Người đại diện</label>
