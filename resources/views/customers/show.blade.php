@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
 </head>
 <body>
     <x-sidebar-component />
@@ -28,13 +29,9 @@
                 <a href="{{ route('customers.edit', $customer->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <form action="{{ route('customers.destroy', $customer->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa khách hàng này?');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-trash-alt mr-2"></i> Xóa
-                    </button>
-                </form>
+                <button id="deleteButton" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
             </div>
         </header>
 
@@ -167,6 +164,42 @@
     </div>
 
     <script>
+        // Variables for delete functionality
+        const customerId = {{ $customer->id }};
+        const customerName = "{{ $customer->name }} - {{ $customer->company_name }}";
+        
+        // Function to handle customer deletion
+        function deleteCustomer(id) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ route('customers.index') }}/' + id;
+            
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = '{{ csrf_token() }}';
+            
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrfToken);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        // Initialize delete button
+        document.addEventListener('DOMContentLoaded', function() {
+            const deleteButton = document.getElementById('deleteButton');
+            if (deleteButton) {
+                deleteButton.addEventListener('click', function() {
+                    openDeleteModal(customerId, customerName);
+                });
+            }
+        });
+
         // Dropdown Menus
         function toggleDropdown(id) {
             const dropdown = document.getElementById(id);

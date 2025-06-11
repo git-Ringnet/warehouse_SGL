@@ -191,21 +191,7 @@
                     </a>
                     @endif
                 </form>
-                <a href="{{ route('customers.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                    <i class="fas fa-user-plus mr-2"></i> Thêm khách hàng
-                </a>
-            </div>
-        </header>
-
-        @if(session('success'))
-            <x-alert type="success" :message="session('success')" />
-        @endif
-        @if(session('error'))
-                <x-alert type="error" :message="session('error')" />
-            @endif
-        <main class="p-6">
-            <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
-                <div class="mt-4 flex justify-end mr-4">
+                <div class="">
                     <div class="relative inline-block text-left">
                         <button id="exportDropdownButton" type="button" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                             <i class="fas fa-download mr-2"></i> Xuất dữ liệu
@@ -223,6 +209,21 @@
                         </div>
                     </div>
                 </div>
+                <a href="{{ route('customers.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
+                    <i class="fas fa-user-plus mr-2"></i> Thêm khách hàng
+                </a>
+            </div>
+        </header>
+
+        @if(session('success'))
+            <x-alert type="success" :message="session('success')" />
+        @endif
+        @if(session('error'))
+                <x-alert type="error" :message="session('error')" />
+            @endif
+        <main class="p-6">
+            <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
+                
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>

@@ -91,13 +91,12 @@
                 <a href="{{ url('/requests/maintenance/'.$id.'/edit') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <form action="{{ url('/requests/maintenance/'.$id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu bảo trì này?');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-trash-alt mr-2"></i> Xóa
-                    </button>
-                </form>
+                <button id="deleteButton" 
+                    data-id="{{ $id }}" 
+                    data-name="phiếu bảo trì dự án"
+                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
                 <a href="{{ url('/requests') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
@@ -257,39 +256,42 @@
         </main>
     </div>
 
-    <!-- Delete Modal -->
-    <div id="deleteModal" class="modal-overlay">
-        <div class="modal p-5">
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Xác nhận xóa</h3>
-            <p class="text-gray-600 mb-5">Bạn có chắc chắn muốn xóa <span id="deleteItemName" class="font-medium"></span>?</p>
-            <div class="flex justify-end space-x-2">
-                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors">
-                    Hủy
-                </button>
-                <form id="deleteForm" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-                        Xóa
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // Xử lý modal xóa
-        function openDeleteModal(id, name) {
-            document.getElementById('deleteItemName').textContent = name;
-            document.getElementById('deleteForm').action = '/requests/maintenance/' + id;
-            document.getElementById('deleteModal').classList.add('show');
-        }
+        // Delete functionality setup
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
+            
+            // Attach click event to delete button
+            document.getElementById('deleteButton').addEventListener('click', function() {
+                const requestName = this.getAttribute('data-name');
+                const requestId = this.getAttribute('data-id');
+                openDeleteModal(requestId, requestName);
+            });
+        });
 
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('show');
+        // Override deleteCustomer function from delete-modal.js
+        function deleteCustomer(id) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ url('/requests/maintenance') }}/" + id;
+            
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = "{{ csrf_token() }}";
+            
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrfToken);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
         }
-
-        // Hàm in phiếu
+        
+        // Existing function for printing request
         function printRequest() {
             window.print();
         }

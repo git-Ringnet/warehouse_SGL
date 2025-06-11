@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -87,13 +88,12 @@
                 <a href="{{ route('rentals.edit', $rental->id) }}" class="h-10 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <form action="{{ route('rentals.destroy', $rental->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu cho thuê này?');">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="h-10 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-trash-alt mr-2"></i> Xóa
-                    </button>
-                </form>
+                <button id="deleteButton" 
+                    data-id="{{ $rental->id }}" 
+                    data-name="{{ $rental->rental_name }}"
+                    class="h-10 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                </button>
             </div>
         </header>
 
@@ -169,6 +169,7 @@
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tên thiết bị</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Serial</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thông tin chi tiết</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thao tác</th>
                                     </tr>
                                 </thead>
@@ -179,11 +180,18 @@
                                         <td class="py-2 px-4 border-b">RENT001</td>
                                         <td class="py-2 px-4 border-b">Máy chiếu Epson</td>
                                         <td class="py-2 px-4 border-b">EPS2023001</td>
-                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Đang sử dụng</span></td>
+                                        <td class="py-2 px-4 border-b">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay đổi</span>
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
+                                            </a>
+                                        </td>
                                         <td class="py-2 px-4 border-b">
                                             <div class="flex space-x-2">
-                                                <button type="button" onclick="openModal('convert-modal', 1, 'RENT001')" class="text-blue-500 hover:text-blue-700">
-                                                    <i class="fas fa-exchange-alt mr-1"></i> Chuyển dự phòng
+                                                <button type="button" onclick="openModal('warranty-modal', 1, 'RENT001')" class="text-blue-500 hover:text-blue-700">
+                                                    <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                                                 </button>
                                                 <button type="button" onclick="openModal('return-modal', 1, 'RENT001')" class="text-red-500 hover:text-red-700">
                                                     <i class="fas fa-undo-alt mr-1"></i> Thu hồi
@@ -196,11 +204,20 @@
                                         <td class="py-2 px-4 border-b">RENT002</td>
                                         <td class="py-2 px-4 border-b">Laptop Dell XPS</td>
                                         <td class="py-2 px-4 border-b">DELL2023078</td>
-                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Đang sử dụng</span></td>
+                                        <td class="py-2 px-4 border-b">
+                                            <button onclick="openModal('history-modal', 2)" class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs hover:bg-yellow-200">
+                                                Đã thay đổi <i class="fas fa-history ml-1"></i>
+                                            </button>
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
+                                            </a>
+                                        </td>
                                         <td class="py-2 px-4 border-b">
                                             <div class="flex space-x-2">
-                                                <button type="button" onclick="openModal('convert-modal', 2, 'RENT002')" class="text-blue-500 hover:text-blue-700">
-                                                    <i class="fas fa-exchange-alt mr-1"></i> Chuyển dự phòng
+                                                <button type="button" onclick="openModal('warranty-modal', 2, 'RENT002')" class="text-blue-500 hover:text-blue-700">
+                                                    <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                                                 </button>
                                                 <button type="button" onclick="openModal('return-modal', 2, 'RENT002')" class="text-red-500 hover:text-red-700">
                                                     <i class="fas fa-undo-alt mr-1"></i> Thu hồi
@@ -213,10 +230,10 @@
                         </div>
                     </div>
                     
-                    <!-- Thiết bị dự phòng -->
+                    <!-- Thiết bị dự phòng/bảo hành -->
                     <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                         <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
-                            <h2 class="text-lg font-semibold text-gray-800">Thiết bị dự phòng</h2>
+                            <h2 class="text-lg font-semibold text-gray-800">Thiết bị dự phòng/bảo hành</h2>
                         </div>
                         
                         <div class="overflow-x-auto">
@@ -227,7 +244,9 @@
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Mã thiết bị</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tên thiết bị</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Serial</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Loại thiết bị</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                                        <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thông tin chi tiết</th>
                                         <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Thao tác</th>
                                     </tr>
                                 </thead>
@@ -238,7 +257,15 @@
                                         <td class="py-2 px-4 border-b">RENT003</td>
                                         <td class="py-2 px-4 border-b">Bộ âm thanh hội nghị</td>
                                         <td class="py-2 px-4 border-b">AUDIO2023045</td>
-                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Dự phòng</span></td>
+                                        <td class="py-2 px-4 border-b">Thiết bị dự phòng</td>
+                                        <td class="py-2 px-4 border-b">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay đổi</span>
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
+                                            </a>
+                                        </td>
                                         <td class="py-2 px-4 border-b">
                                             <button type="button" onclick="openModal('return-modal', 3, 'RENT003')" class="text-red-500 hover:text-red-700">
                                                 <i class="fas fa-undo-alt mr-1"></i> Thu hồi
@@ -250,9 +277,37 @@
                                         <td class="py-2 px-4 border-b">RENT004</td>
                                         <td class="py-2 px-4 border-b">Camera hội nghị Logitech</td>
                                         <td class="py-2 px-4 border-b">LOG2023056</td>
-                                        <td class="py-2 px-4 border-b"><span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đã được thay đổi</span></td>
+                                        <td class="py-2 px-4 border-b">Thiết bị đã thay thế</td>
+                                        <td class="py-2 px-4 border-b">
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đã được thay đổi</span>
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
+                                            </a>
+                                        </td>
                                         <td class="py-2 px-4 border-b">
                                             <button type="button" onclick="openModal('return-modal', 4, 'RENT004')" class="text-red-500 hover:text-red-700">
+                                                <i class="fas fa-undo-alt mr-1"></i> Thu hồi
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="py-2 px-4 border-b">3</td>
+                                        <td class="py-2 px-4 border-b">RENT005</td>
+                                        <td class="py-2 px-4 border-b">Máy chiếu Sony Portable</td>
+                                        <td class="py-2 px-4 border-b">SONY2023099</td>
+                                        <td class="py-2 px-4 border-b">Thiết bị bảo hành</td>
+                                        <td class="py-2 px-4 border-b">
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay đổi</span>
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
+                                            </a>
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <button type="button" onclick="openModal('return-modal', 5, 'RENT005')" class="text-red-500 hover:text-red-700">
                                                 <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                             </button>
                                         </td>
@@ -401,6 +456,100 @@
         </div>
     </div>
 
+    <!-- Modal Bảo hành/Thay thế -->
+    <div id="warranty-modal" class="modal-overlay">
+        <div class="modal max-w-lg w-full">
+            <div class="p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Bảo hành/Thay thế thiết bị</h3>
+                    <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('warranty-modal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <form id="warranty-form" action="#" method="POST">
+                    @csrf
+                    <input type="hidden" id="warranty-equipment-id" name="equipment_id">
+                    
+                    <p class="mb-4">Bạn đang thực hiện bảo hành/thay thế cho thiết bị <span id="warranty-equipment-code" class="font-semibold"></span></p>
+                    
+                    <div class="mb-4">
+                        <label for="replacement-device" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị thay thế</label>
+                        <select id="replacement-device" name="replacement_device_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="">-- Chọn thiết bị --</option>
+                            <option value="1">RENT003 - Bộ âm thanh hội nghị - Thiết bị dự phòng</option>
+                            <option value="2">RENT005 - Máy chiếu Sony Portable - Thiết bị bảo hành</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="warranty-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do bảo hành/thay thế</label>
+                        <textarea id="warranty-reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 mt-5">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300" onclick="closeModal('warranty-modal')">
+                            Hủy bỏ
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            Xác nhận
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lịch sử thay đổi -->
+    <div id="history-modal" class="modal-overlay">
+        <div class="modal max-w-lg w-full">
+            <div class="p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Lịch sử thay đổi thiết bị</h3>
+                    <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeModal('history-modal')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <h4 class="text-md font-medium text-gray-800 mb-2">Thông tin thiết bị gốc</h4>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p><span class="font-medium">Mã thiết bị gốc:</span> RENT007</p>
+                        <p><span class="font-medium">Tên thiết bị:</span> Laptop Dell XPS (cũ)</p>
+                        <p><span class="font-medium">Serial:</span> DELL2023045</p>
+                        <p><span class="font-medium">Lý do thay thế:</span> Hỏng ổ cứng</p>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h4 class="text-md font-medium text-gray-800 mb-2">Lịch sử thay đổi</h4>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Ngày thay đổi</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Người thực hiện</th>
+                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Thiết bị thay thế</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-3 border-t">08/06/2024 10:15</td>
+                                    <td class="py-2 px-3 border-t">Nguyễn Thị B</td>
+                                    <td class="py-2 px-3 border-t">RENT002 - Laptop Dell XPS</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300" onclick="closeModal('history-modal')">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Thu hồi thiết bị -->
     <div id="return-modal" class="modal-overlay">
         <div class="modal max-w-md w-full">
@@ -455,6 +604,41 @@
     </div>
 
     <script>
+        // Delete functionality setup
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
+            
+            // Attach click event to delete button
+            document.getElementById('deleteButton').addEventListener('click', function() {
+                // Get the rental name from a data attribute to avoid JS issues
+                const rentalName = this.getAttribute('data-name');
+                const rentalId = this.getAttribute('data-id');
+                openDeleteModal(rentalId, rentalName);
+            });
+        });
+
+        // Override deleteCustomer function from delete-modal.js
+        function deleteCustomer(id) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "{{ route('rentals.index') }}/" + id;
+            
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = "{{ csrf_token() }}";
+            
+            const method = document.createElement('input');
+            method.type = 'hidden';
+            method.name = '_method';
+            method.value = 'DELETE';
+            
+            form.appendChild(csrfToken);
+            form.appendChild(method);
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
         // Mở modal gia hạn phiếu thuê
         function openExtendModal() {
             document.getElementById('extendModal').classList.add('show');
@@ -472,12 +656,12 @@
             if (confirm('Bạn có chắc chắn muốn xóa phiếu cho thuê này không?')) {
                 const form = document.createElement('form');
                 form.method = 'POST';
-                form.action = '{{ route('rentals.destroy', $rental->id) }}';
+                form.action = "{{ route('rentals.destroy', $rental->id) }}";
                 
                 const csrfToken = document.createElement('input');
                 csrfToken.type = 'hidden';
                 csrfToken.name = '_token';
-                csrfToken.value = '{{ csrf_token() }}';
+                csrfToken.value = "{{ csrf_token() }}";
                 
                 const method = document.createElement('input');
                 method.type = 'hidden';
@@ -501,6 +685,11 @@
             } else if (modalId === 'return-modal') {
                 document.getElementById('return-equipment-id').value = equipmentId;
                 document.getElementById('return-equipment-code').textContent = equipmentCode;
+            } else if (modalId === 'warranty-modal') {
+                document.getElementById('warranty-equipment-id').value = equipmentId;
+                document.getElementById('warranty-equipment-code').textContent = equipmentCode;
+            } else if (modalId === 'history-modal') {
+                // Handle history modal opening
             }
         }
         
