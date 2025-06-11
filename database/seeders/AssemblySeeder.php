@@ -55,8 +55,8 @@ class AssemblySeeder extends Seeder
         // Các trạng thái của phiếu lắp ráp
         $statuses = ['pending', 'in_progress', 'completed', 'cancelled'];
         
-        // Tạo 50 phiếu lắp ráp
-        for ($i = 1; $i <= 50; $i++) {
+        // Tạo 5 phiếu lắp ráp
+        for ($i = 1; $i <= 5; $i++) {
             // Chọn ngẫu nhiên product, warehouse và người được giao nhiệm vụ
             $product = $products->random();
             $sourceWarehouse = $warehouses->random();
@@ -96,7 +96,7 @@ class AssemblySeeder extends Seeder
             }
             
             // Tạo số lượng lắp ráp từ 1-5
-            $quantity = rand(1, 5);
+            $quantity = rand(1, 2);
             
             // Tạo serial numbers nếu đã hoàn thành
             $serials = null;
@@ -144,7 +144,7 @@ class AssemblySeeder extends Seeder
             ]);
             
             // Tạo các nguyên vật liệu cần cho lắp ráp
-            $materialCount = rand(3, 8); // Mỗi sản phẩm cần 3-8 loại nguyên vật liệu
+            $materialCount = rand(3, 5); // Mỗi sản phẩm cần 3-8 loại nguyên vật liệu
             $usedMaterials = [];
             
             for ($j = 0; $j < $materialCount; $j++) {
@@ -157,7 +157,7 @@ class AssemblySeeder extends Seeder
                 $usedMaterials[] = $material->id;
                 
                 // Xác định số lượng cần cho mỗi sản phẩm (1-5)
-                $materialQuantity = rand(1, 5) * $quantity;
+                $materialQuantity = rand(1, 2) * $quantity;
                 
                 // Tạo ghi chú cho nguyên vật liệu (50% có ghi chú)
                 $materialNote = null;

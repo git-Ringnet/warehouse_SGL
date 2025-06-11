@@ -20,8 +20,9 @@ class Material extends Model
         'category',
         'unit',
         'supplier_id',
+        'supplier_ids',
         'status',
-        'serial',
+        'is_hidden',
         'notes',
         'image_path',
         'inventory_warehouses'
@@ -34,7 +35,9 @@ class Material extends Model
      */
     protected $casts = [
         'supplier_id' => 'integer',
+        'supplier_ids' => 'array',
         'inventory_warehouses' => 'array',
+        'is_hidden' => 'boolean',
     ];
     
     /**
@@ -48,5 +51,16 @@ class Material extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
+    }
+    
+    /**
+     * Get suppliers from supplier_ids field
+     */
+    public function suppliers()
+    {
+        if (is_array($this->supplier_ids) && !empty($this->supplier_ids)) {
+            return Supplier::whereIn('id', $this->supplier_ids)->get();
+        }
+        return collect([]);
     }   
 } 

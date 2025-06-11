@@ -20,10 +20,12 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết vật tư</h1>
             </div>
             <div class="flex space-x-2">
+                @if($material->status !== 'deleted' && !$material->is_hidden)
                 <a href="{{ route('materials.edit', $material->id) }}"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
+                @endif
                 <a href="{{ route('materials.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
@@ -43,7 +45,13 @@
                     <div class="p-6">
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
-                                <h2 class="text-2xl font-bold text-gray-800">{{ $material->name }}</h2>
+                                <h2 class="text-2xl font-bold text-gray-800">{{ $material->name }}
+                                    @if($material->status === 'deleted')
+                                        <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Đã xóa</span>
+                                    @elseif($material->is_hidden)
+                                        <span class="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Đã ẩn</span>
+                                    @endif
+                                </h2>
                                 <p class="text-gray-600 mt-1">Mã vật tư: {{ $material->code }}</p>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
@@ -80,17 +88,20 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">06/06/2025</p>
+                        <p class="text-gray-900">{{ $material->created_at->format('d/m/Y H:i') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
-                        <p class="text-gray-900">06/06/2025</p>
+                        <p class="text-gray-900">{{ $material->updated_at->format('d/m/Y H:i') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
                         <div class="text-gray-900">
-                            @if(isset($material->suppliers) && count($material->suppliers) > 0)
-                                @foreach($material->suppliers as $supplier)
+                            @php
+                                $materialSuppliers = $material->suppliers();
+                            @endphp
+                            @if($materialSuppliers->count() > 0)
+                                @foreach($materialSuppliers as $supplier)
                                     <div class="flex items-center mb-1">
                                         <i class="fas fa-building text-gray-400 mr-2"></i>
                                         <a href="{{ route('suppliers.show', $supplier->id) }}" class="text-blue-600 hover:underline">
@@ -99,22 +110,7 @@
                                     </div>
                                 @endforeach
                             @else
-                                <!-- Sample supplier data -->
-                                <div class="flex items-center mb-1">
-                                    <i class="fas fa-building text-gray-400 mr-2"></i>
-                                    <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Thép Hoàng Hà</a>
-                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
-                                </div>
-                                <div class="flex items-center mb-1">
-                                    <i class="fas fa-building text-gray-400 mr-2"></i>
-                                    <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Vật tư Tân Phát</a>
-                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
-                                </div>
-                                <div class="flex items-center mb-1">
-                                    <i class="fas fa-building text-gray-400 mr-2"></i>
-                                    <a href="#" class="text-blue-600 hover:underline">Công ty CP Kim khí Đại Dương</a>
-                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
-                                </div>
+                                <span class="text-gray-500">Chưa có nhà cung cấp</span>
                             @endif
                         </div>
                     </div>
@@ -135,7 +131,7 @@
                                     <span class="text-lg">{{ number_format($inventoryQuantity, 0, ',', '.') }}</span>
                                 </span>
                             </p>
-                            {{-- <p class="text-xs text-gray-500 mt-1">
+                            <p class="text-xs text-gray-500 mt-1">
                                 Tính theo:
                                 @if (is_array($material->inventory_warehouses) && in_array('all', $material->inventory_warehouses))
                                     Tất cả các kho
@@ -153,7 +149,7 @@
                                 @else
                                     Tất cả các kho
                                 @endif
-                            </p> --}}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -181,33 +177,60 @@
                     </div>
                 @endif
 
+                @if($material->status !== 'deleted' && !$material->is_hidden)
                 <div class="mt-6 flex justify-end">
-                    <button onclick="confirmDelete()"
+                    <button onclick="openDeleteModal('{{ $material->id }}', '{{ $material->code }}', {{ $inventoryQuantity }})"
                         class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
                         <i class="fas fa-trash mr-2"></i> Xóa vật tư
                     </button>
                 </div>
+                @endif
             </div>
         </main>
     </div>
 
-    <!-- Modal xác nhận xóa -->
+    <!-- Modal xác nhận xóa khi có tồn kho -->
     <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
-            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa vật tư này? Hành động này không thể hoàn tác.</p>
-            <div class="flex justify-end space-x-3">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Không thể xóa</h3>
+            <p class="text-red-700 mb-6">Không thể xóa vật tư <span id="materialCode" class="font-semibold"></span> vì còn tồn kho: <span id="inventoryQuantity" class="font-semibold"></span></p>
+            <div class="flex justify-end">
                 <button type="button"
                     class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
                     onclick="closeDeleteModal()">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xóa khi inventory = 0 -->
+    <div id="deleteZeroInventoryModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận thao tác</h3>
+            <p class="text-gray-700 mb-6">Thao tác xóa có thể làm mất dữ liệu. Bạn muốn xác nhận ngừng sử dụng và ẩn hạng mục này thay cho việc xóa?</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                    onclick="closeDeleteZeroInventoryModal()">
                     Hủy
                 </button>
-                <form action="{{ route('materials.destroy', $material->id) }}" method="POST">
+                <form id="hideForm" action="{{ route('materials.destroy', $material->id) }}" method="POST" class="inline">
                     @csrf
                     @method('DELETE')
+                    <input type="hidden" name="action" value="hide">
+                    <button type="submit"
+                        class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors">
+                        Có (Ẩn hạng mục)
+                    </button>
+                </form>
+                <form id="deleteForm" action="{{ route('materials.destroy', $material->id) }}" method="POST" class="inline">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="action" value="delete">
                     <button type="submit"
                         class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
-                        Xác nhận xóa
+                        Không (Đánh dấu đã xóa)
                     </button>
                 </form>
             </div>
@@ -215,12 +238,24 @@
     </div>
 
     <script>
-        function confirmDelete() {
-            document.getElementById('deleteModal').classList.remove('hidden');
+        function openDeleteModal(materialId, materialCode, inventoryQuantity) {
+            if (inventoryQuantity > 0) {
+                // Show inventory warning modal
+                document.getElementById('materialCode').textContent = materialCode;
+                document.getElementById('inventoryQuantity').textContent = new Intl.NumberFormat('vi-VN').format(inventoryQuantity);
+                document.getElementById('deleteModal').classList.remove('hidden');
+            } else {
+                // Show confirmation modal for zero inventory
+                document.getElementById('deleteZeroInventoryModal').classList.remove('hidden');
+            }
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        function closeDeleteZeroInventoryModal() {
+            document.getElementById('deleteZeroInventoryModal').classList.add('hidden');
         }
     </script>
 </body>

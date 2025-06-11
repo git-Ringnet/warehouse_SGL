@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('materials', function (Blueprint $table) {
             $table->id();
-            $table->string('code')->unique();
+            $table->string('code');
             $table->string('name');
             $table->string('category');
             $table->string('unit');

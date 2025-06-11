@@ -35,6 +35,14 @@ Route::get('customers/{customer}/toggle-lock', [CustomerController::class, 'togg
 //Materials
 Route::resource('materials', MaterialController::class);
 Route::delete('materials/images/{id}', [MaterialController::class, 'deleteImage'])->name('materials.images.delete');
+Route::get('materials-hidden', [MaterialController::class, 'showHidden'])->name('materials.hidden');
+Route::get('materials-deleted', [MaterialController::class, 'showDeleted'])->name('materials.deleted');
+Route::post('materials/{id}/restore', [MaterialController::class, 'restore'])->name('materials.restore');
+Route::get('materials/template/download', [MaterialController::class, 'downloadTemplate'])->name('materials.template.download');
+Route::post('materials/import', [MaterialController::class, 'import'])->name('materials.import');
+Route::get('materials/import/results', [MaterialController::class, 'importResults'])->name('materials.import.results');
+Route::get('materials/export/excel', [MaterialController::class, 'exportExcel'])->name('materials.export.excel');
+Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->name('materials.export.fdf');
 
 //Products
 Route::resource('products', ProductController::class);
@@ -47,6 +55,12 @@ Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::clas
 
 // API route for material inventory quantity
 Route::get('/api/materials/inventory', [MaterialController::class, 'getInventoryQuantity']);
+
+// API route for material search
+Route::get('/api/materials/search', [MaterialController::class, 'searchMaterialsApi'])->name('materials.search.api');
+
+// API route for material images
+Route::get('/api/materials/{id}/images', [MaterialController::class, 'getMaterialImages'])->name('materials.images.api');
 
 //Warranties
 Route::get('/warranties', function () {
