@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('materials', function (Blueprint $table) {
-            $table->json('supplier_ids')->nullable()->after('supplier_id');
+        Schema::table('products', function (Blueprint $table) {
+            $table->enum('status', ['active', 'deleted'])->default('active')->after('description');
+            $table->boolean('is_hidden')->default(false)->after('status');
         });
     }
 
@@ -21,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('materials', function (Blueprint $table) {
-            $table->dropColumn('supplier_ids');
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn(['status', 'is_hidden']);
         });
     }
-};
+}; 

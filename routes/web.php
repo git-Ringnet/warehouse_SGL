@@ -46,6 +46,26 @@ Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->na
 
 //Products
 Route::resource('products', ProductController::class);
+Route::get('products-hidden', [ProductController::class, 'showHidden'])->name('products.hidden');
+Route::get('products-deleted', [ProductController::class, 'showDeleted'])->name('products.deleted');
+Route::patch('products/{product}/restore-hidden', [ProductController::class, 'restoreHidden'])->name('products.restore-hidden');
+Route::patch('products/{product}/restore-deleted', [ProductController::class, 'restoreDeleted'])->name('products.restore-deleted');
+
+// Product export routes
+Route::get('products/export/pdf', [ProductController::class, 'exportPDF'])->name('products.export.pdf');
+Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
+Route::get('products/export/fdf', [ProductController::class, 'exportFDF'])->name('products.export.fdf');
+
+// Product import routes
+Route::get('products/import/template', [ProductController::class, 'downloadTemplate'])->name('products.import.template');
+Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
+Route::get('products/import/results', [ProductController::class, 'importResults'])->name('products.import.results');
+
+// API route for product inventory quantity
+Route::get('/api/products/inventory', [ProductController::class, 'getInventoryQuantity']);
+
+// API route for product search
+Route::get('/api/products/search', [ProductController::class, 'searchProductsApi'])->name('products.search.api');
 
 //Warehouses
 Route::resource('warehouses', WarehouseController::class);
@@ -344,8 +364,8 @@ Route::get('/debug/materials', function () {
 
 // Routes for goods
 Route::resource('goods', GoodController::class);
-Route::get('/goods/hidden', [GoodController::class, 'showHidden'])->name('goods.hidden');
-Route::get('/goods/deleted', [GoodController::class, 'showDeleted'])->name('goods.deleted');
+Route::get('/goodshidden', [GoodController::class, 'showHidden'])->name('goodshidden');
+Route::get('/goodsdeleted', [GoodController::class, 'showDeleted'])->name('goodsdeleted');
 Route::post('/goods/restore/{id}', [GoodController::class, 'restore'])->name('goods.restore');
 Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages']);
 Route::delete('/api/goods/images/{id}', [GoodController::class, 'deleteImage']);

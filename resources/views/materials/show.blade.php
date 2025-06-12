@@ -97,11 +97,8 @@
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
                         <div class="text-gray-900">
-                            @php
-                                $materialSuppliers = $material->suppliers();
-                            @endphp
-                            @if($materialSuppliers->count() > 0)
-                                @foreach($materialSuppliers as $supplier)
+                            @if($material->suppliers->count() > 0)
+                                @foreach($material->suppliers as $supplier)
                                     <div class="flex items-center mb-1">
                                         <i class="fas fa-building text-gray-400 mr-2"></i>
                                         <a href="{{ route('suppliers.show', $supplier->id) }}" class="text-blue-600 hover:underline">
@@ -243,7 +240,7 @@
                 // Show inventory warning modal
                 document.getElementById('materialCode').textContent = materialCode;
                 document.getElementById('inventoryQuantity').textContent = new Intl.NumberFormat('vi-VN').format(inventoryQuantity);
-                document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.remove('hidden');
             } else {
                 // Show confirmation modal for zero inventory
                 document.getElementById('deleteZeroInventoryModal').classList.remove('hidden');

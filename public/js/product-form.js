@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Warehouse selection functionality
     initializeWarehouseSelection();
+    
+    // Form submission handling
+    initializeFormSubmission();
 });
 
 // Initialize image upload
@@ -139,44 +142,54 @@ function initializeMaterialManagement() {
     const materialsContainer = document.getElementById('materialsContainer');
     const noMaterialsMessage = document.getElementById('noMaterialsMessage');
     
-    if (!addMaterialBtn || !materialsContainer || !noMaterialsMessage) {
+    if (!addMaterialBtn || !materialsContainer) {
         console.log('Material management elements not found');
         return;
     }
     
+    // Get materials data from the page (passed from controller)
+    let materialsData = [];
+    if (window.materialsData) {
+        materialsData = window.materialsData;
+    }
+    
     // Add new material row
     addMaterialBtn.addEventListener('click', function() {
-        const materialRow = createMaterialRow();
+        const materialRow = createMaterialRow(materialsData);
         materialsContainer.appendChild(materialRow);
-        noMaterialsMessage.classList.add('hidden');
+        if (noMaterialsMessage) {
+            noMaterialsMessage.classList.add('hidden');
+        }
     });
     
     // Handle existing material rows' remove buttons
     document.querySelectorAll('.remove-material-btn').forEach(button => {
         button.addEventListener('click', function() {
             this.closest('.material-row').remove();
-            if (materialsContainer.querySelectorAll('.material-row').length === 0) {
+            if (materialsContainer.querySelectorAll('.material-row').length === 0 && noMaterialsMessage) {
                 noMaterialsMessage.classList.remove('hidden');
             }
         });
     });
     
     // Function to create a new material row
-    function createMaterialRow() {
+    function createMaterialRow(materials = []) {
         const row = document.createElement('div');
         row.className = 'material-row grid grid-cols-12 gap-2 items-center';
+        
+        let optionsHtml = '<option value="">-- Chọn vật tư --</option>';
+        materials.forEach(material => {
+            optionsHtml += `<option value="${material.id}">${material.name} (${material.code})</option>`;
+        });
         
         row.innerHTML = `
             <div class="col-span-5">
                 <select class="material-select w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-                    <option value="">-- Chọn vật tư --</option>
-                    <option value="1">Dây điện (VT001)</option>
-                    <option value="2">Công tắc (VT005)</option>
-                    <option value="3">Ổ cắm (VT007)</option>
+                    ${optionsHtml}
                 </select>
             </div>
             <div class="col-span-3">
-                <input type="number" placeholder="Số lượng" min="1" value="1" class="material-quantity w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
+                <input type="number" required placeholder="Số lượng" min="0.01" step="0.01" value="1" class="material-quantity w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
             </div>
             <div class="col-span-3">
                 <input type="text" placeholder="Ghi chú" class="material-note w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
@@ -191,7 +204,7 @@ function initializeMaterialManagement() {
         // Add event listener to remove button
         row.querySelector('.remove-material-btn').addEventListener('click', function() {
             this.closest('.material-row').remove();
-            if (materialsContainer.querySelectorAll('.material-row').length === 0) {
+            if (materialsContainer.querySelectorAll('.material-row').length === 0 && noMaterialsMessage) {
                 noMaterialsMessage.classList.remove('hidden');
             }
         });
@@ -202,16 +215,15 @@ function initializeMaterialManagement() {
 
 // Initialize warehouse selection
 function initializeWarehouseSelection() {
-    const allWarehouseCheckbox = document.getElementById('warehouse_all');
-    const warehouseCheckboxes = document.querySelectorAll('input[name="inventory_warehouses[]"]:not([value="all"])');
+    const warehouseAll = document.getElementById('warehouse_all');
+    const warehouseCheckboxes = document.querySelectorAll('input[name="inventory_warehouses[]"]:not(#warehouse_all)');
     
-    if (!allWarehouseCheckbox || warehouseCheckboxes.length === 0) {
-        console.log('Warehouse selection elements not found');
+    if (!warehouseAll) {
         return;
     }
     
-    // When "All" is checked, uncheck others
-    allWarehouseCheckbox.addEventListener('change', function() {
+    // Handle "All warehouses" checkbox
+    warehouseAll.addEventListener('change', function() {
         if (this.checked) {
             warehouseCheckboxes.forEach(checkbox => {
                 checkbox.checked = false;
@@ -219,18 +231,61 @@ function initializeWarehouseSelection() {
         }
     });
     
-    // When any other warehouse is checked, uncheck "All"
+    // Handle individual warehouse checkboxes
     warehouseCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             if (this.checked) {
-                allWarehouseCheckbox.checked = false;
+                warehouseAll.checked = false;
             }
             
-            // If no warehouses are checked, check "All"
+            // If no individual warehouses are selected, check "All warehouses"
             const anyChecked = Array.from(warehouseCheckboxes).some(cb => cb.checked);
             if (!anyChecked) {
-                allWarehouseCheckbox.checked = true;
+                warehouseAll.checked = true;
             }
+        });
+    });
+}
+
+// Initialize form submission
+function initializeFormSubmission() {
+    const form = document.querySelector('form');
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+        // Collect materials data
+        const materialsData = [];
+        const materialRows = document.querySelectorAll('.material-row');
+        
+        materialRows.forEach(row => {
+            const materialSelect = row.querySelector('.material-select');
+            const quantityInput = row.querySelector('.material-quantity');
+            const noteInput = row.querySelector('.material-note');
+            
+            if (materialSelect.value && quantityInput.value) {
+                materialsData.push({
+                    id: materialSelect.value,
+                    quantity: parseFloat(quantityInput.value),
+                    notes: noteInput.value || null
+                });
+            }
+        });
+        
+        // Add materials data to form as hidden inputs
+        materialsData.forEach((material, index) => {
+            const hiddenInputs = [
+                { name: `materials[${index}][id]`, value: material.id },
+                { name: `materials[${index}][quantity]`, value: material.quantity },
+                { name: `materials[${index}][notes]`, value: material.notes || '' }
+            ];
+            
+            hiddenInputs.forEach(input => {
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = input.name;
+                hiddenInput.value = input.value;
+                form.appendChild(hiddenInput);
+            });
         });
     });
 } 

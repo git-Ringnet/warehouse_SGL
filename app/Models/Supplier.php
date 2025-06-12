@@ -24,18 +24,18 @@ class Supplier extends Model
     ];
 
     /**
-     * Relationship với vật tư
+     * Relationship với vật tư (many-to-many)
      */
     public function materials()
     {
-        return $this->hasMany(Material::class);
+        return $this->belongsToMany(Material::class, 'material_supplier');
     }
     
     /**
-     * Relationship với hàng hóa
+     * Relationship với hàng hóa (many-to-many)
      */
     public function goods()
     {
-        return $this->hasMany(Good::class);
+        return $this->belongsToMany(Good::class, 'good_supplier');
     }
 }

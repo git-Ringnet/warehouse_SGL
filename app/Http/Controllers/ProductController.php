@@ -6,15 +6,41 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Models\Material;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\PDF;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\ProductsExport;
+use App\Exports\ProductsTemplateExport;
+use App\Imports\ProductsImport;
 
 class ProductController extends Controller
 {
     /**
      * Display a listing of the products.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::all();
+        $search = $request->get('search');
+        
+        $query = Product::where('status', 'active')
+                       ->where('is_hidden', false);
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('code', 'LIKE', "%{$search}%")
+                  ->orWhere('name', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        
+        // Add inventory quantity to each product
+        foreach ($products as $product) {
+            $product->inventory_quantity = $product->getInventoryQuantity();
+        }
+        
         return view('products.index', compact('products'));
     }
 
@@ -23,7 +49,13 @@ class ProductController extends Controller
      */
     public function create()
     {
-        return view('products.create');
+        // Get all active materials for the form
+        $materials = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'unit']);
+            
+        return view('products.create', compact('materials'));
     }
 
     /**
@@ -32,20 +64,80 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'code' => 'required|unique:products,code',
+            'code' => 'required',
             'name' => 'required',
-            'type' => 'required',
+            'description' => 'nullable|string',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'inventory_warehouses' => 'nullable',
+            'materials' => 'nullable|array',
+            'materials.*.id' => 'nullable|exists:materials,id',
+            'materials.*.quantity' => 'nullable|numeric|min:0.01',
+            'materials.*.notes' => 'nullable|string',
         ]);
 
-        Product::create([
-            'code' => $request->code,
-            'name' => $request->name,
-            'type' => $request->type,
-            'description' => $request->description
-        ]);
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('products.index')
-            ->with('success', 'Thành phẩm đã được thêm thành công.');
+            // Handle inventory_warehouses - default to 'all' if empty
+            $inventoryWarehouses = $request->inventory_warehouses;
+            if (empty($inventoryWarehouses)) {
+                $inventoryWarehouses = ['all'];
+            }
+
+            // Create the product
+            $product = Product::create([
+                'code' => $request->code,
+                'name' => $request->name,
+                'description' => $request->description,
+                'inventory_warehouses' => $inventoryWarehouses,
+                'status' => 'active',
+                'is_hidden' => false
+            ]);
+
+            // Handle image uploads
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $imagePath = $image->store('products', 'public');
+                    
+                    $product->images()->create([
+                        'image_path' => $imagePath,
+                        'alt_text' => $product->name
+                    ]);
+                }
+            }
+
+            // Handle materials relationship
+            if ($request->has('materials') && is_array($request->materials)) {
+                $materialsData = [];
+                foreach ($request->materials as $material) {
+                    if (!empty($material['id']) && !empty($material['quantity'])) {
+                        $materialsData[$material['id']] = [
+                            'quantity' => $material['quantity'],
+                            'notes' => $material['notes'] ?? null,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ];
+                    }
+                }
+                
+                if (!empty($materialsData)) {
+                    $product->materials()->attach($materialsData);
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('products.index')
+                ->with('success', 'Thành phẩm đã được thêm thành công.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error creating product: ' . $e->getMessage());
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Có lỗi xảy ra khi tạo thành phẩm: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -53,7 +145,13 @@ class ProductController extends Controller
      */
     public function show(Product $product)
     {
-        return view('products.show', compact('product'));
+        // Get inventory quantity for this product
+        $inventoryQuantity = $product->getInventoryQuantity();
+        
+        // Load product with its relationships (avoiding problematic materials.suppliers for now)
+        $product->load(['materials.suppliers', 'images']);
+        
+        return view('products.show', compact('product', 'inventoryQuantity'));
     }
 
     /**
@@ -61,7 +159,16 @@ class ProductController extends Controller
      */
     public function edit(Product $product)
     {
-        return view('products.edit', compact('product'));
+        // Get all active materials for the form
+        $materials = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'unit']);
+            
+        // Load product with its relationships
+        $product->load(['materials.suppliers', 'images']);
+            
+        return view('products.edit', compact('product', 'materials'));
     }
 
     /**
@@ -70,31 +177,208 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $request->validate([
-            'code' => 'required|unique:products,code,'.$product->id,
+            'code' => 'required',
             'name' => 'required',
-            'type' => 'required',
+            'description' => 'nullable|string',
+            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'deleted_images' => 'nullable|string',
+            'inventory_warehouses' => 'nullable',
+            'materials' => 'nullable|array',
+            'materials.*.id' => 'nullable|exists:materials,id',
+            'materials.*.quantity' => 'nullable|numeric|min:0.01',
+            'materials.*.notes' => 'nullable|string',
         ]);
 
-        $product->update([
-            'code' => $request->code,
-            'name' => $request->name,
-            'type' => $request->type,
-            'description' => $request->description
-        ]);
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('products.index')
-            ->with('success', 'Thành phẩm đã được cập nhật thành công.');
+            // Handle inventory_warehouses - default to 'all' if empty
+            $inventoryWarehouses = $request->inventory_warehouses;
+            if (empty($inventoryWarehouses)) {
+                $inventoryWarehouses = ['all'];
+            }
+
+            // Update basic product information
+            $product->update([
+                'code' => $request->code,
+                'name' => $request->name,
+                'description' => $request->description,
+                'inventory_warehouses' => $inventoryWarehouses
+            ]);
+
+            // Handle deleted images
+            if ($request->filled('deleted_images')) {
+                $deletedImageIds = explode(',', $request->deleted_images);
+                foreach ($deletedImageIds as $imageId) {
+                    $image = $product->images()->where('id', $imageId)->first();
+                    if ($image) {
+                        // Delete file from storage
+                        if (Storage::disk('public')->exists($image->image_path)) {
+                            Storage::disk('public')->delete($image->image_path);
+                        }
+                        // Delete record from database
+                        $image->delete();
+                    }
+                }
+            }
+
+            // Handle new image uploads
+            if ($request->hasFile('images')) {
+                foreach ($request->file('images') as $image) {
+                    $imagePath = $image->store('products', 'public');
+                    
+                    $product->images()->create([
+                        'image_path' => $imagePath,
+                        'alt_text' => $product->name
+                    ]);
+                }
+            }
+
+            // Handle materials relationship
+            if ($request->has('materials')) {
+                // First, detach all existing materials
+                $product->materials()->detach();
+                
+                // Then attach new materials
+                if (is_array($request->materials)) {
+                    $materialsData = [];
+                    foreach ($request->materials as $material) {
+                        if (!empty($material['id']) && !empty($material['quantity'])) {
+                            $materialsData[$material['id']] = [
+                                'quantity' => $material['quantity'],
+                                'notes' => $material['notes'] ?? null,
+                                'created_at' => now(),
+                                'updated_at' => now()
+                            ];
+                        }
+                    }
+                    
+                    if (!empty($materialsData)) {
+                        $product->materials()->attach($materialsData);
+                    }
+                }
+            }
+
+            DB::commit();
+
+            return redirect()->route('products.show', $product->id)
+                ->with('success', 'Thành phẩm đã được cập nhật thành công.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Error updating product: ' . $e->getMessage());
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Có lỗi xảy ra khi cập nhật thành phẩm: ' . $e->getMessage());
+        }
     }
 
     /**
-     * Remove the specified product from storage.
+     * Handle hide or delete product based on action.
      */
-    public function destroy(Product $product)
+    public function destroy(Request $request, Product $product)
     {
-        $product->delete();
+        $action = $request->input('action', 'delete');
+        
+        if ($action === 'hide') {
+            // Hide the product
+            $product->update([
+                'is_hidden' => true
+            ]);
+            
+            return redirect()->route('products.index')
+                ->with('success', 'Thành phẩm đã được ẩn thành công.');
+        } else {
+            // Mark as deleted
+            $product->update([
+                'status' => 'deleted'
+            ]);
+            
+            return redirect()->route('products.index')
+                ->with('success', 'Thành phẩm đã được đánh dấu đã xóa.');
+        }
+    }
 
-        return redirect()->route('products.index')
-            ->with('success', 'Thành phẩm đã được xóa thành công.');
+    /**
+     * Display hidden products.
+     */
+    public function showHidden(Request $request)
+    {
+        $search = $request->get('search');
+        
+        $query = Product::where('status', 'active')
+                       ->where('is_hidden', true);
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('code', 'LIKE', "%{$search}%")
+                  ->orWhere('name', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        
+        // Add inventory quantity to each product
+        foreach ($products as $product) {
+            $product->inventory_quantity = $product->getInventoryQuantity();
+        }
+        
+        return view('products.hidden', compact('products'));
+    }
+
+    /**
+     * Display deleted products.
+     */
+    public function showDeleted(Request $request)
+    {
+        $search = $request->get('search');
+        
+        $query = Product::where('status', 'deleted');
+        
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('code', 'LIKE', "%{$search}%")
+                  ->orWhere('name', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        
+        // Add inventory quantity to each product
+        foreach ($products as $product) {
+            $product->inventory_quantity = $product->getInventoryQuantity();
+        }
+        
+        return view('products.deleted', compact('products'));
+    }
+
+    /**
+     * Restore a hidden product.
+     */
+    public function restoreHidden(Product $product)
+    {
+        $product->update([
+            'is_hidden' => false
+        ]);
+        
+        return redirect()->route('products.hidden')
+            ->with('success', 'Thành phẩm đã được khôi phục.');
+    }
+
+    /**
+     * Restore a deleted product.
+     */
+    public function restoreDeleted(Product $product)
+    {
+        $product->update([
+            'status' => 'active'
+        ]);
+        
+        return redirect()->route('products.deleted')
+            ->with('success', 'Thành phẩm đã được khôi phục.');
     }
 
     /**
@@ -138,5 +422,315 @@ class ProductController extends Controller
         }
         
         return response()->json($components);
+    }
+
+    /**
+     * API endpoint to get inventory quantity for a product
+     */
+    public function getInventoryQuantity(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:products,id',
+        ]);
+
+        $product = Product::findOrFail($request->id);
+        $inventoryQuantity = $product->getInventoryQuantity();
+
+        return response()->json([
+            'success' => true,
+            'product_id' => $product->id,
+            'inventory_quantity' => $inventoryQuantity,
+            'formatted_quantity' => number_format($inventoryQuantity, 0, ',', '.'),
+        ]);
+    }
+
+    /**
+     * Search products via API for AJAX requests
+     */
+    public function searchProductsApi(Request $request)
+    {
+        $search = $request->get('search', '');
+        $stockFilter = $request->get('stock_filter', '');
+        
+        $query = Product::where('status', 'active')
+                       ->where('is_hidden', false);
+        
+        // Apply search filter
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('code', 'LIKE', "%{$search}%")
+                  ->orWhere('name', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+        
+        $products = $query->orderBy('created_at', 'desc')->get();
+        
+        // Add inventory quantity to each product
+        foreach ($products as $product) {
+            $product->inventory_quantity = $product->getInventoryQuantity();
+        }
+        
+        // Apply stock filter after getting inventory quantities
+        if (!empty($stockFilter)) {
+            $products = $products->filter(function($product) use ($stockFilter) {
+                switch ($stockFilter) {
+                    case 'in_stock':
+                        return $product->inventory_quantity > 0;
+                    case 'out_of_stock':
+                        return $product->inventory_quantity == 0;
+                    default:
+                        return true;
+                }
+            });
+        }
+        
+        return response()->json([
+            'products' => $products->values(),
+            'total' => $products->count()
+        ]);
+    }
+
+    /**
+     * Export products list to PDF
+     */
+    public function exportPDF(Request $request)
+    {
+        try {
+            // Start with base query for active products that are not hidden
+            $query = Product::where('status', 'active')
+                ->where('is_hidden', false);
+
+            // Apply filters if provided
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('code', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+
+            $products = $query->get();
+            
+            // Calculate quantities for each product
+            foreach ($products as $product) {
+                $product->inventory_quantity = $product->getInventoryQuantity();
+            }
+
+            // Apply stock filter after calculating inventory quantities
+            if ($request->filled('stock_filter')) {
+                $stockFilter = $request->stock_filter;
+                $products = $products->filter(function ($product) use ($stockFilter) {
+                    switch ($stockFilter) {
+                        case 'in_stock':
+                            return $product->inventory_quantity > 0;
+                        case 'out_of_stock':
+                            return $product->inventory_quantity == 0;
+                        default:
+                            return true;
+                    }
+                });
+            }
+            
+            $pdf = PDF::loadView('products.pdf', compact('products'));
+            
+            return $pdf->download('danh-sach-thanh-pham-' . date('Y-m-d') . '.pdf');
+        } catch (\Exception $e) {
+            Log::error('Export PDF error: ' . $e->getMessage());
+            
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Export products list to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        try {
+            // Get current filters from request
+            $filters = [
+                'search' => $request->get('search'),
+                'stock' => $request->get('stock_filter')
+            ];
+
+            return Excel::download(new ProductsExport($filters), 'danh-sach-thanh-pham-' . date('Y-m-d') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Export Excel error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export products list to FDF
+     */
+    public function exportFDF(Request $request)
+    {
+        try {
+            // Start with base query for active products that are not hidden
+            $query = Product::where('status', 'active')
+                ->where('is_hidden', false);
+
+            // Apply filters if provided
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('code', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+
+            $products = $query->get();
+
+            // Calculate quantities for each product
+            foreach ($products as $product) {
+                $product->inventory_quantity = $product->getInventoryQuantity();
+            }
+
+            // Apply stock filter after calculating quantities
+            if ($request->filled('stock_filter')) {
+                if ($request->stock_filter === 'in_stock') {
+                    $products = $products->filter(function ($product) {
+                        return $product->inventory_quantity > 0;
+                    });
+                } elseif ($request->stock_filter === 'out_of_stock') {
+                    $products = $products->filter(function ($product) {
+                        return $product->inventory_quantity == 0;
+                    });
+                }
+            }
+
+            // Create FDF content
+            $fdfContent = "%FDF-1.2\n";
+            $fdfContent .= "1 0 obj\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/FDF\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/Fields [\n";
+
+            foreach ($products as $index => $product) {
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (product_" . ($index + 1) . "_code)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($product->code) . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (product_" . ($index + 1) . "_name)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($product->name) . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (product_" . ($index + 1) . "_description)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($product->description ?? '') . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (product_" . ($index + 1) . "_inventory_quantity)\n";
+                $fdfContent .= "/V (" . number_format($product->inventory_quantity, 0, ',', '.') . ")\n";
+                $fdfContent .= ">>\n";
+            }
+
+            $fdfContent .= "]\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= "endobj\n";
+            $fdfContent .= "trailer\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/Root 1 0 R\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= "%%EOF\n";
+
+            return response($fdfContent)
+                ->header('Content-Type', 'application/vnd.fdf')
+                ->header('Content-Disposition', 'attachment; filename="danh-sach-thanh-pham-' . date('Y-m-d') . '.fdf"');
+        } catch (\Exception $e) {
+            Log::error('Export FDF error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất FDF: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Escape string for FDF format
+     */
+    private function escapeFDFString($string)
+    {
+        return str_replace(['(', ')', '\\'], ['\\(', '\\)', '\\\\'], $string);
+    }
+
+    /**
+     * Download Excel template for products import
+     */
+    public function downloadTemplate()
+    {
+        try {
+            return Excel::download(new ProductsTemplateExport, 'mau-nhap-thanh-pham-' . date('Y-m-d') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Download template error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi tải mẫu: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Import products from Excel file
+     */
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'import_file' => 'required|file|mimes:xlsx,xls,csv|max:10240' // Max 10MB
+            ]);
+
+            // Clear any existing import results from session
+            session()->forget('import_results');
+
+            $import = new ProductsImport();
+            Excel::import($import, $request->file('import_file'));
+
+            $results = $import->getImportResults();
+
+            // Log results for debugging
+            Log::info('Import results:', $results);
+
+            // Prepare success message
+            $message = "Import hoàn tất! ";
+            $message .= "Thành công: {$results['success_count']}, ";
+            $message .= "Lỗi: {$results['error_count']}, ";
+            $message .= "Trùng lặp: {$results['duplicate_count']}";
+
+            // Store detailed results in session for the results page
+            session(['import_results' => $results]);
+
+            if ($results['success_count'] > 0) {
+                return redirect()->route('products.import.results')->with('success', $message);
+            } else {
+                return redirect()->route('products.import.results')->with('warning', $message);
+            }
+        } catch (\Exception $e) {
+            Log::error('Import error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Show import results
+     */
+    public function importResults()
+    {
+        $results = session('import_results');
+
+        if (!$results) {
+            return redirect()->route('products.index')->with('error', 'Không tìm thấy kết quả import.');
+        }
+
+        // Clear the session after retrieving the results to prevent reuse
+        session()->forget('import_results');
+
+        return view('products.import-results', compact('results'));
     }
 } 

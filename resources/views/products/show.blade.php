@@ -20,10 +20,12 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết thành phẩm</h1>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ route('products.edit', $product->id) }}"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-edit mr-2"></i> Chỉnh sửa
-                </a>
+                @if ($product->status !== 'deleted' && !$product->is_hidden)
+                    <a href="{{ route('products.edit', $product->id) }}"
+                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                    </a>
+                @endif
                 <a href="{{ route('products.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
@@ -33,11 +35,11 @@
 
         <main class="p-6">
             @if (session('success'))
-            <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                {{ session('success') }}
-            </div>
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                    {{ session('success') }}
+                </div>
             @endif
-        
+
             <div class="mb-6">
                 <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                     <div class="p-6">
@@ -47,10 +49,23 @@
                                 <p class="text-gray-600 mt-1">Mã SP: {{ $product->code }}</p>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
-                                <div class="flex items-center mt-1">
-                                    <i class="fas fa-tag text-blue-500 mr-2"></i>
-                                    <span class="text-blue-500 font-medium">{{ $product->type }}</span>
-                                </div>
+                                @if ($product->status === 'deleted')
+                                    <div class="flex items-center mb-2">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            <i class="fas fa-trash mr-1"></i>
+                                            Đã xóa
+                                        </span>
+                                    </div>
+                                @elseif($product->is_hidden)
+                                    <div class="flex items-center mb-2">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            <i class="fas fa-eye-slash mr-1"></i>
+                                            Đã ẩn
+                                        </span>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -60,7 +75,7 @@
             <!-- Thông tin chi tiết -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Thông tin thành phẩm</h3>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 mb-6">
                     <div>
                         <p class="text-sm text-gray-500">Tên thành phẩm</p>
@@ -76,10 +91,10 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
-                        <p class="text-gray-900">06/06/2025</p>
+                        <p class="text-gray-900">{{ $product->updated_at->format('d/m/Y H:i') }}</p>
                     </div>
                 </div>
-                
+
                 <!-- Thông tin số lượng -->
                 <div class="border-t border-gray-200 pt-4 mt-4">
                     <h4 class="text-md font-semibold text-gray-700 mb-3">Thông tin số lượng</h4>
@@ -88,68 +103,32 @@
                             <p class="text-sm text-gray-500">Tổng số lượng tồn kho</p>
                             <p class="text-gray-900 font-medium mt-1">
                                 <span
-                                    class="px-3 py-1.5 rounded-md bg-green-100 text-green-800 inline-flex items-center">
-                                    <i class="fas fa-warehouse mr-2 text-green-600"></i>
-                                    <span class="text-lg">87</span>
+                                    class="px-3 py-1.5 rounded-md {{ $inventoryQuantity > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }} inline-flex items-center">
+                                    <i
+                                        class="fas fa-warehouse mr-2 {{ $inventoryQuantity > 0 ? 'text-green-600' : 'text-red-600' }}"></i>
+                                    <span class="text-lg">{{ number_format($inventoryQuantity, 0, ',', '.') }}</span>
                                 </span>
                             </p>
                             <p class="text-xs text-gray-500 mt-1">
-                                Tính theo: Tất cả các kho
+                                Tính theo: 
+                                @if(is_array($product->inventory_warehouses) && in_array('all', $product->inventory_warehouses))
+                                    Tất cả các kho
+                                @elseif(is_array($product->inventory_warehouses) && !empty($product->inventory_warehouses))
+                                    @php
+                                        $warehouseNames = \App\Models\Warehouse::whereIn('id', $product->inventory_warehouses)->pluck('name')->toArray();
+                                    @endphp
+                                    {{ implode(', ', $warehouseNames) }}
+                                @else
+                                    Tất cả các kho
+                                @endif
                             </p>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Vật tư sử dụng cho thành phẩm -->
                 <div class="border-t border-gray-200 pt-4 mt-4">
                     <h4 class="text-md font-semibold text-gray-700 mb-3">Vật tư sử dụng để lắp ráp</h4>
-
-                    @php
-                        // Use real data if available, otherwise use sample data
-                        if(!isset($product->materials) || count($product->materials) == 0) {
-                            $sampleMaterials = [
-                                [
-                                    'id' => 1,
-                                    'code' => 'VT001',
-                                    'name' => 'Dây điện 1.5mm²',
-                                    'pivot' => ['quantity' => 2, 'notes' => 'Dây đôi'],
-                                    'unit' => 'mét',
-                                    'suppliers' => [
-                                        ['name' => 'Công ty TNHH Điện tử ABC']
-                                    ]
-                                ],
-                                [
-                                    'id' => 2,
-                                    'code' => 'VT002',
-                                    'name' => 'Đui đèn E27',
-                                    'pivot' => ['quantity' => 1, 'notes' => ''],
-                                    'unit' => 'cái',
-                                    'suppliers' => [
-                                        ['name' => 'Công ty CP Thiết bị XYZ']
-                                    ]
-                                ],
-                                [
-                                    'id' => 3, 
-                                    'code' => 'VT003',
-                                    'name' => 'Bóng đèn LED 7W',
-                                    'pivot' => ['quantity' => 1, 'notes' => 'Ánh sáng vàng'],
-                                    'unit' => 'chiếc',
-                                    'suppliers' => [
-                                        ['name' => 'Công ty TNHH Linh kiện DEF'],
-                                        ['name' => 'Công ty CP Thiết bị XYZ']
-                                    ]
-                                ],
-                                [
-                                    'id' => 4,
-                                    'code' => 'VT004',
-                                    'name' => 'Ốc vít M4',
-                                    'pivot' => ['quantity' => 4, 'notes' => ''],
-                                    'unit' => 'cái',
-                                    'suppliers' => []
-                                ]
-                            ];
-                        }
-                    @endphp
 
                     @if (isset($product->materials) && count($product->materials) > 0)
                         <div class="overflow-x-auto">
@@ -184,106 +163,38 @@
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-100">
                                     @foreach ($product->materials as $index => $material)
-                                    <tr class="hover:bg-gray-50">
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $index + 1 }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material->code }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                <a href="{{ route('materials.show', $material->id) }}"
-                                                    class="text-blue-600 hover:underline">
-                                                    {{ $material->name }}
-                                                </a>
-                                            </td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material->pivot->quantity ?? 1 }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material->unit }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                @if (isset($material->suppliers) && count($material->suppliers) > 0)
-                                                    @foreach ($material->suppliers as $supplier)
-                                                        <div class="text-sm">{{ $supplier->name }}</div>
-                                                    @endforeach
-                                                @else
-                                                    <span class="text-gray-400">Không có</span>
-                                                @endif
-                                            </td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material->pivot->notes ?? '' }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <a href="{{ route('materials.show', $material->id) }}"
-                                                    class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                            </td>
-                                    </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            STT</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Mã vật tư</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Tên vật tư</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Số lượng</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Đơn vị</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Nhà cung cấp</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Ghi chú</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    @foreach ($sampleMaterials as $index => $material)
                                         <tr class="hover:bg-gray-50">
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                                                 {{ $index + 1 }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material['code'] }}</td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                <a href="{{ route('materials.show', $material['id']) }}"
-                                                    class="text-blue-600 hover:underline">
-                                                    {{ $material['name'] }}
-                                                </a>
+                                                {{ $material->code }}</td>
+                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $material->name }}</td>
+                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                <span
+                                                    class="font-medium">{{ number_format($material->pivot->quantity) }}</span>
                                             </td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material['pivot']['quantity'] }}</td>
+                                                {{ $material->unit ?? 'N/A' }}</td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material['unit'] }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                @if (isset($material['suppliers']) && count($material['suppliers']) > 0)
-                                                    @foreach ($material['suppliers'] as $supplier)
-                                                        <div class="text-sm">{{ $supplier['name'] }}</div>
+                                                @if ($material->suppliers && count($material->suppliers) > 0)
+                                                    @foreach ($material->suppliers as $supplier)
+                                                        <span
+                                                            class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
+                                                            {{ $supplier->name }}
+                                                        </span>
                                                     @endforeach
                                                 @else
-                                                    <span class="text-gray-400">Không có</span>
+                                                    <span class="text-gray-400">Chưa có</span>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                {{ $material['pivot']['notes'] }}</td>
+                                                {{ $material->pivot->notes ?? '-' }}
+                                            </td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                <a href="{{ route('materials.show', $material['id']) }}"
-                                                    class="text-blue-600 hover:text-blue-800">
-                                                    <i class="fas fa-eye"></i>
+                                                <a href="{{ route('materials.show', $material->id) }}"
+                                                    class="text-blue-500 hover:text-blue-700">
+                                                    Xem chi tiết
                                                 </a>
                                             </td>
                                         </tr>
@@ -291,94 +202,92 @@
                                 </tbody>
                             </table>
                         </div>
-                        {{-- <p class="text-gray-500 italic">Thành phẩm này không có vật tư nào được sử dụng.</p> --}}
+                    @else
+                        <div class="text-center py-8">
+                            <i class="fas fa-box-open text-gray-300 text-4xl mb-4"></i>
+                            <h3 class="text-lg font-medium text-gray-700 mb-2">Chưa có vật tư nào</h3>
+                            <p class="text-gray-500 mb-4">Thành phẩm này chưa được cấu hình vật tư sử dụng</p>
+                            @if ($product->status !== 'deleted' && !$product->is_hidden)
+                                <a href="{{ route('products.edit', $product->id) }}"
+                                    class="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>
+                                    Thêm vật tư
+                                </a>
+                            @endif
+                        </div>
                     @endif
                 </div>
 
-                <!-- Hình ảnh thành phẩm nếu có -->
-                <div class="border-t border-gray-200 pt-4 mt-4">
-                    <h4 class="text-md font-semibold text-gray-700 mb-3">Hình ảnh thành phẩm</h4>
-                    
-                    @if (isset($product->images) && count($product->images) > 0)
+                <!-- Hình ảnh thành phẩm -->
+                @if (isset($product->images) && count($product->images) > 0)
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <h4 class="text-md font-semibold text-gray-700 mb-3">Hình ảnh thành phẩm</h4>
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             @foreach ($product->images as $image)
                                 <div class="relative group">
-                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                    <div class="w-full h-32 border border-gray-200 rounded-lg overflow-hidden">
                                         <img src="{{ asset('storage/' . $image->image_path) }}"
-                                            alt="{{ $product->name }}" class="w-full h-32 object-cover">
-                                    </div>
-                                    <div
-                                        class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                        <a href="{{ asset('storage/' . $image->image_path) }}" target="_blank"
-                                            class="text-white bg-blue-500 rounded-full p-2 hover:bg-blue-600 transition-colors">
-                                            <i class="fas fa-expand-arrows-alt"></i>
-                                        </a>
+                                            alt="{{ $image->alt_text ?? $product->name }}"
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 cursor-pointer"
+                                            onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}', '{{ $image->alt_text ?? $product->name }}')">
                                     </div>
                                 </div>
                             @endforeach
                         </div>
-                    @else
-                        <p class="text-gray-500 italic">thành phẩm này chưa có hình ảnh nào.</p>
-                    @endif
-                </div>
-
-                @if ($product->description)
-                <div class="border-t border-gray-200 pt-4 mt-4">
-                    <p class="text-sm text-gray-500">Mô tả thành phẩm</p>
-                    <p class="text-gray-900 mt-1">{{ $product->description }}</p>
-                </div>
+                    </div>
                 @endif
 
-                <div class="border-t border-gray-200 pt-4">
-                    <div class="text-sm text-gray-500 mb-2">
-                        <p><i>Lưu ý: Serial sẽ được tạo khi thành phẩm được lắp ráp</i></p>
+                <!-- Mô tả -->
+                @if ($product->description)
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <h4 class="text-md font-semibold text-gray-700 mb-3">Mô tả</h4>
+                        <p class="text-gray-700 leading-relaxed">{{ $product->description }}</p>
                     </div>
-                </div>
-
-                <div class="mt-6 flex justify-end">
-                    <button onclick="confirmDelete()" 
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        <i class="fas fa-trash mr-2"></i> Xóa thành phẩm
-                    </button>
-                </div>
+                @endif
             </div>
         </main>
     </div>
 
-    <!-- Modal xác nhận xóa -->
-    <div id="deleteModal"
-        class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
-            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa thành phẩm này? Hành động này không thể hoàn tác.
-            </p>
-            <div class="flex justify-end space-x-3">
-                <button type="button"
-                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-                    onclick="closeDeleteModal()">
-                    Hủy
+    <!-- Image Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="max-w-4xl max-h-full p-4">
+            <div class="relative">
+                <img id="modalImage" src="" alt="" class="max-w-full max-h-full rounded-lg">
+                <button onclick="closeImageModal()"
+                    class="absolute top-2 right-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                    <i class="fas fa-times"></i>
                 </button>
-                <form action="{{ route('products.destroy', $product->id) }}" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit"
-                        class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
-                        Xác nhận xóa
-                    </button>
-                </form>
             </div>
+            <p id="modalImageCaption" class="text-white text-center mt-2"></p>
         </div>
     </div>
 
     <script>
-        function confirmDelete() {
-            document.getElementById('deleteModal').classList.remove('hidden');
+        function openImageModal(src, alt) {
+            document.getElementById('modalImage').src = src;
+            document.getElementById('modalImage').alt = alt;
+            document.getElementById('modalImageCaption').textContent = alt;
+            document.getElementById('imageModal').classList.remove('hidden');
         }
 
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.add('hidden');
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
         }
+
+        // Close modal when clicking outside the image
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeImageModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeImageModal();
+            }
+        });
     </script>
 </body>
 
-</html> 
+</html>

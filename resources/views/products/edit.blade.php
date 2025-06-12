@@ -137,14 +137,17 @@
                                             <div class="col-span-5">
                                                 <select
                                                     class="material-select w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-                                                    <option value="{{ $material->id }}">{{ $material->name }}
-                                                        ({{ $material->code }})
-                                                    </option>
+                                                    <option value="">-- Chọn vật tư --</option>
+                                                    @foreach($materials as $mat)
+                                                        <option value="{{ $mat->id }}" {{ $mat->id == $material->id ? 'selected' : '' }}>
+                                                            {{ $mat->name }} ({{ $mat->code }})
+                                                        </option>
+                                                    @endforeach
                                                 </select>
                                             </div>
                                             <div class="col-span-3">
                                                 <input type="number" placeholder="Số lượng"
-                                                    value="{{ $material->pivot->quantity ?? 1 }}" min="1"
+                                                    value="{{ number_format($material->pivot->quantity) ?? 1 }}" min="1"
                                                     class="material-quantity w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                             </div>
                                             <div class="col-span-3">
@@ -168,7 +171,9 @@
                                             <select
                                                 class="material-select w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
                                                 <option value="">-- Chọn vật tư --</option>
-                                                <!-- Material options would be populated here -->
+                                                @foreach($materials as $material)
+                                                    <option value="{{ $material->id }}">{{ $material->name }} ({{ $material->code }})</option>
+                                                @endforeach
                                             </select>
                                         </div>
                                         <div class="col-span-3">
@@ -248,6 +253,11 @@
         </main>
     </div>
 
+    <!-- Pass materials data to JavaScript -->
+    <script>
+        window.materialsData = @json($materials);
+    </script>
+    
     <!-- JavaScript for UI functionality -->
     <script src="{{ asset('js/product-form.js') }}"></script>
 </body>

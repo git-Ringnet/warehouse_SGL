@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Material extends Model
 {
@@ -43,20 +46,32 @@ class Material extends Model
     /**
      * Get the images for this material.
      */
-    public function images()
+    public function images(): HasMany
     {
         return $this->hasMany(MaterialImage::class);
     }
 
-    public function supplier()
+    public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
     }
     
     /**
-     * Get suppliers from supplier_ids field
+     * Get suppliers relationship using material_supplier pivot table.
+     * This is the proper Eloquent relationship for eager loading.
      */
-    public function suppliers()
+    public function suppliers(): BelongsToMany
+    {
+        return $this->belongsToMany(Supplier::class, 'material_supplier')
+            ->withPivot('id')
+            ->withTimestamps();
+    }
+    
+    /**
+     * Get suppliers from supplier_ids field (legacy method)
+     * Use this when you need to get suppliers based on the JSON field
+     */
+    public function getSuppliersFromIds()
     {
         if (is_array($this->supplier_ids) && !empty($this->supplier_ids)) {
             return Supplier::whereIn('id', $this->supplier_ids)->get();

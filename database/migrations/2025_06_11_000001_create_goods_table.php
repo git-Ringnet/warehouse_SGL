@@ -17,20 +17,12 @@ return new class extends Migration
             $table->string('name');
             $table->string('category');
             $table->string('unit');
-            $table->unsignedBigInteger('supplier_id')->nullable();
             $table->string('serial')->nullable();
             $table->text('notes')->nullable();
             $table->string('image_path')->nullable();
             $table->json('inventory_warehouses')->nullable();
             $table->timestamps();
         });
-
-        // Add foreign key constraint only if suppliers table exists
-        if (Schema::hasTable('suppliers')) {
-            Schema::table('goods', function (Blueprint $table) {
-                $table->foreign('supplier_id')->references('id')->on('suppliers')->onDelete('set null');
-            });
-        }
     }
 
     /**

@@ -43,7 +43,7 @@
                 <a href="{{ route('goods.index') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-list mr-2"></i> Danh sách chính
                 </a>
-                <a href="{{ route('goods.hidden') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <a href="{{ route('goodshidden') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-eye-slash mr-2"></i> Đã ẩn
                 </a>
             </div>
@@ -62,43 +62,65 @@
 
             @if($goods->count() > 0)
                 <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
+                    <!-- Alert message -->
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-triangle text-red-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-red-700">
+                                    Đây là danh sách các hàng hóa đã được đánh dấu là đã xóa nhưng vẫn được lưu để theo dõi lịch sử.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã hàng hóa</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên hàng hóa</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tổng tồn kho</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">STT</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">MÃ HÀNG HÓA</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">TÊN HÀNG HÓA</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">LOẠI</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ĐƠN VỊ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">TỔNG TỒN KHO</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">TRẠNG THÁI</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">HÀNH ĐỘNG</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="bg-white divide-y divide-gray-200">
                             @foreach ($goods as $index => $good)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->code }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $good->name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->category }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->unit }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <span class="font-medium px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+                                <tr class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $good->code }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">{{ $good->name }}</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $good->category ?? 'Chưa phân loại' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $good->unit ?? 'Cái' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="px-2.5 py-1 rounded-md text-sm font-medium 
+                                            @if ($good->inventory_quantity > 50) bg-green-100 text-green-800
+                                            @elseif($good->inventory_quantity > 20) bg-yellow-100 text-yellow-800
+                                            @else bg-red-100 text-red-800 @endif">
                                             {{ number_format($good->inventory_quantity, 0, ',', '.') }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                        <a href="{{ route('goods.show', $good->id) }}">
-                                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        <form action="{{ route('goods.restore', $good->id) }}" method="POST" class="inline">
-                                            @csrf
-                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Khôi phục">
-                                                <i class="fas fa-undo text-green-500 group-hover:text-white"></i>
-                                            </button>
-                                        </form>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            <i class="fas fa-trash mr-1"></i>
+                                            Đã xóa
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
+                                        <div class="flex justify-start space-x-2">
+                                            <a href="{{ route('goods.show', $good->id) }}">
+                                                <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                                </button>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
