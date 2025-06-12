@@ -28,7 +28,7 @@ class MaterialController extends Controller
         if (session()->has('import_results')) {
             session()->forget('import_results');
         }
-        
+
         // Start with base query for active materials that are not hidden
         $query = Material::where('status', 'active')
             ->where('is_hidden', false);
@@ -36,12 +36,12 @@ class MaterialController extends Controller
         // Apply filters if provided
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
             });
         }
 
@@ -54,29 +54,29 @@ class MaterialController extends Controller
         }
 
         $materials = $query->get();
-        
+
         // Initialize grand totals
         $grandTotalQuantity = 0;
         $grandInventoryQuantity = 0;
-        
+
         // For each material, calculate total quantity and warehouse quantity
         foreach ($materials as $material) {
             // Total quantity across all locations (warehouses, projects, rentals, repairs, etc.)
             $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material')
                 ->sum('quantity');
-            
+
             // Total quantity only in warehouses based on inventory_warehouses setting
             $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material');
-                
+
             // Check if inventory_warehouses is an array and contains specific warehouses
             if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                 $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
             }
-            
+
             $material->inventory_quantity = $warehouseQuery->sum('quantity');
-                
+
             // Add to grand totals
             $grandTotalQuantity += $material->total_quantity;
             $grandInventoryQuantity += $material->inventory_quantity;
@@ -85,11 +85,11 @@ class MaterialController extends Controller
         // Apply stock filter after calculating quantities
         if ($request->filled('stock')) {
             if ($request->stock === 'in_stock') {
-                $materials = $materials->filter(function($material) {
+                $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity > 0;
                 });
             } elseif ($request->stock === 'out_of_stock') {
-                $materials = $materials->filter(function($material) {
+                $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity == 0;
                 });
             }
@@ -111,7 +111,7 @@ class MaterialController extends Controller
             ->filter()
             ->sort()
             ->values();
-        
+
         return view('materials.index', compact('materials', 'grandTotalQuantity', 'grandInventoryQuantity', 'categories', 'units'));
     }
 
@@ -122,13 +122,13 @@ class MaterialController extends Controller
     {
         // Fetch unique categories from the database
         $categories = Material::select('category')->distinct()->pluck('category')->toArray();
-        
+
         // Sort categories alphabetically
         sort($categories);
-        
+
         // Get all suppliers
         $suppliers = Supplier::orderBy('name')->get();
-        
+
         return view('materials.create', compact('categories', 'suppliers'));
     }
 
@@ -149,7 +149,7 @@ class MaterialController extends Controller
         ]);
 
         $materialData = $request->except(['images', 'image', 'supplier_ids']);
-        
+
         // Handle supplier_ids
         if ($request->has('supplier_ids')) {
             $materialData['supplier_ids'] = $request->supplier_ids;
@@ -162,7 +162,7 @@ class MaterialController extends Controller
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $image) {
                 $imagePath = $image->store('materials', 'public');
-                
+
                 MaterialImage::create([
                     'material_id' => $material->id,
                     'image_path' => $imagePath,
@@ -182,25 +182,25 @@ class MaterialController extends Controller
     {
         // Get all warehouses for the dropdown
         $warehouses = Warehouse::all();
-        
+
         // Load material images
         $material->load('images');
-        
+
         // Calculate total quantity across all locations
         $totalQuantity = WarehouseMaterial::where('material_id', $material->id)
             ->where('item_type', 'material')
             ->sum('quantity');
-        
+
         // Calculate total inventory based on configuration
         $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
             ->where('item_type', 'material');
-            
+
         if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
             $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
         }
-        
+
         $inventoryQuantity = $warehouseQuery->sum('quantity');
-        
+
         return view('materials.show', compact('material', 'warehouses', 'totalQuantity', 'inventoryQuantity'));
     }
 
@@ -211,16 +211,16 @@ class MaterialController extends Controller
     {
         // Fetch unique categories from the database
         $categories = Material::select('category')->distinct()->pluck('category')->toArray();
-        
+
         // Sort categories alphabetically
         sort($categories);
-        
+
         // Get all suppliers
         $suppliers = Supplier::orderBy('name')->get();
-        
+
         // Load material images
         $material->load('images');
-        
+
         return view('materials.edit', compact('material', 'categories', 'suppliers'));
     }
 
@@ -230,7 +230,7 @@ class MaterialController extends Controller
     public function update(Request $request, Material $material)
     {
         $request->validate([
-            'code' => 'required|unique:materials,code,'.$material->id,
+            'code' => 'required|unique:materials,code,' . $material->id,
             'name' => 'required',
             'category' => 'required',
             'unit' => 'required',
@@ -241,7 +241,7 @@ class MaterialController extends Controller
         ]);
 
         $materialData = $request->except(['images', 'image', 'deleted_images', 'supplier_ids']);
-        
+
         // Handle supplier_ids
         if ($request->has('supplier_ids')) {
             $materialData['supplier_ids'] = $request->supplier_ids;
@@ -253,7 +253,7 @@ class MaterialController extends Controller
         // Handle deleted images
         if ($request->has('deleted_images')) {
             $deletedImages = explode(',', $request->input('deleted_images'));
-            
+
             foreach ($deletedImages as $imageId) {
                 if (!empty($imageId)) {
                     $image = MaterialImage::find($imageId);
@@ -270,10 +270,10 @@ class MaterialController extends Controller
         // Handle multiple image uploads if present
         if ($request->hasFile('images')) {
             $lastOrder = $material->images()->max('sort_order') ?? -1;
-            
+
             foreach ($request->file('images') as $index => $image) {
                 $imagePath = $image->store('materials', 'public');
-                
+
                 MaterialImage::create([
                     'material_id' => $material->id,
                     'image_path' => $imagePath,
@@ -294,14 +294,14 @@ class MaterialController extends Controller
         // Check if material has inventory quantity > 0
         $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
             ->where('item_type', 'material');
-            
+
         // Check inventory based on material's configuration
         if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
             $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
         }
-        
+
         $inventoryQuantity = $warehouseQuery->sum('quantity');
-        
+
         // Only allow deletion when inventory quantity is 0
         if ($inventoryQuantity > 0) {
             return redirect()->route('materials.index')
@@ -310,14 +310,14 @@ class MaterialController extends Controller
 
         // Check the deletion action type from request
         $action = $request->input('action');
-        
+
         if ($action === 'hide') {
             // Hide the material instead of deleting
             $material->update([
                 'is_hidden' => true,
                 'status' => 'active'
             ]);
-            
+
             return redirect()->route('materials.index')
                 ->with('success', 'Vật tư đã được ẩn thành công.');
         } else {
@@ -326,7 +326,7 @@ class MaterialController extends Controller
                 'status' => 'deleted',
                 'is_hidden' => false
             ]);
-            
+
             return redirect()->route('materials.index')
                 ->with('success', 'Vật tư đã được đánh dấu là đã xóa.');
         }
@@ -340,20 +340,20 @@ class MaterialController extends Controller
         try {
             $image = MaterialImage::findOrFail($id);
             $materialId = $image->material_id;
-            
+
             // Delete the file from storage
             Storage::disk('public')->delete($image->image_path);
-            
+
             // Delete the record
             $image->delete();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Đã xóa ảnh thành công'
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting material image: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi xóa ảnh: ' . $e->getMessage()
@@ -368,27 +368,27 @@ class MaterialController extends Controller
     {
         try {
             $searchTerm = $request->input('term');
-            
+
             if (empty($searchTerm)) {
                 return response()->json([]);
             }
-            
+
             // Make search case-insensitive and more comprehensive
-            $materials = Material::where(function($query) use ($searchTerm) {
+            $materials = Material::where(function ($query) use ($searchTerm) {
                 $query->whereRaw('LOWER(code) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                     ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                     ->orWhereRaw('LOWER(category) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                     ->orWhereRaw('LOWER(unit) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                     ->orWhereRaw('LOWER(notes) LIKE ?', ['%' . strtolower($searchTerm) . '%']);
             })
-            ->limit(10)
-            ->get(['id', 'code', 'name', 'category', 'unit']);
-            
+                ->limit(10)
+                ->get(['id', 'code', 'name', 'category', 'unit']);
+
             return response()->json($materials);
         } catch (\Exception $e) {
             // Log the error
             Log::error('Material search error: ' . $e->getMessage());
-            
+
             // Return error with more details for debugging
             return response()->json([
                 'error' => true,
@@ -396,7 +396,7 @@ class MaterialController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Get inventory quantity for a specific material across all or specific warehouse
      */
@@ -405,43 +405,43 @@ class MaterialController extends Controller
         try {
             $materialId = $request->input('material_id');
             $warehouseId = $request->input('warehouse_id');
-            
+
             if (!$materialId) {
                 return response()->json(['error' => 'Material ID is required'], 400);
             }
-            
+
             $material = Material::find($materialId);
             if (!$material) {
                 return response()->json(['error' => 'Material not found'], 404);
             }
-            
+
             $query = WarehouseMaterial::where('material_id', $materialId)
-                                      ->where('item_type', 'material');
-            
+                ->where('item_type', 'material');
+
             // If warehouse ID is provided and not 'all', filter by warehouse
             if ($warehouseId && $warehouseId !== 'all') {
                 $query->where('warehouse_id', $warehouseId);
-            } 
+            }
             // If no warehouse ID is provided, use the material's configured inventory_warehouses setting
             else if (!$warehouseId && is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                 $query->whereIn('warehouse_id', $material->inventory_warehouses);
             }
-            
+
             $totalQuantity = $query->sum('quantity');
-            
+
             return response()->json([
                 'quantity' => $totalQuantity
             ]);
         } catch (\Exception $e) {
             Log::error('Get inventory quantity error: ' . $e->getMessage());
-            
+
             return response()->json([
-                'error' => true, 
+                'error' => true,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
             ], 500);
         }
     }
-    
+
     /**
      * Get material images API endpoint
      */
@@ -450,15 +450,15 @@ class MaterialController extends Controller
         try {
             $material = Material::findOrFail($id);
             $images = $material->images()->orderBy('sort_order')->get();
-            
-            $formattedImages = $images->map(function($image) {
+
+            $formattedImages = $images->map(function ($image) {
                 return [
                     'id' => $image->id,
                     'url' => asset('storage/' . $image->image_path),
                     'sort_order' => $image->sort_order
                 ];
             });
-            
+
             return response()->json([
                 'material_id' => $material->id,
                 'material_name' => $material->name,
@@ -466,14 +466,14 @@ class MaterialController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Get material images error: ' . $e->getMessage());
-            
+
             return response()->json([
-                'error' => true, 
+                'error' => true,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()
             ], 500);
         }
     }
-    
+
     /**
      * Export materials list to PDF
      */
@@ -481,35 +481,35 @@ class MaterialController extends Controller
     {
         try {
             $materials = Material::all();
-            
+
             // Calculate quantities for each material
             foreach ($materials as $material) {
                 // Total quantity across all locations
                 $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                     ->where('item_type', 'material')
                     ->sum('quantity');
-                
+
                 // Total inventory based on configuration
                 $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
                     ->where('item_type', 'material');
-                    
+
                 if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                     $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
                 }
-                
+
                 $material->inventory_quantity = $warehouseQuery->sum('quantity');
             }
-            
+
             $pdf = PDF::loadView('materials.pdf', compact('materials'));
-            
+
             return $pdf->download('danh-sach-vat-tu-' . date('Y-m-d') . '.pdf');
         } catch (\Exception $e) {
             Log::error('Export PDF error: ' . $e->getMessage());
-            
+
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Export materials list to Excel
      */
@@ -523,15 +523,15 @@ class MaterialController extends Controller
                 'unit' => $request->get('unit'),
                 'stock' => $request->get('stock')
             ];
-            
+
             return Excel::download(new MaterialsExport($filters), 'danh-sach-vat-tu-' . date('Y-m-d') . '.xlsx');
         } catch (\Exception $e) {
             Log::error('Export Excel error: ' . $e->getMessage());
-            
+
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Export materials list to FDF
      */
@@ -545,12 +545,12 @@ class MaterialController extends Controller
             // Apply filters if provided
             if ($request->filled('search')) {
                 $searchTerm = $request->search;
-                $query->where(function($q) use ($searchTerm) {
+                $query->where(function ($q) use ($searchTerm) {
                     $q->where('code', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('name', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('category', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+                        ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
                 });
             }
 
@@ -563,36 +563,36 @@ class MaterialController extends Controller
             }
 
             $materials = $query->get();
-            
+
             // Calculate quantities for each material
             foreach ($materials as $material) {
                 $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                     ->where('item_type', 'material')
                     ->sum('quantity');
-                
+
                 $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
                     ->where('item_type', 'material');
-                    
+
                 if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                     $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
                 }
-                
+
                 $material->inventory_quantity = $warehouseQuery->sum('quantity');
             }
 
             // Apply stock filter after calculating quantities
             if ($request->filled('stock')) {
                 if ($request->stock === 'in_stock') {
-                    $materials = $materials->filter(function($material) {
+                    $materials = $materials->filter(function ($material) {
                         return $material->inventory_quantity > 0;
                     });
                 } elseif ($request->stock === 'out_of_stock') {
-                    $materials = $materials->filter(function($material) {
+                    $materials = $materials->filter(function ($material) {
                         return $material->inventory_quantity == 0;
                     });
                 }
             }
-            
+
             // Create FDF content
             $fdfContent = "%FDF-1.2\n";
             $fdfContent .= "1 0 obj\n";
@@ -600,34 +600,34 @@ class MaterialController extends Controller
             $fdfContent .= "/FDF\n";
             $fdfContent .= "<<\n";
             $fdfContent .= "/Fields [\n";
-            
+
             foreach ($materials as $index => $material) {
                 $fdfContent .= "<<\n";
                 $fdfContent .= "/T (material_" . ($index + 1) . "_code)\n";
                 $fdfContent .= "/V (" . $this->escapeFDFString($material->code) . ")\n";
                 $fdfContent .= ">>\n";
-                
+
                 $fdfContent .= "<<\n";
                 $fdfContent .= "/T (material_" . ($index + 1) . "_name)\n";
                 $fdfContent .= "/V (" . $this->escapeFDFString($material->name) . ")\n";
                 $fdfContent .= ">>\n";
-                
+
                 $fdfContent .= "<<\n";
                 $fdfContent .= "/T (material_" . ($index + 1) . "_category)\n";
                 $fdfContent .= "/V (" . $this->escapeFDFString($material->category) . ")\n";
                 $fdfContent .= ">>\n";
-                
+
                 $fdfContent .= "<<\n";
                 $fdfContent .= "/T (material_" . ($index + 1) . "_unit)\n";
                 $fdfContent .= "/V (" . $this->escapeFDFString($material->unit) . ")\n";
                 $fdfContent .= ">>\n";
-                
+
                 $fdfContent .= "<<\n";
                 $fdfContent .= "/T (material_" . ($index + 1) . "_inventory_quantity)\n";
                 $fdfContent .= "/V (" . number_format($material->inventory_quantity, 0, ',', '.') . ")\n";
                 $fdfContent .= ">>\n";
             }
-            
+
             $fdfContent .= "]\n";
             $fdfContent .= ">>\n";
             $fdfContent .= ">>\n";
@@ -637,18 +637,17 @@ class MaterialController extends Controller
             $fdfContent .= "/Root 1 0 R\n";
             $fdfContent .= ">>\n";
             $fdfContent .= "%%EOF\n";
-            
+
             return response($fdfContent)
                 ->header('Content-Type', 'application/vnd.fdf')
                 ->header('Content-Disposition', 'attachment; filename="danh-sach-vat-tu-' . date('Y-m-d') . '.fdf"');
-                
         } catch (\Exception $e) {
             Log::error('Export FDF error: ' . $e->getMessage());
-            
+
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất FDF: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Escape string for FDF format
      */
@@ -656,7 +655,7 @@ class MaterialController extends Controller
     {
         return str_replace(['(', ')', '\\'], ['\\(', '\\)', '\\\\'], $string);
     }
-    
+
     /**
      * Download Excel template for materials import
      */
@@ -666,11 +665,11 @@ class MaterialController extends Controller
             return Excel::download(new MaterialsTemplateExport, 'mau-nhap-vat-tu-' . date('Y-m-d') . '.xlsx');
         } catch (\Exception $e) {
             Log::error('Download template error: ' . $e->getMessage());
-            
+
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi tải mẫu: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Import materials from Excel file
      */
@@ -680,57 +679,56 @@ class MaterialController extends Controller
             $request->validate([
                 'import_file' => 'required|file|mimes:xlsx,xls,csv|max:10240' // Max 10MB
             ]);
-            
+
             // Clear any existing import results from session
             session()->forget('import_results');
-            
+
             $import = new MaterialsImport();
             Excel::import($import, $request->file('import_file'));
-            
+
             $results = $import->getImportResults();
-            
+
             // Log results for debugging
             Log::info('Import results:', $results);
-            
+
             // Prepare success message
             $message = "Import hoàn tất! ";
             $message .= "Thành công: {$results['success_count']}, ";
             $message .= "Lỗi: {$results['error_count']}, ";
             $message .= "Trùng lặp: {$results['duplicate_count']}";
-            
+
             // Store detailed results in session for the results page
             session(['import_results' => $results]);
-            
+
             if ($results['success_count'] > 0) {
                 return redirect()->route('materials.import.results')->with('success', $message);
             } else {
                 return redirect()->route('materials.import.results')->with('warning', $message);
             }
-            
         } catch (\Exception $e) {
             Log::error('Import error: ' . $e->getMessage());
-            
+
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi import: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Show import results
      */
     public function importResults()
     {
         $results = session('import_results');
-        
+
         if (!$results) {
             return redirect()->route('materials.index')->with('error', 'Không tìm thấy kết quả import.');
         }
-        
+
         // Clear the session after retrieving the results to prevent reuse
         session()->forget('import_results');
-        
+
         return view('materials.import-results', compact('results'));
     }
-    
+
     /**
      * Show hidden materials
      */
@@ -738,29 +736,29 @@ class MaterialController extends Controller
     {
         $materials = Material::where('is_hidden', true)
             ->get();
-            
+
         // Calculate quantities for each material
         foreach ($materials as $material) {
             // Total quantity across all locations
             $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material')
                 ->sum('quantity');
-            
+
             // Total quantity only in warehouses based on inventory_warehouses setting
             $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material');
-                
+
             // Check if inventory_warehouses is an array and contains specific warehouses
             if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                 $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
             }
-            
+
             $material->inventory_quantity = $warehouseQuery->sum('quantity');
         }
-        
+
         return view('materials.hidden', compact('materials'));
     }
-    
+
     /**
      * Show deleted materials
      */
@@ -768,29 +766,29 @@ class MaterialController extends Controller
     {
         $materials = Material::where('status', 'deleted')
             ->get();
-            
+
         // Calculate quantities for each material
         foreach ($materials as $material) {
             // Total quantity across all locations
             $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material')
                 ->sum('quantity');
-            
+
             // Total quantity only in warehouses based on inventory_warehouses setting
             $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material');
-                
+
             // Check if inventory_warehouses is an array and contains specific warehouses
             if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                 $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
             }
-            
+
             $material->inventory_quantity = $warehouseQuery->sum('quantity');
         }
-        
+
         return view('materials.deleted', compact('materials'));
     }
-    
+
     /**
      * Restore a hidden material
      */
@@ -801,10 +799,10 @@ class MaterialController extends Controller
             'is_hidden' => false,
             'status' => 'active'
         ]);
-        
+
         return back()->with('success', 'Vật tư đã được khôi phục thành công.');
     }
-    
+
     /**
      * Search materials via API for AJAX requests
      */
@@ -817,12 +815,12 @@ class MaterialController extends Controller
         // Apply filters if provided
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
             });
         }
 
@@ -835,33 +833,33 @@ class MaterialController extends Controller
         }
 
         $materials = $query->get();
-        
+
         // For each material, calculate quantities
         foreach ($materials as $material) {
             // Total quantity across all locations
             $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material')
                 ->sum('quantity');
-            
+
             // Total quantity only in warehouses based on inventory_warehouses setting
             $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material');
-                
+
             if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                 $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
             }
-            
+
             $material->inventory_quantity = $warehouseQuery->sum('quantity');
         }
 
         // Apply stock filter after calculating quantities
         if ($request->filled('stock')) {
             if ($request->stock === 'in_stock') {
-                $materials = $materials->filter(function($material) {
+                $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity > 0;
                 });
             } elseif ($request->stock === 'out_of_stock') {
-                $materials = $materials->filter(function($material) {
+                $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity == 0;
                 });
             }
@@ -872,4 +870,4 @@ class MaterialController extends Controller
             'count' => $materials->count()
         ]);
     }
-} 
+}

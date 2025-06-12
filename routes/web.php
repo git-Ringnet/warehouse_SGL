@@ -56,6 +56,9 @@ Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::clas
 // API route for material inventory quantity
 Route::get('/api/materials/inventory', [MaterialController::class, 'getInventoryQuantity']);
 
+// API route for good inventory quantity
+Route::get('/api/goods/inventory', [GoodController::class, 'getInventoryQuantity']);
+
 // API route for material search
 Route::get('/api/materials/search', [MaterialController::class, 'searchMaterialsApi'])->name('materials.search.api');
 
@@ -339,17 +342,16 @@ Route::get('/debug/materials', function () {
     }
 });
 
-// Goods (Hàng hóa)
-
-// Route::resource('goods', GoodController::class);
-Route::get('/goods', [GoodController::class, 'index'])->name('goods.index');
-Route::get('/goods/create', [GoodController::class, 'create'])->name('goods.create');
-// Route::get('/goods/{id}', [GoodController::class, 'show'])->name('goods.show');
-// Route::get('/goods/{id}/edit', [GoodController::class, 'edit'])->name('goods.edit');
-Route::get('/goods/show', [GoodController::class, 'show'])->name('goods.show');
-Route::get('/goods/edit', [GoodController::class, 'edit'])->name('goods.edit');
-
-Route::delete('goods/images/{id}', [GoodController::class, 'deleteImage'])->name('goods.images.delete');
-Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages'])->name('api.goods.images');
-
-
+// Routes for goods
+Route::resource('goods', GoodController::class);
+Route::get('/goods/hidden', [GoodController::class, 'showHidden'])->name('goods.hidden');
+Route::get('/goods/deleted', [GoodController::class, 'showDeleted'])->name('goods.deleted');
+Route::post('/goods/restore/{id}', [GoodController::class, 'restore'])->name('goods.restore');
+Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages']);
+Route::delete('/api/goods/images/{id}', [GoodController::class, 'deleteImage']);
+Route::get('/goods/export/excel', [GoodController::class, 'exportExcel'])->name('goods.export.excel');
+Route::get('/goods/export/fdf', [GoodController::class, 'exportFDF'])->name('goods.export.fdf');
+Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate'])->name('goods.template.download');
+Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import');
+Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results');
+Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');

@@ -89,7 +89,7 @@
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
                         <div class="text-gray-900">
-                            @if(isset($good->suppliers) && count($good->suppliers) > 0)
+                            @if(isset($good->suppliers) && $good->suppliers->count() > 0)
                                 @foreach($good->suppliers as $supplier)
                                     <div class="flex items-center mb-1">
                                         <i class="fas fa-building text-gray-400 mr-2"></i>
@@ -99,17 +99,23 @@
                                     </div>
                                 @endforeach
                             @else
-                                <!-- Sample supplier data -->
-                                <div class="flex items-center mb-1">
-                                    <i class="fas fa-building text-gray-400 mr-2"></i>
-                                    <a href="#" class="text-blue-600 hover:underline">Công ty TNHH Điện tử ABC</a>
-                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
-                                </div>
-                                <div class="flex items-center mb-1">
-                                    <i class="fas fa-building text-gray-400 mr-2"></i>
-                                    <a href="#" class="text-blue-600 hover:underline">Công ty CP Thiết bị XYZ</a>
-                                    <span class="text-blue-600 mx-2">Xem chi tiết</span>
-                                </div>
+                                @if(isset($good->supplier_id) && $good->supplier_id)
+                                    @php
+                                        $supplier = App\Models\Supplier::find($good->supplier_id);
+                                    @endphp
+                                    @if($supplier)
+                                    <div class="flex items-center mb-1">
+                                        <i class="fas fa-building text-gray-400 mr-2"></i>
+                                        <a href="{{ route('suppliers.show', $supplier->id) }}" class="text-blue-600 hover:underline">
+                                            {{ $supplier->name }}
+                                        </a>
+                                    </div>
+                                    @else
+                                    <span class="text-gray-500">Chưa có nhà cung cấp</span>
+                                    @endif
+                                @else
+                                    <span class="text-gray-500">Chưa có nhà cung cấp</span>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -192,33 +198,60 @@
                     <p class="text-gray-900 mt-1">Ốc vít thông dụng</p>
                 </div>
 
+                @if($good->status !== 'deleted' && !$good->is_hidden)
                 <div class="mt-6 flex justify-end">
-                    <button onclick="confirmDelete()"
+                    <button onclick="openDeleteModal('{{ $good->id }}', '{{ $good->code }}', {{ $inventoryQuantity }})"
                         class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
                         <i class="fas fa-trash mr-2"></i> Xóa hàng hóa
                     </button>
                 </div>
+                @endif
             </div>
         </main>
     </div>
 
-    <!-- Modal xác nhận xóa -->
+    <!-- Modal xác nhận xóa khi có tồn kho -->
     <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận xóa</h3>
-            <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa hàng hóa này? Hành động này không thể hoàn tác.</p>
-            <div class="flex justify-end space-x-3">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Không thể xóa</h3>
+            <p class="text-red-700 mb-6">Không thể xóa hàng hóa <span id="goodCode" class="font-semibold"></span> vì còn tồn kho: <span id="inventoryQuantity" class="font-semibold"></span></p>
+            <div class="flex justify-end">
                 <button type="button"
                     class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
                     onclick="closeDeleteModal()">
+                    Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal xác nhận xóa khi không có tồn kho -->
+    <div id="deleteZeroInventoryModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận thao tác</h3>
+            <p class="text-gray-700 mb-6">Thao tác xóa có thể làm mất dữ liệu. Bạn muốn xác nhận ngừng sử dụng và ẩn hạng mục này thay cho việc xóa?</p>
+            <div class="flex justify-end space-x-3">
+                <button type="button"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                    onclick="closeDeleteZeroInventoryModal()">
                     Hủy
                 </button>
-                <form action="#" method="POST">
+                <form id="hideForm" action="{{ route('goods.destroy', $good->id) }}" method="POST" class="inline">
                     @csrf
                     @method('DELETE')
+                    <input type="hidden" name="action" value="hide">
+                    <button type="submit"
+                        class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors">
+                        Có (Ẩn hạng mục)
+                    </button>
+                </form>
+                <form id="deleteForm" action="{{ route('goods.destroy', $good->id) }}" method="POST" class="inline">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="action" value="delete">
                     <button type="submit"
                         class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
-                        Xác nhận xóa
+                        Không (Đánh dấu đã xóa)
                     </button>
                 </form>
             </div>
@@ -234,12 +267,35 @@
     </div>
 
     <script>
-        function confirmDelete() {
-            document.getElementById('deleteModal').classList.remove('hidden');
+        function openDeleteModal(goodId, goodCode, inventoryQuantity) {
+            if (inventoryQuantity > 0) {
+                // Show inventory warning modal
+                document.getElementById('goodCode').textContent = goodCode;
+                document.getElementById('inventoryQuantity').textContent = new Intl.NumberFormat('vi-VN').format(inventoryQuantity);
+                document.getElementById('deleteModal').classList.remove('hidden');
+            } else {
+                // Show confirmation modal for zero inventory
+                // Set form actions for both hide and delete forms
+                const deleteForm = document.getElementById('deleteForm');
+                const hideForm = document.getElementById('hideForm');
+                
+                if (deleteForm) {
+                    deleteForm.action = `/goods/${goodId}`;
+                }
+                if (hideForm) {
+                    hideForm.action = `/goods/${goodId}`;
+                }
+                
+                document.getElementById('deleteZeroInventoryModal').classList.remove('hidden');
+            }
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.add('hidden');
+        }
+
+        function closeDeleteZeroInventoryModal() {
+            document.getElementById('deleteZeroInventoryModal').classList.add('hidden');
         }
 
         function openImageModal(imageUrl) {
@@ -258,6 +314,7 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeDeleteModal();
+                closeDeleteZeroInventoryModal();
                 closeImageModal();
             }
         });
