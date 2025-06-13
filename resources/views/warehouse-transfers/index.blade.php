@@ -19,10 +19,9 @@
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <form action="{{ route('warehouse-transfers.index') }}" method="GET" class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                     <div class="flex gap-2 w-full md:w-auto">
-                        <input type="text" name="search" placeholder="Tìm kiếm theo mã, serial, vật tư..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" value="{{ $search ?? '' }}" />
+                        <input type="text" name="search" placeholder="Tìm kiếm theo mã, vật tư..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" value="{{ $search ?? '' }}" />
                         <select name="filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
                             <option value="">Bộ lọc</option>
-                            <option value="serial" {{ isset($filter) && $filter == 'serial' ? 'selected' : '' }}>Serial</option>
                             <option value="material" {{ isset($filter) && $filter == 'material' ? 'selected' : '' }}>Vật tư</option>
                             <option value="source" {{ isset($filter) && $filter == 'source' ? 'selected' : '' }}>Kho nguồn</option>
                             <option value="destination" {{ isset($filter) && $filter == 'destination' ? 'selected' : '' }}>Kho đích</option>
@@ -54,7 +53,6 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã chuyển kho</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vật tư</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kho nguồn</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kho đích</th>
@@ -70,7 +68,6 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouseTransfers->firstItem() + $key }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $transfer->transfer_code }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $transfer->serial }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $transfer->material->name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $transfer->source_warehouse->name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $transfer->destination_warehouse->name }}</td>
@@ -102,7 +99,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="11" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu phiếu chuyển kho</td>
+                            <td colspan="10" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu phiếu chuyển kho</td>
                         </tr>
                         @endforelse
                     </tbody>

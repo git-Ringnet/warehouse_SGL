@@ -385,3 +385,7 @@ Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate
 Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import');
 Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results');
 Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');
+
+// Thêm route cho API kiểm tra tồn kho
+Route::get('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory');
+Route::post('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory.post');
