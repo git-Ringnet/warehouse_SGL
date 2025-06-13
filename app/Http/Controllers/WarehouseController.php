@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Warehouse;
 use App\Models\Material;
+use App\Models\Product;
 use App\Models\Employee;
 use App\Models\WarehouseMaterial;
 use Illuminate\Http\Request;
@@ -15,10 +16,150 @@ class WarehouseController extends Controller
     /**
      * Display a listing of the warehouses.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $warehouses = Warehouse::all();
-        return view('warehouses.index', compact('warehouses'));
+        // Start with base query for active warehouses that are not hidden
+        $query = Warehouse::where('is_hidden', false)
+            ->where('status', 'active');
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('address', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('manager', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply manager filter
+        if ($request->filled('manager')) {
+            $query->where('manager', $request->manager);
+        }
+
+        $warehouses = $query->get();
+        
+        // Get unique managers for filter dropdown
+        $managers = Warehouse::where('is_hidden', false)
+            ->where('status', 'active')
+            ->select('manager')
+            ->distinct()
+            ->pluck('manager')
+            ->toArray();
+
+        return view('warehouses.index', compact('warehouses', 'managers'));
+    }
+
+    /**
+     * Show hidden warehouses
+     */
+    public function showHidden(Request $request)
+    {
+        // Start with base query for hidden warehouses
+        $query = Warehouse::where('is_hidden', true);
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('address', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('manager', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply manager filter
+        if ($request->filled('manager')) {
+            $query->where('manager', $request->manager);
+        }
+
+        $warehouses = $query->get();
+        
+        // Get unique managers for filter dropdown
+        $managers = Warehouse::where('is_hidden', true)
+            ->select('manager')
+            ->distinct()
+            ->pluck('manager')
+            ->toArray();
+
+        return view('warehouses.hidden', compact('warehouses', 'managers'));
+    }
+
+    /**
+     * Show deleted warehouses
+     */
+    public function showDeleted(Request $request)
+    {
+        // Start with base query for deleted warehouses
+        $query = Warehouse::where('status', 'deleted');
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('address', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('manager', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply manager filter
+        if ($request->filled('manager')) {
+            $query->where('manager', $request->manager);
+        }
+
+        $warehouses = $query->get();
+        
+        // Get unique managers for filter dropdown
+        $managers = Warehouse::where('status', 'deleted')
+            ->select('manager')
+            ->distinct()
+            ->pluck('manager')
+            ->toArray();
+
+        return view('warehouses.deleted', compact('warehouses', 'managers'));
+    }
+
+    /**
+     * Restore hidden warehouse
+     */
+    public function restoreHidden(Request $request, Warehouse $warehouse)
+    {
+        try {
+            $warehouse->update(['is_hidden' => false]);
+            
+            return redirect()->route('warehouses.hidden')
+                ->with('success', 'Kho hàng đã được khôi phục thành công.');
+        } catch (\Exception $e) {
+            Log::error('Warehouse restore hidden error: ' . $e->getMessage());
+            
+            return redirect()->route('warehouses.hidden')
+                ->with('error', 'Có lỗi xảy ra khi khôi phục kho hàng: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Restore deleted warehouse
+     */
+    public function restoreDeleted(Request $request, Warehouse $warehouse)
+    {
+        try {
+            $warehouse->update(['status' => 'active']);
+            
+            return redirect()->route('warehouses.deleted')
+                ->with('success', 'Kho hàng đã được khôi phục thành công.');
+        } catch (\Exception $e) {
+            Log::error('Warehouse restore deleted error: ' . $e->getMessage());
+            
+            return redirect()->route('warehouses.deleted')
+                ->with('error', 'Có lỗi xảy ra khi khôi phục kho hàng: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -36,14 +177,16 @@ class WarehouseController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'code' => 'required|unique:warehouses,code',
+            'code' => 'required',
             'name' => 'required',
-            'address' => 'required',
             'manager' => 'required',
-            'phone' => 'required',
         ]);
 
-        Warehouse::create($request->all());
+        $data = $request->all();
+        $data['status'] = 'active';
+        $data['is_hidden'] = false;
+        
+        Warehouse::create($data);
 
         return redirect()->route('warehouses.index')
             ->with('success', 'Kho hàng đã được thêm thành công.');
@@ -54,7 +197,57 @@ class WarehouseController extends Controller
      */
     public function show(Warehouse $warehouse)
     {
-        return view('warehouses.show', compact('warehouse'));
+        // Get materials in this warehouse
+        $materials = WarehouseMaterial::where('warehouse_id', $warehouse->id)
+            ->where('item_type', 'material')
+            ->with('material')
+            ->get()
+            ->filter(function($warehouseMaterial) {
+                return $warehouseMaterial->material !== null;
+            })
+            ->map(function($warehouseMaterial) {
+                return [
+                    'id' => $warehouseMaterial->material->id,
+                    'code' => $warehouseMaterial->material->code,
+                    'name' => $warehouseMaterial->material->name,
+                    'category' => $warehouseMaterial->material->category ?? '',
+                    'unit' => $warehouseMaterial->material->unit ?? '',
+                    'quantity' => $warehouseMaterial->quantity,
+                    'location' => $warehouseMaterial->location ?? '',
+                    'serial_number' => $warehouseMaterial->serial_number ?? '',
+                ];
+            });
+
+        // Get products in this warehouse
+        $products = WarehouseMaterial::where('warehouse_id', $warehouse->id)
+            ->where('item_type', 'product')
+            ->with('product')
+            ->get()
+            ->filter(function($warehouseMaterial) {
+                return $warehouseMaterial->product !== null;
+            })
+            ->map(function($warehouseMaterial) {
+                return [
+                    'id' => $warehouseMaterial->product->id,
+                    'code' => $warehouseMaterial->product->code,
+                    'name' => $warehouseMaterial->product->name,
+                    'description' => $warehouseMaterial->product->description ?? '',
+                    'quantity' => $warehouseMaterial->quantity,
+                    'location' => $warehouseMaterial->location ?? '',
+                    'serial_number' => $warehouseMaterial->serial_number ?? '',
+                ];
+            });
+
+        // Since 'good' is not in enum, set empty collection
+        $goods = collect([]);
+
+        // Calculate totals
+        $totalMaterials = $materials->sum('quantity');
+        $totalProducts = $products->sum('quantity');
+        $totalGoods = $goods->sum('quantity');
+        $grandTotal = $totalMaterials + $totalProducts + $totalGoods;
+
+        return view('warehouses.show', compact('warehouse', 'materials', 'products', 'goods', 'totalMaterials', 'totalProducts', 'totalGoods', 'grandTotal'));
     }
 
     /**
@@ -72,11 +265,9 @@ class WarehouseController extends Controller
     public function update(Request $request, Warehouse $warehouse)
     {
         $request->validate([
-            'code' => 'required|unique:warehouses,code,'.$warehouse->id,
+            'code' => 'required',
             'name' => 'required',
-            'address' => 'required',
             'manager' => 'required',
-            'phone' => 'required',
         ]);
 
         $warehouse->update($request->all());
@@ -86,14 +277,57 @@ class WarehouseController extends Controller
     }
 
     /**
+     * Check inventory for a warehouse
+     */
+    public function checkInventory($id)
+    {
+        try {
+            $warehouse = Warehouse::findOrFail($id);
+            
+            // Tính tổng số lượng tất cả items trong kho này
+            $totalQuantity = WarehouseMaterial::where('warehouse_id', $id)->sum('quantity');
+            
+            return response()->json([
+                'hasInventory' => $totalQuantity > 0,
+                'totalQuantity' => $totalQuantity
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Check warehouse inventory error: ' . $e->getMessage());
+            
+            return response()->json([
+                'error' => true,
+                'message' => 'Có lỗi xảy ra khi kiểm tra tồn kho: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Remove the specified warehouse from storage.
      */
-    public function destroy(Warehouse $warehouse)
+    public function destroy(Request $request, Warehouse $warehouse)
     {
-        $warehouse->delete();
+        try {
+            $action = $request->input('action', 'delete');
+            
+            if ($action === 'hide') {
+                // Ẩn warehouse
+                $warehouse->update(['is_hidden' => true]);
+                $message = 'Kho hàng đã được ẩn thành công.';
+            } else {
+                // Đánh dấu đã xóa (soft delete)
+                $warehouse->update(['status' => 'deleted']);
+                $message = 'Kho hàng đã được xóa thành công.';
+            }
 
-        return redirect()->route('warehouses.index')
-            ->with('success', 'Kho hàng đã được xóa thành công.');
+            return redirect()->route('warehouses.index')
+                ->with('success', $message);
+                
+        } catch (\Exception $e) {
+            Log::error('Warehouse delete/hide error: ' . $e->getMessage());
+            
+            return redirect()->route('warehouses.index')
+                ->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
+        }
     }
     
     /**
@@ -153,5 +387,51 @@ class WarehouseController extends Controller
                 'message' => 'Có lỗi xảy ra khi lấy danh sách vật tư: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Search warehouses via API for AJAX requests
+     */
+    public function apiSearch(Request $request)
+    {
+        // Start with base query for active warehouses that are not hidden
+        $query = Warehouse::where('is_hidden', false)
+            ->where('status', 'active');
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('address', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('manager', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply manager filter
+        if ($request->filled('manager')) {
+            $query->where('manager', $request->manager);
+        }
+
+        $warehouses = $query->get();
+        
+        // Get unique managers for filter dropdown
+        $managers = Warehouse::where('is_hidden', false)
+            ->where('status', 'active')
+            ->select('manager')
+            ->distinct()
+            ->pluck('manager')
+            ->toArray();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'warehouses' => $warehouses,
+                'managers' => $managers,
+                'totalCount' => $warehouses->count()
+            ]
+        ]);
     }
 } 

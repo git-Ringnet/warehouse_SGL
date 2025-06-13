@@ -68,7 +68,17 @@ Route::get('/api/products/inventory', [ProductController::class, 'getInventoryQu
 Route::get('/api/products/search', [ProductController::class, 'searchProductsApi'])->name('products.search.api');
 
 //Warehouses
+Route::get('/warehouses/api-search', [WarehouseController::class, 'apiSearch'])->name('warehouses.api-search');
 Route::resource('warehouses', WarehouseController::class);
+
+// Warehouse hidden and deleted routes
+Route::get('warehouses-hidden', [WarehouseController::class, 'showHidden'])->name('warehouses.hidden');
+Route::get('warehouses-deleted', [WarehouseController::class, 'showDeleted'])->name('warehouses.deleted');
+Route::patch('warehouses/{warehouse}/restore-hidden', [WarehouseController::class, 'restoreHidden'])->name('warehouses.restore-hidden');
+Route::patch('warehouses/{warehouse}/restore-deleted', [WarehouseController::class, 'restoreDeleted'])->name('warehouses.restore-deleted');
+
+// API route for warehouse inventory check
+Route::get('/warehouses/{id}/check-inventory', [WarehouseController::class, 'checkInventory'])->name('warehouses.check-inventory');
 
 // API route for warehouse materials
 Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::class, 'getMaterials']);
