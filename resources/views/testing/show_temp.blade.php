@@ -119,14 +119,21 @@
                         </div>
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium mb-1">Người tạo phiếu</p>
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người kiểm thử</p>
                             <p class="text-base text-gray-800 font-semibold">{{ $testing->tester->name ?? 'N/A' }}</p>
                         </div>
                         
                         @if($testing->approved_by)
                         <div class="mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium mb-1">Người tiếp nhận</p>
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người duyệt</p>
                             <p class="text-base text-gray-800 font-semibold">{{ $testing->approver->name ?? 'N/A' }}</p>
+                        </div>
+                        @endif
+                        
+                        @if($testing->received_by)
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người tiếp nhận</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $testing->receiver->name ?? 'N/A' }}</p>
                         </div>
                         @endif
                         
@@ -183,24 +190,18 @@
 
             <!-- Danh sách thiết bị và vật tư -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
-                @if($testing->test_type == 'material')
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Danh sách vật tư cần kiểm thử</h2>
-                @else
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết thiết bị kiểm thử</h2>
-                @endif
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Danh sách thiết bị và vật tư kiểm thử</h2>
                 
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại thiết bị</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                @if($testing->test_type == 'material')
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nhà cung cấp</th>
-                                @endif
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kết quả</th>
                             </tr>
                         </thead>
@@ -212,32 +213,20 @@
                                     @if($item->item_type == 'material')
                                         Vật tư
                                     @elseif($item->item_type == 'product')
-                                        Thành phẩm
-                                    @elseif($item->item_type == 'finished_product')
                                         Hàng hóa
+                                    @elseif($item->item_type == 'finished_product')
+                                        Thiết bị thành phẩm
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    @if($item->item_type == 'material' && $item->material)
-                                        {{ $item->material->code }} - {{ $item->material->name }}
-                                    @elseif($item->item_type == 'product' && $item->product)
-                                        {{ $item->product->code }} - {{ $item->product->name }}
-                                    @elseif($item->item_type == 'finished_product' && $item->good)
-                                        {{ $item->good->code }} - {{ $item->good->name }}
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->serial_number ?: 'N/A' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->item_name }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->serial_number ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->quantity }}</td>
-                                @if($testing->test_type == 'material')
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $item->supplier ? $item->supplier->name : 'N/A' }}
-                                </td>
-                                @endif
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->supplier->name ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     @if($item->result == 'pass')
-                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
                                     @elseif($item->result == 'fail')
-                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Không đạt</span>
+                                        <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Không đạt</span>
                                     @else
                                         <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
                                     @endif
@@ -245,82 +234,14 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="{{ $testing->test_type == 'material' ? '7' : '6' }}" class="px-6 py-4 text-sm text-center text-gray-500">Chưa có vật tư/hàng hóa nào được thêm</td>
+                                <td colspan="7" class="px-6 py-4 text-sm text-center text-gray-500">Chưa có vật tư/hàng hóa nào được thêm</td>
                             </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
-            
-            @if($testing->test_type == 'finished_product')
-            <!-- Chi tiết vật tư lắp ráp cho thành phẩm -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết vật tư lắp ráp</h2>
-                
-                @php
-                    // Lấy thông tin về thành phẩm đầu tiên (nếu có)
-                    $product = null;
-                    foreach($testing->items as $item) {
-                        if($item->item_type == 'product' && $item->product) {
-                            $product = $item->product;
-                            break;
-                        } elseif($item->item_type == 'finished_product' && $item->good) {
-                            // Nếu là hàng hóa thì hiển thị thông tin của nó
-                            $product = $item->good;
-                            break;
-                        }
-                    }
-                @endphp
-                
-                @if($product)
-                    <div class="mb-4">
-                        <p class="text-sm text-gray-500 font-medium mb-1">Thành phẩm</p>
-                        <p class="text-base text-gray-800 font-semibold">{{ $product->code }} - {{ $product->name }}</p>
-                    </div>
-                    
-                    @if(isset($product->materials) && $product->materials->count() > 0)
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã vật tư</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên vật tư</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đơn vị</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    @forelse($product->materials as $index => $material)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->code }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $material->name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->unit }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->pivot->quantity ?? 1 }}</td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="5" class="px-6 py-4 text-sm text-center text-gray-500">Không có thông tin vật tư lắp ráp</td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    @else
-                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                            <p class="text-gray-500 text-center">Không có thông tin về vật tư lắp ráp cho thành phẩm này</p>
-                        </div>
-                    @endif
-                @else
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <p class="text-gray-500 text-center">Không tìm thấy thông tin thành phẩm</p>
-                    </div>
-                @endif
-            </div>
-            @endif
-            
+
             <!-- Hạng mục kiểm thử và kết quả -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Hạng mục kiểm thử và kết quả</h2>
@@ -342,7 +263,7 @@
                                 <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ $detail->test_item_name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     @if($detail->result == 'pass')
-                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đạt</span>
                                     @elseif($detail->result == 'fail')
                                         <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Không đạt</span>
                                     @else
@@ -360,58 +281,7 @@
                     </table>
                 </div>
             </div>
-            
-            <!-- Chi tiết kết quả kiểm thử -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết kết quả kiểm thử</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-green-50 p-4 rounded-lg border border-green-100">
-                        <h3 class="font-medium text-green-800 mb-2">Số lượng Đạt: {{ $testing->pass_quantity ?: 0 }}</h3>
-                        <p class="text-green-700">{{ $testing->pass_rate }}% của tổng số lượng kiểm thử</p>
-                    </div>
-                    
-                    <div class="bg-red-50 p-4 rounded-lg border border-red-100">
-                        <h3 class="font-medium text-red-800 mb-2">Số lượng Không Đạt: {{ $testing->fail_quantity ?: 0 }}</h3>
-                        <p class="text-red-700">{{ $testing->fail_quantity > 0 ? (100 - $testing->pass_rate) : 0 }}% của tổng số lượng kiểm thử</p>
-                    </div>
-                </div>
-                
-                @if($testing->fail_reasons)
-                <div class="mb-6">
-                    <h3 class="font-medium text-gray-800 mb-2">Lý do không đạt:</h3>
-                    <p class="text-gray-700 whitespace-pre-line">{{ $testing->fail_reasons }}</p>
-                </div>
-                @endif
-                
-                @if($testing->conclusion)
-                <div class="mb-6">
-                    <h3 class="font-medium text-gray-800 mb-2">Kết luận:</h3>
-                    <p class="text-gray-700 whitespace-pre-line">{{ $testing->conclusion }}</p>
-                </div>
-                @endif
-            
-                <div class="border-t border-gray-200 pt-6 mt-6">
-                    <h3 class="font-medium text-gray-800 mb-4">Xác nhận và hoàn thành</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="text-center">
-                            <p class="font-medium">Người tạo phiếu</p>
-                            <p>{{ $testing->tester->name ?? 'N/A' }}</p>
-                            <p class="text-sm text-gray-500 mt-2">{{ $testing->test_date ? $testing->test_date->format('d/m/Y') : '' }}</p>
-                        </div>
-                        
-                        @if($testing->approved_by)
-                        <div class="text-center">
-                            <p class="font-medium">Người tiếp nhận</p>
-                            <p>{{ $testing->approver->name ?? 'N/A' }}</p>
-                            <p class="text-sm text-gray-500 mt-2">{{ $testing->approved_at ? $testing->approved_at->format('d/m/Y') : '' }}</p>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-            </div>
-            
+
             <!-- Action buttons -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 no-print">
                 <div class="flex flex-wrap gap-3">
@@ -480,12 +350,12 @@
                     <div class="mb-4">
                         <label for="pass_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng đạt</label>
                         <input type="number" id="pass_quantity" name="pass_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                        </div>
+                    </div>
                     
                     <div class="mb-4">
                         <label for="fail_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng không đạt</label>
                         <input type="number" id="fail_quantity" name="fail_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                        </div>
+                    </div>
                     
                     <div class="mb-4">
                         <label for="conclusion" class="block text-sm font-medium text-gray-700 mb-1">Kết luận</label>
@@ -495,12 +365,12 @@
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeCompleteModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Hủy</button>
                         <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Xác nhận</button>
-                        </div>
-                </form>
-                        </div>
                     </div>
-                </div>
-                
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Update Inventory Modal -->
     <div id="inventory-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -532,15 +402,15 @@
                                 <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                             @endforeach
                         </select>
-            </div>
-
+                    </div>
+                    
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeInventoryModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Hủy</button>
                         <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Xác nhận</button>
                     </div>
                 </form>
-                </div>
             </div>
+        </div>
     </div>
 
     <script>

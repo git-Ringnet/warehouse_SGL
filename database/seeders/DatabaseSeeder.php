@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Database\Seeders\TestingSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -36,6 +37,7 @@ class DatabaseSeeder extends Seeder
             AssemblySeeder::class,
             // DispatchSeeder::class,
             // WarrantySeeder::class,
+            TestingSeeder::class,
         ]);
     }
 }
