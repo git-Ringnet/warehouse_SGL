@@ -14,6 +14,8 @@ class Testing extends Model
         'test_code',
         'test_type',
         'tester_id',
+        'assigned_to',
+        'receiver_id',
         'test_date',
         'status',
         'notes',
@@ -28,6 +30,7 @@ class Testing extends Model
         'is_inventory_updated',
         'success_warehouse_id',
         'fail_warehouse_id',
+        'assembly_id',
     ];
 
     protected $casts = [
@@ -38,11 +41,27 @@ class Testing extends Model
     ];
 
     /**
-     * Get the tester for this test.
+     * Get the tester for this test (người tạo phiếu).
      */
     public function tester()
     {
         return $this->belongsTo(Employee::class, 'tester_id');
+    }
+
+    /**
+     * Get the assigned employee for this test (người phụ trách).
+     */
+    public function assignedEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'assigned_to');
+    }
+
+    /**
+     * Get the receiver employee for this test (người tiếp nhận).
+     */
+    public function receiverEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'receiver_id');
     }
 
     /**
@@ -91,6 +110,14 @@ class Testing extends Model
     public function details()
     {
         return $this->hasMany(TestingDetail::class);
+    }
+
+    /**
+     * Get the assembly associated with this test.
+     */
+    public function assembly()
+    {
+        return $this->belongsTo(Assembly::class, 'assembly_id');
     }
 
     /**

@@ -55,9 +55,9 @@
                             </div>
 
                             <div>
-                                <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người kiểm thử</label>
+                                <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tạo phiếu</label>
                                 <select id="tester_id" name="tester_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn người kiểm thử --</option>
+                                    <option value="">-- Chọn người tạo phiếu --</option>
                                     @foreach($employees as $employee)
                                         <option value="{{ $employee->id }}">{{ $employee->name }}</option>
                                     @endforeach
@@ -70,11 +70,55 @@
                         
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
+                                <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người phụ trách</label>
+                                <select id="assigned_to" name="assigned_to" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    <option value="">-- Chọn người phụ trách --</option>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('assigned_to')
+                                    <span class="text-red-500 text-xs">{{ $message }}</span>
+                                @enderror
+                            </div>
+                            
+                            <div>
+                                <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tiếp nhận kiểm thử</label>
+                                <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    <option value="">-- Chọn người tiếp nhận --</option>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('receiver_id')
+                                    <span class="text-red-500 text-xs">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
                                 <label for="test_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày kiểm thử</label>
                                 <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ date('Y-m-d') }}" required>
                                 @error('test_date')
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
+                            </div>
+
+                            <div id="assembly_selection_section">
+                                <label for="assembly_id" class="block text-sm font-medium text-gray-700 mb-1">Liên kết với phiếu lắp ráp</label>
+                                <select id="assembly_id" name="assembly_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">-- Chọn phiếu lắp ráp --</option>
+                                    @if(isset($pendingAssemblies) && $pendingAssemblies->count() > 0)
+                                        @foreach($pendingAssemblies as $assembly)
+                                            <option value="{{ $assembly->id }}" 
+                                                {{ (isset($selectedAssembly) && $selectedAssembly->id == $assembly->id) ? 'selected' : '' }}>
+                                                {{ $assembly->code }} - {{ $assembly->product->name ?? 'N/A' }} ({{ $assembly->quantity }})
+                                            </option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Chọn phiếu lắp ráp để liên kết với phiếu kiểm thử này</p>
                             </div>
                         </div>
                     </div>
@@ -727,6 +771,126 @@
                 }
             }
         });
+
+        // Auto-select and trigger change event if assembly is pre-selected
+        document.addEventListener('DOMContentLoaded', function() {
+            const assemblySelect = document.getElementById('assembly_id');
+            if (assemblySelect && assemblySelect.value) {
+                // Trigger the change event
+                const event = new Event('change');
+                assemblySelect.dispatchEvent(event);
+            }
+        });
+
+        // Assembly selection handling
+        document.getElementById('assembly_id').addEventListener('change', function() {
+            const assemblyId = this.value;
+            if (!assemblyId) return;
+
+            // Get selected option text
+            const selectedOption = this.options[this.selectedIndex];
+            const assemblyText = selectedOption.text;
+
+            // Set test type to finished_product since assemblies are finished products
+            const testTypeSelect = document.getElementById('test_type');
+            testTypeSelect.value = 'finished_product';
+
+            // Extract product info from the assembly option text
+            const match = assemblyText.match(/- (.*) \((\d+)\)/);
+            if (match) {
+                const productName = match[1];
+                const quantity = match[2];
+
+                // Check if there are existing items
+                const itemsContainer = document.getElementById('items-container');
+                
+                // Remove all existing items except the first one
+                const itemRows = itemsContainer.querySelectorAll('.item-row');
+                for (let i = 1; i < itemRows.length; i++) {
+                    itemRows[i].remove();
+                }
+
+                // Get the first item row
+                const firstItemRow = itemsContainer.querySelector('.item-row');
+                
+                // Set the first item's type to product
+                const itemTypeSelect = firstItemRow.querySelector('.item-type');
+                itemTypeSelect.value = 'product';
+                
+                // Trigger the change event to load product options
+                const event = new Event('change');
+                itemTypeSelect.dispatchEvent(event);
+                
+                // Add loading indicator
+                firstItemRow.classList.add('opacity-50');
+                
+                // Fetch product details from the selected assembly
+                fetch(`/assemblies/${assemblyId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.product) {
+                            // When product options are loaded, select the product
+                            setTimeout(() => {
+                                const itemNameSelect = firstItemRow.querySelector('.item-name');
+                                
+                                // Find and select the correct product option
+                                Array.from(itemNameSelect.options).forEach(option => {
+                                    if (option.text.includes(data.product.name)) {
+                                        option.selected = true;
+                                    }
+                                });
+                                
+                                // Set quantity from assembly
+                                const quantityInput = firstItemRow.querySelector('input[name="items[0][quantity]"]');
+                                quantityInput.value = data.quantity;
+                                
+                                // Set serial numbers if available
+                                if (data.product_serials) {
+                                    const serialInput = firstItemRow.querySelector('input[name="items[0][serial_number]"]');
+                                    serialInput.value = data.product_serials;
+                                }
+                                
+                                // Remove loading indicator
+                                firstItemRow.classList.remove('opacity-50');
+                                
+                                // Update the items summary table
+                                updateItemsSummary();
+                                
+                                // Add default testing items
+                                addDefaultTestItems();
+                            }, 500);
+                        }
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+        });
+        
+        // Function to add default testing items
+        function addDefaultTestItems() {
+            const testItemsContainer = document.getElementById('test_items_container');
+            const existingItems = testItemsContainer.querySelectorAll('.test-item');
+            
+            // Remove existing items
+            existingItems.forEach((item, index) => {
+                if (index > 0) item.remove();
+            });
+            
+            // Set the first item
+            const firstItem = testItemsContainer.querySelector('input[name="test_items[]"]');
+            firstItem.value = 'Kiểm tra ngoại quan';
+            
+            // Add additional default items
+            const defaultItems = [
+                'Kiểm tra chức năng cơ bản',
+                'Kiểm tra hoạt động liên tục'
+            ];
+            
+            defaultItems.forEach(itemText => {
+                addTestItem();
+                const newItems = testItemsContainer.querySelectorAll('input[name="test_items[]"]');
+                newItems[newItems.length - 1].value = itemText;
+            });
+        }
     </script>
 </body>
 </html> 

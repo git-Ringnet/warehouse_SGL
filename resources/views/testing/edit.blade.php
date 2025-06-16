@@ -63,10 +63,30 @@
                             </div>
 
                             <div>
-                                <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người kiểm thử</label>
+                                <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tạo phiếu</label>
                                 <select id="tester_id" name="tester_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     @foreach($employees as $employee)
                                         <option value="{{ $employee->id }}" {{ $testing->tester_id == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người phụ trách</label>
+                                <select id="assigned_to" name="assigned_to" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}" {{ $testing->assigned_to == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tiếp nhận kiểm thử</label>
+                                <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}" {{ $testing->receiver_id == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
                                     @endforeach
                                 </select>
                             </div>

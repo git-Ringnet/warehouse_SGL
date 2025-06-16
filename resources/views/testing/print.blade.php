@@ -48,11 +48,19 @@
             <div>
                 <p class="mb-2"><span class="font-medium">Loại kiểm thử:</span> {{ $testing->test_type_text }}</p>
                 <p class="mb-2"><span class="font-medium">Người tạo phiếu:</span> {{ $testing->tester->name ?? 'N/A' }}</p>
+                <p class="mb-2"><span class="font-medium">Người phụ trách:</span> {{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
+                <p class="mb-2"><span class="font-medium">Người tiếp nhận kiểm thử:</span> {{ $testing->receiverEmployee->name ?? 'N/A' }}</p>
                 <p class="mb-2"><span class="font-medium">Ngày kiểm thử:</span> {{ $testing->test_date->format('d/m/Y') }}</p>
             </div>
             <div>
                 <p class="mb-2"><span class="font-medium">Trạng thái:</span> {{ $testing->status_text }}</p>
-                <p class="mb-2"><span class="font-medium">Người tiếp nhận:</span> {{ $testing->approver->name ?? 'Chưa được tiếp nhận' }}</p>
+                <p class="mb-2"><span class="font-medium">Người duyệt:</span> {{ $testing->approver->name ?? 'Chưa được duyệt' }}</p>
+                @if($testing->received_by)
+                <p class="mb-2"><span class="font-medium">Ngày tiếp nhận:</span> {{ $testing->received_at ? $testing->received_at->format('d/m/Y') : 'N/A' }}</p>
+                @endif
+                @if($testing->approved_by)
+                <p class="mb-2"><span class="font-medium">Ngày duyệt:</span> {{ $testing->approved_at ? $testing->approved_at->format('d/m/Y') : 'N/A' }}</p>
+                @endif
             </div>
         </div>
     </div>

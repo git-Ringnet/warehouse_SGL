@@ -55,7 +55,7 @@ class TestingController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create(Request $request)
     {
         $employees = Employee::all();
         $materials = Material::where('is_hidden', false)->get();
@@ -63,7 +63,30 @@ class TestingController extends Controller
         $goods = Good::where('status', 'active')->get();
         $suppliers = Supplier::all();
         
-        return view('testing.create', compact('employees', 'materials', 'products', 'goods', 'suppliers'));
+        // Get pending assemblies without testing records for selection
+        $pendingAssemblies = Assembly::whereDoesntHave('testings')
+            ->orWhereHas('testings', function($query) {
+                $query->where('status', 'cancelled');
+            })
+            ->where('status', '!=', 'cancelled')
+            ->with('product')
+            ->get();
+        
+        // Check if assembly_id is provided in the URL
+        $selectedAssembly = null;
+        if ($request->has('assembly_id')) {
+            $selectedAssembly = Assembly::with('product')->find($request->assembly_id);
+        }
+        
+        return view('testing.create', compact(
+            'employees', 
+            'materials', 
+            'products', 
+            'goods', 
+            'suppliers', 
+            'pendingAssemblies',
+            'selectedAssembly'
+        ));
     }
 
     /**
@@ -74,6 +97,8 @@ class TestingController extends Controller
         $validator = Validator::make($request->all(), [
             'test_type' => 'required|in:material,finished_product',
             'tester_id' => 'required|exists:employees,id',
+            'assigned_to' => 'required|exists:employees,id',
+            'receiver_id' => 'required|exists:employees,id',
             'test_date' => 'required|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
@@ -85,6 +110,7 @@ class TestingController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'test_items' => 'required|array|min:1',
             'test_items.*' => 'required|string',
+            'assembly_id' => 'nullable|exists:assemblies,id',
         ]);
 
         if ($validator->fails()) {
@@ -114,9 +140,12 @@ class TestingController extends Controller
                 'test_code' => $testCode,
                 'test_type' => $request->test_type,
                 'tester_id' => $request->tester_id,
+                'assigned_to' => $request->assigned_to,
+                'receiver_id' => $request->receiver_id,
                 'test_date' => $request->test_date,
                 'notes' => $request->notes,
                 'status' => 'pending',
+                'assembly_id' => $request->assembly_id,
             ]);
 
             // Add testing items
@@ -175,13 +204,18 @@ class TestingController extends Controller
     {
         $testing->load([
             'tester', 
+            'assignedEmployee',
+            'receiverEmployee',
             'approver', 
             'receiver', 
             'items.material', 
             'items.product.materials', 
             'items.good', 
             'items.supplier', 
-            'details'
+            'details',
+            'assembly.product',
+            'assembly.assignedEmployee',
+            'assembly.materials.material'
         ]);
         
         return view('testing.show', compact('testing'));
@@ -210,6 +244,8 @@ class TestingController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'tester_id' => 'required|exists:employees,id',
+            'assigned_to' => 'required|exists:employees,id',
+            'receiver_id' => 'required|exists:employees,id',
             'test_date' => 'required|date',
             'notes' => 'nullable|string',
             'pass_quantity' => 'required_if:status,completed|integer|min:0',
@@ -236,6 +272,8 @@ class TestingController extends Controller
             // Update testing record
             $testing->update([
                 'tester_id' => $request->tester_id,
+                'assigned_to' => $request->assigned_to,
+                'receiver_id' => $request->receiver_id,
                 'test_date' => $request->test_date,
                 'notes' => $request->notes,
                 'pass_quantity' => $request->pass_quantity ?? 0,
@@ -451,15 +489,33 @@ class TestingController extends Controller
 
             // Process items based on their result
             foreach ($testing->items as $item) {
-                if ($item->item_type == 'material') {
-                    // For materials, update warehouse quantities
-                    if ($item->result == 'pass') {
-                        $this->updateWarehouseMaterial($item->material_id, $request->success_warehouse_id, $item->quantity);
-                    } else if ($item->result == 'fail') {
-                        $this->updateWarehouseMaterial($item->material_id, $request->fail_warehouse_id, $item->quantity);
+                if ($item->result == 'pass') {
+                    // Update warehouse for passing items
+                    switch ($item->item_type) {
+                        case 'material':
+                            $this->updateWarehouseMaterial($item->material_id, $request->success_warehouse_id, $item->quantity, 'material');
+                            break;
+                        case 'product':
+                            $this->updateWarehouseMaterial($item->product_id, $request->success_warehouse_id, $item->quantity, 'product');
+                            break;
+                        case 'finished_product':
+                            $this->updateWarehouseMaterial($item->good_id, $request->success_warehouse_id, $item->quantity, 'product');
+                            break;
+                    }
+                } else if ($item->result == 'fail') {
+                    // Update warehouse for failing items
+                    switch ($item->item_type) {
+                        case 'material':
+                            $this->updateWarehouseMaterial($item->material_id, $request->fail_warehouse_id, $item->quantity, 'material');
+                            break;
+                        case 'product':
+                            $this->updateWarehouseMaterial($item->product_id, $request->fail_warehouse_id, $item->quantity, 'product');
+                            break;
+                        case 'finished_product':
+                            $this->updateWarehouseMaterial($item->good_id, $request->fail_warehouse_id, $item->quantity, 'product');
+                            break;
                     }
                 }
-                // Similar logic can be added for products and finished goods
             }
 
             DB::commit();
@@ -476,20 +532,20 @@ class TestingController extends Controller
     /**
      * Update warehouse material quantity.
      */
-    private function updateWarehouseMaterial($materialId, $warehouseId, $quantity)
+    private function updateWarehouseMaterial($itemId, $warehouseId, $quantity, $itemType = 'material')
     {
         $warehouseMaterial = WarehouseMaterial::firstOrNew([
-            'material_id' => $materialId,
+            'material_id' => $itemId,
             'warehouse_id' => $warehouseId,
+            'item_type' => $itemType,
         ]);
 
         if ($warehouseMaterial->exists) {
-            $warehouseMaterial->quantity += $quantity;
+            $warehouseMaterial->increment('quantity', $quantity);
         } else {
             $warehouseMaterial->quantity = $quantity;
+            $warehouseMaterial->save();
         }
-
-        $warehouseMaterial->save();
     }
 
     /**

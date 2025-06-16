@@ -123,9 +123,19 @@
                             <p class="text-base text-gray-800 font-semibold">{{ $testing->tester->name ?? 'N/A' }}</p>
                         </div>
                         
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người phụ trách</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
+                        </div>
+                        
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người tiếp nhận kiểm thử</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $testing->receiverEmployee->name ?? 'N/A' }}</p>
+                        </div>
+                        
                         @if($testing->approved_by)
                         <div class="mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium mb-1">Người tiếp nhận</p>
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người duyệt</p>
                             <p class="text-base text-gray-800 font-semibold">{{ $testing->approver->name ?? 'N/A' }}</p>
                         </div>
                         @endif
@@ -321,6 +331,109 @@
             </div>
             @endif
             
+            @if($testing->assembly)
+            <!-- Thông tin phiếu lắp ráp liên quan -->
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-cogs text-blue-500 mr-2"></i>
+                    Thông tin lắp ráp liên quan
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Mã phiếu lắp ráp</p>
+                            <p class="text-base text-gray-800 font-semibold">
+                                <a href="{{ route('assemblies.show', $testing->assembly->id) }}" class="text-blue-600 hover:underline">
+                                    {{ $testing->assembly->code }}
+                                </a>
+                            </p>
+                        </div>
+                        
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Ngày lắp ráp</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->date ? \Carbon\Carbon::parse($testing->assembly->date)->format('d/m/Y') : 'N/A' }}</p>
+                        </div>
+                        
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Người lắp ráp</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->assignedEmployee->name ?? 'N/A' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Thành phẩm</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->product->name ?? 'N/A' }} ({{ $testing->assembly->quantity }})</p>
+                        </div>
+                        
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Serial sản phẩm</p>
+                            <p class="text-base text-gray-800">{{ $testing->assembly->product_serials ?: 'N/A' }}</p>
+                        </div>
+                        
+                        <div class="mb-4 pb-4 border-b border-gray-200">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Trạng thái lắp ráp</p>
+                            <p class="text-base text-gray-800 font-semibold">
+                                @if($testing->assembly->status == 'pending')
+                                    <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Chờ xử lý</span>
+                                @elseif($testing->assembly->status == 'in_progress')
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Đang thực hiện</span>
+                                @elseif($testing->assembly->status == 'completed')
+                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Hoàn thành</span>
+                                @elseif($testing->assembly->status == 'cancelled')
+                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Đã hủy</span>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                @if($testing->assembly->materials && $testing->assembly->materials->count() > 0)
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <h3 class="text-md font-medium text-gray-800 mb-3">Danh sách vật tư lắp ráp</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên vật tư</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                @foreach($testing->assembly->materials as $index => $material)
+                                <tr>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ $material->material->code }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ $material->material->name }}</td>
+                                    <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ $material->quantity }}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">
+                                        @if($material->serial && str_contains($material->serial, ','))
+                                            <div class="space-y-1">
+                                                @foreach(explode(',', $material->serial) as $serial)
+                                                    @if(!empty($serial))
+                                                        <div class="bg-gray-50 px-2 py-1 rounded">{{ $serial }}</div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                            <div class="text-xs text-gray-400 mt-1">{{ count(array_filter(explode(',', $material->serial))) }} serial</div>
+                                        @else
+                                            {{ $material->serial ?: 'N/A' }}
+                                        @endif
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
+            </div>
+            @endif
+            
             <!-- Hạng mục kiểm thử và kết quả -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Hạng mục kiểm thử và kết quả</h2>
@@ -394,20 +507,25 @@
                 <div class="border-t border-gray-200 pt-6 mt-6">
                     <h3 class="font-medium text-gray-800 mb-4">Xác nhận và hoàn thành</h3>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="text-center">
                             <p class="font-medium">Người tạo phiếu</p>
                             <p>{{ $testing->tester->name ?? 'N/A' }}</p>
                             <p class="text-sm text-gray-500 mt-2">{{ $testing->test_date ? $testing->test_date->format('d/m/Y') : '' }}</p>
                         </div>
                         
-                        @if($testing->approved_by)
                         <div class="text-center">
-                            <p class="font-medium">Người tiếp nhận</p>
-                            <p>{{ $testing->approver->name ?? 'N/A' }}</p>
-                            <p class="text-sm text-gray-500 mt-2">{{ $testing->approved_at ? $testing->approved_at->format('d/m/Y') : '' }}</p>
+                            <p class="font-medium">Người phụ trách</p>
+                            <p>{{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
                         </div>
-                        @endif
+                        
+                        <div class="text-center">
+                            <p class="font-medium">Người tiếp nhận kiểm thử</p>
+                            <p>{{ $testing->receiverEmployee->name ?? 'N/A' }}</p>
+                            @if($testing->received_at)
+                            <p class="text-sm text-gray-500 mt-2">{{ $testing->received_at->format('d/m/Y') }}</p>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </div>
