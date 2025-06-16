@@ -14,6 +14,8 @@ use App\Models\WarehouseMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class AssemblyController extends Controller
 {
@@ -180,6 +182,7 @@ class AssemblyController extends Controller
             // Create assembly records for each product
             $createdAssemblies = [];
             $baseCode = $request->assembly_code; // Use the code from form
+            $createdTestings = []; // Lưu các phiếu kiểm thử đã tạo
 
             foreach ($products as $productIndex => $productData) {
                 $productQty = intval($productData['quantity']);
@@ -303,10 +306,24 @@ class AssemblyController extends Controller
 
                 // Cập nhật thành phẩm vào kho đích
                 $this->updateProductToTargetWarehouse($assembly);
+
+                // Create testing record for this assembly
+                $testing = $this->createTestingRecordForAssembly($assembly);
+                $createdTestings[] = $testing;
             }
 
             DB::commit();
-            return redirect()->route('assemblies.index')->with('success', 'Phiếu lắp ráp đã được tạo thành công!');
+            
+            // Tạo thông báo thành công với link đến phiếu kiểm thử
+            $successMessage = 'Phiếu lắp ráp đã được tạo thành công!';
+            
+            // Nếu có phiếu kiểm thử được tạo, thêm thông báo và link
+            if (count($createdTestings) > 0) {
+                $testingUrl = route('testing.show', $createdTestings[0]->id);
+                $successMessage .= ' <a href="' . $testingUrl . '" class="text-blue-600 hover:underline">Phiếu kiểm thử</a> đã được tạo tự động.';
+            }
+            
+            return redirect()->route('assemblies.index')->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollback();
             return back()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()])->withInput();
@@ -318,7 +335,7 @@ class AssemblyController extends Controller
      */
     public function show(Assembly $assembly)
     {
-        $assembly->load(['product', 'materials.material', 'assignedEmployee', 'tester', 'warehouse', 'targetWarehouse', 'project']);
+        $assembly->load(['product', 'materials.material', 'assignedEmployee', 'tester', 'warehouse', 'targetWarehouse', 'project', 'testings.tester']);
         return view('assemble.show', compact('assembly'));
     }
 
@@ -633,6 +650,9 @@ class AssemblyController extends Controller
 
             // Then, add new product to new target warehouse
             $this->updateProductToTargetWarehouse($assembly);
+            
+            // STEP 7: Update or create associated testing record
+            $this->updateOrCreateTestingRecord($assembly);
 
             DB::commit();
             return redirect()->route('assemblies.index')->with('success', 'Phiếu lắp ráp đã được cập nhật thành công');
@@ -711,10 +731,27 @@ class AssemblyController extends Controller
             // 3. Delete serial records for this assembly
             $this->deleteSerialRecords($assembly->id);
 
-            // 4. Delete related materials
+            // 4. Check and handle related testing records
+            $relatedTestings = \App\Models\Testing::where('assembly_id', $assembly->id)->get();
+            foreach ($relatedTestings as $testing) {
+                // Nếu phiếu kiểm thử chưa hoàn thành, xóa nó
+                if ($testing->status != 'completed') {
+                    // Xóa các items và details của phiếu kiểm thử
+                    $testing->items()->delete();
+                    $testing->details()->delete();
+                    $testing->delete();
+                    Log::info("Assembly deletion: Deleted related testing record ID {$testing->id}");
+                } else {
+                    // Nếu phiếu kiểm thử đã hoàn thành, chỉ bỏ liên kết
+                    $testing->update(['assembly_id' => null]);
+                    Log::info("Assembly deletion: Unlinked completed testing record ID {$testing->id}");
+                }
+            }
+
+            // 5. Delete related materials
             $assembly->materials()->delete();
 
-            // 5. Delete the assembly
+            // 6. Delete the assembly
             $assembly->delete();
 
             DB::commit();
@@ -1050,6 +1087,154 @@ class AssemblyController extends Controller
                 'success' => false,
                 'message' => 'Lỗi khi lấy thông tin tồn kho: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Create a testing record for an assembly
+     */
+    private function createTestingRecordForAssembly(Assembly $assembly)
+    {
+        // Generate test code
+        $testCode = 'QA-' . Carbon::now()->format('ymd');
+        $lastTest = \App\Models\Testing::where('test_code', 'like', $testCode . '%')
+            ->orderBy('test_code', 'desc')
+            ->first();
+            
+        if ($lastTest) {
+            $lastNumber = (int) substr($lastTest->test_code, -3);
+            $testCode .= str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+        } else {
+            $testCode .= '001';
+        }
+        
+        // Lấy người tạo phiếu hiện tại nếu có
+        $currentUserId = null;
+        if (Auth::check() && Auth::user() && Auth::user()->employee) {
+            $currentUserId = Auth::user()->employee->id;
+        }
+        
+        // Nếu không có người dùng hiện tại, sử dụng tester_id từ assembly
+        if (!$currentUserId) {
+            $currentUserId = $assembly->tester_id;
+        }
+        
+        // Create testing record linked to this assembly
+        $testing = \App\Models\Testing::create([
+            'test_code' => $testCode,
+            'test_type' => 'finished_product', // Thành phẩm
+            'tester_id' => $currentUserId, // Người tạo phiếu (người hiện tại hoặc từ assembly)
+            'assigned_to' => $assembly->assigned_employee_id, // Người phụ trách (từ phiếu lắp ráp)
+            'receiver_id' => $assembly->tester_id, // Người tiếp nhận kiểm thử (từ phiếu lắp ráp)
+            'test_date' => $assembly->date, // Sử dụng ngày lắp ráp
+            'notes' => 'Tự động tạo từ phiếu lắp ráp ' . $assembly->code,
+            'status' => 'pending',
+            'assembly_id' => $assembly->id, // Liên kết với phiếu lắp ráp
+        ]);
+        
+        // Add testing item for the assembled product
+        \App\Models\TestingItem::create([
+            'testing_id' => $testing->id,
+            'item_type' => 'product',
+            'product_id' => $assembly->product_id,
+            'quantity' => $assembly->quantity,
+            'serial_number' => $assembly->product_serials, // Sử dụng serial từ phiếu lắp ráp
+            'result' => 'pending',
+        ]);
+        
+        // Thêm các vật tư từ phiếu lắp ráp vào phiếu kiểm thử
+        foreach ($assembly->materials as $material) {
+            \App\Models\TestingItem::create([
+                'testing_id' => $testing->id,
+                'item_type' => 'material',
+                'material_id' => $material->material_id,
+                'quantity' => $material->quantity,
+                'serial_number' => $material->serial,
+                'result' => 'pending',
+            ]);
+        }
+        
+        // Add default testing items
+        $defaultTestItems = [
+            'Kiểm tra ngoại quan',
+            'Kiểm tra chức năng cơ bản',
+            'Kiểm tra hoạt động liên tục'
+        ];
+        
+        foreach ($defaultTestItems as $testItem) {
+            \App\Models\TestingDetail::create([
+                'testing_id' => $testing->id,
+                'test_item_name' => $testItem,
+                'result' => 'pending',
+            ]);
+        }
+        
+        return $testing;
+    }
+
+    /**
+     * Update or create testing record for an assembly
+     */
+    private function updateOrCreateTestingRecord(Assembly $assembly)
+    {
+        // Load the assembly with its materials if not already loaded
+        if (!$assembly->relationLoaded('materials')) {
+            $assembly->load('materials.material');
+        }
+        
+        // Lấy người tạo phiếu hiện tại nếu có
+        $currentUserId = null;
+        if (Auth::check() && Auth::user() && Auth::user()->employee) {
+            $currentUserId = Auth::user()->employee->id;
+        }
+        
+        // Nếu không có người dùng hiện tại, sử dụng tester_id từ assembly
+        if (!$currentUserId) {
+            $currentUserId = $assembly->tester_id;
+        }
+        
+        // Check if there's an existing testing record for this assembly
+        $testing = \App\Models\Testing::where('assembly_id', $assembly->id)->first();
+        
+        if ($testing) {
+            // Update existing testing record
+            $testing->update([
+                'test_type' => 'finished_product',
+                'assigned_to' => $assembly->assigned_employee_id, // Người phụ trách (từ phiếu lắp ráp)
+                'receiver_id' => $assembly->tester_id, // Người tiếp nhận kiểm thử (từ phiếu lắp ráp)
+                'test_date' => $assembly->date,
+                'notes' => 'Tự động cập nhật từ phiếu lắp ráp ' . $assembly->code,
+            ]);
+            
+            // Delete existing items and recreate them
+            $testing->items()->delete();
+            
+            // Add testing item for the assembled product
+            \App\Models\TestingItem::create([
+                'testing_id' => $testing->id,
+                'item_type' => 'product',
+                'product_id' => $assembly->product_id,
+                'quantity' => $assembly->quantity,
+                'serial_number' => $assembly->product_serials,
+                'result' => 'pending',
+            ]);
+            
+            // Add materials from assembly
+            foreach ($assembly->materials as $material) {
+                \App\Models\TestingItem::create([
+                    'testing_id' => $testing->id,
+                    'item_type' => 'material',
+                    'material_id' => $material->material_id,
+                    'quantity' => $material->quantity,
+                    'serial_number' => $material->serial,
+                    'result' => 'pending',
+                ]);
+            }
+            
+            return $testing;
+        } else {
+            // Create new testing record
+            return $this->createTestingRecordForAssembly($assembly);
         }
     }
 }

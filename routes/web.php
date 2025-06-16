@@ -20,6 +20,7 @@ use App\Http\Controllers\SoftwareController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RentalController;
 use App\Http\Controllers\GoodController;
+use App\Http\Controllers\TestingController;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -203,38 +204,16 @@ Route::get('software/{software}/download', [SoftwareController::class, 'download
 Route::get('software/{software}/download-manual', [SoftwareController::class, 'downloadManual'])->name('software.download_manual');
 
 // Quản lý kiểm thử (QA)
-Route::get('/testing', function () {
-    return view('testing.index');
-});
-
-Route::get('/testing/create', function () {
-    return view('testing.create');
-});
-
-Route::get('/testing/{id}', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('testing.show');
-})->where('id', '[0-9]+');
-
-Route::get('/testing/{id}/edit', function ($id) {
-    // Trong thực tế, sẽ truy vấn dữ liệu từ database ở đây
-    return view('testing.edit');
-})->where('id', '[0-9]+');
-
-Route::post('/testing', function () {
-    // Xử lý lưu phiếu kiểm thử mới
-    return redirect('/testing');
-});
-
-Route::put('/testing/{id}', function ($id) {
-    // Xử lý cập nhật phiếu kiểm thử
-    return redirect('/testing/' . $id);
-});
-
-Route::delete('/testing/{id}', function ($id) {
-    // Xử lý xóa phiếu kiểm thử
-    return redirect('/testing');
-});
+Route::resource('testing', TestingController::class);
+Route::post('testing/{testing}/approve', [TestingController::class, 'approve'])->name('testing.approve');
+Route::post('testing/{testing}/reject', [TestingController::class, 'reject'])->name('testing.reject');
+Route::post('testing/{testing}/receive', [TestingController::class, 'receive'])->name('testing.receive');
+Route::post('testing/{testing}/complete', [TestingController::class, 'complete'])->name('testing.complete');
+Route::post('testing/{testing}/update-inventory', [TestingController::class, 'updateInventory'])->name('testing.update-inventory');
+Route::get('testing/{testing}/print', [TestingController::class, 'print'])->name('testing.print');
+Route::get('api/testing/materials-by-type', [TestingController::class, 'getMaterialsByType'])->name('api.testing.materials-by-type');
+Route::get('api/testing/serial-numbers', [TestingController::class, 'getSerialNumbers'])->name('api.testing.serial-numbers');
+Route::get('api/items/{type}/{id}', [TestingController::class, 'getItemDetails'])->name('api.items.details');
 
 // Quản lý dự án
 Route::resource('projects', ProjectController::class);

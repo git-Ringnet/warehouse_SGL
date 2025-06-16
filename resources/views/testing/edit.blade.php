@@ -18,22 +18,34 @@
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chỉnh sửa phiếu kiểm thử</h1>
                 <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    QA-24060001
+                    {{ $testing->test_code }}
                 </div>
                 <div class="ml-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    Module 4G
+                    {{ $testing->test_type_text }}
                 </div>
             </div>
             <div class="flex items-center space-x-2">
-                <a href="{{ url('/testing/1') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+                <a href="{{ route('testing.show', $testing->id) }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
             </div>
         </header>
 
         <main class="p-6">
+            @if(session('success'))
+            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded" role="alert">
+                <p>{{ session('success') }}</p>
+            </div>
+            @endif
+
+            @if(session('error'))
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
+                <p>{{ session('error') }}</p>
+            </div>
+            @endif
+
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <form action="{{ url('/testing/1') }}" method="POST">
+                <form action="{{ route('testing.update', $testing->id) }}" method="POST">
                     @csrf
                     @method('PUT')
                     
@@ -44,262 +56,194 @@
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label for="test_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại kiểm thử</label>
-                                <select id="test_type" name="test_type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="toggleTestTypeFields()">
-                                    <option value="material" selected>Kiểm thử Vật tư/Hàng hóa</option>
-                                    <option value="finished_product">Kiểm thử Thiết bị thành phẩm</option>
+                                <select id="test_type" name="test_type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="toggleTestTypeFields()" {{ $testing->status != 'pending' ? 'disabled' : '' }}>
+                                    <option value="material" {{ $testing->test_type == 'material' ? 'selected' : '' }}>Kiểm thử Vật tư/Hàng hóa</option>
+                                    <option value="finished_product" {{ $testing->test_type == 'finished_product' ? 'selected' : '' }}>Kiểm thử Thiết bị thành phẩm</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label for="material_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại Vật tư hoặc hàng hóa</label>
-                                <select id="material_type" name="material_type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="module_4g" selected>Module 4G</option>
-                                    <option value="module_power">Module Công suất</option>
-                                    <option value="module_iot">Module IoTs</option>
-                                    <option value="android">Android</option>
-                                    <option value="smartbox">SGL SmartBox</option>
+                                <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tạo phiếu</label>
+                                <select id="tester_id" name="tester_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}" {{ $testing->tester_id == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                         </div>
                         
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label for="serial_number" class="block text-sm font-medium text-gray-700 mb-1 required">Serial/Mã thiết bị</label>
-                                <input type="text" id="serial_number" name="serial_number" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="4G-MOD-2305621" required readonly>
+                                <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người phụ trách</label>
+                                <select id="assigned_to" name="assigned_to" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}" {{ $testing->assigned_to == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-
+                            
                             <div>
-                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng Vật tư/Hàng hóa</label>
-                                <input type="number" id="quantity" name="quantity" min="1" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="20" required>
+                                <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tiếp nhận kiểm thử</label>
+                                <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    @foreach($employees as $employee)
+                                        <option value="{{ $employee->id }}" {{ $testing->receiver_id == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
                         
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label for="test_engineer" class="block text-sm font-medium text-gray-700 mb-1 required">Người kiểm thử</label>
-                                <select id="test_engineer" name="test_engineer" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="1" selected>Nguyễn Văn A</option>
-                                    <option value="2">Trần Văn B</option>
-                                    <option value="3">Lê Thị C</option>
-                                    <option value="4">Phạm Văn D</option>
-                                    <option value="5">Lê Văn E</option>
-                                </select>
-                            </div>
-
                             <div>
                                 <label for="test_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày kiểm thử</label>
-                                <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="2024-06-15" required>
+                                <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $testing->test_date->format('Y-m-d') }}" required>
+                            </div>
+                        </div>
+                        
+                        <!-- Bảng tổng hợp vật tư đã thêm -->
+                        <div class="mt-6">
+                            <h3 class="text-md font-medium text-gray-800 mb-3">Tổng hợp vật tư, hàng hoá đã thêm</h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full bg-white border border-gray-200">
+                                    <thead>
+                                        <tr class="bg-gray-100">
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">STT</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">LOẠI</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">MÃ - TÊN SẢN PHẨM</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">NHÀ CUNG CẤP</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">MÃ LÔ</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SERIAL</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ĐƠN VỊ</th>
+                                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SỐ LƯỢNG</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items-summary-table">
+                                        @forelse($testing->items as $index => $item)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="py-2 px-3 border-b border-gray-200">{{ $index + 1 }}</td>
+                                            <td class="py-2 px-3 border-b border-gray-200">
+                                                @if($item->item_type == 'material')
+                                                    Vật tư
+                                                @elseif($item->item_type == 'product')
+                                                    Thành phẩm
+                                                @elseif($item->item_type == 'finished_product')
+                                                    Hàng hóa
+                                                @endif
+                                            </td>
+                                            <td class="py-2 px-3 border-b border-gray-200">
+                                                @if($item->item_type == 'material' && $item->material)
+                                                    {{ $item->material->code }} - {{ $item->material->name }}
+                                                @elseif($item->item_type == 'product' && $item->product)
+                                                    {{ $item->product->code }} - {{ $item->product->name }}
+                                                @elseif($item->item_type == 'finished_product' && $item->good)
+                                                    {{ $item->good->code }} - {{ $item->good->name }}
+                                                @endif
+                                            </td>
+                                            <td class="py-2 px-3 border-b border-gray-200">
+                                                {{ $item->supplier ? $item->supplier->name : 'N/A' }}
+                                            </td>
+                                            <td class="py-2 px-3 border-b border-gray-200">{{ $item->batch_number ?: 'N/A' }}</td>
+                                            <td class="py-2 px-3 border-b border-gray-200">{{ $item->serial_number ?: 'N/A' }}</td>
+                                            <td class="py-2 px-3 border-b border-gray-200">
+                                                @if($item->item_type == 'material' && $item->material)
+                                                    {{ $item->material->unit }}
+                                                @elseif($item->item_type == 'product' && $item->product)
+                                                    {{ $item->product->unit }}
+                                                @elseif($item->item_type == 'finished_product' && $item->good)
+                                                    {{ $item->good->unit }}
+                                                @endif
+                                            </td>
+                                            <td class="py-2 px-3 border-b border-gray-200">{{ $item->quantity }}</td>
+                                        </tr>
+                                        @empty
+                                        <tr class="text-gray-500 text-center">
+                                            <td colspan="8" class="py-4">Chưa có vật tư/hàng hóa nào được thêm</td>
+                                        </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <!-- Thông tin kiểm thử Vật tư/Hàng hóa đầu vào -->
-                        <div id="material_fields" class="mt-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label for="supplier" class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
-                                    <select id="supplier" name="supplier" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        <option value="">-- Chọn nhà cung cấp --</option>
-                                        <option value="1" selected>ABC Electronics</option>
-                                        <option value="2">Tech Solutions</option>
-                                        <option value="3">VN Components</option>
-                                        <option value="4">Global Tech</option>
-                                        <option value="5">Mega Components</option>
-                                    </select>
-                                </div>
-                                
-                                <div>
-                                    <label for="batch_number" class="block text-sm font-medium text-gray-700 mb-1">Mã lô</label>
-                                    <input type="text" id="batch_number" name="batch_number" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="LOT-2405-01">
-                                </div>
+                        <!-- Thông tin chi tiết các mục kiểm thử -->
+                        <div class="mt-6">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-md font-medium text-gray-800">Hạng mục kiểm thử</h3>
+                                <button type="button" onclick="addTestItem()" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex items-center">
+                                    <i class="fas fa-plus mr-1"></i> Thêm hạng mục
+                                </button>
                             </div>
                             
-                            <!-- Serial Management -->
-                            <div class="mt-4">
-                                <div class="flex justify-between items-center mb-2">
-                                    <label class="block text-sm font-medium text-gray-700">Quản lý Serial</label>
-                                    <div class="flex items-center gap-2">
-                                        <label class="flex items-center">
-                                            <input type="radio" name="serial_mode" value="select" class="h-4 w-4 text-blue-600 focus:ring-blue-500" checked onclick="toggleSerialMode('select')">
-                                            <span class="ml-2 text-sm text-gray-700">Chọn từ danh sách</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="radio" name="serial_mode" value="manual" class="h-4 w-4 text-blue-600 focus:ring-blue-500" onclick="toggleSerialMode('manual')">
-                                            <span class="ml-2 text-sm text-gray-700">Nhập thủ công</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            
-                                <!-- Chọn serial từ danh sách -->
-                                <div id="select_serial_container" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                    <div class="flex justify-between items-center mb-3">
-                                        <h3 class="text-md font-medium text-gray-800">Chọn Serial</h3>
-                                        <span class="text-sm text-gray-500" id="serial_count">Đã chọn: 0/0</span>
-                                    </div>
-                                    <div id="serial_list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto">
-                                        <!-- Serials will be added here dynamically -->
-                                        <div class="flex items-center space-x-2">
-                                            <input type="checkbox" id="serial_4G-MOD-2305621" name="serials[]" value="4G-MOD-2305621" class="serial-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" checked>
-                                            <label for="serial_4G-MOD-2305621" class="text-sm text-gray-700">4G-MOD-2305621</label>
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <div id="test_items_container" class="space-y-3">
+                                    @forelse($testing->details as $detail)
+                                        <div class="test-item flex items-center gap-4">
+                                            <input type="text" name="test_item_names[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $detail->test_item_name }}" placeholder="Nhập hạng mục kiểm thử">
+                                            <select name="test_results[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                                <option value="pending" {{ $detail->result == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                <option value="pass" {{ $detail->result == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                <option value="fail" {{ $detail->result == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                            </select>
+                                            <input type="text" name="test_notes[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $detail->notes }}" placeholder="Ghi chú">
+                                            <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                         </div>
-                                    </div>
-                                    
-                                    <div class="mt-4 pt-3 border-t border-gray-200">
-                                        <div class="flex items-center gap-4">
-                                            <label class="block text-sm font-medium text-gray-700">Số lượng</label>
-                                            <div class="relative rounded-md shadow-sm w-32">
-                                                <input type="number" id="select_quantity" min="1" value="1" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
-                                                oninput="updateSelectedSerialsFromQuantity()">
-                                            </div>
-                                            <p class="text-xs text-gray-500">Nhập số lượng sẽ tự động chọn các serial đầu tiên</p>
+                                    @empty
+                                        <div class="test-item flex items-center gap-4">
+                                            <input type="text" name="test_item_names[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
+                                            <select name="test_results[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                                <option value="pending">Chưa có</option>
+                                                <option value="pass">Đạt</option>
+                                                <option value="fail">Không đạt</option>
+                                            </select>
+                                            <input type="text" name="test_notes[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú">
+                                            <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
                                         </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Nhập serial thủ công -->
-                                <div id="manual_serial_container" class="hidden border border-gray-200 rounded-lg p-4 bg-gray-50">
-                                    <div class="mb-3">
-                                        <div class="flex justify-between items-center mb-2">
-                                            <h3 class="text-md font-medium text-gray-800">Nhập Serial mới</h3>
-                                            <span class="text-sm text-blue-600 font-medium" id="manual_serial_count">0 serial</span>
-                                        </div>
-                                        <p class="text-sm text-gray-500 mb-2">Mỗi serial trên một dòng</p>
-                                        <textarea id="manual_serial" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" placeholder="Nhập danh sách serial, mỗi serial một dòng" oninput="updateManualSerialCount()">4G-MOD-2305621</textarea>
-                                    </div>
-                                    
-                                    <div class="flex gap-2 items-center">
-                                        <div class="flex-1">
-                                            <label for="serial_prefix" class="block text-sm text-gray-600 mb-1">Tiền tố</label>
-                                            <input type="text" id="serial_prefix" class="w-full h-8 border border-gray-300 rounded px-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" placeholder="Ví dụ: 4G-MOD-">
-                                        </div>
-                                        <div class="flex-1">
-                                            <label for="serial_count_input" class="block text-sm text-gray-600 mb-1">Số lượng</label>
-                                            <input type="number" id="serial_count_input" min="1" value="1" class="w-full h-8 border border-gray-300 rounded px-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm">
-                                        </div>
-                                        <div class="mt-6">
-                                            <button type="button" class="h-8 bg-blue-500 text-white rounded px-4 text-sm hover:bg-blue-600" onclick="generateSerials()">Tạo</button>
-                                        </div>
-                                    </div>
+                                    @endforelse
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Thông tin kiểm thử Thiết bị thành phẩm -->
-                        <div id="finished_product_fields" class="mt-4 hidden">
+                        <!-- Kết quả kiểm thử -->
+                        <div class="mt-6">
+                            <h3 class="text-md font-medium text-gray-800 mb-3">Kết quả kiểm thử</h3>
+                            
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="installation_request" class="block text-sm font-medium text-gray-700 mb-1">Phiếu yêu cầu lắp đặt</label>
-                                    <input type="text" id="installation_request" name="installation_request" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="INST-240601" readonly>
+                                    <label for="pass_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng đạt</label>
+                                    <input type="number" id="pass_quantity" name="pass_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $testing->pass_quantity }}">
                                 </div>
                                 
                                 <div>
-                                    <label for="assembly_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày lắp ráp</label>
-                                    <input type="date" id="assembly_date" name="assembly_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="2024-06-10">
+                                    <label for="fail_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng không đạt</label>
+                                    <input type="number" id="fail_quantity" name="fail_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $testing->fail_quantity }}">
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Hạng mục kiểm thử và kết quả -->
-                    <div class="mb-6">
-                        <div class="flex justify-between items-center">
-                            <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mt-6">Hạng mục kiểm thử và kết quả</h2>
-                            <button type="button" onclick="addTestItem()" class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm flex items-center">
-                                <i class="fas fa-plus mr-1"></i> Thêm hạng mục
-                            </button>
                         </div>
                         
                         <div class="mt-4">
-                            <table class="min-w-full divide-y divide-gray-200 border">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hạng mục</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kết quả</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
-                                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thao tác</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="test_items_table" class="bg-white divide-y divide-gray-100">
-                                    <tr class="test-item-row">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            <input type="text" name="test_item_names[]" value="Kiểm tra phần cứng" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            <select name="test_results[]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                                <option value="pass" selected>Đạt</option>
-                                                <option value="fail">Không đạt</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            <input type="text" name="test_notes[]" value="Kiểm tra chân cắm và các kết nối đầy đủ" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <button type="button" onclick="removeTestItem(this)" class="text-red-500 hover:text-red-700">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="test-item-row">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                            <input type="text" name="test_item_names[]" value="Kiểm tra phần mềm" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            <select name="test_results[]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                                <option value="pass" selected>Đạt</option>
-                                                <option value="fail">Không đạt</option>
-                                            </select>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            <input type="text" name="test_notes[]" value="Firmware v3.2.1 hoạt động ổn định" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            <button type="button" onclick="removeTestItem(this)" class="text-red-500 hover:text-red-700">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Thông tin kết quả kiểm thử -->
-                    <div class="mb-6">
-                        <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mt-6">Thông tin kết quả kiểm thử</h2>
-
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label for="pass_quantity" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng Vật tư/Hàng hóa Đạt</label>
-                                <input type="number" id="pass_quantity" name="pass_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="18" required>
+                                <label for="fail_reasons" class="block text-sm font-medium text-gray-700 mb-1">Lý do không đạt</label>
+                                <textarea id="fail_reasons" name="fail_reasons" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">{{ $testing->fail_reasons }}</textarea>
                             </div>
 
-                            <div>
-                                <label for="fail_quantity" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng Vật tư/Hàng hóa Không đạt</label>
-                                <input type="number" id="fail_quantity" name="fail_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="2" required>
+                            <div class="mt-4">
+                                <label for="conclusion" class="block text-sm font-medium text-gray-700 mb-1">Kết luận</label>
+                                <textarea id="conclusion" name="conclusion" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">{{ $testing->conclusion }}</textarea>
                             </div>
                         </div>
 
+                        <!-- Ghi chú -->
                         <div class="mt-4">
-                            <label for="fail_reasons" class="block text-sm font-medium text-gray-700 mb-1">Lý do không đạt</label>
-                            <textarea id="fail_reasons" name="fail_reasons" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập lý do không đạt nếu có">2 module có vấn đề về kết nối anten, cần kiểm tra lại mạch RF.</textarea>
-                        </div>
-
-                        <div class="mt-4">
-                            <label for="test_conclusion" class="block text-sm font-medium text-gray-700 mb-1 required">Kết luận</label>
-                            <textarea id="test_conclusion" name="test_conclusion" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>Module 4G đạt chất lượng để đưa vào sản xuất. Đa số thông số kỹ thuật đều đạt yêu cầu. Cần loại bỏ 2 module bị lỗi anten.</textarea>
+                            <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                            <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú bổ sung nếu có">{{ $testing->notes }}</textarea>
                         </div>
                     </div>
 
                     <!-- Submit buttons -->
-                    <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
-                        <a href="{{ url('/testing') }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
-                            Hủy
-                        </a>
-                        <button type="button" onclick="printTest()" class="h-10 bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg flex items-center justify-center transition-colors">
-                            <i class="fas fa-print mr-2"></i> In phiếu
-                        </button>
-                        <button type="submit" class="h-10 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center justify-center transition-colors">
-                            <i class="fas fa-save mr-2"></i> Lưu thay đổi
-                        </button>
+                    <div class="flex justify-end space-x-2">
+                        <a href="{{ route('testing.show', $testing->id) }}" class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Hủy</a>
+                        <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Lưu thay đổi</button>
                     </div>
                 </form>
             </div>
@@ -307,284 +251,410 @@
     </div>
 
     <script>
-        // Sample data - this would come from database
-        const itemTypes = {
-            material: ['Module 4G', 'Module Công suất', 'Module IoTs', 'Ăng-ten', 'Bộ nguồn', 'Mạch điều khiển'],
-            product: ['Bộ điều khiển SGL-500', 'Thiết bị đo nhiệt độ', 'Bộ phát wifi công nghiệp', 'Bộ chuyển đổi tín hiệu'],
-            finished_product: ['Bộ thu phát SGL-4G-Premium', 'Thiết bị giám sát IOT-SGL-01', 'Hệ thống điều khiển thông minh SGL-Smart']
-        };
-        
-        // Sample serial data per item - this would come from database
-        const serialData = {
-            'Module 4G': ['4G-MOD-2305621', '4G-MOD-2305622', '4G-MOD-2305623', '4G-MOD-2305624', '4G-MOD-2305625'],
-            'Module Công suất': ['PWR-MOD-230101', 'PWR-MOD-230102', 'PWR-MOD-230103'],
-            'Module IoTs': ['IOT-MOD-230201', 'IOT-MOD-230202', 'IOT-MOD-230203'],
-            'Bộ điều khiển SGL-500': ['SGL-500-230001', 'SGL-500-230002'],
-            'Bộ thu phát SGL-4G-Premium': ['SGL-4GP-230055', 'SGL-4GP-230056']
-        };
-        
-        // Mapping of items to their suppliers
-        const itemSupplierMapping = {
-            'Module 4G': '1', // ABC Electronics
-            'Module Công suất': '3', // VN Components
-            'Module IoTs': '2', // Tech Solutions
-            'Ăng-ten': '3', // VN Components
-            'Bộ nguồn': '4', // Global Tech
-            'Mạch điều khiển': '5', // Mega Components
-            'Bộ điều khiển SGL-500': '1', // ABC Electronics
-            'Thiết bị đo nhiệt độ': '2', // Tech Solutions
-            'Bộ phát wifi công nghiệp': '4', // Global Tech
-            'Bộ chuyển đổi tín hiệu': '5', // Mega Components
-            'Bộ thu phát SGL-4G-Premium': '1', // ABC Electronics
-            'Thiết bị giám sát IOT-SGL-01': '2', // Tech Solutions
-            'Hệ thống điều khiển thông minh SGL-Smart': '5' // Mega Components
-        };
-
-        // Toggle fields based on test type
-        function toggleTestTypeFields() {
-            const testType = document.getElementById('test_type').value;
-            
-            // Hide all specific fields first
-            document.getElementById('material_fields').classList.add('hidden');
-            document.getElementById('finished_product_fields').classList.add('hidden');
-            
-            // Show fields based on test type
-            if(testType === 'material') {
-                document.getElementById('material_fields').classList.remove('hidden');
-            } else if(testType === 'finished_product') {
-                document.getElementById('finished_product_fields').classList.remove('hidden');
-            }
-        }
-        
-        // Toggle between serial selection modes
-        function toggleSerialMode(mode) {
-            if (mode === 'select') {
-                document.getElementById('select_serial_container').classList.remove('hidden');
-                document.getElementById('manual_serial_container').classList.add('hidden');
-                updateSelectedCount();
-            } else {
-                document.getElementById('select_serial_container').classList.add('hidden');
-                document.getElementById('manual_serial_container').classList.remove('hidden');
-                updateManualSerialCount();
-            }
-            updateQuantityFields();
-        }
-        
-        // Generate serials based on prefix and count
-        function generateSerials() {
-            const prefix = document.getElementById('serial_prefix').value.trim();
-            const count = parseInt(document.getElementById('serial_count_input').value) || 0;
-            
-            if (count <= 0) {
-                alert('Số lượng phải lớn hơn 0');
-                return;
-            }
-            
-            const today = new Date();
-            const dateStr = today.getFullYear().toString().slice(-2) + 
-                           (today.getMonth() + 1).toString().padStart(2, '0') + 
-                           today.getDate().toString().padStart(2, '0');
-            
-            let serials = [];
-            for (let i = 1; i <= count; i++) {
-                const randomDigits = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-                serials.push(`${prefix}${dateStr}-${randomDigits}`);
-            }
-            
-            const serialTextarea = document.getElementById('manual_serial');
-            const existingSerials = serialTextarea.value.trim();
-            
-            serialTextarea.value = existingSerials 
-                ? existingSerials + '\n' + serials.join('\n') 
-                : serials.join('\n');
-            
-            updateManualSerialCount();
-        }
-        
-        // Update manual serial count
-        function updateManualSerialCount() {
-            const serialText = document.getElementById('manual_serial').value.trim();
-            const serialLines = serialText ? serialText.split('\n').filter(line => line.trim()) : [];
-            
-            document.getElementById('manual_serial_count').textContent = `${serialLines.length} serial`;
-            updateQuantityFields();
-        }
-        
-        // Update selected count
-        function updateSelectedCount() {
-            const checkboxes = document.querySelectorAll('.serial-checkbox');
-            const checkedCount = document.querySelectorAll('.serial-checkbox:checked').length;
-            const totalCount = checkboxes.length;
-            
-            const serialCount = document.getElementById('serial_count');
-            if (serialCount) {
-                serialCount.textContent = `Đã chọn: ${checkedCount}/${totalCount}`;
-            }
-            
-            updateQuantityFields();
-        }
-        
-        // Auto select serials based on quantity
-        function updateSelectedSerialsFromQuantity() {
-            const qty = parseInt(document.getElementById('select_quantity').value) || 0;
-            const checkboxes = document.querySelectorAll('.serial-checkbox');
-            
-            if (checkboxes.length === 0 || qty <= 0) return;
-            
-            // Uncheck all first
-            checkboxes.forEach(cb => cb.checked = false);
-            
-            // Then check the first qty checkboxes
-            for (let i = 0; i < Math.min(qty, checkboxes.length); i++) {
-                checkboxes[i].checked = true;
-            }
-            
-            // Update count
-            updateSelectedCount();
-        }
-        
-        // Update quantity fields based on serial selections
-        function updateQuantityFields() {
-            let quantity = 0;
-            
-            // Determine which mode is active
-            const serialMode = document.querySelector('input[name="serial_mode"]:checked');
-            if (!serialMode) return;
-            
-            if (serialMode.value === 'select') {
-                // Count selected serials
-                quantity = document.querySelectorAll('.serial-checkbox:checked').length;
-            } else {
-                // Count manual serials
-                const serialText = document.getElementById('manual_serial').value.trim();
-                quantity = serialText ? serialText.split('\n').filter(line => line.trim()).length : 0;
-            }
-            
-            // Update the main quantity field
-            if (quantity > 0) {
-                document.getElementById('quantity').value = quantity;
-            }
-        }
-
-        // Add event listeners to update fields when the page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            // Update material type to supplier mapping
-            document.getElementById('material_type').addEventListener('change', function() {
-                const materialTypeSelect = document.getElementById('material_type');
-                const materialTypeOption = materialTypeSelect.options[materialTypeSelect.selectedIndex].text;
-                const supplierId = itemSupplierMapping[materialTypeOption] || '';
-                
-                if (supplierId) {
-                    document.getElementById('supplier').value = supplierId;
-                }
-            });
-            
-            // Initialize serial management
-            initSerialManagement();
-            
-            // Add event listeners to quantity fields
-            document.getElementById('quantity').addEventListener('change', function() {
-                const total = parseInt(this.value) || 0;
-                const passQty = document.getElementById('pass_quantity');
-                const failQty = document.getElementById('fail_quantity');
-                
-                // If pass and fail quantities exist, adjust them to match the total
-                if (passQty && failQty) {
-                    const currentPass = parseInt(passQty.value) || 0;
-                    const currentFail = parseInt(failQty.value) || 0;
-                    const currentTotal = currentPass + currentFail;
-                    
-                    if (currentTotal > 0 && currentTotal !== total) {
-                        const ratio = currentPass / currentTotal;
-                        passQty.value = Math.round(total * ratio);
-                        failQty.value = total - passQty.value;
-                    }
-                }
-            });
-            
-            // Initialize the test type fields
-            toggleTestTypeFields();
-        });
-        
-        // Initialize serial management based on existing data
-        function initSerialManagement() {
-            // Set up event listeners for serial checkboxes
-            const checkboxes = document.querySelectorAll('.serial-checkbox');
-            checkboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    updateSelectedCount();
-                    
-                    // Update quantity field to match selected count
-                    const selectQty = document.getElementById('select_quantity');
-                    if (selectQty) {
-                        const checkedCount = document.querySelectorAll('.serial-checkbox:checked').length;
-                        selectQty.value = checkedCount || 1;
-                    }
-                });
-            });
-            
-            // Initialize serial counts
-            updateSelectedCount();
-            updateManualSerialCount();
-        }
-        
-        // Add new test item row
         function addTestItem() {
-            const tbody = document.getElementById('test_items_table');
-            const newRow = document.createElement('tr');
-            newRow.className = 'test-item-row';
-            newRow.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    <input type="text" name="test_item_names[]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    <select name="test_results[]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+            const container = document.getElementById('test_items_container');
+            const newItem = document.createElement('div');
+            newItem.className = 'test-item flex items-center gap-4';
+            newItem.innerHTML = `
+                <input type="text" name="test_item_names[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
+                <select name="test_results[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="pending">Chưa có</option>
                         <option value="pass">Đạt</option>
                         <option value="fail">Không đạt</option>
                     </select>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                    <input type="text" name="test_notes[]" class="w-full border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <button type="button" onclick="removeTestItem(this)" class="text-red-500 hover:text-red-700">
+                <input type="text" name="test_notes[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú">
+                <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
                         <i class="fas fa-trash"></i>
                     </button>
-                </td>
             `;
-            tbody.appendChild(newRow);
+            container.appendChild(newItem);
+            
+            // Thêm event listener cho select kết quả mới
+            const newSelect = newItem.querySelector('select[name="test_results[]"]');
+            if (newSelect) {
+                newSelect.addEventListener('change', updateTestResults);
+            }
         }
         
-        // Remove test item row
         function removeTestItem(button) {
-            const tbody = document.getElementById('test_items_table');
-            const row = button.closest('tr');
+            const container = document.getElementById('test_items_container');
+            const item = button.closest('.test-item');
             
-            // Don't remove if it's the last row
-            if (tbody.rows.length > 1) {
-                tbody.removeChild(row);
-            } else {
-                alert('Phải giữ lại ít nhất một hạng mục kiểm thử');
+            // Don't remove if it's the last one
+            if (container.children.length > 1) {
+                container.removeChild(item);
+                
+                // Cập nhật lại kết quả sau khi xóa
+                updateTestResults();
             }
         }
-
-        // Validate quantities
-        document.addEventListener('submit', function(e) {
-            const form = e.target;
-            const passQty = parseInt(document.getElementById('pass_quantity').value || 0);
-            const failQty = parseInt(document.getElementById('fail_quantity').value || 0);
-            const totalQty = parseInt(document.getElementById('quantity').value || 0);
-            
-            if (passQty + failQty !== totalQty) {
-                e.preventDefault();
-                alert('Tổng số lượng vật tư Đạt và Không đạt phải bằng Số lượng Vật tư.');
-            }
-        });
         
-        // Print test form
-        function printTest() {
-            window.print();
+        function toggleTestTypeFields() {
+            const testType = document.getElementById('test_type').value;
+            const materialFields = document.getElementById('material_fields');
+            const finishedProductFields = document.getElementById('finished_product_fields');
+            
+            if (testType === 'material') {
+                if (materialFields) materialFields.classList.remove('hidden');
+                if (finishedProductFields) finishedProductFields.classList.add('hidden');
+            } else if (testType === 'finished_product') {
+                if (materialFields) materialFields.classList.add('hidden');
+                if (finishedProductFields) finishedProductFields.classList.remove('hidden');
+            }
         }
+        
+        // Hàm cập nhật danh sách sản phẩm theo loại
+        function updateItemOptions(selectElement, index) {
+            const itemType = selectElement.value;
+            const itemNameSelect = document.getElementById('item_name_' + index);
+            const supplierContainer = selectElement.closest('.grid').querySelector(`select[name="items[${index}][supplier_id]"]`).closest('div');
+            const supplierSelect = selectElement.closest('.grid').querySelector(`select[name="items[${index}][supplier_id]"]`);
+            const serialInput = selectElement.closest('.item-row').querySelector(`input[name="items[${index}][serial_number]"]`);
+            
+            // Xóa container serial cũ nếu có
+            const oldSerialContainer = selectElement.closest('.item-row').querySelector('.serial-container');
+            if (oldSerialContainer) {
+                oldSerialContainer.remove();
+            }
+            
+            // Clear existing options
+            itemNameSelect.innerHTML = '<option value="">-- Chọn --</option>';
+            
+            // Hiển thị/ẩn trường nhà cung cấp dựa vào loại item
+            if (itemType === 'product') {
+                supplierContainer.style.display = 'none';
+            } else {
+                supplierContainer.style.display = 'block';
+            }
+            
+            if (!itemType) return;
+            
+            // Fetch items based on type
+            fetch(`/api/testing/materials-by-type?type=${itemType}&search=`)
+                .then(response => response.json())
+                .then(items => {
+                    // Xóa tất cả options cũ
+                    itemNameSelect.innerHTML = '<option value="">-- Chọn --</option>';
+                    
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.name;
+                        option.dataset.code = item.code || '';
+                        itemNameSelect.appendChild(option);
+                    });
+                })
+                .catch(error => console.error('Error fetching items:', error));
+                
+            // Thêm event listener cho việc chọn item
+            itemNameSelect.onchange = function() {
+                const selectedItemId = this.value;
+                if (selectedItemId) {
+                    console.log(`Fetching details for ${itemType} with ID ${selectedItemId}`);
+                    
+                    // Lấy thông tin nhà cung cấp của item
+                    fetch(`/api/items/${itemType}/${selectedItemId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Item details:', data);
+                            if (data.supplier_id) {
+                                // Tìm option có value là supplier_id và chọn nó
+                                const supplierOption = supplierSelect.querySelector(`option[value="${data.supplier_id}"]`);
+                                if (supplierOption) {
+                                    supplierSelect.value = data.supplier_id;
+                                    // Thêm thông báo đã tự động chọn nhà cung cấp
+                                    const notification = document.createElement('div');
+                                    notification.className = 'text-sm text-green-600 mt-1';
+                                    notification.textContent = `Đã tự động chọn: ${data.supplier_name || supplierOption.textContent}`;
+                                    const existingNotification = supplierSelect.parentNode.querySelector('.text-green-600');
+                                    if (existingNotification) {
+                                        existingNotification.remove();
+                                    }
+                                    supplierSelect.parentNode.appendChild(notification);
+                                    
+                                    // Tự động ẩn thông báo sau 3 giây
+                                    setTimeout(() => {
+                                        if (notification.parentNode) {
+                                            notification.remove();
+                                        }
+                                    }, 3000);
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error fetching item details:', error));
+                        
+                    // Lấy danh sách serial có sẵn
+                    fetch(`/api/testing/serial-numbers?type=${itemType}&id=${selectedItemId}`)
+                        .then(response => response.json())
+                        .then(serials => {
+                            console.log('Serials:', serials);
+                            
+                            // Xóa container serial cũ nếu có
+                            const oldSerialContainer = selectElement.closest('.item-row').querySelector('.serial-container');
+                            if (oldSerialContainer) {
+                                oldSerialContainer.remove();
+                            }
+                            
+                            // Hiển thị danh sách serial nếu có
+                            if (serials && serials.length > 0) {
+                                // Tạo container cho danh sách serial
+                                const serialContainerDiv = document.createElement('div');
+                                serialContainerDiv.className = 'serial-container bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3';
+                                
+                                // Tạo label
+                                const label = document.createElement('label');
+                                label.className = 'block text-sm font-medium text-gray-700 mb-2';
+                                label.textContent = 'Chọn serial có sẵn:';
+                                serialContainerDiv.appendChild(label);
+                                
+                                // Tạo select
+                                const serialSelect = document.createElement('select');
+                                serialSelect.className = 'w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white mb-2';
+                                
+                                // Thêm option mặc định
+                                const defaultOption = document.createElement('option');
+                                defaultOption.value = '';
+                                defaultOption.textContent = '-- Chọn serial --';
+                                serialSelect.appendChild(defaultOption);
+                                
+                                // Thêm các options từ danh sách serial
+                                serials.forEach(serial => {
+                                    const option = document.createElement('option');
+                                    option.value = serial;
+                                    option.textContent = serial;
+                                    serialSelect.appendChild(option);
+                                });
+                                
+                                // Thêm event listener cho select
+                                serialSelect.onchange = function() {
+                                    serialInput.value = this.value;
+                                };
+                                
+                                serialContainerDiv.appendChild(serialSelect);
+                                
+                                // Thêm container vào trước input serial
+                                const serialInputContainer = serialInput.parentNode;
+                                serialInputContainer.insertBefore(serialContainerDiv, serialInput);
+                            }
+                        })
+                        .catch(error => console.error('Error fetching serials:', error));
+                }
+            };
+        }
+        
+        // Initialize fields based on selected test type
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleTestTypeFields();
+            
+            // Khởi tạo cho các item hiện có
+            document.querySelectorAll('.item-type').forEach((itemTypeSelect, index) => {
+                // Khởi tạo hiển thị/ẩn trường nhà cung cấp
+                const supplierContainer = itemTypeSelect.closest('.grid').querySelector(`select[name="items[${index}][supplier_id]"]`).closest('div');
+                if (itemTypeSelect.value === 'product') {
+                    supplierContainer.style.display = 'none';
+                }
+                
+                itemTypeSelect.addEventListener('change', function() {
+                    updateItemOptions(this, index);
+                });
+                
+                // Nếu đã có giá trị, kích hoạt cập nhật
+                if (itemTypeSelect.value) {
+                    updateItemOptions(itemTypeSelect, index);
+                }
+                
+                // Thêm sự kiện cho select tên sản phẩm
+                const itemNameSelect = document.getElementById('item_name_' + index);
+                if (itemNameSelect) {
+                    itemNameSelect.onchange = function() {
+                        const itemType = itemTypeSelect.value;
+                        const selectedItemId = this.value;
+                        const supplierSelect = this.closest('.grid').querySelector(`select[name="items[${index}][supplier_id]"]`);
+                        const serialInput = this.closest('.item-row').querySelector(`input[name="items[${index}][serial_number]"]`);
+                        
+                        if (selectedItemId) {
+                            console.log(`Fetching details for ${itemType} with ID ${selectedItemId}`);
+                            
+                            // Lấy thông tin nhà cung cấp của item
+                            fetch(`/api/items/${itemType}/${selectedItemId}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log('Item details:', data);
+                                    if (data.supplier_id) {
+                                        // Tìm option có value là supplier_id và chọn nó
+                                        const supplierOption = supplierSelect.querySelector(`option[value="${data.supplier_id}"]`);
+                                        if (supplierOption) {
+                                            supplierSelect.value = data.supplier_id;
+                                            // Thêm thông báo đã tự động chọn nhà cung cấp
+                                            const notification = document.createElement('div');
+                                            notification.className = 'text-sm text-green-600 mt-1';
+                                            notification.textContent = `Đã tự động chọn: ${data.supplier_name || supplierOption.textContent}`;
+                                            const existingNotification = supplierSelect.parentNode.querySelector('.text-green-600');
+                                            if (existingNotification) {
+                                                existingNotification.remove();
+                                            }
+                                            supplierSelect.parentNode.appendChild(notification);
+                                            
+                                            // Tự động ẩn thông báo sau 3 giây
+                                            setTimeout(() => {
+                                                if (notification.parentNode) {
+                                                    notification.remove();
+                                                }
+                                            }, 3000);
+                                        }
+                                    }
+                                })
+                                .catch(error => console.error('Error fetching item details:', error));
+                                
+                            // Lấy danh sách serial có sẵn
+                            fetch(`/api/testing/serial-numbers?type=${itemType}&id=${selectedItemId}`)
+                                .then(response => response.json())
+                                .then(serials => {
+                                    console.log('Serials:', serials);
+                                    
+                                    // Xóa container serial cũ nếu có
+                                    const oldSerialContainer = this.closest('.item-row').querySelector('.serial-container');
+                                    if (oldSerialContainer) {
+                                        oldSerialContainer.remove();
+                                    }
+                                    
+                                    // Hiển thị danh sách serial nếu có
+                                    if (serials && serials.length > 0) {
+                                        // Tạo container cho danh sách serial
+                                        const serialContainerDiv = document.createElement('div');
+                                        serialContainerDiv.className = 'serial-container bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3';
+                                        
+                                        // Tạo label
+                                        const label = document.createElement('label');
+                                        label.className = 'block text-sm font-medium text-gray-700 mb-2';
+                                        label.textContent = 'Chọn serial có sẵn:';
+                                        serialContainerDiv.appendChild(label);
+                                        
+                                        // Tạo select
+                                        const serialSelect = document.createElement('select');
+                                        serialSelect.className = 'w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white mb-2';
+                                        
+                                        // Thêm option mặc định
+                                        const defaultOption = document.createElement('option');
+                                        defaultOption.value = '';
+                                        defaultOption.textContent = '-- Chọn serial --';
+                                        serialSelect.appendChild(defaultOption);
+                                        
+                                        // Thêm các options từ danh sách serial
+                                        serials.forEach(serial => {
+                                            const option = document.createElement('option');
+                                            option.value = serial;
+                                            option.textContent = serial;
+                                            serialSelect.appendChild(option);
+                                        });
+                                        
+                                        // Thêm event listener cho select
+                                        serialSelect.onchange = function() {
+                                            serialInput.value = this.value;
+                                        };
+                                        
+                                        serialContainerDiv.appendChild(serialSelect);
+                                        
+                                        // Thêm container vào trước input serial
+                                        const serialInputContainer = serialInput.parentNode;
+                                        serialInputContainer.insertBefore(serialContainerDiv, serialInput);
+                                    }
+                                })
+                                .catch(error => console.error('Error fetching serials:', error));
+                        }
+                    };
+                }
+            });
+        });
+
+        // Tự động tính toán số lượng đạt/không đạt dựa trên kết quả kiểm thử
+        function updateTestResults() {
+            const testResultSelects = document.querySelectorAll('select[name="test_results[]"]');
+            const passQuantityInput = document.getElementById('pass_quantity');
+            const failQuantityInput = document.getElementById('fail_quantity');
+            const failReasonsTextarea = document.getElementById('fail_reasons');
+            
+            let passCount = 0;
+            let failCount = 0;
+            let failReasons = [];
+            
+            // Đếm số lượng đạt/không đạt
+            testResultSelects.forEach((select, index) => {
+                if (select.value === 'pass') {
+                    passCount++;
+                } else if (select.value === 'fail') {
+                    failCount++;
+                    
+                    // Lấy tên hạng mục kiểm thử và ghi chú
+                    const testItemName = document.querySelectorAll('input[name="test_item_names[]"]')[index].value;
+                    const testNote = document.querySelectorAll('input[name="test_notes[]"]')[index].value;
+                    
+                    if (testItemName) {
+                        failReasons.push(`${testItemName}${testNote ? ': ' + testNote : ''}`);
+                    }
+                }
+            });
+            
+            // Cập nhật giá trị
+            if (passQuantityInput) passQuantityInput.value = passCount;
+            if (failQuantityInput) failQuantityInput.value = failCount;
+            
+            // Cập nhật lý do không đạt
+            if (failReasonsTextarea && failReasons.length > 0) {
+                failReasonsTextarea.value = failReasons.join('\n');
+            }
+            
+            // Tính phần trăm
+            const total = passCount + failCount;
+            const passPercent = total > 0 ? Math.round((passCount / total) * 100) : 0;
+            const failPercent = total > 0 ? Math.round((failCount / total) * 100) : 0;
+            
+            // Tự động cập nhật kết luận
+            const conclusionTextarea = document.getElementById('conclusion');
+            if (conclusionTextarea && total > 0) {
+                let conclusion = '';
+                
+                if (passPercent >= 80) {
+                    conclusion = `Kết quả kiểm thử đạt yêu cầu với ${passPercent}% hạng mục đạt tiêu chuẩn.`;
+                } else if (passPercent >= 50) {
+                    conclusion = `Kết quả kiểm thử đạt mức trung bình với ${passPercent}% hạng mục đạt tiêu chuẩn. Cần cải thiện các hạng mục không đạt.`;
+                } else {
+                    conclusion = `Kết quả kiểm thử không đạt yêu cầu với chỉ ${passPercent}% hạng mục đạt tiêu chuẩn. Cần kiểm tra lại toàn bộ.`;
+                }
+                
+                if (failReasons.length > 0) {
+                    conclusion += ` Các hạng mục cần khắc phục: ${failReasons.join(', ')}.`;
+                }
+                
+                conclusionTextarea.value = conclusion;
+            }
+        }
+        
+        // Thêm event listener cho các select kết quả kiểm thử
+        document.addEventListener('DOMContentLoaded', function() {
+            const testResultSelects = document.querySelectorAll('select[name="test_results[]"]');
+            testResultSelects.forEach(select => {
+                select.addEventListener('change', updateTestResults);
+            });
+            
+            // Thêm event listener cho nút thêm hạng mục kiểm thử
+            const addTestItemButton = document.querySelector('button[onclick="addTestItem()"]');
+            if (addTestItemButton) {
+                const originalAddTestItem = window.addTestItem;
+                window.addTestItem = function() {
+                    originalAddTestItem();
+                    
+                    // Thêm event listener cho select kết quả mới
+                    const newTestResultSelect = document.querySelector('#test_items_container .test-item:last-child select');
+                    if (newTestResultSelect) {
+                        newTestResultSelect.addEventListener('change', updateTestResults);
+                    }
+                };
+            }
+            
+            // Chạy lần đầu để cập nhật giá trị ban đầu
+            updateTestResults();
+        });
     </script>
 </body>
 </html> 

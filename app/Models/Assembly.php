@@ -87,4 +87,12 @@ class Assembly extends Model
     {
         return $this->belongsTo(Project::class);
     }
+
+    /**
+     * Get the testing records associated with this assembly.
+     */
+    public function testings()
+    {
+        return $this->hasMany(Testing::class);
+    }
 } 

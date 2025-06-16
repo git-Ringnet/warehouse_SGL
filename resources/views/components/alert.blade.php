@@ -24,7 +24,7 @@
     </button>
     <div class="pr-6 flex items-center">
         <i class="{{ $icons[$type] }} mr-2"></i>
-        {{ $message }}
+        {!! $message !!}
     </div>
 </div>
 
