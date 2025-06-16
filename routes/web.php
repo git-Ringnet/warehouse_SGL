@@ -8,6 +8,8 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\AssemblyController;
+use App\Http\Controllers\DispatchController;
+use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
@@ -129,21 +131,46 @@ Route::get('/repair_edit', function () {
     return view('warranties.repair_edit');
 });
 
-//inventory
-Route::get('/inventory', function () {
-    return view('inventory.index');
+//inventory - Dispatch Management
+Route::prefix('inventory')->name('inventory.')->group(function () {
+    Route::get('/', [DispatchController::class, 'index'])->name('index');
+    Route::get('dispatch/create', [DispatchController::class, 'create'])->name('dispatch.create');
+    Route::post('dispatch', [DispatchController::class, 'store'])->name('dispatch.store');
+    Route::get('dispatch/{dispatch}', [DispatchController::class, 'show'])->name('dispatch.show');
+    Route::get('dispatch/{dispatch}/edit', [DispatchController::class, 'edit'])->name('dispatch.edit');
+    Route::put('dispatch/{dispatch}', [DispatchController::class, 'update'])->name('dispatch.update');
+    Route::post('dispatch/{dispatch}/approve', [DispatchController::class, 'approve'])->name('dispatch.approve');
+    Route::post('dispatch/{dispatch}/cancel', [DispatchController::class, 'cancel'])->name('dispatch.cancel');
+    Route::post('dispatch/{dispatch}/complete', [DispatchController::class, 'complete'])->name('dispatch.complete');
 });
 
-Route::get('/inventory/dispatch', function () {
-    return view('inventory.dispatch');
+// API routes for dispatch
+Route::prefix('api/dispatch')->group(function () {
+    Route::get('items', [DispatchController::class, 'getAvailableItems']);
 });
 
+// API routes for dispatch
+Route::get('/api/dispatch/items', [DispatchController::class, 'getAvailableItems'])->name('api.dispatch.items');
+
+// Warranty routes
+Route::prefix('warranties')->name('warranties.')->group(function () {
+    Route::get('/', [WarrantyController::class, 'index'])->name('index');
+    Route::get('/{warranty}', [WarrantyController::class, 'show'])->name('show');
+    Route::patch('/{warranty}/status', [WarrantyController::class, 'updateStatus'])->name('update-status');
+});
+
+// Public warranty check routes
+Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
+Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
+Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
+
+// Legacy routes for compatibility
+Route::get('/inventory/dispatch', [DispatchController::class, 'create']);
 Route::get('/inventory/dispatch_detail', function () {
-    return view('inventory.dispatch_detail');
+    return redirect()->route('inventory.index');
 });
-
 Route::get('/inventory/dispatch_edit', function () {
-    return view('inventory.dispatch_edit');
+    return redirect()->route('inventory.index');
 });
 
 //change_log
@@ -323,10 +350,12 @@ Route::delete('/requests/customer-maintenance/{id}', function ($id) {
 })->where('id', '[0-9]+');
 
 // Assembly routes
+Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code');
+Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code');
+Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials');
+Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees');
+Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock');
 Route::resource('assemblies', AssemblyController::class);
-
-// Route for material search in assemblies
-Route::get('/materials/search', [AssemblyController::class, 'searchMaterials'])->name('materials.search');
 
 // API route for checking serial duplicates
 Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');

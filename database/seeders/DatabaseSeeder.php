@@ -34,6 +34,8 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
             UserLogSeeder::class,
             AssemblySeeder::class,
+            // DispatchSeeder::class,
+            // WarrantySeeder::class,
         ]);
     }
 }

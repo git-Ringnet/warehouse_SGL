@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chi tiết phiếu xuất kho - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -17,25 +18,31 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('inventory/dispatch_list') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('inventory.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu xuất kho</h1>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ asset('inventory/dispatch_edit') }}">
+                @if(!in_array($dispatch->status, ['completed', 'cancelled']))
+                <a href="{{ route('inventory.dispatch.edit', $dispatch) }}">
                     <button
                         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                     </button>
                 </a>
+                @endif
                 <div class="flex flex-wrap gap-3 justify-end">
-                    <button id="export-excel-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        Duyệt phiếu
+                    @if($dispatch->status === 'pending')
+                    <button onclick="approveDispatch({{ $dispatch->id }})" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                        <i class="fas fa-check mr-2"></i> Duyệt phiếu
                     </button>
-                    <button id="export-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        Hủy phiếu
+                    @endif
+                    @if(!in_array($dispatch->status, ['completed', 'cancelled']))
+                    <button onclick="cancelDispatch({{ $dispatch->id }})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                        <i class="fas fa-times mr-2"></i> Hủy phiếu
                     </button>
+                    @endif
                 </div>
                 <button id="print-btn"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
@@ -51,133 +58,402 @@
                     <div>
                         <div class="flex items-center mb-2">
                             <span class="text-lg font-semibold text-gray-800 mr-2">Mã phiếu xuất:</span>
-                            <span class="text-lg text-blue-600 font-bold">XK001</span>
+                            <span class="text-lg text-blue-600 font-bold">{{ $dispatch->dispatch_code }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày xuất:</span>
-                            <span class="text-sm text-gray-700">05/05/2023</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->dispatch_date->format('d/m/Y') }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất:</span>
-                            <span class="text-sm text-gray-700">Kho chính</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->warehouse->name ?? 'Không xác định' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
-                            <span class="text-sm text-gray-700">Công ty TNHH ABC</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->project_receiver }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Loại hình:</span>
-                            <span class="text-sm text-gray-700">Dự án</span>
+                            <span class="text-sm text-gray-700">
+                                @switch($dispatch->dispatch_type)
+                                    @case('project')
+                                        Dự án
+                                        @break
+                                    @case('rental')
+                                        Cho thuê
+                                        @break
+                                    @case('other')
+                                        Khác
+                                        @break
+                                    @default
+                                        {{ ucfirst($dispatch->dispatch_type) }}
+                                @endswitch
+                            </span>
                         </div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Dự án:</span>
-                            <span class="text-sm text-gray-700">Dự án IoT A1</span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Chi tiết xuất:</span>
+                            <span class="text-sm text-gray-700">
+                                @switch($dispatch->dispatch_detail)
+                                    @case('all')
+                                        Toàn bộ
+                                        @break
+                                    @case('contract')
+                                        Theo hợp đồng
+                                        @break
+                                    @case('backup')
+                                        Dự phòng
+                                        @break
+                                    @default
+                                        {{ ucfirst($dispatch->dispatch_detail) }}
+                                @endswitch
+                            </span>
                         </div>
+                        @if($dispatch->warranty_period)
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Thời gian bảo hành:</span>
-                            <span class="text-sm text-gray-700">12 tháng</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->warranty_period }}</span>
                         </div>
+                        @endif
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người lập phiếu:</span>
-                            <span class="text-sm text-gray-700">Nguyễn Văn A</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->creator->name ?? 'Không xác định' }}</span>
                         </div>
+                        @if($dispatch->companyRepresentative)
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người đại diện công ty:</span>
-                            <span class="text-sm text-gray-700">Nguyễn Văn A (Giám đốc dự án)</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->companyRepresentative->name }}</span>
                         </div>
+                        @endif
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Cập nhật lần cuối:</span>
-                            <span class="text-sm text-gray-700">08/05/2023 14:35:22</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->updated_at->format('d/m/Y H:i:s') }}</span>
                         </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Đã hoàn thành
+                            @php
+                                $statusColors = [
+                                    'pending' => 'bg-yellow-100 text-yellow-800',
+                                    'approved' => 'bg-blue-100 text-blue-800',
+                                    'completed' => 'bg-green-100 text-green-800',
+                                    'cancelled' => 'bg-red-100 text-red-800'
+                                ];
+                                $statusLabels = [
+                                    'pending' => 'Chờ duyệt',
+                                    'approved' => 'Đã duyệt',
+                                    'completed' => 'Đã hoàn thành',
+                                    'cancelled' => 'Đã hủy'
+                                ];
+                            @endphp
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$dispatch->status] ?? 'bg-gray-100 text-gray-800' }}">
+                                {{ $statusLabels[$dispatch->status] ?? ucfirst($dispatch->status) }}
                             </span>
                         </div>
                     </div>
                 </div>
 
+                @if($dispatch->dispatch_note)
                 <div class="mt-4 border-t border-gray-200 pt-4">
                     <div class="flex items-center">
                         <span class="text-sm font-medium text-gray-700 mr-2">Ghi chú:</span>
-                        <span class="text-sm text-gray-700">Xuất hàng theo đơn đặt hàng số ĐH-2023-056 ngày 28/04/2023</span>
+                        <span class="text-sm text-gray-700">{{ $dispatch->dispatch_note }}</span>
                     </div>
                 </div>
+                @endif
             </div>
 
             <!-- Product List -->
-            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-boxes text-blue-500 mr-2"></i>
-                    Danh sách xuất
-                </h2>
+            @if($dispatch->dispatch_detail === 'all')
+                <!-- Khi xuất tất cả, hiển thị 2 bảng riêng biệt -->
+                <!-- Danh sách thành phẩm theo hợp đồng -->
+                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                    <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                        <i class="fas fa-file-contract text-blue-500 mr-2"></i>
+                        📋 Danh sách thành phẩm theo hợp đồng
+                    </h2>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    STT
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Mã SP
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Tên thành phẩm
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Đơn vị
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Số lượng
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Kho xuất
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Thao tác
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <!-- Sample data -->
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">1</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SP001</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bộ điều khiển chính</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho chính</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <a href="#" class="text-blue-500 hover:text-blue-700">Chi tiết</a>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">SP002</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cảm biến nhiệt độ</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Cái</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Kho chính</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <a href="#" class="text-blue-500 hover:text-blue-700">Chi tiết</a>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    @php
+                        $contractItems = $dispatch->items->filter(function($item) {
+                            return $item->category === 'contract';
+                        });
+                    @endphp
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-blue-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">STT</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Mã SP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Tên thành phẩm</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Đơn vị</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Tồn kho</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Số lượng xuất</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Serial</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($contractItems as $index => $item)
+                                <tr class="hover:bg-blue-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">
+                                        @if($item->item)
+                                            {{ $item->item->code ?? $item->item->id }}
+                                        @else
+                                            {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <div>
+                                            <div class="font-medium">
+                                                @if($item->item)
+                                                    {{ $item->item->name ?? 'Không xác định' }}
+                                                @else
+                                                    {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                @endif
+                                            </div>
+                                            @if($item->notes)
+                                                <div class="text-xs text-blue-600">{{ $item->notes }}</div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        @if($item->item && isset($item->item->unit))
+                                            {{ $item->item->unit }}
+                                        @else
+                                            Cái
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rand(50, 200) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">{{ $item->quantity }}</td>
+                                                                         <td class="px-6 py-4 whitespace-nowrap">
+                                         @php
+                                             $serialCount = 0;
+                                             if ($item->serial_numbers) {
+                                                 if (is_array($item->serial_numbers)) {
+                                                     $serialCount = count($item->serial_numbers);
+                                                 } elseif (is_string($item->serial_numbers)) {
+                                                     $decoded = json_decode($item->serial_numbers, true);
+                                                     $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                 }
+                                             }
+                                         @endphp
+                                         @if($serialCount > 0)
+                                             <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                                 {{ $serialCount }} serial
+                                             </span>
+                                         @else
+                                             <span class="text-xs text-gray-500">Chưa có</span>
+                                         @endif
+                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                                        <button onclick="showItemDetail({{ $item->id }})" class="hover:text-blue-800">
+                                            Cập nhật mã thiết bị
+                                        </button>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                        <i class="fas fa-file-contract text-4xl mb-4 text-gray-300"></i>
+                                        <p class="text-lg">Chưa có thành phẩm hợp đồng nào được thêm</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+
+                <!-- Danh sách thiết bị dự phòng -->
+                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                    <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                        <i class="fas fa-tools text-orange-500 mr-2"></i>
+                        🔧 Danh sách thiết bị dự phòng
+                    </h2>
+
+                    @php
+                        $backupItems = $dispatch->items->filter(function($item) {
+                            return $item->category === 'backup';
+                        });
+                    @endphp
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-orange-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">STT</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Mã SP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Tên thiết bị</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Đơn vị</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Tồn kho</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Số lượng xuất</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Serial</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($backupItems as $index => $item)
+                                <tr class="hover:bg-orange-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">
+                                        @if($item->item)
+                                            {{ $item->item->code ?? $item->item->id }}
+                                        @else
+                                            {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <div>
+                                            <div class="font-medium">
+                                                @if($item->item)
+                                                    {{ $item->item->name ?? 'Không xác định' }}
+                                                @else
+                                                    {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                @endif
+                                            </div>
+                                            @if($item->notes)
+                                                <div class="text-xs text-orange-600">{{ $item->notes }}</div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        @if($item->item && isset($item->item->unit))
+                                            {{ $item->item->unit }}
+                                        @else
+                                            Cái
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rand(20, 100) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">{{ $item->quantity }}</td>
+                                                                         <td class="px-6 py-4 whitespace-nowrap">
+                                         @php
+                                             $serialCount = 0;
+                                             if ($item->serial_numbers) {
+                                                 if (is_array($item->serial_numbers)) {
+                                                     $serialCount = count($item->serial_numbers);
+                                                 } elseif (is_string($item->serial_numbers)) {
+                                                     $decoded = json_decode($item->serial_numbers, true);
+                                                     $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                 }
+                                             }
+                                         @endphp
+                                         @if($serialCount > 0)
+                                             <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                                 {{ $serialCount }} serial
+                                             </span>
+                                         @else
+                                             <span class="text-xs text-gray-500">Chưa có</span>
+                                         @endif
+                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
+                                        <button onclick="showItemDetail({{ $item->id }})" class="hover:text-orange-800">
+                                            Cập nhật mã thiết bị
+                                        </button>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                        <i class="fas fa-tools text-4xl mb-4 text-gray-300"></i>
+                                        <p class="text-lg">Chưa có thiết bị dự phòng nào được thêm</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @else
+                <!-- Khi xuất riêng lẻ (contract hoặc backup), hiển thị 1 bảng với title tương ứng -->
+                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                    @if($dispatch->dispatch_detail === 'contract')
+                        <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                            <i class="fas fa-file-contract text-blue-500 mr-2"></i> 
+                            📋 Danh sách thành phẩm theo hợp đồng
+                        </h2>
+                    @elseif($dispatch->dispatch_detail === 'backup')
+                        <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                            <i class="fas fa-tools text-orange-500 mr-2"></i>
+                            🔧 Danh sách thiết bị dự phòng
+                        </h2>
+                    @else
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-boxes text-blue-500 mr-2"></i>
+                            Danh sách xuất
+                        </h2>
+                    @endif
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">STT</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Mã SP</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        {{ $dispatch->dispatch_detail === 'contract' ? 'Tên thành phẩm' : ($dispatch->dispatch_detail === 'backup' ? 'Tên thiết bị' : 'Tên sản phẩm') }}
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Đơn vị</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Số lượng</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Kho xuất</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @forelse($dispatch->items as $index => $item)
+                                <tr class="hover:bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-900 font-medium">
+                                        @if($item->item)
+                                            {{ $item->item->code ?? $item->item->id }}
+                                        @else
+                                            {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <div>
+                                            <div class="font-medium">
+                                                @if($item->item)
+                                                    {{ $item->item->name ?? 'Không xác định' }}
+                                                @else
+                                                    {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                @endif
+                                            </div>
+                                            @if($item->notes)
+                                                <div class="text-xs text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">{{ $item->notes }}</div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        @if($item->item && isset($item->item->unit))
+                                            {{ $item->item->unit }}
+                                        @else
+                                            Cái
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->quantity }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $dispatch->warehouse->name ?? 'Không xác định' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">
+                                        <button onclick="showItemDetail({{ $item->id }})" class="hover:text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800">
+                                            Chi tiết
+                                        </button>
+                                    </td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                        <i class="fas fa-box-open text-4xl mb-4 text-gray-300"></i>
+                                        <p class="text-lg">Không có sản phẩm nào</p>
+                                        <p class="text-sm">Phiếu xuất này chưa có sản phẩm nào</p>
+                                    </td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
 
             <!-- Buttons -->
             <div class="flex flex-wrap gap-3 justify-end">
@@ -204,76 +480,31 @@
             </div>
 
             <div class="mb-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <p class="text-sm text-gray-600">Mã sản phẩm: <span id="product-detail-code" class="font-medium">SP001</span></p>
+                        <p class="text-sm text-gray-600">Mã sản phẩm: <span id="product-detail-code" class="font-medium">-</span></p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-600">Đơn vị: <span id="product-detail-unit" class="font-medium">Cái</span></p>
+                        <p class="text-sm text-gray-600">Đơn vị: <span id="product-detail-unit" class="font-medium">-</span></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Số lượng: <span id="product-detail-quantity" class="font-medium">-</span></p>
                     </div>
                 </div>
                 
-                <h4 class="text-md font-semibold text-gray-800 mb-3">Danh sách mã thiết bị</h4>
+                <h4 class="text-md font-semibold text-gray-800 mb-3">Danh sách Serial Numbers</h4>
                 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full border border-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri chính
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri vật tư 1
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri vật tư 2
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri vật tư n
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri sim
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Mã truy cập
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    ID IoT
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Mac 4G
-                                </th>
-                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Chú thích
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="product-detail-devices">
-                            <!-- Dữ liệu sẽ được điền bằng JavaScript -->
-                            <tr>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">SG-2023-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">PT1-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">PT2-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">PTN-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">SIM-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">AC-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">IOT-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">MAC-001</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">Thiết bị chính</td>
-                            </tr>
-                            <tr>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">SG-2023-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">PT1-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">PT2-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">PTN-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">SIM-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">AC-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">IOT-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">MAC-002</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">Thiết bị phụ</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div id="serial-numbers-container" class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-sm text-gray-500">Đang tải dữ liệu...</p>
+                    </div>
+                </div>
+
+                <div id="notes-container" class="mt-4" style="display: none;">
+                    <h4 class="text-md font-semibold text-gray-800 mb-2">Ghi chú</h4>
+                    <div id="item-notes" class="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
+                        <!-- Notes will be populated here -->
+                    </div>
                 </div>
             </div>
 
@@ -292,6 +523,9 @@
     </div>
 
     <script>
+        // Dữ liệu dispatch items từ server
+        const dispatchItems = @json($dispatch->items);
+
         document.addEventListener('DOMContentLoaded', function() {
             // Xử lý sự kiện in phiếu
             const printBtn = document.getElementById('print-btn');
@@ -299,141 +533,11 @@
                 window.print();
             });
             
-            // Xử lý sự kiện xuất Excel
-            const exportExcelBtn = document.getElementById('export-excel-btn');
-            exportExcelBtn.addEventListener('click', function() {
-                alert('Tính năng xuất Excel đang được phát triển!');
-            });
-            
-            // Xử lý sự kiện xuất PDF
-            const exportPdfBtn = document.getElementById('export-pdf-btn');
-            exportPdfBtn.addEventListener('click', function() {
-                alert('Tính năng xuất PDF đang được phát triển!');
-            });
-
-            // Dữ liệu mẫu cho chi tiết sản phẩm
-            const productDetails = {
-                1: {
-                    code: 'SP001',
-                    name: 'Bộ điều khiển chính',
-                    unit: 'Cái',
-                    devices: [
-                        {
-                            main_serial: 'SG-2023-001',
-                            part1_serial: 'PT1-001',
-                            part2_serial: 'PT2-001',
-                            partn_serial: 'PTN-001',
-                            sim_serial: 'SIM-001',
-                            access_code: 'AC-001',
-                            iot_id: 'IOT-001',
-                            mac_4g: 'MAC-001',
-                            note: 'Thiết bị chính'
-                        },
-                        {
-                            main_serial: 'SG-2023-002',
-                            part1_serial: 'PT1-002',
-                            part2_serial: 'PT2-002',
-                            partn_serial: 'PTN-002',
-                            sim_serial: 'SIM-002',
-                            access_code: 'AC-002',
-                            iot_id: 'IOT-002',
-                            mac_4g: 'MAC-002',
-                            note: 'Thiết bị phụ'
-                        }
-                    ]
-                },
-                2: {
-                    code: 'SP002',
-                    name: 'Cảm biến nhiệt độ',
-                    unit: 'Cái',
-                    devices: [
-                        {
-                            main_serial: 'SG-2023-003',
-                            part1_serial: 'PT1-003',
-                            part2_serial: 'PT2-003',
-                            partn_serial: 'PTN-003',
-                            sim_serial: 'SIM-003',
-                            access_code: 'AC-003',
-                            iot_id: 'IOT-003',
-                            mac_4g: 'MAC-003',
-                            note: 'Cảm biến chính'
-                        },
-                        {
-                            main_serial: 'SG-2023-004',
-                            part1_serial: 'PT1-004',
-                            part2_serial: 'PT2-004',
-                            partn_serial: 'PTN-004',
-                            sim_serial: 'SIM-004',
-                            access_code: 'AC-004',
-                            iot_id: 'IOT-004',
-                            mac_4g: 'MAC-004',
-                            note: 'Cảm biến phụ'
-                        },
-                        {
-                            main_serial: 'SG-2023-005',
-                            part1_serial: 'PT1-005',
-                            part2_serial: 'PT2-005',
-                            partn_serial: 'PTN-005',
-                            sim_serial: 'SIM-005',
-                            access_code: 'AC-005',
-                            iot_id: 'IOT-005',
-                            mac_4g: 'MAC-005',
-                            note: 'Cảm biến dự phòng'
-                        }
-                    ]
-                }
-            };
-            
-            // Xử lý sự kiện hiển thị chi tiết sản phẩm
-            const productDetailLinks = document.querySelectorAll('a.text-blue-500');
+            // Đóng modal chi tiết sản phẩm
             const productDetailModal = document.getElementById('product-detail-modal');
             const closeProductDetailModalBtn = document.getElementById('close-product-detail-modal');
             const closeDetailBtn = document.getElementById('close-detail-btn');
-            const productDetailName = document.getElementById('product-detail-name');
-            const productDetailCode = document.getElementById('product-detail-code');
-            const productDetailUnit = document.getElementById('product-detail-unit');
-            const productDetailDevices = document.getElementById('product-detail-devices');
-            const exportProductExcelBtn = document.getElementById('export-product-excel-btn');
-            const exportProductPdfBtn = document.getElementById('export-product-pdf-btn');
             
-            productDetailLinks.forEach((link, index) => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const productId = index + 1; // Giả định id sản phẩm bắt đầu từ 1
-                    const product = productDetails[productId];
-                    
-                    if (product) {
-                        productDetailName.textContent = product.name;
-                        productDetailCode.textContent = product.code;
-                        productDetailUnit.textContent = product.unit;
-                        
-                        // Xóa các hàng dữ liệu hiện tại
-                        productDetailDevices.innerHTML = '';
-                        
-                        // Thêm dữ liệu mới
-                        product.devices.forEach(device => {
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.main_serial}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.part1_serial}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.part2_serial}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.partn_serial}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.sim_serial}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.access_code}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.iot_id}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.mac_4g}</td>
-                                <td class="px-3 py-2 border border-gray-200 text-sm">${device.note}</td>
-                            `;
-                            productDetailDevices.appendChild(row);
-                        });
-                        
-                        // Hiển thị modal
-                        productDetailModal.classList.remove('hidden');
-                    }
-                });
-            });
-            
-            // Đóng modal chi tiết sản phẩm
             closeProductDetailModalBtn.addEventListener('click', function() {
                 productDetailModal.classList.add('hidden');
             });
@@ -443,15 +547,146 @@
             });
             
             // Xử lý sự kiện xuất Excel chi tiết sản phẩm
+            const exportProductExcelBtn = document.getElementById('export-product-excel-btn');
             exportProductExcelBtn.addEventListener('click', function() {
                 alert('Tính năng xuất Excel chi tiết sản phẩm đang được phát triển!');
             });
             
             // Xử lý sự kiện xuất PDF chi tiết sản phẩm
+            const exportProductPdfBtn = document.getElementById('export-product-pdf-btn');
             exportProductPdfBtn.addEventListener('click', function() {
                 alert('Tính năng xuất PDF chi tiết sản phẩm đang được phát triển!');
             });
         });
+
+        // Function to show item detail
+        function showItemDetail(itemId) {
+            const item = dispatchItems.find(i => i.id === itemId);
+            
+            if (!item) {
+                alert('Không tìm thấy thông tin sản phẩm');
+                return;
+            }
+
+            // Update modal title and basic info
+            document.getElementById('product-detail-name').textContent = item.item ? item.item.name : `${item.item_type} ID: ${item.item_id}`;
+            document.getElementById('product-detail-code').textContent = item.item ? (item.item.code || item.item.id) : `${item.item_type}-${item.item_id}`;
+            document.getElementById('product-detail-unit').textContent = item.item ? (item.item.unit || 'Cái') : 'Cái';
+            document.getElementById('product-detail-quantity').textContent = item.quantity;
+
+            // Update serial numbers
+            const serialContainer = document.getElementById('serial-numbers-container');
+            let serialNumbers = [];
+            
+            // Xử lý serial_numbers có thể là array hoặc string
+            if (item.serial_numbers) {
+                if (Array.isArray(item.serial_numbers)) {
+                    serialNumbers = item.serial_numbers;
+                } else if (typeof item.serial_numbers === 'string') {
+                    try {
+                        const parsed = JSON.parse(item.serial_numbers);
+                        if (Array.isArray(parsed)) {
+                            serialNumbers = parsed;
+                        }
+                    } catch (e) {
+                        // Nếu không parse được, coi như không có serial
+                        serialNumbers = [];
+                    }
+                }
+            }
+            
+            if (serialNumbers.length > 0) {
+                let serialHtml = '<div class="space-y-2">';
+                serialNumbers.forEach((serial, index) => {
+                    serialHtml += `
+                        <div class="flex items-center justify-between border border-gray-200 rounded-lg p-3 bg-white">
+                            <span class="font-medium text-gray-700">Serial ${index + 1}:</span>
+                            <span class="text-gray-900 font-mono">${serial}</span>
+                        </div>
+                    `;
+                });
+                serialHtml += '</div>';
+                serialContainer.innerHTML = serialHtml;
+            } else {
+                serialContainer.innerHTML = '<p class="text-sm text-gray-500 italic">Chưa có serial numbers</p>';
+            }
+
+            // Update notes
+            const notesContainer = document.getElementById('notes-container');
+            const itemNotes = document.getElementById('item-notes');
+            if (item.notes) {
+                itemNotes.textContent = item.notes;
+                notesContainer.style.display = 'block';
+            } else {
+                notesContainer.style.display = 'none';
+            }
+
+            // Show modal
+            document.getElementById('product-detail-modal').classList.remove('hidden');
+        }
+
+        // Function to approve dispatch
+        function approveDispatch(dispatchId) {
+            if (!confirm('Bạn có chắc chắn muốn duyệt phiếu xuất này?')) {
+                return;
+            }
+
+            fetch(`/inventory/dispatch/${dispatchId}/approve`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    notes: 'Duyệt từ giao diện web'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Có lỗi xảy ra: ' + (data.message || 'Không thể duyệt phiếu'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi duyệt phiếu');
+            });
+        }
+
+        // Function to cancel dispatch
+        function cancelDispatch(dispatchId) {
+            const reason = prompt('Vui lòng nhập lý do hủy phiếu:');
+            if (!reason) {
+                return;
+            }
+
+            fetch(`/inventory/dispatch/${dispatchId}/cancel`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    reason: reason
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Có lỗi xảy ra: ' + (data.message || 'Không thể hủy phiếu'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi hủy phiếu');
+            });
+        }
     </script>
 </body>
 

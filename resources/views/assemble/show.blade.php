@@ -29,7 +29,8 @@
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                     </button>
                 </a>
-                <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <button type="button"
+                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-trash-alt mr-2"></i> Xóa
                 </button>
                 <button id="print-btn"
@@ -50,11 +51,20 @@
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày lắp ráp:</span>
-                            <span class="text-sm text-gray-700">{{ \Carbon\Carbon::parse($assembly->date)->format('d/m/Y') }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ \Carbon\Carbon::parse($assembly->date)->format('d/m/Y') }}</span>
                         </div>
-                        <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-700 mr-2">thành phẩm:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Thành phẩm:</span>
+                            <div class="flex flex-col">
+                                @if (isset($assembly->products) && count($assembly->products) > 0)
+                                    @foreach ($assembly->products as $product)
+                                        <span class="text-sm text-gray-700">{{ $product->name }}</span>
+                                    @endforeach
+                                @else
+                                    <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
+                                @endif
+                            </div>
                         </div>
                         <div class="flex items-center mt-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Số lượng:</span>
@@ -63,24 +73,12 @@
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Thành phẩm:</span>
-                            <div class="flex flex-col">
-                                @if(isset($assembly->products) && count($assembly->products) > 0)
-                                    @foreach($assembly->products as $product)
-                                        <span class="text-sm text-gray-700">{{ $product->name }}</span>
-                                    @endforeach
-                                @else
-                                    <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
-                                @endif
-                            </div>
-                        </div>
-                        <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người phụ trách:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->assigned_to }}</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->assignedEmployee->name ?? $assembly->assigned_to }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người tiếp nhận kiểm thử:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->tester_id ?? 'Chưa phân công' }}</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->tester->name ?? 'Chưa phân công' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất linh kiện:</span>
@@ -96,11 +94,11 @@
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
                             <span
                                 class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                @if($assembly->status == 'completed') bg-green-100 text-green-800
+                                @if ($assembly->status == 'completed') bg-green-100 text-green-800
                                 @elseif($assembly->status == 'in_progress') bg-yellow-100 text-yellow-800
                                 @elseif($assembly->status == 'pending') bg-blue-100 text-blue-800
                                 @else bg-red-100 text-red-800 @endif">
-                                @if($assembly->status == 'completed')
+                                @if ($assembly->status == 'completed')
                                     Hoàn thành
                                 @elseif($assembly->status == 'in_progress')
                                     Đang thực hiện
@@ -114,7 +112,7 @@
                         <div class="flex items-center mt-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Mục đích:</span>
                             <span class="text-sm text-gray-700">
-                                {{-- @if($assembly->purpose == 'storage')
+                                {{-- @if ($assembly->purpose == 'storage')
                                     Lưu kho
                                 @elseif($assembly->purpose == 'project')
                                     Xuất đi dự án
@@ -124,37 +122,37 @@
                                 Lưu kho
                             </span>
                         </div>
-                        @if($assembly->purpose == 'project' && isset($assembly->project))
-                        <div class="flex items-center mt-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Dự án:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->project->name ?? '' }}</span>
-                        </div>
+                        @if ($assembly->purpose == 'project' && isset($assembly->project))
+                            <div class="flex items-center mt-2">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Dự án:</span>
+                                <span class="text-sm text-gray-700">{{ $assembly->project->name ?? '' }}</span>
+                            </div>
                         @endif
                     </div>
                 </div>
 
-                @if($assembly->product_serials)
-                <div class="mt-4 border-t border-gray-200 pt-4">
-                    <h3 class="text-sm font-medium text-gray-700 mb-2">Serial thành phẩm:</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        @foreach(explode(',', $assembly->product_serials) as $serial)
-                            @if(!empty($serial))
-                            <div class="bg-gray-50 rounded-lg p-2 text-sm">
-                                <span class="font-medium">{{ $loop->iteration }}.</span> {{ $serial }}
-                            </div>
-                            @endif
-                        @endforeach
+                @if ($assembly->product_serials)
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Serial thành phẩm:</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            @foreach (explode(',', $assembly->product_serials) as $serial)
+                                @if (!empty($serial))
+                                    <div class="bg-gray-50 rounded-lg p-2 text-sm">
+                                        <span class="font-medium">{{ $loop->iteration }}.</span> {{ $serial }}
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
                     </div>
-                </div>
                 @endif
 
-                @if($assembly->notes)
-                <div class="mt-4 border-t border-gray-200 pt-4">
-                    <div class="flex items-center">
-                        <span class="text-sm font-medium text-gray-700 mr-2">Ghi chú:</span>
-                        <span class="text-sm text-gray-700">{{ $assembly->notes }}</span>
+                @if ($assembly->notes)
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <div class="flex items-center">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Ghi chú:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->notes }}</span>
+                        </div>
                     </div>
-                </div>
                 @endif
             </div>
 
@@ -197,6 +195,10 @@
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Ghi chú
                                 </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Thao tác
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -218,21 +220,29 @@
                                         {{ $material->quantity }}
                                     </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">
-                                        @if($material->serial && str_contains($material->serial, ','))
+                                        @if ($material->serial && str_contains($material->serial, ','))
                                             <div class="space-y-1">
-                                                @foreach(explode(',', $material->serial) as $serial)
-                                                    @if(!empty($serial))
-                                                        <div class="bg-gray-50 px-2 py-1 rounded">{{ $serial }}</div>
+                                                @foreach (explode(',', $material->serial) as $serial)
+                                                    @if (!empty($serial))
+                                                        <div class="bg-gray-50 px-2 py-1 rounded">{{ $serial }}
+                                                        </div>
                                                     @endif
                                                 @endforeach
                                             </div>
-                                            <div class="text-xs text-gray-400 mt-1">{{ count(array_filter(explode(',', $material->serial))) }} serial</div>
+                                            <div class="text-xs text-gray-400 mt-1">
+                                                {{ count(array_filter(explode(',', $material->serial))) }} serial</div>
                                         @else
                                             {{ $material->serial }}
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $material->note }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <a href="{{ route('materials.show', $material->material_id) }}"
+                                            class="text-blue-500 hover:text-blue-600">
+                                            Xem chi tiết
+                                        </a>
                                     </td>
                                 </tr>
                             @endforeach

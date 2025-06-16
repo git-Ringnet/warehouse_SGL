@@ -77,5 +77,14 @@ class Material extends Model
             return Supplier::whereIn('id', $this->supplier_ids)->get();
         }
         return collect([]);
-    }   
+    }
+
+    /**
+     * Get warehouse materials relationship
+     */
+    public function warehouseMaterials(): HasMany
+    {
+        return $this->hasMany(WarehouseMaterial::class, 'material_id')
+            ->where('item_type', 'material');
+    }
 } 

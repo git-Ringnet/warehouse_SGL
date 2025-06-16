@@ -18,7 +18,7 @@
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Quản lý xuất kho</h1>
             <div class="flex items-center gap-2">
-                <a href="{{ asset('inventory/dispatch') }}"
+                <a href="{{ route('inventory.dispatch.create') }}"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-plus mr-2"></i> Tạo phiếu xuất
                 </a>
@@ -26,6 +26,18 @@
         </header>
 
         <main class="p-6">
+            @if (session('success'))
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <!-- Filter and Search -->
             <div class="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-100">
                 <div class="flex flex-col md:flex-row gap-4">
@@ -115,136 +127,76 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200" id="dispatch_table_body">
-                            <!-- Sample data rows will be replaced with actual data -->
+                            @forelse($dispatches as $dispatch)
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">XK001</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">05/05/2023</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Công ty TNHH ABC</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">5</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Dự án IoT A1</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Nguyễn Văn A</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Nguyễn Văn A</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ $dispatch->dispatch_code }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Đã hoàn thành
+                                    {{ $dispatch->dispatch_date->format('d/m/Y') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $dispatch->project_receiver }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                                    {{ $dispatch->total_items }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $dispatch->dispatch_type === 'project' ? $dispatch->project_receiver : '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $dispatch->companyRepresentative->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $dispatch->creator->name ?? '-' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{{ $dispatch->status_color }}-100 text-{{ $dispatch->status_color }}-800">
+                                        {{ $dispatch->status_label }}
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex space-x-2">
-                                        <a href="{{ asset('inventory/dispatch_detail') }}">
+                                        <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}">
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                                 title="Xem">
                                                 <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
-                                        <a href="{{ asset('inventory/dispatch_edit') }}">
+                                        @if(!in_array($dispatch->status, ['completed', 'cancelled']))
+                                        <a href="{{ route('inventory.dispatch.edit', $dispatch->id) }}">
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                                 title="Sửa">
                                                 <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
+                                        @endif
+                                        @if($dispatch->status === 'pending')
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
-                                            title="Duyệt phiếu xuất" data-id="XK001">
+                                            title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}">
                                             <i class="fas fa-check text-green-500 group-hover:text-white"></i>
                                         </button>
+                                        @endif
+                                        @if(!in_array($dispatch->status, ['completed', 'cancelled']))
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
-                                            title="Hủy phiếu xuất" data-id="XK001">
+                                            title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}">
                                             <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                         </button>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>
+                            @empty
                             <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">XK002</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">15/05/2023</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Kho Hà Nội</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">12</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">-</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Trần Văn B</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Đã hoàn thành
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div class="flex space-x-2">
-                                        <a href="{{ asset('inventory/dispatch_detail') }}">
-                                            <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                                title="Xem">
-                                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        <a href="{{ asset('inventory/dispatch_edit') }}">
-                                            <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                                title="Sửa">
-                                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
-                                            title="Duyệt phiếu xuất" data-id="XK002">
-                                            <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                        </button>
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
-                                            title="Hủy phiếu xuất" data-id="XK002">
-                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                        </button>
-                                    </div>
+                                <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                    Chưa có phiếu xuất kho nào
                                 </td>
                             </tr>
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">XK003</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">20/05/2023</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Công ty CP XYZ</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">2</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Dự án Xanh XYZ-1</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Trần Thị B</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Lê Thị C</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span
-                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                        Chờ xử lý
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div class="flex space-x-2">
-                                        <a href="{{ asset('inventory/dispatch_detail') }}">
-                                            <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                                title="Xem">
-                                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        <a href="{{ asset('inventory/dispatch_edit') }}">
-                                            <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                                title="Sửa">
-                                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
-                                            title="Duyệt phiếu xuất" data-id="XK003">
-                                            <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                        </button>
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
-                                            title="Hủy phiếu xuất" data-id="XK003">
-                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>

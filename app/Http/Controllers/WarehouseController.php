@@ -185,7 +185,7 @@ class WarehouseController extends Controller
         $data = $request->all();
         $data['status'] = 'active';
         $data['is_hidden'] = false;
-        
+
         Warehouse::create($data);
 
         return redirect()->route('warehouses.index')
@@ -324,8 +324,8 @@ class WarehouseController extends Controller
                 
         } catch (\Exception $e) {
             Log::error('Warehouse delete/hide error: ' . $e->getMessage());
-            
-            return redirect()->route('warehouses.index')
+
+        return redirect()->route('warehouses.index')
                 ->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
     }

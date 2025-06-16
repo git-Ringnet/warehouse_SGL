@@ -38,20 +38,6 @@ class AssemblySeeder extends Seeder
             return;
         }
 
-        // Tên người được giao nhiệm vụ lắp ráp
-        $assignees = [
-            'Nguyễn Văn A', 
-            'Trần Thị B', 
-            'Lê Văn C', 
-            'Phạm Thị D', 
-            'Hoàng Văn E',
-            'Đặng Thị F',
-            'Vũ Văn G',
-            'Bùi Thị H',
-            'Đỗ Văn I',
-            'Ngô Thị K'
-        ];
-
         // Các trạng thái của phiếu lắp ráp
         $statuses = ['pending', 'in_progress', 'completed', 'cancelled'];
         
@@ -136,7 +122,6 @@ class AssemblySeeder extends Seeder
                 'product_id' => $product->id,
                 'warehouse_id' => $sourceWarehouse->id,
                 'target_warehouse_id' => $targetWarehouse->id,
-                'assigned_to' => $assignees[array_rand($assignees)],
                 'status' => $status,
                 'notes' => $note,
                 'quantity' => $quantity,

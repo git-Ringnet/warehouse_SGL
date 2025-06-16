@@ -19,18 +19,25 @@
             class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý bảo hành điện tử</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm thiết bị, khách hàng..."
+                <form method="GET" action="{{ route('warranties.index') }}" class="flex gap-2 w-full md:w-auto">
+                    <input type="text" name="search" value="{{ request('search') }}"
+                        placeholder="Tìm kiếm thiết bị, khách hàng..."
                         class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
-                    <select
+                    <select name="status" onchange="this.form.submit()"
                         class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                        <option value="">Bộ lọc</option>
-                        <option value="active">Đang bảo hành</option>
-                        <option value="expired">Hết hạn</option>
-                        <option value="pending">Chờ kích hoạt</option>
-                        <option value="">Mã bảo hành</option>
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Còn hiệu lực
+                        </option>
+                        <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Hết hạn</option>
+                        <option value="claimed" {{ request('status') == 'claimed' ? 'selected' : '' }}>Đã sử dụng
+                        </option>
+                        <option value="void" {{ request('status') == 'void' ? 'selected' : '' }}>Đã hủy</option>
                     </select>
-                </div>
+                    <button type="submit"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
             </div>
         </header>
 
@@ -63,176 +70,252 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty TNHH ABC</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Viễn thông Hà Nội</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/01/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">01/01/2025</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Đang bảo hành
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('warranties/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                        @forelse($warranties as $index => $warranty)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ ($warranties->currentPage() - 1) * $warranties->perPage() + $index + 1 }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <div>
+                                        <div class="font-medium">{{ $warranty->customer_name }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <div>
+                                        <div>{{ $warranty->project_name }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $warranty->warranty_start_date ? $warranty->warranty_start_date->format('d/m/Y') : '--/--/----' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $warranty->warranty_end_date ? $warranty->warranty_end_date->format('d/m/Y') : '--/--/----' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @php
+                                        $statusColors = [
+                                            'active' => 'bg-green-100 text-green-800',
+                                            'expired' => 'bg-red-100 text-red-800',
+                                            'claimed' => 'bg-yellow-100 text-yellow-800',
+                                            'void' => 'bg-gray-100 text-gray-800',
+                                        ];
+                                    @endphp
+                                    <span
+                                        class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$warranty->status] ?? 'bg-gray-100 text-gray-800' }}">
+                                        {{ $warranty->status_label }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
+                                    <a href="{{ route('warranties.show', $warranty) }}">
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                            title="Xem chi tiết">
+                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                    @if ($warranty->status !== 'void')
+                                        <button onclick="updateWarrantyStatus({{ $warranty->id }}, 'void')"
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                            title="Hủy bảo hành">
+                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
+                                        </button>
+                                    @endif
+                                    <button onclick="showQRCode('{{ $warranty->warranty_code }}')"
+                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
+                                        title="Xem QR Code">
+                                        <i class="fas fa-qrcode text-purple-500 group-hover:text-white"></i>
                                     </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Hủy bảo hành">
-                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
-                                    title="Tạo QR Code">
-                                    <i class="fas fa-qrcode text-purple-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Tập đoàn XYZ</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Giám sát vận tải</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/05/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">15/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Đang bảo hành
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('warranties/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Hủy bảo hành">
-                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
-                                    title="Tạo QR Code">
-                                    <i class="fas fa-qrcode text-purple-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty An ninh MNP</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Camera an ninh</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/11/2022</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">10/11/2023</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                    Hết hạn
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('warranties/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
-                                    title="Tạo QR Code">
-                                    <i class="fas fa-qrcode text-purple-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
-
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">4</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Công ty Viễn thông PQR</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Dự án Radio SPA</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">--/--/----</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">--/--/----</td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                    Chờ kích hoạt
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ asset('warranties/show') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                        title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <a href="{{ asset('warranties/activate') }}">
-                                    <button
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
-                                        title="Kích hoạt">
-                                        <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                <button
-                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                    title="Hủy bảo hành">
-                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                </button>
-                            </td>
-                        </tr>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                    <i class="fas fa-clipboard-list text-4xl mb-4 text-gray-300"></i>
+                                    <p class="text-lg">Không có dữ liệu bảo hành</p>
+                                    <p class="text-sm">Chưa có bản ghi bảo hành nào trong hệ thống</p>
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
 
             <!-- Pagination -->
-            <div
-                class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm">
-                <div class="flex flex-1 justify-between sm:hidden">
-                    <a href="#"
-                        class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Trang
-                        trước</a>
-                    <a href="#"
-                        class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Trang
-                        sau</a>
-                </div>
-                <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-                    <div>
-                        <p class="text-sm text-gray-700">
-                            Hiển thị <span class="font-medium">1</span> đến <span class="font-medium">4</span> của
-                            <span class="font-medium">12</span> kết quả
-                        </p>
+            @if ($warranties->hasPages())
+                <div
+                    class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm">
+                    <div class="flex flex-1 justify-between sm:hidden">
+                        @if ($warranties->onFirstPage())
+                            <span
+                                class="relative inline-flex items-center rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed">Trang
+                                trước</span>
+                        @else
+                            <a href="{{ $warranties->previousPageUrl() }}"
+                                class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Trang
+                                trước</a>
+                        @endif
+
+                        @if ($warranties->hasMorePages())
+                            <a href="{{ $warranties->nextPageUrl() }}"
+                                class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Trang
+                                sau</a>
+                        @else
+                            <span
+                                class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-gray-100 px-4 py-2 text-sm font-medium text-gray-400 cursor-not-allowed">Trang
+                                sau</span>
+                        @endif
                     </div>
-                    <div>
-                        <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                            <a href="#"
-                                class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-                                <span class="sr-only">Previous</span>
-                                <i class="fas fa-chevron-left h-5 w-5"></i>
-                            </a>
-                            <a href="#" aria-current="page"
-                                class="relative z-10 inline-flex items-center bg-blue-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">1</a>
-                            <a href="#"
-                                class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">2</a>
-                            <a href="#"
-                                class="relative hidden items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 md:inline-flex">3</a>
-                            <a href="#"
-                                class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0">
-                                <span class="sr-only">Next</span>
-                                <i class="fas fa-chevron-right h-5 w-5"></i>
-                            </a>
-                        </nav>
+                    <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                        <div>
+                            <p class="text-sm text-gray-700">
+                                Hiển thị <span class="font-medium">{{ $warranties->firstItem() }}</span> đến <span
+                                    class="font-medium">{{ $warranties->lastItem() }}</span> của
+                                <span class="font-medium">{{ $warranties->total() }}</span> kết quả
+                            </p>
+                        </div>
+                        <div>
+                            {{ $warranties->appends(request()->query())->links('pagination::tailwind') }}
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endif
         </main>
     </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900">QR Code bảo hành</h3>
+                <button type="button" onclick="closeQrModal()" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="text-center mb-4">
+                <div id="qr-code-container" class="flex justify-center mb-3">
+                    <!-- QR code will be generated here -->
+                </div>
+                <p class="text-sm text-gray-600">Quét mã QR này để kiểm tra thông tin bảo hành</p>
+                <p id="warranty-code-text" class="text-sm font-medium text-gray-800 mt-2"></p>
+            </div>
+            <div class="flex justify-between space-x-3">
+                <button type="button" onclick="downloadQR()" 
+                    class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1">
+                    <i class="fas fa-download mr-2"></i> Tải xuống
+                </button>
+                <button type="button" onclick="printQR()"
+                    class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex-1">
+                    <i class="fas fa-print mr-2"></i> In mã QR
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show QR Code Modal
+        function showQRCode(warrantyCode) {
+            const modal = document.getElementById('qr-modal');
+            const container = document.getElementById('qr-code-container');
+            const codeText = document.getElementById('warranty-code-text');
+            
+            // Generate QR code
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(warrantyCode)}`;
+            container.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="mx-auto border rounded">`;
+            codeText.textContent = `Mã bảo hành: ${warrantyCode}`;
+            
+            modal.classList.remove('hidden');
+        }
+
+        // Close QR Code Modal
+        function closeQrModal() {
+            document.getElementById('qr-modal').classList.add('hidden');
+        }
+
+        // Download QR Code
+        function downloadQR() {
+            const img = document.querySelector('#qr-code-container img');
+            if (img) {
+                const link = document.createElement('a');
+                link.href = img.src;
+                link.download = `warranty-qr-${Date.now()}.png`;
+                link.click();
+            }
+        }
+
+        // Print QR Code
+        function printQR() {
+            const img = document.querySelector('#qr-code-container img');
+            const warrantyCode = document.getElementById('warranty-code-text').textContent;
+            
+            if (img) {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>In QR Code Bảo hành</title>
+                            <style>
+                                body { text-align: center; font-family: Arial, sans-serif; margin: 50px; }
+                                .qr-container { margin: 20px 0; }
+                                h1 { color: #333; }
+                                p { color: #666; margin: 10px 0; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>QR Code Bảo hành</h1>
+                            <div class="qr-container">
+                                <img src="${img.src}" alt="QR Code" style="max-width: 200px;">
+                            </div>
+                            <p>${warrantyCode}</p>
+                            <p>Quét mã QR để kiểm tra thông tin bảo hành</p>
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            }
+        }
+
+        // Update Warranty Status
+        function updateWarrantyStatus(warrantyId, status) {
+            if (!confirm('Bạn có chắc chắn muốn thực hiện thao tác này?')) {
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            
+            fetch(`/warranties/${warrantyId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    status: status,
+                    notes: status === 'void' ? 'Hủy bảo hành từ giao diện web' : null
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload(); // Refresh page to show updated status
+                } else {
+                    alert('Có lỗi xảy ra: ' + (data.message || 'Không thể cập nhật trạng thái'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Có lỗi xảy ra khi cập nhật trạng thái');
+            });
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('qr-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeQrModal();
+            }
+        });
+    </script>
 </body>
 
-</html> 
+</html>

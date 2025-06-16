@@ -46,7 +46,7 @@
                                         @foreach($managers as $manager)
                                             <option value="{{ $manager }}" {{ request('manager') == $manager ? 'selected' : '' }}>{{ $manager }}</option>
                                         @endforeach
-                                    </select>
+                    </select>
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
                                     <button id="clearFiltersInDropdown" class="text-gray-500 hover:text-gray-700 text-sm">
