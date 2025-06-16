@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Tạo phiếu chuyển kho - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -113,40 +114,29 @@
                             <div class="material-row border border-gray-200 rounded-lg p-4 mb-4">
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Loại sản phẩm</label>
+                                        <select name="materials[0][item_type]" class="item-type-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="updateItemOptions(this, 0)">
+                                            <option value="">-- Chọn loại --</option>
+                                            <option value="material">Vật tư</option>
+                                            <option value="product">Thành phẩm</option>
+                                            <option value="good">Hàng hóa</option>
+                                        </select>
+                                    </div>
+                                    <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
                                         <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                            <option value="">-- Chọn vật tư --</option>
-                                            @foreach($materials as $material)
-                                                <option value="{{ $material->id }}" data-type="{{ $material->category }}">{{ $material->code }} - {{ $material->name }}</option>
-                                            @endforeach
+                                            <option value="">-- Chọn sản phẩm --</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
                                         <input type="number" name="materials[0][quantity]" class="quantity-input w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập số lượng" value="1" min="1" required>
                                     </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư</label>
-                                        <div class="flex items-center space-x-4 mt-2">
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="materials[0][type]" value="component" class="form-radio text-blue-500">
-                                                <span class="ml-2 text-sm text-gray-700">Linh kiện</span>
-                                            </label>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="materials[0][type]" value="product" class="form-radio text-blue-500">
-                                                <span class="ml-2 text-sm text-gray-700">Thành phẩm</span>
-                                            </label>
-                                            <label class="inline-flex items-center">
-                                                <input type="radio" name="materials[0][type]" value="other" class="form-radio text-blue-500" checked>
-                                                <span class="ml-2 text-sm text-gray-700">Khác</span>
-                                            </label>
-                                        </div>
-                                    </div>
                                 </div>
                                 <div class="mt-3">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">List số seri</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">List số seri (nếu có)</label>
                                     <textarea name="materials[0][serial_numbers]" class="serial-input w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" rows="2" placeholder="Nhập danh sách số seri, mỗi số seri trên một dòng hoặc ngăn cách bằng dấu phẩy"></textarea>
-                                    <p class="text-xs text-gray-500 mt-1">Số lượng seri nên trùng khớp với số lượng vật tư chuyển</p>
+                                    <p class="text-xs text-gray-500 mt-1">Số seri không bắt buộc. Nếu nhập, số lượng seri nên trùng khớp với số lượng.</p>
                                 </div>
                                 <div class="mt-3">
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
@@ -180,13 +170,15 @@
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã - Tên vật tư</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kho nguồn</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tồn kho</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số seri</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200">
                                     <tr>
-                                        <td colspan="5" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>
+                                        <td colspan="7" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -230,7 +222,80 @@
             
             // Cập nhật bảng tổng hợp ban đầu
             updateSummaryTable();
+            
+            // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
+            initializeItemLists();
         });
+        
+        // Dữ liệu các sản phẩm từ cả 3 bảng
+        let itemsData = {
+            material: [],
+            product: [],
+            good: []
+        };
+        
+        // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
+        function initializeItemLists() {
+            // Chuyển dữ liệu từ Blade sang Javascript
+            itemsData.material = {!! json_encode($materials->map(function($material) {
+                return [
+                    'id' => $material->id,
+                    'name' => $material->code . ' - ' . $material->name,
+                    'type' => 'material',
+                    'category' => $material->category ?? 'other'
+                ];
+            })) !!};
+            
+            itemsData.product = {!! json_encode($products->map(function($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->code . ' - ' . $product->name,
+                    'type' => 'product',
+                    'category' => 'product'
+                ];
+            })) !!};
+            
+            itemsData.good = {!! json_encode($goods->map(function($good) {
+                return [
+                    'id' => $good->id,
+                    'name' => $good->code . ' - ' . $good->name,
+                    'type' => 'good',
+                    'category' => $good->category ?? 'other'
+                ];
+            })) !!};
+        }
+        
+        // Cập nhật danh sách sản phẩm khi chọn loại
+        function updateItemOptions(selectElement, rowIndex) {
+            const itemType = selectElement.value;
+            const row = selectElement.closest('.material-row');
+            const materialSelect = row.querySelector('.material-select');
+            
+            // Xóa tất cả các option hiện tại (trừ option đầu tiên)
+            while (materialSelect.options.length > 1) {
+                materialSelect.remove(1);
+            }
+            
+            // Nếu không có loại sản phẩm được chọn, không thêm các option
+            if (!itemType) {
+                return;
+            }
+            
+            // Thêm các option mới dựa trên loại sản phẩm
+            const items = itemsData[itemType] || [];
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.text = item.name;
+                option.dataset.type = item.type;
+                option.dataset.category = item.category;
+                materialSelect.add(option);
+            });
+            
+            // Cập nhật bảng tổng hợp
+            updateSummaryTable();
+            updateMaterialsJson();
+        }
         
         // Biến đếm số lượng hàng vật tư
         let materialCount = 1;
@@ -238,6 +303,8 @@
         // Ngăn chặn việc chọn cùng một kho cho cả nguồn và đích
         document.getElementById('source_warehouse_id').addEventListener('change', function() {
             updateWarehouseOptions();
+            // Cập nhật lại bảng tổng hợp khi thay đổi kho nguồn
+            updateSummaryTable();
         });
         
         document.getElementById('destination_warehouse_id').addEventListener('change', function() {
@@ -271,15 +338,14 @@
                         input.selectedIndex = 0;
                     } else if (input.type === 'number' && input.name.includes('quantity')) {
                         input.value = '1';
-                    } else if (input.type === 'radio') {
-                        if (input.value === 'other') {
-                            input.checked = true;
-                        } else {
-                            input.checked = false;
-                        }
                     } else {
                         input.value = '';
                     }
+                }
+                
+                // Thêm sự kiện onchange cho select loại sản phẩm
+                if (input.classList.contains('item-type-select')) {
+                    input.setAttribute('onchange', `updateItemOptions(this, ${materialCount})`);
                 }
             });
             
@@ -347,40 +413,46 @@
             // Lấy thông tin từ tất cả các hàng vật tư
             const materialRows = document.querySelectorAll('.material-row');
             const materials = [];
+            const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
+            const sourceWarehouseName = sourceWarehouseId ? 
+                document.getElementById('source_warehouse_id').options[document.getElementById('source_warehouse_id').selectedIndex].text : 
+                'Chưa chọn kho';
             
             materialRows.forEach((row, index) => {
+                const itemTypeSelect = row.querySelector('.item-type-select');
                 const materialSelect = row.querySelector('.material-select');
-                if (materialSelect.value) {
+                
+                if (materialSelect.value && itemTypeSelect.value) {
                     const materialId = materialSelect.value;
                     const materialName = materialSelect.options[materialSelect.selectedIndex].text;
                     const quantity = row.querySelector('.quantity-input').value;
                     const serialNumbers = row.querySelector('.serial-input').value;
                     const notes = row.querySelector('.notes-input').value;
-                    
-                    // Xác định loại vật tư
-                    let type = 'other';
-                    const typeInputs = row.querySelectorAll('input[type="radio"]');
-                    typeInputs.forEach(input => {
-                        if (input.checked) {
-                            type = input.value;
-                        }
-                    });
+                    const itemType = itemTypeSelect.value;
                     
                     materials.push({
                         id: materialId,
                         name: materialName,
                         quantity: quantity,
-                        type: type,
+                        type: itemType,
                         serial_numbers: serialNumbers,
-                        notes: notes
+                        notes: notes,
+                        warehouse_id: sourceWarehouseId,
+                        warehouse_name: sourceWarehouseName,
+                        stock_quantity: 0 // Sẽ được cập nhật sau
                     });
+                    
+                    // Kiểm tra tồn kho nếu đã chọn kho nguồn
+                    if (sourceWarehouseId) {
+                        checkInventory(materialId, sourceWarehouseId, itemType, index);
+                    }
                 }
             });
             
             // Nếu không có vật tư nào được chọn, hiển thị dòng thông báo
             if (materials.length === 0) {
                 const emptyRow = document.createElement('tr');
-                emptyRow.innerHTML = '<td colspan="5" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>';
+                emptyRow.innerHTML = '<td colspan="7" class="px-4 py-4 text-sm text-gray-500 text-center">Chưa có vật tư nào được thêm</td>';
                 tbody.appendChild(emptyRow);
                 return;
             }
@@ -388,17 +460,26 @@
             // Tạo các hàng mới cho bảng tổng hợp
             materials.forEach((material, index) => {
                 const row = document.createElement('tr');
+                row.dataset.materialId = material.id;
+                row.dataset.materialType = material.type;
                 
                 // Xác định loại vật tư để hiển thị
                 let typeDisplay = 'Khác';
                 let typeClass = 'bg-gray-100 text-gray-800';
                 
-                if (material.type === 'component') {
-                    typeDisplay = 'Linh kiện';
-                    typeClass = 'bg-blue-100 text-blue-800';
-                } else if (material.type === 'product') {
-                    typeDisplay = 'Thành phẩm';
-                    typeClass = 'bg-green-100 text-green-800';
+                switch(material.type) {
+                    case 'material':
+                        typeDisplay = 'Vật tư';
+                        typeClass = 'bg-blue-100 text-blue-800';
+                        break;
+                    case 'product':
+                        typeDisplay = 'Thành phẩm';
+                        typeClass = 'bg-green-100 text-green-800';
+                        break;
+                    case 'good':
+                        typeDisplay = 'Hàng hoá';
+                        typeClass = 'bg-yellow-100 text-yellow-800';
+                        break;
                 }
                 
                 // Tóm tắt số seri để hiển thị
@@ -412,17 +493,95 @@
                     }
                 }
                 
+                // Hiển thị cảnh báo nếu số lượng chuyển lớn hơn tồn kho
+                const stockClass = parseInt(material.quantity) > material.stock_quantity ? 'text-red-600 font-bold' : 'text-gray-900';
+                
                 row.innerHTML = `
                     <td class="px-4 py-2 text-sm text-gray-900">${index + 1}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${material.name}</td>
                     <td class="px-4 py-2 text-sm">
                         <span class="px-2 py-1 rounded-full text-xs font-medium ${typeClass}">${typeDisplay}</span>
                     </td>
+                    <td class="px-4 py-2 text-sm text-gray-900">${material.warehouse_name}</td>
+                    <td class="px-4 py-2 text-sm stock-quantity ${stockClass}" data-id="${material.id}" data-type="${material.type}">${material.stock_quantity}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${material.quantity}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${serialDisplay}</td>
                 `;
                 
                 tbody.appendChild(row);
+            });
+        }
+        
+        // Hàm kiểm tra tồn kho
+        function checkInventory(materialId, warehouseId, itemType, index) {
+            if (!materialId || !warehouseId) return;
+            
+            console.log(`Đang kiểm tra tồn kho: materialId=${materialId}, warehouseId=${warehouseId}, itemType=${itemType}`);
+            
+            // Lấy base URL từ window.location
+            const baseUrl = window.location.origin;
+            const apiUrl = `${baseUrl}/warehouse-transfers/check-inventory`;
+            
+            console.log('Gọi API URL:', apiUrl);
+            
+            // Sử dụng phương thức POST thay vì GET
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({
+                    material_id: materialId,
+                    warehouse_id: warehouseId,
+                    item_type: itemType
+                })
+            })
+            .then(response => {
+                console.log('API Response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('API Response data:', data);
+                // Cập nhật hiển thị tồn kho trong bảng
+                const stockCells = document.querySelectorAll(`.stock-quantity[data-id="${materialId}"][data-type="${itemType}"]`);
+                console.log('Tìm thấy', stockCells.length, 'ô cần cập nhật');
+                
+                stockCells.forEach(cell => {
+                    cell.textContent = data.quantity;
+                    
+                    // Hiển thị cảnh báo nếu tồn kho không đủ
+                    const row = cell.closest('tr');
+                    const quantityCell = row.querySelector('td:nth-child(6)');
+                    const quantity = parseInt(quantityCell.textContent);
+                    
+                    console.log('Số lượng chuyển:', quantity, 'Tồn kho:', data.quantity);
+                    
+                    if (quantity > data.quantity) {
+                        cell.classList.add('text-red-600', 'font-bold');
+                        // Hiển thị thông báo cảnh báo
+                        const warningMsg = document.createElement('div');
+                        warningMsg.className = 'text-red-600 text-xs mt-1';
+                        warningMsg.textContent = 'Tồn kho không đủ!';
+                        
+                        // Xóa cảnh báo cũ nếu có
+                        const oldWarning = cell.querySelector('.text-red-600.text-xs');
+                        if (oldWarning) oldWarning.remove();
+                        
+                        cell.appendChild(warningMsg);
+                    } else {
+                        cell.classList.remove('text-red-600', 'font-bold');
+                        // Xóa thông báo cảnh báo nếu có
+                        const oldWarning = cell.querySelector('.text-red-600.text-xs');
+                        if (oldWarning) oldWarning.remove();
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Lỗi khi kiểm tra tồn kho:', error);
             });
         }
         
@@ -432,28 +591,22 @@
             const materialRows = document.querySelectorAll('.material-row');
             
             materialRows.forEach(row => {
+                const itemTypeSelect = row.querySelector('.item-type-select');
                 const materialSelect = row.querySelector('.material-select');
-                if (materialSelect.value) {
+                
+                if (materialSelect.value && itemTypeSelect.value) {
                     const materialId = materialSelect.value;
                     const materialName = materialSelect.options[materialSelect.selectedIndex].text;
                     const quantity = row.querySelector('.quantity-input').value;
                     const serialNumbers = row.querySelector('.serial-input').value;
                     const notes = row.querySelector('.notes-input').value;
-                    
-                    // Xác định loại vật tư
-                    let type = 'other';
-                    const typeInputs = row.querySelectorAll('input[type="radio"]');
-                    typeInputs.forEach(input => {
-                        if (input.checked) {
-                            type = input.value;
-                        }
-                    });
+                    const itemType = itemTypeSelect.value;
                     
                     materials.push({
                         id: materialId,
                         name: materialName,
                         quantity: quantity,
-                        type: type,
+                        type: itemType,
                         serial_numbers: serialNumbers,
                         notes: notes
                     });
@@ -482,6 +635,14 @@
             if (materials.length === 0) {
                 e.preventDefault();
                 alert('Vui lòng thêm ít nhất một vật tư vào danh sách trước khi tạo phiếu chuyển kho.');
+                return false;
+            }
+            
+            // Kiểm tra tồn kho
+            const stockCells = document.querySelectorAll('.stock-quantity.text-red-600');
+            if (stockCells.length > 0) {
+                e.preventDefault();
+                alert('Có vật tư có số lượng tồn kho không đủ. Vui lòng kiểm tra lại số lượng chuyển kho.');
                 return false;
             }
         });

@@ -22,10 +22,14 @@ class Assembly extends Model
         'warehouse_id',
         'target_warehouse_id',
         'assigned_to',
+        'assigned_employee_id',
+        'tester_id',
         'status',
         'notes',
         'quantity',
-        'product_serials'
+        'product_serials',
+        'project_id',
+        'purpose'
     ];
 
     /**
@@ -58,5 +62,29 @@ class Assembly extends Model
     public function materials()
     {
         return $this->hasMany(AssemblyMaterial::class);
+    }
+
+    /**
+     * Get the assigned employee for this assembly.
+     */
+    public function assignedEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'assigned_employee_id');
+    }
+
+    /**
+     * Get the tester employee for this assembly.
+     */
+    public function tester()
+    {
+        return $this->belongsTo(Employee::class, 'tester_id');
+    }
+
+    /**
+     * Get the project for this assembly.
+     */
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
     }
 } 

@@ -105,20 +105,15 @@
                                 </div>
                                 <div id="suppliers-container" class="mt-2">
                                     <!-- Các nhà cung cấp đã liên kết sẽ được thêm vào đây -->
-                                    @if(is_array($material->supplier_ids) && count($material->supplier_ids) > 0)
-                                        @foreach($material->supplier_ids as $supplierId)
-                                            @php
-                                                $supplier = $suppliers->where('id', $supplierId)->first();
-                                            @endphp
-                                            @if($supplier)
-                                            <div id="supplier-{{ $supplier->id }}" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
+                                    @if($material->suppliers && count($material->suppliers) > 0)
+                                        @foreach($material->suppliers as $supplier)
+                                        <div id="supplier-{{ $supplier->id }}" class="flex items-center justify-between border border-gray-200 rounded-lg p-2 mb-2">
                                                 <input type="hidden" name="supplier_ids[]" value="{{ $supplier->id }}">
-                                                <div>{{ $supplier->name }}</div>
-                                                <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-{{ $supplier->id }}').remove()">
-                                                    <i class="fas fa-times"></i>
-                                                </button>
-                                            </div>
-                                            @endif
+                                            <div>{{ $supplier->name }}</div>
+                                            <button type="button" class="text-red-500 hover:text-red-700" onclick="document.getElementById('supplier-{{ $supplier->id }}').remove()">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                         @endforeach
                                     @endif
                                 </div>

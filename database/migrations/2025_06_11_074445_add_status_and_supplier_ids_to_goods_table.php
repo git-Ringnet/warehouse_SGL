@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::table('goods', function (Blueprint $table) {
             $table->string('status')->default('active')->after('inventory_warehouses');
             $table->boolean('is_hidden')->default(false)->after('status');
-            $table->json('supplier_ids')->nullable()->after('is_hidden');
         });
     }
 

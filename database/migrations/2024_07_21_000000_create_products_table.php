@@ -13,9 +13,8 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->string('code')->unique();
+            $table->string('code');
             $table->string('name');
-            $table->enum('type', ['Mới', 'Bảo hành'])->default('Mới');
             $table->text('description')->nullable();
             $table->timestamps();
         });

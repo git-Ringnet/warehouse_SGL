@@ -123,56 +123,62 @@
                 </div>
             </div>
             
-            <!-- Danh sách vật tư -->
-            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 mt-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-6">Danh sách vật tư chuyển kho</h2>
-                
-                @if(count($selectedMaterials) > 0)
-                <div class="border rounded-lg border-gray-200 p-2 bg-white">
-                    @foreach($selectedMaterials as $material)
-                    <div class="p-3 border-b border-gray-200 last:border-b-0">
-                        <!-- Thông tin chính của vật tư -->
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center">
-                                @if($material['type'] == 'component')
-                                <span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded text-xs mr-2">Linh kiện</span>
-                                @elseif($material['type'] == 'product')
-                                <span class="px-1.5 py-0.5 bg-green-100 text-green-800 rounded text-xs mr-2">Thành phẩm</span>
-                                @endif
-                                <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-gray-700">{{ $material['name'] }}</span>
-                                    <span class="text-xs text-gray-500">Số lượng: {{ $material['quantity'] }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Hiển thị số serial nếu có -->
-                        @if(!empty($material['serial_numbers']))
-                        <div class="mt-2 bg-gray-50 p-2 rounded">
-                            <p class="text-xs font-medium text-gray-600 mb-1">Danh sách số seri:</p>
-                            <div class="flex flex-wrap gap-1">
-                                @foreach((is_array($material['serial_numbers']) ? $material['serial_numbers'] : explode(',', $material['serial_numbers'])) as $serial)
-                                    <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded">{{ trim($serial) }}</span>
-                                @endforeach
-                            </div>
-                        </div>
-                        @endif
-                        
-                        <!-- Hiển thị ghi chú nếu có -->
-                        @if(!empty($material['notes']))
-                        <div class="mt-2">
-                            <p class="text-xs font-medium text-gray-600 mb-1">Ghi chú:</p>
-                            <p class="text-xs text-gray-700">{{ $material['notes'] }}</p>
-                        </div>
-                        @endif
-                    </div>
-                    @endforeach
+            <!-- Thông tin vật tư -->
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Danh sách vật tư chuyển kho</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã - Tên vật tư</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kho nguồn</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số seri</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @foreach($selectedMaterials as $index => $material)
+                            <tr>
+                                <td class="px-4 py-2 text-sm text-gray-900">{{ $index + 1 }}</td>
+                                <td class="px-4 py-2 text-sm text-gray-900">{{ $material['name'] }}</td>
+                                <td class="px-4 py-2 text-sm">
+                                    @php
+                                        $typeClass = 'bg-gray-100 text-gray-800';
+                                        $typeDisplay = 'Khác';
+                                        
+                                        if ($material['type'] == 'material') {
+                                            $typeClass = 'bg-blue-100 text-blue-800';
+                                            $typeDisplay = 'Vật tư';
+                                        } elseif ($material['type'] == 'product') {
+                                            $typeClass = 'bg-green-100 text-green-800';
+                                            $typeDisplay = 'Thành phẩm';
+                                        } elseif ($material['type'] == 'good') {
+                                            $typeClass = 'bg-yellow-100 text-yellow-800';
+                                            $typeDisplay = 'Hàng hóa';
+                                        }
+                                    @endphp
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium {{ $typeClass }}">{{ $typeDisplay }}</span>
+                                </td>
+                                <td class="px-4 py-2 text-sm text-gray-900">{{ $warehouseTransfer->source_warehouse->name }}</td>
+                                <td class="px-4 py-2 text-sm text-gray-900">{{ $material['quantity'] }}</td>
+                                <td class="px-4 py-2 text-sm text-gray-900">
+                                    @if(isset($material['serial_numbers']) && !empty($material['serial_numbers']))
+                                        @if(is_array($material['serial_numbers']))
+                                            {{ implode(', ', $material['serial_numbers']) }}
+                                        @else
+                                            {{ $material['serial_numbers'] }}
+                                        @endif
+                                    @else
+                                        Không có
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
-                @else
-                <div class="border rounded-lg border-gray-200 p-4 bg-white">
-                    <p class="text-gray-500 italic text-center">Không có vật tư nào trong phiếu chuyển kho này.</p>
-                </div>
-                @endif
             </div>
         </main>
     </div>

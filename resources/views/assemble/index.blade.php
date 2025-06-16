@@ -66,13 +66,13 @@
                                 Người Phụ Trách</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Người Kiểm Thử</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Ngày Tạo</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Trạng Thái</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Phê duyệt</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Hành động</th>
@@ -86,7 +86,9 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $assembly->product->name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $assembly->assigned_to }}</td>
+                                    {{ $assembly->assignedEmployee->name ?? $assembly->assigned_to }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $assembly->tester->name ?? 'Chưa chỉ định' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ date('d/m/Y', strtotime($assembly->date)) }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -106,15 +108,6 @@
                                         <span
                                             class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã
                                             hủy</span>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    @if ($assembly->status == 'completed')
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Đã duyệt</span>
-                                    @elseif($assembly->status == 'cancelled')
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Từ chối</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
@@ -146,7 +139,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
+                                <td colspan="8" class="px-6 py-4 text-sm text-gray-500 text-center">
                                     Không có phiếu lắp ráp nào
                                 </td>
                             </tr>

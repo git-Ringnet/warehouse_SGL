@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chi tiết bảo hành - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -27,7 +28,7 @@
                 <button id="export-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     Hủy phiếu
                 </button>
-                <a href="{{ asset('warranties') }}"
+                <a href="{{ route('warranties.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
                 </a>
@@ -40,23 +41,47 @@
                     <div class="p-6">
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
-                                <h2 class="text-2xl font-bold text-gray-800">Thiết bị Radio SPA Pro</h2>
+                                <h2 class="text-2xl font-bold text-gray-800">
+                                    @if($warranty->item)
+                                        {{ $warranty->item->name ?? 'Thiết bị không xác định' }}
+                                    @else
+                                        Thiết bị {{ ucfirst($warranty->item_type) }} ID: {{ $warranty->item_id }}
+                                    @endif
+                                </h2>
                                 <div class="flex items-center mt-1">
-                                    <p class="text-gray-600">Mã thiết bị: <span class="font-medium">DEV-SPA-001</span></p>
+                                    <p class="text-gray-600">Mã bảo hành: <span class="font-medium">{{ $warranty->warranty_code }}</span></p>
+                                    @if($warranty->serial_number)
                                     <span class="mx-2 text-gray-300">|</span>
-                                    <p class="text-gray-600">Serial: <span class="font-medium">SER123456</span></p>
+                                    <p class="text-gray-600">Serial: <span class="font-medium">{{ $warranty->serial_number }}</span></p>
+                                    @endif
                                 </div>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
                                 <div class="flex items-center">
-                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                        Đang bảo hành
+                                    @php
+                                        $statusColors = [
+                                            'active' => 'bg-green-100 text-green-800',
+                                            'expired' => 'bg-red-100 text-red-800',
+                                            'claimed' => 'bg-yellow-100 text-yellow-800',
+                                            'void' => 'bg-gray-100 text-gray-800'
+                                        ];
+                                    @endphp
+                                    <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$warranty->status] ?? 'bg-gray-100 text-gray-800' }}">
+                                        {{ $warranty->status_label }}
                                     </span>
                                 </div>
                                 <div class="flex items-center mt-2">
                                     <i class="fas fa-calendar-alt text-blue-500 mr-2"></i>
-                                    <span class="text-blue-700">01/01/2023 - 01/01/2025</span>
+                                    <span class="text-blue-700">
+                                        {{ $warranty->warranty_start_date->format('d/m/Y') }} - {{ $warranty->warranty_end_date->format('d/m/Y') }}
+                                    </span>
                                 </div>
+                                @if($warranty->is_active)
+                                <div class="flex items-center mt-1">
+                                    <i class="fas fa-clock text-green-500 mr-2"></i>
+                                    <span class="text-green-600 text-sm">Còn {{ $warranty->remaining_days }} ngày</span>
+                                </div>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -75,69 +100,102 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-y-4 gap-x-6 mb-6">
                             <div>
                                 <p class="text-sm text-gray-500">Tên thiết bị</p>
-                                <p class="text-gray-900 font-medium">Radio SPA Pro</p>
+                                <p class="text-gray-900 font-medium">
+                                    @if($warranty->item)
+                                        {{ $warranty->item->name ?? 'Không xác định' }}
+                                    @else
+                                        {{ ucfirst($warranty->item_type) }} ID: {{ $warranty->item_id }}
+                                    @endif
+                                </p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Mã thiết bị</p>
-                                <p class="text-gray-900 font-medium">DEV-SPA-001</p>
+                                <p class="text-gray-900 font-medium">
+                                    @if($warranty->item && isset($warranty->item->code))
+                                        {{ $warranty->item->code }}
+                                    @else
+                                        {{ $warranty->warranty_code }}
+                                    @endif
+                                </p>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Serial</p>
-                                <p class="text-gray-900 font-medium">SER123456</p>
+                                <p class="text-sm text-gray-500">Serial Number</p>
+                                <p class="text-gray-900 font-medium">{{ $warranty->serial_number ?? 'Chưa có' }}</p>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Ngày sản xuất</p>
-                                <p class="text-gray-900">15/12/2022</p>
+                                <p class="text-sm text-gray-500">Ngày mua hàng</p>
+                                <p class="text-gray-900">{{ $warranty->purchase_date->format('d/m/Y') }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Loại bảo hành</p>
+                                <p class="text-gray-900">
+                                    @switch($warranty->warranty_type)
+                                        @case('standard')
+                                            Tiêu chuẩn
+                                            @break
+                                        @case('extended')
+                                            Mở rộng
+                                            @break
+                                        @case('premium')
+                                            Cao cấp
+                                            @break
+                                        @default
+                                            {{ ucfirst($warranty->warranty_type) }}
+                                    @endswitch
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Thời gian bảo hành</p>
+                                <p class="text-gray-900">{{ $warranty->warranty_period_months }} tháng</p>
                             </div>
                         </div>
                         
+                        @if($warranty->warranty_terms)
                         <div class="border-t border-gray-200 pt-4 mb-6">
-                            <p class="text-sm text-gray-500">Mô tả thiết bị</p>
-                            <p class="text-gray-900 mt-1">Radio SPA Pro là thiết bị viễn thông thế hệ mới nhất của SGL, được trang bị module GPS NEO-6M và hệ thống thu phát sóng hai chiều tiên tiến. thành phẩm phù hợp cho các công trình viễn thông và trạm phát sóng.</p>
+                            <p class="text-sm text-gray-500">Điều khoản bảo hành</p>
+                            <p class="text-gray-900 mt-1">{{ $warranty->warranty_terms }}</p>
                         </div>
+                        @endif
 
-                        <!-- Module Components -->
+                        @if($warranty->notes)
+                        <div class="border-t border-gray-200 pt-4 mb-6">
+                            <p class="text-sm text-gray-500">Ghi chú</p>
+                            <p class="text-gray-900 mt-1">{{ $warranty->notes }}</p>
+                        </div>
+                        @endif
+
+                        @if($warranty->dispatch)
+                        <!-- Thông tin phiếu xuất -->
                         <div class="border-t border-gray-200 pt-4">
-                            <h4 class="text-md font-semibold text-gray-800 mb-3">Các module thiết bị</h4>
+                            <h4 class="text-md font-semibold text-gray-800 mb-3">Thông tin phiếu xuất</h4>
                             <div class="bg-gray-50 rounded-lg p-4">
-                                <table class="min-w-full">
-                                    <thead>
-                                        <tr>
-                                            <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">STT</th>
-                                            <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Mã module</th>
-                                            <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Tên module</th>
-                                            <th class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider py-2">Serial Number</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                        <tr>
-                                            <td class="py-2 text-sm text-gray-700">1</td>
-                                            <td class="py-2 text-sm text-gray-700">MOD-GPS-001</td>
-                                            <td class="py-2 text-sm text-gray-700">GPS Module</td>
-                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 text-sm text-gray-700">2</td>
-                                            <td class="py-2 text-sm text-gray-700">MOD-CPU-002</td>
-                                            <td class="py-2 text-sm text-gray-700">CPU Module</td>
-                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 text-sm text-gray-700">3</td>
-                                            <td class="py-2 text-sm text-gray-700">MOD-ANT-003</td>
-                                            <td class="py-2 text-sm text-gray-700">Antenna Module</td>
-                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 text-sm text-gray-700">4</td>
-                                            <td class="py-2 text-sm text-gray-700">MOD-PWR-004</td>
-                                            <td class="py-2 text-sm text-gray-700">Power Module</td>
-                                            <td class="py-2 text-sm text-gray-700">SER123456</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500">Mã phiếu xuất</p>
+                                        <p class="text-gray-900 font-medium">{{ $warranty->dispatch->dispatch_code }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Ngày xuất</p>
+                                        <p class="text-gray-900">{{ $warranty->dispatch->dispatch_date->format('d/m/Y') }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Loại xuất</p>
+                                        <p class="text-gray-900">{{ ucfirst($warranty->dispatch->dispatch_type) }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Trạng thái phiếu xuất</p>
+                                        <p class="text-gray-900">{{ ucfirst($warranty->dispatch->status) }}</p>
+                                    </div>
+                                </div>
+                                @if($warranty->dispatch->dispatch_note)
+                                <div class="mt-4">
+                                    <p class="text-sm text-gray-500">Ghi chú phiếu xuất</p>
+                                    <p class="text-gray-900">{{ $warranty->dispatch->dispatch_note }}</p>
+                                </div>
+                                @endif
                             </div>
                         </div>
+                        @endif
                     </div>
                 </div>
 
@@ -152,24 +210,26 @@
                         <div class="space-y-4">
                             <div>
                                 <p class="text-sm text-gray-500">Tên khách hàng</p>
-                                <p class="text-gray-900 font-medium">Công ty TNHH ABC</p>
+                                <p class="text-gray-900 font-medium">{{ $warranty->customer_name }}</p>
                             </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Người liên hệ</p>
-                                <p class="text-gray-900">Nguyễn Văn A</p>
-                            </div>
+                            @if($warranty->customer_phone)
                             <div>
                                 <p class="text-sm text-gray-500">Số điện thoại</p>
-                                <p class="text-gray-900">0912345678</p>
+                                <p class="text-gray-900">{{ $warranty->customer_phone }}</p>
                             </div>
+                            @endif
+                            @if($warranty->customer_email)
                             <div>
                                 <p class="text-sm text-gray-500">Email</p>
-                                <p class="text-gray-900">contact@abc.com.vn</p>
+                                <p class="text-gray-900">{{ $warranty->customer_email }}</p>
                             </div>
+                            @endif
+                            @if($warranty->customer_address)
                             <div>
                                 <p class="text-sm text-gray-500">Địa chỉ</p>
-                                <p class="text-gray-900">Số 123, Đường Lê Lợi, Quận Hoàn Kiếm, Hà Nội</p>
+                                <p class="text-gray-900">{{ $warranty->customer_address }}</p>
                             </div>
+                            @endif
                         </div>
                     </div>
 
@@ -182,26 +242,54 @@
                         <div class="space-y-4">
                             <div>
                                 <p class="text-sm text-gray-500">Gói bảo hành</p>
-                                <p class="text-gray-900 font-medium">2 năm</p>
+                                <p class="text-gray-900 font-medium">
+                                    @switch($warranty->warranty_type)
+                                        @case('standard')
+                                            Tiêu chuẩn ({{ $warranty->warranty_period_months }} tháng)
+                                            @break
+                                        @case('extended')
+                                            Mở rộng ({{ $warranty->warranty_period_months }} tháng)
+                                            @break
+                                        @case('premium')
+                                            Cao cấp ({{ $warranty->warranty_period_months }} tháng)
+                                            @break
+                                        @default
+                                            {{ ucfirst($warranty->warranty_type) }} ({{ $warranty->warranty_period_months }} tháng)
+                                    @endswitch
+                                </p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Ngày kích hoạt</p>
-                                <p class="text-gray-900">01/01/2023</p>
+                                <p class="text-gray-900">{{ $warranty->warranty_start_date->format('d/m/Y') }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Ngày hết hạn</p>
-                                <p class="text-gray-900">01/01/2025</p>
+                                <p class="text-gray-900">{{ $warranty->warranty_end_date->format('d/m/Y') }}</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Trạng thái</p>
-                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Đang bảo hành
+                                @php
+                                    $statusColors = [
+                                        'active' => 'bg-green-100 text-green-800',
+                                        'expired' => 'bg-red-100 text-red-800',
+                                        'claimed' => 'bg-yellow-100 text-yellow-800',
+                                        'void' => 'bg-gray-100 text-gray-800'
+                                    ];
+                                @endphp
+                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$warranty->status] ?? 'bg-gray-100 text-gray-800' }}">
+                                    {{ $warranty->status_label }}
                                 </span>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Dự án</p>
-                                <p class="text-gray-900">Dự án Viễn thông Hà Nội</p>
+                                <p class="text-gray-900">{{ $warranty->project_name }}</p>
                             </div>
+                            @if($warranty->is_active)
+                            <div>
+                                <p class="text-sm text-gray-500">Thời gian còn lại</p>
+                                <p class="text-green-600 font-medium">{{ $warranty->remaining_days }} ngày</p>
+                            </div>
+                            @endif
                         </div>
 
                         <div class="mt-6 text-center">
@@ -226,8 +314,9 @@
                 </button>
             </div>
             <div class="text-center mb-4">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=DEV-SPA-001" alt="QR Code" class="mx-auto">
-                <p class="text-sm text-gray-600 mt-2">Quét mã QR này để kiểm tra thông tin bảo hành thiết bị</p>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode($warranty->warranty_code) }}" alt="QR Code" class="mx-auto border rounded">
+                <p class="text-sm font-medium text-gray-800 mt-2">{{ $warranty->warranty_code }}</p>
+                <p class="text-sm text-gray-600">Quét mã QR này để kiểm tra thông tin bảo hành thiết bị</p>
             </div>
             <div class="flex justify-between space-x-3">
                 <button type="button"

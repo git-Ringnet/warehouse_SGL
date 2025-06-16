@@ -43,7 +43,7 @@
                 <a href="{{ route('goods.index') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-list mr-2"></i> Danh sách chính
                 </a>
-                <a href="{{ route('goods.deleted') }}" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <a href="{{ route('goodsdeleted') }}" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-trash mr-2"></i> Đã xóa
                 </a>
             </div>
@@ -74,7 +74,7 @@
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="bg-white divide-y divide-gray-200">
                             @foreach ($goods as $index => $good)
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>

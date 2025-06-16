@@ -84,7 +84,7 @@
                                 </label>
                                 <div class="space-y-2">
                                     <div class="flex">
-                                        <select id="supplier_select" required
+                                        <select id="supplier_select"
                                             class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                             <option value="">Chọn nhà cung cấp</option>
                                             @foreach ($suppliers as $supplier)

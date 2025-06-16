@@ -25,7 +25,30 @@
         </header>
 
         <main class="p-6">
-            <form action="#" method="POST">
+            @if ($errors->any())
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <strong>Có lỗi xảy ra:</strong>
+                    <ul class="mt-2">
+                        @foreach ($errors->all() as $error)
+                            <li>• {{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if (session('success'))
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            <form id="dispatch-form" action="{{ route('inventory.dispatch.store') }}" method="POST">
                 @csrf
 
                 <!-- Thông tin phiếu xuất -->
@@ -40,7 +63,7 @@
                             <label for="dispatch_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu
                                 xuất</label>
                             <input type="text" id="dispatch_code" name="dispatch_code"
-                                value="XK{{ date('Ymd') }}-001" readonly
+                                value="{{ $nextDispatchCode }}" readonly
                                 class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
                         </div>
                         <div>
@@ -82,27 +105,28 @@
                             <label for="project_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án<span
                                     class="text-red-500">*</span></label>
-                            <select id="project_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn dự án --</option>
-                                <option value="project_1">Dự án: IoT A1 -- Người nhận: Trần Văn A</option>
-                                <option value="project_2">Dự án: Smart City A2 -- Người nhận: Trần Văn B</option>
-                                <option value="project_3">Dự án: Nhà máy thông minh A3 -- Người nhận: Trần Văn C</option>
-                            </select>
+                            <input type="text" id="project_receiver" name="project_receiver" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Nhập tên dự án hoặc người nhận...">
                         </div>
                         <div>
                             <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian
                                 bảo hành</label>
-                            <input type="text" id="warranty_period" name="warranty_period" readonly
-                                class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
+                            <input type="text" id="warranty_period" name="warranty_period"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="VD: 12 tháng">
                         </div>
                         <div>
                             <label for="company_representative"
                                 class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
-                            <select id="company_representative" name="company_representative"
+                            <select id="company_representative" name="company_representative_id"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn người đại diện --</option>
-                                <!-- Người đại diện sẽ được load từ danh sách nhân viên -->
+                                @if (isset($employees))
+                                    @foreach ($employees as $employee)
+                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
                         <div>
@@ -111,10 +135,11 @@
                             <select id="warehouse_id" name="warehouse_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn kho xuất --</option>
-                                <option value="1">Kho chính</option>
-                                <option value="2">Kho phụ</option>
-                                <option value="3">Kho linh kiện</option>
-                                <option value="4">Kho bảo hành</option>
+                                @if (isset($warehouses))
+                                    @foreach ($warehouses as $warehouse)
+                                        <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
 
@@ -127,7 +152,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Danh sách thành phẩm chính (hiển thị khi chọn contract hoặc backup riêng lẻ) -->
                 <div id="main-product-list" class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 id="product-list-title" class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -139,7 +163,7 @@
                     <div class="mb-4">
                         <div class="flex gap-2">
                             <div class="flex-1">
-                                <select id="product_select" 
+                                <select id="product_select"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">-- Chọn thành phẩm để thêm vào phiếu xuất --</option>
                                 </select>
@@ -207,7 +231,8 @@
                 </div>
 
                 <!-- Danh sách thành phẩm theo hợp đồng (hiển thị khi chọn "Tất cả") -->
-                <div id="contract-product-list" class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6 hidden">
+                <div id="contract-product-list"
+                    class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6 hidden">
                     <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                         <i class="fas fa-file-contract text-blue-500 mr-2"></i>
                         <span>Danh sách thành phẩm theo hợp đồng</span>
@@ -217,7 +242,7 @@
                     <div class="mb-4">
                         <div class="flex gap-2">
                             <div class="flex-1">
-                                <select id="contract_product_select" 
+                                <select id="contract_product_select"
                                     class="w-full border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
                                     <option value="">-- Chọn thành phẩm theo hợp đồng --</option>
                                 </select>
@@ -234,13 +259,27 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-blue-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Mã SP</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Tên thành phẩm</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Đơn vị</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Tồn kho</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Số lượng xuất</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Serial</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">Thao tác</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Mã SP</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Tên thành phẩm</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Đơn vị</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Tồn kho</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Số lượng xuất</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Serial</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                        Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody id="contract_product_list" class="bg-white divide-y divide-gray-200">
@@ -263,7 +302,8 @@
                 </div>
 
                 <!-- Danh sách thiết bị dự phòng (hiển thị khi chọn "Tất cả") -->
-                <div id="backup-product-list" class="bg-white rounded-xl shadow-md p-6 border border-orange-200 mb-6 hidden">
+                <div id="backup-product-list"
+                    class="bg-white rounded-xl shadow-md p-6 border border-orange-200 mb-6 hidden">
                     <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
                         <i class="fas fa-shield-alt text-orange-500 mr-2"></i>
                         <span>Danh sách thiết bị dự phòng</span>
@@ -273,7 +313,7 @@
                     <div class="mb-4">
                         <div class="flex gap-2">
                             <div class="flex-1">
-                                <select id="backup_product_select" 
+                                <select id="backup_product_select"
                                     class="w-full border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
                                     <option value="">-- Chọn thiết bị dự phòng --</option>
                                 </select>
@@ -290,13 +330,27 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-orange-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Mã SP</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Tên thiết bị</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Đơn vị</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Tồn kho</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Số lượng xuất</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Serial</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">Thao tác</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Mã SP</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Tên thiết bị</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Đơn vị</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Tồn kho</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Số lượng xuất</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Serial</th>
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                        Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody id="backup_product_list" class="bg-white divide-y divide-gray-200">
@@ -409,217 +463,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Dữ liệu mẫu cho thành phẩm
-            const sampleProducts = [{
-                    id: 1,
-                    code: 'SP001',
-                    name: 'Bộ điều khiển chính v2.1',
-                    unit: 'Cái',
-                    stock: 25,
-                    price: 5000000,
-                    components: [
-                        { name: 'Vi xử lý ARM Cortex-M4', serial: 'ARM001' },
-                        { name: 'Bộ nhớ Flash 256KB', serial: 'FL256' },
-                        { name: 'Module WiFi ESP32', serial: 'ESP32001' },
-                        { name: 'Cảm biến nhiệt độ DHT22', serial: 'DHT001' }
-                    ]
-                },
-                {
-                    id: 2,
-                    code: 'SP002',
-                    name: 'Cảm biến nhiệt độ độ chính xác cao',
-                    unit: 'Cái',
-                    stock: 40,
-                    price: 1200000,
-                    components: [
-                        { name: 'Chip cảm biến SHT30', serial: 'SHT001' },
-                        { name: 'Module ADC 16-bit', serial: 'ADC16001' },
-                        { name: 'Bộ lọc nhiễu', serial: 'FILTER001' }
-                    ]
-                },
-                {
-                    id: 3,
-                    code: 'SP003',
-                    name: 'Màn hình hiển thị TFT 7 inch',
-                    unit: 'Bộ',
-                    stock: 15,
-                    price: 3500000,
-                    components: [
-                        { name: 'Panel TFT 7 inch', serial: 'TFT7001' },
-                        { name: 'Driver IC ILI9341', serial: 'ILI001' },
-                        { name: 'Cảm ứng điện dung', serial: 'TOUCH001' },
-                        { name: 'Backlight LED', serial: 'LED001' }
-                    ]
-                },
-                {
-                    id: 4,
-                    code: 'SP004',
-                    name: 'Bo mạch nguồn 24V/5A',
-                    unit: 'Cái',
-                    stock: 30,
-                    price: 800000,
-                    components: [
-                        { name: 'IC chuyển đổi LM2596', serial: 'LM001' },
-                        { name: 'Cuộn cảm 220µH', serial: 'L220001' },
-                        { name: 'Tụ điện 1000µF', serial: 'C1000001' }
-                    ]
-                },
-                {
-                    id: 5,
-                    code: 'SP005',
-                    name: 'Dây cáp kết nối RS485',
-                    unit: 'Cuộn',
-                    stock: 50,
-                    price: 250000,
-                    components: [
-                        { name: 'Dây đồng AWG22', serial: 'AWG22001' },
-                        { name: 'Vỏ chống nhiễu', serial: 'SHIELD001' },
-                        { name: 'Đầu nối RJ45', serial: 'RJ45001' }
-                    ]
-                },
-                {
-                    id: 6,
-                    code: 'SP006',
-                    name: 'Module truyền thông 4G LTE',
-                    unit: 'Cái',
-                    stock: 20,
-                    price: 1800000,
-                    components: [
-                        { name: 'Chip 4G Quectel EC25', serial: 'EC25001' },
-                        { name: 'Anten 4G/3G/2G', serial: 'ANT4G001' },
-                        { name: 'SIM slot', serial: 'SIM001' }
-                    ]
-                },
-                {
-                    id: 7,
-                    code: 'SP007',
-                    name: 'Bộ cảm biến áp suất',
-                    unit: 'Cái',
-                    stock: 35,
-                    price: 950000,
-                    components: [
-                        { name: 'Cảm biến áp suất MPX5700', serial: 'MPX001' },
-                        { name: 'Bộ khuếch đại tín hiệu', serial: 'AMP001' },
-                        { name: 'Bộ lọc tín hiệu', serial: 'FILTER002' }
-                    ]
-                }
-            ];
-
-            // Dữ liệu mẫu cho người nhận
-            const receivers = {
-                customer: [{
-                        id: 1,
-                        name: 'Công ty TNHH ABC'
-                    },
-                    {
-                        id: 2,
-                        name: 'Công ty CP XYZ'
-                    },
-                    {
-                        id: 3,
-                        name: 'Doanh nghiệp tư nhân MNO'
-                    }
-                ],
-                warehouse: [{
-                        id: 4,
-                        name: 'Kho Hà Nội'
-                    },
-                    {
-                        id: 5,
-                        name: 'Kho Đà Nẵng'
-                    },
-                    {
-                        id: 6,
-                        name: 'Kho Hồ Chí Minh'
-                    }
-                ],
-                supplier: [{
-                        id: 7,
-                        name: 'Nhà cung cấp A'
-                    },
-                    {
-                        id: 8,
-                        name: 'Nhà cung cấp B'
-                    },
-                    {
-                        id: 9,
-                        name: 'Nhà cung cấp C'
-                    }
-                ],
-                other: [{
-                    id: 10,
-                    name: 'Đối tác khác'
-                }]
-            };
-
-            // Dữ liệu mẫu cho dự án
-            const projects = {
-                1: [ // Dự án của Công ty TNHH ABC
-                    {
-                        id: 1,
-                        name: 'Dự án IoT A1',
-                        warrantyPeriod: '12 tháng'
-                    },
-                    {
-                        id: 2,
-                        name: 'Dự án Smart City A2',
-                        warrantyPeriod: '24 tháng'
-                    },
-                    {
-                        id: 3,
-                        name: 'Dự án Nhà máy thông minh A3',
-                        warrantyPeriod: '18 tháng'
-                    }
-                ],
-                2: [ // Dự án của Công ty CP XYZ
-                    {
-                        id: 4,
-                        name: 'Dự án Xanh XYZ-1',
-                        warrantyPeriod: '36 tháng'
-                    },
-                    {
-                        id: 5,
-                        name: 'Dự án Công nghệ XYZ-2',
-                        warrantyPeriod: '24 tháng'
-                    }
-                ],
-                3: [ // Dự án của Doanh nghiệp tư nhân MNO
-                    {
-                        id: 6,
-                        name: 'Dự án MNO-2023',
-                        warrantyPeriod: '12 tháng'
-                    }
-                ]
-            };
-
-            // Dữ liệu mẫu cho nhân viên
-            const employees = [{
-                    id: 1,
-                    name: 'Nguyễn Văn A',
-                    position: 'Giám đốc dự án'
-                },
-                {
-                    id: 2,
-                    name: 'Trần Thị B',
-                    position: 'Trưởng phòng kỹ thuật'
-                },
-                {
-                    id: 3,
-                    name: 'Lê Văn C',
-                    position: 'Kỹ sư công nghệ'
-                },
-                {
-                    id: 4,
-                    name: 'Phạm Thị D',
-                    position: 'Quản lý sản xuất'
-                },
-                {
-                    id: 5,
-                    name: 'Hoàng Văn E',
-                    position: 'Trưởng phòng kinh doanh'
-                }
-            ];
-
             // Khai báo các element cần thiết
             const productSelect = document.getElementById('product_select');
             const addProductBtn = document.getElementById('add_product_btn');
@@ -628,10 +471,27 @@
             const dispatchDetailSelect = document.getElementById('dispatch_detail');
             const dispatchTypeSelect = document.getElementById('dispatch_type');
             const projectReceiverSelect = document.getElementById('project_receiver');
+            const warehouseSelect = document.getElementById('warehouse_id');
 
             let selectedProducts = [];
             let selectedContractProducts = [];
             let selectedBackupProducts = [];
+            let availableItems = []; // Lưu danh sách sản phẩm từ kho đã chọn
+
+            // Khi kho được chọn, load sản phẩm từ kho đó
+            if (warehouseSelect) {
+                warehouseSelect.addEventListener('change', function() {
+                    const warehouseId = this.value;
+                    if (warehouseId) {
+                        loadAvailableItems(warehouseId);
+                    } else {
+                        // Clear product selects nếu không chọn kho
+                        console.log('Clearing product selects');
+                        clearProductSelects();
+                        availableItems = [];
+                    }
+                });
+            }
 
             if (addProductBtn) {
                 addProductBtn.addEventListener('click', function() {
@@ -686,85 +546,83 @@
                 });
             }
 
-            // Hàm cập nhật danh sách dự án/người nhận
-            function updateProjectReceiverOptions(dispatchType) {
-                projectReceiverSelect.innerHTML = '<option value="">-- Chọn dự án --</option>';
-
-                const sampleProjects = [{
-                        id: 'project_1',
-                        name: 'Dự án: IoT A1 -- Người nhận: Trần Văn A',
-                        warranty: '12 tháng'
-                    },
-                    {
-                        id: 'project_2',
-                        name: 'Dự án: Smart City A2 -- Người nhận: Trần Văn B',
-                        warranty: '24 tháng'
-                    },
-                    {
-                        id: 'project_3',
-                        name: 'Dự án: Nhà máy thông minh A3 -- Người nhận: Trần Văn C',
-                        warranty: '18 tháng'
+            // Hàm load sản phẩm từ kho
+            async function loadAvailableItems(warehouseId) {
+                try {
+                    const response = await fetch(`/api/dispatch/items?warehouse_id=${warehouseId}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Chuẩn hóa dữ liệu để tương thích với frontend
+                        availableItems = (data.items || []).map(item => ({
+                            id: item.id,
+                            type: item.type,
+                            code: item.code,
+                            name: item.name,
+                            unit: item.unit,
+                            stock: item.available_quantity, // Map available_quantity to stock
+                            available_quantity: item.available_quantity
+                        }));
+                        updateProductSelects();
+                    } else {
+                        alert('Lỗi từ server: ' + (data.message || 'Không thể tải danh sách sản phẩm'));
                     }
-                ];
-
-                sampleProjects.forEach(project => {
-                    const option = document.createElement('option');
-                    option.value = project.id;
-                    option.textContent = project.name;
-                    option.dataset.warranty = project.warranty;
-                    projectReceiverSelect.appendChild(option);
-                });
+                } catch (error) {
+                    alert('Không thể tải danh sách sản phẩm từ kho: ' + error.message);
+                }
             }
 
-            // Khởi tạo danh sách dự án/người nhận mặc định
-            updateProjectReceiverOptions('project');
-
-            // Khởi tạo danh sách sản phẩm trong dropdown
-            function populateProductSelect() {
-                sampleProducts.forEach(product => {
-                    const option = document.createElement('option');
-                    option.value = product.id;
-                    option.textContent = `${product.code} - ${product.name} (Tồn: ${product.stock})`;
-                    productSelect.appendChild(option);
-                });
-            }
-
-            // Hàm populate dropdown sản phẩm hợp đồng
-            function populateContractProductSelect() {
+            // Cập nhật tất cả dropdown sản phẩm
+            function updateProductSelects() {
+                // Cập nhật dropdown chính
+                productSelect.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
+                
+                // Cập nhật dropdown hợp đồng
                 const contractProductSelect = document.getElementById('contract_product_select');
-                if (!contractProductSelect) return;
-
-                sampleProducts.forEach(product => {
-                    const option = document.createElement('option');
-                    option.value = product.id;
-                    option.textContent = `${product.code} - ${product.name} (Tồn: ${product.stock})`;
-                    contractProductSelect.appendChild(option);
-                });
-            }
-
-            // Hàm populate dropdown thiết bị dự phòng
-            function populateBackupProductSelect() {
+                if (contractProductSelect) {
+                    contractProductSelect.innerHTML = '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                }
+                
+                // Cập nhật dropdown dự phòng
                 const backupProductSelect = document.getElementById('backup_product_select');
-                if (!backupProductSelect) return;
-
-                sampleProducts.forEach(product => {
+                if (backupProductSelect) {
+                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                }
+                
+                // Thêm options từ availableItems
+                availableItems.forEach(item => {
                     const option = document.createElement('option');
-                    option.value = product.id;
-                    option.textContent = `${product.code} - ${product.name} (Tồn: ${product.stock})`;
-                    backupProductSelect.appendChild(option);
+                    option.value = item.id;
+                    option.textContent = `${item.code} - ${item.name} (Tồn: ${item.stock} ${item.unit})`;
+                    
+                    // Clone option cho các dropdown khác
+                    const contractOption = option.cloneNode(true);
+                    const backupOption = option.cloneNode(true);
+                    
+                    productSelect.appendChild(option);
+                    if (contractProductSelect) contractProductSelect.appendChild(contractOption);
+                    if (backupProductSelect) backupProductSelect.appendChild(backupOption);
                 });
             }
 
-            // Gọi hàm khởi tạo dropdown sản phẩm
-            populateProductSelect();
-            populateContractProductSelect();
-            populateBackupProductSelect();
-
-
+            // Clear tất cả dropdown sản phẩm
+            function clearProductSelects() {
+                productSelect.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
+                
+                const contractProductSelect = document.getElementById('contract_product_select');
+                if (contractProductSelect) {
+                    contractProductSelect.innerHTML = '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                }
+                
+                const backupProductSelect = document.getElementById('backup_product_select');
+                if (backupProductSelect) {
+                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                }
+            }
 
             // Hàm thêm sản phẩm vào bảng chính
             function addProductToTable(productId, type = null) {
-                const foundProduct = sampleProducts.find(p => p.id === productId);
+                const foundProduct = availableItems.find(p => p.id == productId);
                 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -807,7 +665,7 @@
 
             // Hàm thêm sản phẩm hợp đồng
             function addContractProduct(productId) {
-                const foundProduct = sampleProducts.find(p => p.id === productId);
+                const foundProduct = availableItems.find(p => p.id == productId);
                 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -834,7 +692,7 @@
 
             // Hàm thêm thiết bị dự phòng
             function addBackupProduct(productId) {
-                const foundProduct = sampleProducts.find(p => p.id === productId);
+                const foundProduct = availableItems.find(p => p.id == productId);
                 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -980,8 +838,8 @@
                         <td class="px-6 py-4 whitespace-nowrap">
                             <input type="text" placeholder="Nhập serial (tùy chọn)" 
                                 class="w-100 border border-gray-300 rounded px-2 py-1 text-sm serial-input" 
-                                name="serials[${product.id}]">
-                            <div class="text-xs text-gray-400 mt-1">Không bắt buộc</div>
+                                name="serials[${product.id}]" data-product-index="${index}">
+                            <div class="text-xs text-gray-400 mt-1">Cách nhau bằng dấu phẩy</div>
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -1154,19 +1012,6 @@
                 });
             }
 
-            // Xử lý hiển thị danh sách nhân viên đại diện
-            const companyRepresentativeSelect = document.getElementById('company_representative');
-
-            if (companyRepresentativeSelect) {
-                // Tải danh sách nhân viên
-                employees.forEach(employee => {
-                    const option = document.createElement('option');
-                    option.value = employee.id;
-                    option.textContent = `${employee.name} (${employee.position})`;
-                    companyRepresentativeSelect.appendChild(option);
-                });
-            }
-
             // Xử lý modal cập nhật mã thiết bị
             const updateDeviceCodesBtn = document.getElementById('update_device_codes_btn');
             const updateContractDeviceCodesBtn = document.getElementById('update_contract_device_codes_btn');
@@ -1326,6 +1171,165 @@
                     fileInput.click();
                     document.body.removeChild(fileInput);
                 });
+            }
+
+            // Xử lý form submit
+            const dispatchForm = document.getElementById('dispatch-form');
+            if (dispatchForm) {
+                dispatchForm.addEventListener('submit', function(e) {
+                    
+                    // Kiểm tra xem có sản phẩm nào được chọn không
+                    if (selectedProducts.length === 0 && selectedContractProducts.length === 0 && selectedBackupProducts.length === 0) {
+                        e.preventDefault();
+                        alert('Vui lòng chọn ít nhất một sản phẩm để xuất kho!');
+                        return;
+                    }
+
+                    // Thêm các input ẩn cho sản phẩm chính
+                    let itemIndex = 0;
+                    selectedProducts.forEach((product) => {
+                        const itemTypeInput = document.createElement('input');
+                        itemTypeInput.type = 'hidden';
+                        itemTypeInput.name = `items[${itemIndex}][item_type]`;
+                        // Đảm bảo item_type luôn có giá trị hợp lệ
+                        const validType = ['material', 'product', 'good'].includes(product.type) ? product.type : 'material';
+                        itemTypeInput.value = validType;
+                        this.appendChild(itemTypeInput);
+                        
+                        const itemIdInput = document.createElement('input');
+                        itemIdInput.type = 'hidden';
+                        itemIdInput.name = `items[${itemIndex}][item_id]`;
+                        itemIdInput.value = product.id;
+                        this.appendChild(itemIdInput);
+                        
+                        const quantityInput = document.createElement('input');
+                        quantityInput.type = 'hidden';
+                        quantityInput.name = `items[${itemIndex}][quantity]`;
+                        quantityInput.value = product.quantity;
+                        this.appendChild(quantityInput);
+
+                        // Thêm category input
+                        const categoryInput = document.createElement('input');
+                        categoryInput.type = 'hidden';
+                        categoryInput.name = `items[${itemIndex}][category]`;
+                        // Xác định category dựa trên dispatch_detail hoặc product type
+                        const dispatchDetail = document.getElementById('dispatch_detail').value;
+                        let category = 'general';
+                        if (dispatchDetail === 'contract' || (product.type && product.type === 'contract')) {
+                            category = 'contract';
+                        } else if (dispatchDetail === 'backup' || (product.type && product.type === 'backup')) {
+                            category = 'backup';
+                        }
+                        categoryInput.value = category;
+                        this.appendChild(categoryInput);
+
+                        // Thêm serial numbers nếu có
+                        const serialInput = document.querySelector(`input[name="serials[${product.id}]"]`);
+                        if (serialInput && serialInput.value.trim()) {
+                            const serialNumbersInput = document.createElement('input');
+                            serialNumbersInput.type = 'hidden';
+                            serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                            // Chuyển string thành array, loại bỏ khoảng trắng thừa
+                            const serialsArray = serialInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                            serialNumbersInput.value = JSON.stringify(serialsArray);
+                            this.appendChild(serialNumbersInput);
+                        }
+
+                        itemIndex++;
+                    });
+
+                    // Thêm các input ẩn cho sản phẩm hợp đồng
+                    selectedContractProducts.forEach((product) => {
+                        const itemTypeInput = document.createElement('input');
+                        itemTypeInput.type = 'hidden';
+                        itemTypeInput.name = `items[${itemIndex}][item_type]`;
+                        const validType = ['material', 'product', 'good'].includes(product.type) ? product.type : 'material';
+                        itemTypeInput.value = validType;
+                        this.appendChild(itemTypeInput);
+                        
+                        const itemIdInput = document.createElement('input');
+                        itemIdInput.type = 'hidden';
+                        itemIdInput.name = `items[${itemIndex}][item_id]`;
+                        itemIdInput.value = product.id;
+                        this.appendChild(itemIdInput);
+                        
+                        const quantityInput = document.createElement('input');
+                        quantityInput.type = 'hidden';
+                        quantityInput.name = `items[${itemIndex}][quantity]`;
+                        quantityInput.value = product.quantity;
+                        this.appendChild(quantityInput);
+
+                        // Thêm category cho sản phẩm hợp đồng
+                        const categoryInput = document.createElement('input');
+                        categoryInput.type = 'hidden';
+                        categoryInput.name = `items[${itemIndex}][category]`;
+                        categoryInput.value = 'contract';
+                        this.appendChild(categoryInput);
+
+                        // Thêm serial numbers cho sản phẩm hợp đồng nếu có
+                        const contractSerialInput = document.querySelector(`input[name="contract_serials[${product.id}]"]`);
+                        if (contractSerialInput && contractSerialInput.value.trim()) {
+                            const serialNumbersInput = document.createElement('input');
+                            serialNumbersInput.type = 'hidden';
+                            serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                            const serialsArray = contractSerialInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                            serialNumbersInput.value = JSON.stringify(serialsArray);
+                            this.appendChild(serialNumbersInput);
+                        }
+
+                        itemIndex++;
+                    });
+
+                    // Thêm các input ẩn cho thiết bị dự phòng
+                    selectedBackupProducts.forEach((product) => {
+                        const itemTypeInput = document.createElement('input');
+                        itemTypeInput.type = 'hidden';
+                        itemTypeInput.name = `items[${itemIndex}][item_type]`;
+                        const validType = ['material', 'product', 'good'].includes(product.type) ? product.type : 'material';
+                        itemTypeInput.value = validType;
+                        this.appendChild(itemTypeInput);
+                        
+                        const itemIdInput = document.createElement('input');
+                        itemIdInput.type = 'hidden';
+                        itemIdInput.name = `items[${itemIndex}][item_id]`;
+                        itemIdInput.value = product.id;
+                        this.appendChild(itemIdInput);
+                        
+                        const quantityInput = document.createElement('input');
+                        quantityInput.type = 'hidden';
+                        quantityInput.name = `items[${itemIndex}][quantity]`;
+                        quantityInput.value = product.quantity;
+                        this.appendChild(quantityInput);
+
+                        // Thêm category cho thiết bị dự phòng
+                        const categoryInput = document.createElement('input');
+                        categoryInput.type = 'hidden';
+                        categoryInput.name = `items[${itemIndex}][category]`;
+                        categoryInput.value = 'backup';
+                        this.appendChild(categoryInput);
+
+                        // Thêm serial numbers cho thiết bị dự phòng nếu có
+                        const backupSerialInput = document.querySelector(`input[name="backup_serials[${product.id}]"]`);
+                        if (backupSerialInput && backupSerialInput.value.trim()) {
+                            const serialNumbersInput = document.createElement('input');
+                            serialNumbersInput.type = 'hidden';
+                            serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                            const serialsArray = backupSerialInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                            serialNumbersInput.value = JSON.stringify(serialsArray);
+                            this.appendChild(serialNumbersInput);
+                        }
+
+                        itemIndex++;
+                    });
+                    
+                    // Debug: Log all form data
+                    const formData = new FormData(this);
+                    for (let [key, value] of formData.entries()) {
+                        console.log(key, ':', value);
+                    }
+                });
+            } else {
+                console.error('Dispatch form not found!');
             }
         });
     </script>

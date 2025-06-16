@@ -8,6 +8,8 @@ use App\Models\Material;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
+use App\Models\Product;
+use App\Models\Good;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -72,8 +74,10 @@ class InventoryImportController extends Controller
         $suppliers = Supplier::all();
         $warehouses = Warehouse::all();
         $materials = Material::all();
+        $products = Product::all();
+        $goods = Good::all();
         
-        return view('inventory-imports.create', compact('suppliers', 'warehouses', 'materials'));
+        return view('inventory-imports.create', compact('suppliers', 'warehouses', 'materials', 'products', 'goods'));
     }
 
     /**
@@ -89,10 +93,12 @@ class InventoryImportController extends Controller
             'order_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'materials' => 'required|array|min:1',
-            'materials.*.material_id' => 'required|exists:materials,id',
+            'materials.*.item_type' => 'required|in:material,product,good',
+            'materials.*.material_id' => 'required|integer',
             'materials.*.warehouse_id' => 'required|exists:warehouses,id',
             'materials.*.quantity' => 'required|integer|min:1',
             'materials.*.serial_numbers' => 'nullable|string',
+            'materials.*.notes' => 'nullable|string',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
@@ -102,8 +108,9 @@ class InventoryImportController extends Controller
             'import_date.date' => 'Ngày nhập kho không hợp lệ',
             'materials.required' => 'Vui lòng thêm ít nhất một vật tư',
             'materials.min' => 'Vui lòng thêm ít nhất một vật tư',
+            'materials.*.item_type.required' => 'Loại sản phẩm không được để trống',
+            'materials.*.item_type.in' => 'Loại sản phẩm không hợp lệ',
             'materials.*.material_id.required' => 'Vật tư không được để trống',
-            'materials.*.material_id.exists' => 'Vật tư không tồn tại',
             'materials.*.warehouse_id.required' => 'Kho nhập không được để trống',
             'materials.*.warehouse_id.exists' => 'Kho nhập không tồn tại',
             'materials.*.quantity.required' => 'Số lượng không được để trống',
@@ -130,6 +137,31 @@ class InventoryImportController extends Controller
                             );
                         }
                     }
+                    
+                    // Kiểm tra material_id có tồn tại trong loại sản phẩm tương ứng
+                    if (!empty($material['item_type']) && !empty($material['material_id'])) {
+                        $itemExists = false;
+                        $itemId = (int) $material['material_id'];
+                        
+                        switch ($material['item_type']) {
+                            case 'material':
+                                $itemExists = Material::where('id', $itemId)->exists();
+                                break;
+                            case 'product':
+                                $itemExists = Product::where('id', $itemId)->exists();
+                                break;
+                            case 'good':
+                                $itemExists = Good::where('id', $itemId)->exists();
+                                break;
+                        }
+                        
+                        if (!$itemExists) {
+                            $validator->errors()->add(
+                                "materials.{$index}.material_id", 
+                                "Sản phẩm đã chọn không tồn tại trong hệ thống"
+                            );
+                        }
+                    }
                 }
             }
         });
@@ -140,7 +172,7 @@ class InventoryImportController extends Controller
 
         DB::beginTransaction();
         try {
-            // Tạo phiếu nhập kho - không còn cần warehouse_id
+            // Tạo phiếu nhập kho
             $inventoryImport = InventoryImport::create([
                 'supplier_id' => $request->supplier_id,
                 'import_code' => $request->import_code,
@@ -164,21 +196,24 @@ class InventoryImportController extends Controller
                 }
                 
                 $warehouseId = $material['warehouse_id'];
+                $itemType = $material['item_type'];
+                $itemId = $material['material_id'];
                 
                 InventoryImportMaterial::create([
                     'inventory_import_id' => $inventoryImport->id,
-                    'material_id' => $material['material_id'],
+                    'material_id' => $itemId,
                     'warehouse_id' => $warehouseId,
                     'quantity' => $material['quantity'],
                     'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
+                    'item_type' => $itemType,
                 ]);
                 
-                // Cập nhật số lượng vật tư trong kho
+                // Cập nhật số lượng vật tư/thành phẩm/hàng hóa trong kho
                 $warehouseMaterial = WarehouseMaterial::firstOrNew([
                     'warehouse_id' => $warehouseId,
-                    'material_id' => $material['material_id'],
-                    'item_type' => 'material'
+                    'material_id' => $itemId,
+                    'item_type' => $itemType
                 ]);
                 
                 $currentQty = $warehouseMaterial->quantity ?? 0;
@@ -234,8 +269,10 @@ class InventoryImportController extends Controller
         $suppliers = Supplier::all();
         $warehouses = Warehouse::all();
         $materials = Material::all();
+        $products = Product::all();
+        $goods = Good::all();
         
-        return view('inventory-imports.edit', compact('inventoryImport', 'suppliers', 'warehouses', 'materials'));
+        return view('inventory-imports.edit', compact('inventoryImport', 'suppliers', 'warehouses', 'materials', 'products', 'goods'));
     }
 
     /**

@@ -105,17 +105,11 @@ class SupplierController extends Controller
     {
         $supplier = Supplier::findOrFail($id);
         
-        // Lấy các vật tư có supplier_id = id của nhà cung cấp này
-        $directMaterials = Material::where('supplier_id', $id)->get();
+        // Lấy các vật tư liên quan với nhà cung cấp này thông qua relationship
+        $materials = $supplier->materials;
         
-        // Lấy các vật tư có supplier_ids chứa id của nhà cung cấp này
-        $indirectMaterials = Material::whereJsonContains('supplier_ids', $id)->get();
-        
-        // Gộp hai danh sách vật tư và loại bỏ các phần tử trùng lặp
-        $materials = $directMaterials->merge($indirectMaterials)->unique('id');
-        
-        // Lấy các hàng hóa có supplier_id = id của nhà cung cấp này
-        $goods = Good::where('supplier_id', $id)->get();
+        // Lấy các hàng hóa liên quan với nhà cung cấp này thông qua relationship
+        $goods = $supplier->goods;
         
         return view('suppliers.show', compact('supplier', 'materials', 'goods'));
     }
@@ -169,16 +163,15 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
         
         // Kiểm tra xem nhà cung cấp có vật tư liên quan không
-        $directMaterialsCount = Material::where('supplier_id', $id)->count();
-        $indirectMaterialsCount = Material::whereJsonContains('supplier_ids', $id)->count();
+        $materialsCount = $supplier->materials()->count();
         
-        if ($directMaterialsCount > 0 || $indirectMaterialsCount > 0) {
+        if ($materialsCount > 0) {
             return redirect()->route('suppliers.show', $id)
                 ->with('error', 'Không thể xóa nhà cung cấp này vì có vật tư liên quan. Vui lòng xóa các vật tư trước.');
         }
         
         // Kiểm tra xem nhà cung cấp có hàng hóa liên quan không
-        $goodsCount = Good::where('supplier_id', $id)->count();
+        $goodsCount = $supplier->goods()->count();
         
         if ($goodsCount > 0) {
             return redirect()->route('suppliers.show', $id)

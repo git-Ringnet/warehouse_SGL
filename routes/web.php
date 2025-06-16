@@ -8,6 +8,8 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\AssemblyController;
+use App\Http\Controllers\DispatchController;
+use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\PermissionController;
@@ -46,9 +48,39 @@ Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->na
 
 //Products
 Route::resource('products', ProductController::class);
+Route::get('products-hidden', [ProductController::class, 'showHidden'])->name('products.hidden');
+Route::get('products-deleted', [ProductController::class, 'showDeleted'])->name('products.deleted');
+Route::patch('products/{product}/restore-hidden', [ProductController::class, 'restoreHidden'])->name('products.restore-hidden');
+Route::patch('products/{product}/restore-deleted', [ProductController::class, 'restoreDeleted'])->name('products.restore-deleted');
+
+// Product export routes
+Route::get('products/export/pdf', [ProductController::class, 'exportPDF'])->name('products.export.pdf');
+Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
+Route::get('products/export/fdf', [ProductController::class, 'exportFDF'])->name('products.export.fdf');
+
+// Product import routes
+Route::get('products/import/template', [ProductController::class, 'downloadTemplate'])->name('products.import.template');
+Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
+Route::get('products/import/results', [ProductController::class, 'importResults'])->name('products.import.results');
+
+// API route for product inventory quantity
+Route::get('/api/products/inventory', [ProductController::class, 'getInventoryQuantity']);
+
+// API route for product search
+Route::get('/api/products/search', [ProductController::class, 'searchProductsApi'])->name('products.search.api');
 
 //Warehouses
+Route::get('/warehouses/api-search', [WarehouseController::class, 'apiSearch'])->name('warehouses.api-search');
 Route::resource('warehouses', WarehouseController::class);
+
+// Warehouse hidden and deleted routes
+Route::get('warehouses-hidden', [WarehouseController::class, 'showHidden'])->name('warehouses.hidden');
+Route::get('warehouses-deleted', [WarehouseController::class, 'showDeleted'])->name('warehouses.deleted');
+Route::patch('warehouses/{warehouse}/restore-hidden', [WarehouseController::class, 'restoreHidden'])->name('warehouses.restore-hidden');
+Route::patch('warehouses/{warehouse}/restore-deleted', [WarehouseController::class, 'restoreDeleted'])->name('warehouses.restore-deleted');
+
+// API route for warehouse inventory check
+Route::get('/warehouses/{id}/check-inventory', [WarehouseController::class, 'checkInventory'])->name('warehouses.check-inventory');
 
 // API route for warehouse materials
 Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::class, 'getMaterials']);
@@ -99,21 +131,46 @@ Route::get('/repair_edit', function () {
     return view('warranties.repair_edit');
 });
 
-//inventory
-Route::get('/inventory', function () {
-    return view('inventory.index');
+//inventory - Dispatch Management
+Route::prefix('inventory')->name('inventory.')->group(function () {
+    Route::get('/', [DispatchController::class, 'index'])->name('index');
+    Route::get('dispatch/create', [DispatchController::class, 'create'])->name('dispatch.create');
+    Route::post('dispatch', [DispatchController::class, 'store'])->name('dispatch.store');
+    Route::get('dispatch/{dispatch}', [DispatchController::class, 'show'])->name('dispatch.show');
+    Route::get('dispatch/{dispatch}/edit', [DispatchController::class, 'edit'])->name('dispatch.edit');
+    Route::put('dispatch/{dispatch}', [DispatchController::class, 'update'])->name('dispatch.update');
+    Route::post('dispatch/{dispatch}/approve', [DispatchController::class, 'approve'])->name('dispatch.approve');
+    Route::post('dispatch/{dispatch}/cancel', [DispatchController::class, 'cancel'])->name('dispatch.cancel');
+    Route::post('dispatch/{dispatch}/complete', [DispatchController::class, 'complete'])->name('dispatch.complete');
 });
 
-Route::get('/inventory/dispatch', function () {
-    return view('inventory.dispatch');
+// API routes for dispatch
+Route::prefix('api/dispatch')->group(function () {
+    Route::get('items', [DispatchController::class, 'getAvailableItems']);
 });
 
+// API routes for dispatch
+Route::get('/api/dispatch/items', [DispatchController::class, 'getAvailableItems'])->name('api.dispatch.items');
+
+// Warranty routes
+Route::prefix('warranties')->name('warranties.')->group(function () {
+    Route::get('/', [WarrantyController::class, 'index'])->name('index');
+    Route::get('/{warranty}', [WarrantyController::class, 'show'])->name('show');
+    Route::patch('/{warranty}/status', [WarrantyController::class, 'updateStatus'])->name('update-status');
+});
+
+// Public warranty check routes
+Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
+Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
+Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
+
+// Legacy routes for compatibility
+Route::get('/inventory/dispatch', [DispatchController::class, 'create']);
 Route::get('/inventory/dispatch_detail', function () {
-    return view('inventory.dispatch_detail');
+    return redirect()->route('inventory.index');
 });
-
 Route::get('/inventory/dispatch_edit', function () {
-    return view('inventory.dispatch_edit');
+    return redirect()->route('inventory.index');
 });
 
 //change_log
@@ -293,10 +350,12 @@ Route::delete('/requests/customer-maintenance/{id}', function ($id) {
 })->where('id', '[0-9]+');
 
 // Assembly routes
+Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code');
+Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code');
+Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials');
+Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees');
+Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock');
 Route::resource('assemblies', AssemblyController::class);
-
-// Route for material search in assemblies
-Route::get('/materials/search', [AssemblyController::class, 'searchMaterials'])->name('materials.search');
 
 // API route for checking serial duplicates
 Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');
@@ -344,8 +403,8 @@ Route::get('/debug/materials', function () {
 
 // Routes for goods
 Route::resource('goods', GoodController::class);
-Route::get('/goods/hidden', [GoodController::class, 'showHidden'])->name('goods.hidden');
-Route::get('/goods/deleted', [GoodController::class, 'showDeleted'])->name('goods.deleted');
+Route::get('/goodshidden', [GoodController::class, 'showHidden'])->name('goodshidden');
+Route::get('/goodsdeleted', [GoodController::class, 'showDeleted'])->name('goodsdeleted');
 Route::post('/goods/restore/{id}', [GoodController::class, 'restore'])->name('goods.restore');
 Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages']);
 Route::delete('/api/goods/images/{id}', [GoodController::class, 'deleteImage']);
@@ -355,3 +414,7 @@ Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate
 Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import');
 Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results');
 Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');
+
+// Thêm route cho API kiểm tra tồn kho
+Route::get('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory');
+Route::post('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory.post');

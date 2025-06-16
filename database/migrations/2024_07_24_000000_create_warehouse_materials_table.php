@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('warehouse_id')->constrained()->onDelete('cascade');
             $table->unsignedBigInteger('material_id');
-            $table->enum('item_type', ['material', 'product'])->default('material');
+            $table->enum('item_type', ['material', 'product', 'good'])->default('material');
             $table->integer('quantity')->default(0);
             $table->timestamps();
 

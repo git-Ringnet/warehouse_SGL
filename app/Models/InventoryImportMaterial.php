@@ -21,7 +21,8 @@ class InventoryImportMaterial extends Model
         'quantity',
         'serial',
         'serial_numbers',
-        'notes'
+        'notes',
+        'item_type'
     ];
 
     /**
@@ -47,10 +48,21 @@ class InventoryImportMaterial extends Model
 
     /**
      * Get the material for this inventory import material.
+     * Sẽ trả về model tương ứng với item_type.
      */
     public function material()
     {
-        return $this->belongsTo(Material::class);
+        $itemType = $this->item_type ?? 'material';
+        
+        switch ($itemType) {
+            case 'product':
+                return $this->belongsTo(Product::class, 'material_id');
+            case 'good':
+                return $this->belongsTo(Good::class, 'material_id');
+            case 'material':
+            default:
+                return $this->belongsTo(Material::class);
+        }
     }
     
     /**

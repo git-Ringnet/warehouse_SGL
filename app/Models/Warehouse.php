@@ -22,5 +22,16 @@ class Warehouse extends Model
         'phone',
         'email',
         'description',
+        'status',
+        'is_hidden',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'is_hidden' => 'boolean',
     ];
 } 

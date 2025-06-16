@@ -58,7 +58,7 @@ class Good extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class);
-    }
+    }   
     
     /**
      * Get all suppliers for this good based on supplier_ids.
@@ -93,19 +93,25 @@ class Good extends Model
      */
     public function warehouseMaterials(): HasMany
     {
-        return $this->hasMany(WarehouseMaterial::class, 'material_id')
+        return $this->hasMany(WarehouseMaterial::class, 'item_id')
             ->where('item_type', 'good');
     }
     
     /**
-     * Get the total inventory quantity across all warehouses.
+     * Get the total inventory quantity based on configured warehouses.
      *
      * @return int
      */
     public function getInventoryQuantity(): int
     {
-        return $this->warehouseMaterials()
-            ->sum('quantity');
+        $query = $this->warehouseMaterials();
+        
+        // Apply warehouse filter if configured
+        if (is_array($this->inventory_warehouses) && !in_array('all', $this->inventory_warehouses) && !empty($this->inventory_warehouses)) {
+            $query->whereIn('warehouse_id', $this->inventory_warehouses);
+        }
+        
+        return $query->sum('quantity');
     }
     
     /**
@@ -115,11 +121,21 @@ class Good extends Model
      */
     public function getInventoryByWarehouse()
     {
-        return $this->warehouseMaterials()
+        $results = $this->warehouseMaterials()
             ->select('warehouse_id', DB::raw('SUM(quantity) as total_quantity'))
             ->groupBy('warehouse_id')
-            ->with('warehouse')
             ->get();
+            
+        // Manually load warehouse data for each result
+        $warehouseIds = $results->pluck('warehouse_id')->unique();
+        $warehouses = Warehouse::whereIn('id', $warehouseIds)->get()->keyBy('id');
+        
+        // Add warehouse data to results
+        foreach ($results as $result) {
+            $result->warehouse = $warehouses->get($result->warehouse_id);
+        }
+        
+        return $results;
     }
     
     /**
