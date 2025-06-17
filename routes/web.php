@@ -22,14 +22,27 @@ use App\Http\Controllers\RentalController;
 use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\AuthController;
 
-Route::get('/', function () {
-    return view('dashboard');
+// Authentication Routes
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-});
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
+    
+    // Redirect root to dashboard
+    Route::get('/', function () {
+        return view('dashboard');
+    });
+
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    });
+
 
 // Thay thế routes customers cũ bằng resource controller
 Route::resource('customers', CustomerController::class);
@@ -506,4 +519,5 @@ Route::get('/debug/warehouse-materials', function() {
             ->where('warehouse_id', 1)
             ->get()
     ]);
+ });
 });

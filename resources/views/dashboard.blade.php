@@ -105,21 +105,24 @@
 
                 <div class="relative">
                     <button id="userMenuToggle" class="flex items-center focus:outline-none">
-                        <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User"
+                        <img src="{{ Auth::user()->avatar ? asset(Auth::user()->avatar) : 'https://randomuser.me/api/portraits/men/32.jpg' }}" alt="User"
                             class="w-8 h-8 rounded-full mr-2" />
-                        <span class="text-gray-700 dark:text-gray-300 hidden md:inline">Nguyễn Văn A</span>
+                        <span class="text-gray-700 dark:text-gray-300 hidden md:inline">{{ Auth::user()->name }}</span>
                     </button>
                     <div
                         class="dropdown-menu absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200 dark:border-gray-700">
-                        <a href="#"
+                        <a href="{{ route('profile') }}"
                             class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Hồ
                             sơ</a>
                         <a href="#"
                             class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Cài
                             đặt</a>
                         <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                        <a href="#"
-                            class="block px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng xuất</a>
+                        <form method="POST" action="{{ route('logout') }}">
+                            @csrf
+                            <button type="submit"
+                                class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng xuất</button>
+                        </form>
                     </div>
                 </div>
             </div>

@@ -13,6 +13,7 @@ use App\Models\Good;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class TestingSeeder extends Seeder
 {
@@ -21,17 +22,17 @@ class TestingSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create sample employees if none exist
+        // Kiểm tra xem có nhân viên không
         if (Employee::count() == 0) {
-            $employees = [
-                ['name' => 'Nguyễn Văn A', 'email' => 'nva@example.com', 'phone' => '0901234567', 'position' => 'QA Engineer', 'active' => true],
-                ['name' => 'Trần Văn B', 'email' => 'tvb@example.com', 'phone' => '0901234568', 'position' => 'QA Manager', 'active' => true],
-                ['name' => 'Lê Thị C', 'email' => 'ltc@example.com', 'phone' => '0901234569', 'position' => 'QA Tester', 'active' => true],
-            ];
-            
-            foreach ($employees as $employee) {
-                Employee::create($employee);
-            }
+            // Chạy EmployeeSeeder trước
+            $this->call(EmployeeSeeder::class);
+        }
+        
+        // Lấy ID của các nhân viên hiện có
+        $employeeIds = Employee::pluck('id')->toArray();
+        if (empty($employeeIds)) {
+            $this->command->error('Không có nhân viên nào trong hệ thống. Vui lòng chạy EmployeeSeeder trước.');
+            return;
         }
         
         // Create sample suppliers if none exist
@@ -97,12 +98,20 @@ class TestingSeeder extends Seeder
             }
         }
         
+        // Xóa dữ liệu cũ nếu có - phải xóa theo thứ tự để tránh vi phạm ràng buộc khóa ngoại
+        // Xóa bảng con trước
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table('testing_details')->delete();
+        DB::table('testing_items')->delete();
+        DB::table('testings')->delete();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        
         // Create testing records
         $testings = [
             [
                 'test_code' => 'QA-240601',
                 'test_type' => 'material',
-                'tester_id' => 1,
+                'tester_id' => $employeeIds[0],
                 'test_date' => Carbon::now()->subDays(5),
                 'status' => 'completed',
                 'notes' => 'Kiểm tra module 4G',
@@ -110,9 +119,9 @@ class TestingSeeder extends Seeder
                 'pass_quantity' => 18,
                 'fail_quantity' => 2,
                 'fail_reasons' => '2 module có vấn đề về kết nối anten, cần kiểm tra lại mạch RF.',
-                'approved_by' => 2,
+                'approved_by' => $employeeIds[0],
                 'approved_at' => Carbon::now()->subDays(6),
-                'received_by' => 3,
+                'received_by' => $employeeIds[0],
                 'received_at' => Carbon::now()->subDays(6),
                 'is_inventory_updated' => true,
                 'success_warehouse_id' => 1,
@@ -121,7 +130,7 @@ class TestingSeeder extends Seeder
             [
                 'test_code' => 'QA-240602',
                 'test_type' => 'material',
-                'tester_id' => 3,
+                'tester_id' => $employeeIds[0],
                 'test_date' => Carbon::now()->subDays(3),
                 'status' => 'pending',
                 'notes' => 'Kiểm tra module công suất',
@@ -129,17 +138,17 @@ class TestingSeeder extends Seeder
             [
                 'test_code' => 'QA-240603',
                 'test_type' => 'finished_product',
-                'tester_id' => 2,
+                'tester_id' => $employeeIds[0],
                 'test_date' => Carbon::now()->subDays(2),
                 'status' => 'in_progress',
                 'notes' => 'Kiểm tra thiết bị SmartBox',
-                'approved_by' => 1,
+                'approved_by' => $employeeIds[0],
                 'approved_at' => Carbon::now()->subDays(1),
             ],
             [
                 'test_code' => 'QA-240604',
                 'test_type' => 'material',
-                'tester_id' => 1,
+                'tester_id' => $employeeIds[0],
                 'test_date' => Carbon::now()->subDays(1),
                 'status' => 'cancelled',
                 'notes' => 'Kiểm tra module IoT',
@@ -147,16 +156,16 @@ class TestingSeeder extends Seeder
             [
                 'test_code' => 'QA-240605',
                 'test_type' => 'material',
-                'tester_id' => 3,
+                'tester_id' => $employeeIds[0],
                 'test_date' => Carbon::now(),
                 'status' => 'completed',
                 'notes' => 'Kiểm tra module IoT',
                 'conclusion' => 'Module IoT hoạt động tốt, đạt 100% yêu cầu kỹ thuật.',
                 'pass_quantity' => 15,
                 'fail_quantity' => 0,
-                'approved_by' => 2,
+                'approved_by' => $employeeIds[0],
                 'approved_at' => Carbon::now()->subHours(12),
-                'received_by' => 1,
+                'received_by' => $employeeIds[0],
                 'received_at' => Carbon::now()->subHours(10),
                 'is_inventory_updated' => false,
             ],
