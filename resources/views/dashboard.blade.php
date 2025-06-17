@@ -105,9 +105,27 @@
 
                 <div class="relative">
                     <button id="userMenuToggle" class="flex items-center focus:outline-none">
-                        <img src="{{ Auth::user()->avatar ? asset(Auth::user()->avatar) : 'https://randomuser.me/api/portraits/men/32.jpg' }}" alt="User"
-                            class="w-8 h-8 rounded-full mr-2" />
-                        <span class="text-gray-700 dark:text-gray-300 hidden md:inline">{{ Auth::user()->name }}</span>
+                        @if(session('user_type') === 'customer')
+                            <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
+                                class="w-8 h-8 rounded-full mr-2" />
+                            <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
+                                @if(Auth::guard('customer')->check())
+                                    {{ Auth::guard('customer')->user()->name }} (Khách hàng)
+                                @else
+                                    Khách hàng
+                                @endif
+                            </span>
+                        @else
+                            <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
+                                class="w-8 h-8 rounded-full mr-2" />
+                            <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
+                                @if(Auth::guard('web')->check())
+                                    {{ Auth::guard('web')->user()->name }} (Nhân viên)
+                                @else
+                                    Nhân viên
+                                @endif
+                            </span>
+                        @endif
                     </button>
                     <div
                         class="dropdown-menu absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200 dark:border-gray-700">

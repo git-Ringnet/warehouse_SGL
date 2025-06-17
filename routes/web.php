@@ -30,9 +30,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::class])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
+    Route::post('/profile/update-password', [AuthController::class, 'updatePassword'])->name('profile.update_password');
     
     // Redirect root to dashboard
     Route::get('/', function () {

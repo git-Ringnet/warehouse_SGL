@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SGL - Hồ sơ cá nhân</title>
+    <title>SGL - Hồ sơ khách hàng</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -21,7 +21,7 @@
             style="left: 256px">
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800 dark:text-white">
-                    Hồ sơ cá nhân
+                    Hồ sơ khách hàng
                 </h1>
             </div>
 
@@ -47,9 +47,9 @@
 
                 <div class="relative">
                     <button id="userMenuToggle" class="flex items-center focus:outline-none">
-                        <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://randomuser.me/api/portraits/men/32.jpg' }}" alt="User"
+                        <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
                             class="w-8 h-8 rounded-full mr-2" />
-                        <span class="text-gray-700 dark:text-gray-300 hidden md:inline">{{ $employee->name }}</span>
+                        <span class="text-gray-700 dark:text-gray-300 hidden md:inline">{{ $customer->name }}</span>
                     </button>
                     <div
                         class="dropdown-menu absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200 dark:border-gray-700">
@@ -74,15 +74,21 @@
         <main class="pt-20 pb-16 px-6">
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+                    @if(session('success'))
+                        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
+                            <p>{{ session('success') }}</p>
+                        </div>
+                    @endif
+
                     <div class="flex flex-col md:flex-row">
                         <div class="md:w-1/3 flex flex-col items-center mb-6 md:mb-0">
                             <div class="relative">
-                                <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg' }}" 
-                                    alt="{{ $employee->name }}" 
+                                <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" 
+                                    alt="{{ $customer->name }}" 
                                     class="w-40 h-40 rounded-full object-cover border-4 border-blue-100 dark:border-blue-900">
                             </div>
-                            <h2 class="text-xl font-bold text-gray-800 dark:text-white mt-4">{{ $employee->name }}</h2>
-                            <p class="text-blue-600 dark:text-blue-400 font-medium">{{ $employee->role }}</p>
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-white mt-4">{{ $customer->name }}</h2>
+                            <p class="text-blue-600 dark:text-blue-400 font-medium">Khách hàng</p>
                         </div>
                         
                         <div class="md:w-2/3 md:pl-8">
@@ -91,37 +97,83 @@
                                 
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Tên đăng nhập</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->username }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Họ và tên:</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $customer->name }}</p>
                                     </div>
                                     
                                     <div>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->email ?? 'Chưa cập nhật' }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Email:</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $customer->email ?? 'Chưa cập nhật' }}</p>
                                     </div>
                                     
                                     <div>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Số điện thoại</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->phone }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Số điện thoại:</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $customer->phone }}</p>
                                     </div>
                                     
                                     <div>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">Phòng ban</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->department ?? 'Chưa cập nhật' }}</p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Tên đăng nhập:</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $user->username }}</p>
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
-                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Địa chỉ</h3>
-                                <p class="text-gray-800 dark:text-white">{{ $employee->address ?? 'Chưa cập nhật' }}</p>
+                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Thông tin công ty</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Tên công ty:</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $customer->company_name }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">Số điện thoại công ty:</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $customer->company_phone ?? 'Không có' }}</p>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div>
-                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Ghi chú</h3>
-                                <p class="text-gray-800 dark:text-white">{{ $employee->notes ?? 'Không có ghi chú' }}</p>
+                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Địa chỉ</h3>
+                                <p class="text-gray-800 dark:text-white">{{ $customer->address ?? 'Chưa cập nhật' }}</p>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+                        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-4">Thay đổi mật khẩu</h2>
+                        <form method="POST" action="{{ route('profile.update_password') }}">
+                            @csrf
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <div class="mb-4">
+                                        <label for="current_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mật khẩu hiện tại</label>
+                                        <input type="password" name="current_password" id="current_password" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" required>
+                                        @error('current_password')
+                                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                                        @enderror
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mật khẩu mới</label>
+                                        <input type="password" name="password" id="password" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" required>
+                                        @error('password')
+                                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                                        @enderror
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Xác nhận mật khẩu mới</label>
+                                        <input type="password" name="password_confirmation" id="password_confirmation" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white" required>
+                                    </div>
+                                    
+                                    <div>
+                                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                            Cập nhật mật khẩu
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
