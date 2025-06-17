@@ -433,6 +433,11 @@ Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyC
 Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials');
 Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees');
 Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock');
+
+// Assembly export routes
+Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])->name('assemblies.export.excel');
+Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf');
+
 Route::resource('assemblies', AssemblyController::class);
 
 // API route for checking serial duplicates

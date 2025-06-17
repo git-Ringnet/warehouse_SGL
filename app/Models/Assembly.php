@@ -18,7 +18,6 @@ class Assembly extends Model
     protected $fillable = [
         'code',
         'date',
-        'product_id',
         'warehouse_id',
         'target_warehouse_id',
         'assigned_to',
@@ -26,18 +25,19 @@ class Assembly extends Model
         'tester_id',
         'status',
         'notes',
-        'quantity',
         'product_serials',
         'project_id',
         'purpose'
     ];
 
     /**
-     * Get the product for this assembly.
+     * Get the product for this assembly (legacy - for backward compatibility).
+     * For new assemblies, use products() relationship instead.
      */
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        // Return the first product from products relationship for backward compatibility
+        return $this->hasOneThrough(Product::class, AssemblyProduct::class, 'assembly_id', 'id', 'id', 'product_id');
     }
 
     /**
@@ -94,5 +94,37 @@ class Assembly extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * Get the testing records for this assembly.
+     */
+    public function testings()
+    {
+        return $this->hasMany(Testing::class);
+    }
+
+    /**
+     * Get the total quantity of all products in this assembly.
+     * This is for backward compatibility since quantity column was removed.
+     */
+    public function getQuantityAttribute()
+    {
+        if ($this->products && $this->products->count() > 0) {
+            return $this->products->sum('quantity');
+        }
+        return 1; // Default for legacy compatibility
+    }
+
+    /**
+     * Get the first product ID for backward compatibility.
+     * This is for backward compatibility since product_id column was removed.
+     */
+    public function getProductIdAttribute()
+    {
+        if ($this->products && $this->products->count() > 0) {
+            return $this->products->first()->product_id;
+        }
+        return null;
     }
 } 

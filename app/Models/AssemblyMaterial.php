@@ -17,6 +17,7 @@ class AssemblyMaterial extends Model
     protected $fillable = [
         'assembly_id',
         'material_id',
+        'target_product_id',
         'quantity',
         'serial',
         'note',
@@ -36,5 +37,13 @@ class AssemblyMaterial extends Model
     public function material()
     {
         return $this->belongsTo(Material::class);
+    }
+
+    /**
+     * Get the target product for this assembly material.
+     */
+    public function targetProduct()
+    {
+        return $this->belongsTo(Product::class, 'target_product_id');
     }
 } 

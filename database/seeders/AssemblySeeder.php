@@ -119,12 +119,10 @@ class AssemblySeeder extends Seeder
             $assembly = Assembly::create([
                 'code' => $code,
                 'date' => $date,
-                'product_id' => $product->id,
                 'warehouse_id' => $sourceWarehouse->id,
                 'target_warehouse_id' => $targetWarehouse->id,
                 'status' => $status,
                 'notes' => $note,
-                'quantity' => $quantity,
                 'product_serials' => $serials,
             ]);
             
@@ -167,7 +165,6 @@ class AssemblySeeder extends Seeder
                 AssemblyMaterial::create([
                     'assembly_id' => $assembly->id,
                     'material_id' => $material->id,
-                    'quantity' => $materialQuantity,
                     'serial' => $materialSerial,
                     'note' => $materialNote,
                 ]);
