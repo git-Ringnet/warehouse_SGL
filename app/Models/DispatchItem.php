@@ -21,6 +21,7 @@ class DispatchItem extends Model
         'item_type',
         'item_id',
         'quantity',
+        'warehouse_id',
         'category',
         'serial_numbers',
         'notes'
@@ -69,6 +70,14 @@ class DispatchItem extends Model
     }
 
     /**
+     * Get the warehouse for this dispatch item.
+     */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    /**
      * Get the warranties for this dispatch item.
      */
     public function warranties(): HasMany
@@ -95,7 +104,7 @@ class DispatchItem extends Model
     public function getItemNameAttribute(): string
     {
         $item = $this->item;
-        return $item ? $item->name : 'Không xác định';
+        return $item && $item->name ? $item->name : 'Không xác định';
     }
 
     /**
@@ -104,7 +113,7 @@ class DispatchItem extends Model
     public function getItemCodeAttribute(): string
     {
         $item = $this->item;
-        return $item ? $item->code : 'N/A';
+        return $item && $item->code ? $item->code : 'N/A';
     }
 
     /**
@@ -113,7 +122,7 @@ class DispatchItem extends Model
     public function getItemUnitAttribute(): string
     {
         $item = $this->item;
-        return $item ? $item->unit : 'N/A';
+        return $item && $item->unit ? $item->unit : 'N/A';
     }
 
     /**

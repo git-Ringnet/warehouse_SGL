@@ -21,6 +21,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\RentalController;
 use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
+use Illuminate\Support\Facades\DB;
 
 Route::get('/', function () {
     return view('dashboard');
@@ -115,21 +116,36 @@ Route::get('/warranties/verify', function () {
     return view('warranties.verify');
 });
 
-//repair
-Route::get('/repair', function () {
-    return view('warranties.repair');
+//repair - Repair Management
+Route::prefix('repairs')->name('repairs.')->group(function () {
+    Route::get('/', [App\Http\Controllers\RepairController::class, 'index'])->name('index');
+    Route::get('/create', [App\Http\Controllers\RepairController::class, 'create'])->name('create');
+    Route::post('/', [App\Http\Controllers\RepairController::class, 'store'])->name('store');
+    Route::get('/{repair}', [App\Http\Controllers\RepairController::class, 'show'])->name('show');
+    Route::get('/{repair}/edit', [App\Http\Controllers\RepairController::class, 'edit'])->name('edit');
+    Route::put('/{repair}', [App\Http\Controllers\RepairController::class, 'update'])->name('update');
+    Route::delete('/{repair}', [App\Http\Controllers\RepairController::class, 'destroy'])->name('destroy');
 });
 
-Route::get('/repair_list', function () {
-    return view('warranties.repair_list');
+// API routes for repairs
+Route::prefix('api/repairs')->group(function () {
+    Route::get('search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarranty']);
 });
 
-Route::get('/repair_detail', function () {
-    return view('warranties.repair_detail');
+// Legacy routes (for backward compatibility)
+Route::get('/repair', [App\Http\Controllers\RepairController::class, 'create']);
+Route::get('/repair_list', [App\Http\Controllers\RepairController::class, 'index']);
+Route::get('/repair_detail/{repair?}', function($repair = null) {
+    if ($repair) {
+        return redirect()->route('repairs.show', $repair);
+    }
+    return redirect()->route('repairs.index');
 });
-
-Route::get('/repair_edit', function () {
-    return view('warranties.repair_edit');
+Route::get('/repair_edit/{repair?}', function($repair = null) {
+    if ($repair) {
+        return redirect()->route('repairs.edit', $repair);
+    }
+    return redirect()->route('repairs.index');
 });
 
 //inventory - Dispatch Management
@@ -148,10 +164,79 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
 // API routes for dispatch
 Route::prefix('api/dispatch')->group(function () {
     Route::get('items', [DispatchController::class, 'getAvailableItems']);
+    Route::get('items/all', [DispatchController::class, 'getAllAvailableItems']);
+    Route::get('projects', [DispatchController::class, 'getProjects'    ]);
+});
+
+// Temporary route to add warehouse materials data
+Route::get('/debug/add-warehouse-materials', function() {
+    // Add stock for products 6 and 10 in warehouse 1
+    $products = [6, 10];
+    $added = [];
+    
+    foreach ($products as $productId) {
+        // Check if record exists
+        $existing = DB::table('warehouse_materials')
+            ->where('item_type', 'product')
+            ->where('material_id', $productId)
+            ->where('warehouse_id', 1)
+            ->first();
+            
+        if (!$existing) {
+            DB::table('warehouse_materials')->insert([
+                'warehouse_id' => 1,
+                'item_type' => 'product',
+                'material_id' => $productId,
+                'quantity' => 50,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $added[] = "Added product $productId with quantity 50";
+        } else {
+            $added[] = "Product $productId already exists with quantity {$existing->quantity}";
+        }
+    }
+    
+    return response()->json([
+        'message' => 'Warehouse materials processing completed',
+        'results' => $added
+    ]);
+});
+
+// Simple route to add stock for all products
+Route::get('/debug/add-all-stock', function() {
+    $products = DB::table('products')->get();
+    $warehouses = DB::table('warehouses')->get();
+    $added = 0;
+    
+    foreach ($products as $product) {
+        foreach ($warehouses as $warehouse) {
+            $existing = DB::table('warehouse_materials')
+                ->where('item_type', 'product')
+                ->where('material_id', $product->id)
+                ->where('warehouse_id', $warehouse->id)
+                ->first();
+                
+            if (!$existing) {
+                DB::table('warehouse_materials')->insert([
+                    'warehouse_id' => $warehouse->id,
+                    'item_type' => 'product',
+                    'material_id' => $product->id,
+                    'quantity' => rand(20, 100),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $added++;
+            }
+        }
+    }
+    
+    return "Added $added warehouse material records. Total products: " . $products->count() . ", Total warehouses: " . $warehouses->count();
 });
 
 // API routes for dispatch
 Route::get('/api/dispatch/items', [DispatchController::class, 'getAvailableItems'])->name('api.dispatch.items');
+Route::get('/api/dispatch/items/all', [DispatchController::class, 'getAllAvailableItems'])->name('api.dispatch.items.all');
 
 // Warranty routes
 Route::prefix('warranties')->name('warranties.')->group(function () {
@@ -397,3 +482,28 @@ Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goo
 // Thêm route cho API kiểm tra tồn kho
 Route::get('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory');
 Route::post('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory.post');
+
+// Temporary debug route
+Route::get('/debug/warehouse-materials', function() {
+    $totalRecords = DB::table('warehouse_materials')->count();
+    $productRecords = DB::table('warehouse_materials')->where('item_type', 'product')->count();
+    $sampleRecords = DB::table('warehouse_materials')->where('item_type', 'product')->limit(10)->get();
+    
+    // Check specific products that were failing
+    $specificProducts = DB::table('warehouse_materials')
+        ->where('item_type', 'product')
+        ->whereIn('material_id', [6, 10])
+        ->where('warehouse_id', 1)
+        ->get();
+    
+    return response()->json([
+        'total_records' => $totalRecords,
+        'product_records' => $productRecords,
+        'sample_records' => $sampleRecords,
+        'specific_products_6_10' => $specificProducts,
+        'all_warehouse_1_products' => DB::table('warehouse_materials')
+            ->where('item_type', 'product')
+            ->where('warehouse_id', 1)
+            ->get()
+    ]);
+});

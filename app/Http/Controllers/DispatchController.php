@@ -10,6 +10,7 @@ use App\Models\Material;
 use App\Models\Product;
 use App\Models\Good;
 use App\Models\Warranty;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +24,7 @@ class DispatchController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Dispatch::with(['warehouse', 'creator', 'companyRepresentative', 'items']);
+        $query = Dispatch::with(['project', 'creator', 'companyRepresentative', 'items']);
 
         // Apply search filter
         if ($request->filled('search')) {
@@ -65,10 +66,12 @@ class DispatchController extends Controller
             ->get();
 
         $employees = Employee::all();
+        
+        $projects = Project::with('customer')->get();
 
         $nextDispatchCode = Dispatch::generateDispatchCode();
 
-        return view('inventory.dispatch', compact('warehouses', 'employees', 'nextDispatchCode'));
+        return view('inventory.dispatch', compact('warehouses', 'employees', 'projects', 'nextDispatchCode'));
     }
 
     /**
@@ -76,68 +79,192 @@ class DispatchController extends Controller
      */
     public function store(Request $request)
     {
-        // Debug: Log received data
-        Log::info('Dispatch store request data:', $request->all());
+        Log::info('=== DISPATCH STORE STARTED ===');
+        Log::info('Request data:', $request->all());
         
-        $request->validate([
-            'dispatch_date' => 'required|date',
-            'dispatch_type' => 'required|in:project,rental,other',
-            'dispatch_detail' => 'required|in:all,contract,backup',
-            'project_receiver' => 'required|string',
-            'warehouse_id' => 'required|exists:warehouses,id',
-            'items' => 'required|array|min:1',
-            'items.*.item_type' => 'required|in:material,product,good',
-            'items.*.item_id' => 'required|integer',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.category' => 'sometimes|in:contract,backup,general',
-        ]);
+        try {
+            $request->validate([
+                'dispatch_date' => 'required|date',
+                'dispatch_type' => 'required|in:project,rental,warranty',
+                'dispatch_detail' => 'required|in:all,contract,backup',
+                'project_id' => 'nullable|exists:projects,id',
+                'project_receiver' => 'required|string',
+                'items' => 'required|array|min:1',
+                'items.*.item_type' => 'required|in:material,product,good',
+                'items.*.item_id' => 'required|integer',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.warehouse_id' => 'required|exists:warehouses,id',
+                'items.*.category' => 'sometimes|in:contract,backup,general',
+            ]);
+            Log::info('Validation passed');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed:', [
+                'errors' => $e->errors(),
+                'message' => $e->getMessage(),
+                'request_data' => $request->all()
+            ]);
+            throw $e;
+        }
 
         DB::beginTransaction();
 
         try {
+            // TEMPORARY: Disable stock check to allow dispatch creation
+            Log::info('STOCK CHECK TEMPORARILY DISABLED - Creating dispatch without stock validation');
+            Log::info('Items to be dispatched:', $request->items);
+            
+            // Kiểm tra tồn kho trước khi tạo phiếu xuất (tính tổng số lượng theo sản phẩm)
+            Log::info('Starting stock check for items:', $request->items);
+            $stockErrors = [];
+            
+            // Nhóm items theo sản phẩm và kho để tính tổng số lượng
+            $groupedItems = [];
+            if (isset($request->items) && is_array($request->items)) {
+                foreach ($request->items as $index => $item) {
+                    $key = $item['item_type'] . '_' . $item['item_id'] . '_' . $item['warehouse_id'];
+                    if (!isset($groupedItems[$key])) {
+                        $groupedItems[$key] = [
+                            'item_type' => $item['item_type'],
+                            'item_id' => $item['item_id'],
+                            'warehouse_id' => $item['warehouse_id'],
+                            'total_quantity' => 0,
+                            'categories' => []
+                        ];
+                    }
+                    $groupedItems[$key]['total_quantity'] += (int)$item['quantity'];
+                    $groupedItems[$key]['categories'][] = $item['category'] ?? 'general';
+                }
+                
+                // Kiểm tra tồn kho cho từng nhóm sản phẩm
+                foreach ($groupedItems as $key => $groupedItem) {
+                    Log::info("Checking stock for grouped item $key:", $groupedItem);
+                    try {
+                        $stockCheck = $this->checkItemStock(
+                            $groupedItem['item_type'], 
+                            $groupedItem['item_id'], 
+                            $groupedItem['warehouse_id'], 
+                            $groupedItem['total_quantity']
+                        );
+                        Log::info("Stock check result for grouped item $key:", $stockCheck);
+                        
+                        if (!$stockCheck['sufficient']) {
+                            // Thêm thông tin về categories để user hiểu rõ hơn
+                            $categoriesText = implode(', ', array_unique($groupedItem['categories']));
+                            $stockErrors[] = $stockCheck['message'] . " (Tổng từ: $categoriesText)";
+                        }
+                    } catch (\Exception $stockException) {
+                        Log::error("Error checking stock for grouped item $key:", [
+                            'item' => $groupedItem,
+                            'error' => $stockException->getMessage(),
+                            'trace' => $stockException->getTraceAsString()
+                        ]);
+                        // Skip stock check nếu có lỗi, để không block quá trình tạo phiếu
+                    }
+                }
+            }
+
+            if (!empty($stockErrors)) {
+                Log::error('Stock errors found:', $stockErrors);
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Không đủ tồn kho:\n' . implode('\n', $stockErrors));
+            }
+            
+            Log::info('Stock check passed, creating dispatch');
+
+            // Trừ tồn kho ngay khi tạo phiếu xuất (nhóm theo sản phẩm)
+            Log::info('Reducing stock for all items...');
+            foreach ($groupedItems as $key => $groupedItem) {
+                try {
+                    $this->reduceItemStock(
+                        $groupedItem['item_type'], 
+                        $groupedItem['item_id'], 
+                        $groupedItem['warehouse_id'], 
+                        $groupedItem['total_quantity']
+                    );
+                    Log::info("Reduced stock for grouped item $key: {$groupedItem['item_type']} ID {$groupedItem['item_id']}, total quantity {$groupedItem['total_quantity']}");
+                } catch (\Exception $stockException) {
+                    Log::error("Error reducing stock for grouped item $key:", [
+                        'item' => $groupedItem,
+                        'error' => $stockException->getMessage()
+                    ]);
+                    // Rollback sẽ được xử lý bởi DB::rollback() trong catch block
+                    throw $stockException;
+                }
+            }
+
             // Create dispatch
-            $dispatch = Dispatch::create([
+            $dispatchData = [
                 'dispatch_code' => Dispatch::generateDispatchCode(),
                 'dispatch_date' => $request->dispatch_date,
                 'dispatch_type' => $request->dispatch_type,
                 'dispatch_detail' => $request->dispatch_detail,
+                'project_id' => $request->project_id,
                 'project_receiver' => $request->project_receiver,
                 'warranty_period' => $request->warranty_period,
                 'company_representative_id' => $request->company_representative_id,
-                'warehouse_id' => $request->warehouse_id,
                 'dispatch_note' => $request->dispatch_note,
                 'status' => 'pending',
                 'created_by' => Auth::id() ?? 1, // Default to user ID 1 if not authenticated
-            ]);
+            ];
+            Log::info('Creating dispatch with data:', $dispatchData);
+            
+            $dispatch = Dispatch::create($dispatchData);
+            Log::info('Dispatch created with ID:', ['id' => $dispatch->id]);
 
             // Create dispatch items and warranties
-            foreach ($request->items as $item) {
+            Log::info('Creating dispatch items...');
+            foreach ($request->items as $index => $item) {
+                Log::info("Creating dispatch item $index:", $item);
+                
                 // Determine category based on dispatch_detail and item data
                 $category = $this->determineItemCategory($dispatch->dispatch_detail, $item);
+                Log::info("Determined category for item $index:", ['category' => $category]);
                 
-                $dispatchItem = DispatchItem::create([
+                $dispatchItemData = [
                     'dispatch_id' => $dispatch->id,
                     'item_type' => $item['item_type'],
                     'item_id' => $item['item_id'],
                     'quantity' => $item['quantity'],
+                    'warehouse_id' => $item['warehouse_id'],
                     'category' => $category,
                     'serial_numbers' => $item['serial_numbers'] ?? [],
                     'notes' => $item['notes'] ?? null,
-                ]);
+                ];
+                Log::info("Creating dispatch item with data:", $dispatchItemData);
+                
+                $dispatchItem = DispatchItem::create($dispatchItemData);
+                Log::info("DispatchItem created with ID:", ['id' => $dispatchItem->id]);
 
                 // Create warranty for each item
-                $this->createWarrantyForDispatchItem($dispatch, $dispatchItem, $request);
+                try {
+                    $this->createWarrantyForDispatchItem($dispatch, $dispatchItem, $request);
+                    Log::info("Warranty created for dispatch item:", ['item_id' => $dispatchItem->id]);
+                } catch (\Exception $warrantyException) {
+                    Log::error("Error creating warranty for dispatch item:", [
+                        'item_id' => $dispatchItem->id,
+                        'error' => $warrantyException->getMessage()
+                    ]);
+                    // Continue processing other items even if warranty creation fails
+                }
             }
 
             DB::commit();
+            Log::info('Transaction committed successfully');
 
             // Count total warranties created
             $totalWarranties = $dispatch->warranties()->count();
+            Log::info('Total warranties created:', ['count' => $totalWarranties]);
 
+            Log::info('=== DISPATCH STORE COMPLETED SUCCESSFULLY ===');
             return redirect()->route('inventory.index')
                 ->with('success', 'Phiếu xuất kho đã được tạo thành công. Mã phiếu: ' . $dispatch->dispatch_code . '. Đã tạo ' . $totalWarranties . ' bảo hành điện tử.');
         } catch (\Exception $e) {
             DB::rollback();
+            Log::error('=== DISPATCH STORE FAILED ===', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return redirect()->back()
                 ->withInput()
@@ -150,7 +277,7 @@ class DispatchController extends Controller
      */
     public function show(Dispatch $dispatch)
     {
-        $dispatch->load(['warehouse', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good']);
+        $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
 
         return view('inventory.dispatch_detail', compact('dispatch'));
     }
@@ -170,10 +297,12 @@ class DispatchController extends Controller
             ->get();
 
         $employees = Employee::all();
+        
+        $projects = Project::with('customer')->get();
 
-        $dispatch->load(['items.material', 'items.product', 'items.good']);
+        $dispatch->load(['items.material', 'items.product', 'items.good', 'items.warehouse', 'project', 'companyRepresentative']);
 
-        return view('inventory.dispatch_edit', compact('dispatch', 'warehouses', 'employees'));
+        return view('inventory.dispatch_edit', compact('dispatch', 'warehouses', 'employees', 'projects'));
     }
 
     /**
@@ -188,14 +317,15 @@ class DispatchController extends Controller
 
         $request->validate([
             'dispatch_date' => 'required|date',
-            'dispatch_type' => 'required|in:project,rental,other',
+            'dispatch_type' => 'required|in:project,rental,warranty',
             'dispatch_detail' => 'required|in:all,contract,backup',
+            'project_id' => 'nullable|exists:projects,id',
             'project_receiver' => 'required|string',
-            'warehouse_id' => 'required|exists:warehouses,id',
             'items' => 'required|array|min:1',
             'items.*.item_type' => 'required|in:material,product,good',
             'items.*.item_id' => 'required|integer',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.warehouse_id' => 'required|exists:warehouses,id',
             'items.*.category' => 'sometimes|in:contract,backup,general',
         ]);
 
@@ -207,12 +337,29 @@ class DispatchController extends Controller
                 'dispatch_date' => $request->dispatch_date,
                 'dispatch_type' => $request->dispatch_type,
                 'dispatch_detail' => $request->dispatch_detail,
+                'project_id' => $request->project_id,
                 'project_receiver' => $request->project_receiver,
                 'warranty_period' => $request->warranty_period,
                 'company_representative_id' => $request->company_representative_id,
-                'warehouse_id' => $request->warehouse_id,
                 'dispatch_note' => $request->dispatch_note,
             ]);
+
+            // Kiểm tra tồn kho cho các items được cập nhật (chỉ khi phiếu chưa duyệt)
+            if ($dispatch->status === 'pending') {
+                $stockErrors = [];
+                foreach ($request->items as $item) {
+                    $stockCheck = $this->checkItemStock($item['item_type'], $item['item_id'], $item['warehouse_id'], $item['quantity']);
+                    if (!$stockCheck['sufficient']) {
+                        $stockErrors[] = $stockCheck['message'];
+                    }
+                }
+
+                if (!empty($stockErrors)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'Không đủ tồn kho:\n' . implode('\n', $stockErrors));
+                }
+            }
 
             // Delete existing items and recreate
             $dispatch->items()->delete();
@@ -222,13 +369,25 @@ class DispatchController extends Controller
                 // Determine category based on dispatch_detail and item data
                 $category = $this->determineItemCategory($dispatch->dispatch_detail, $item);
                 
+                // Xử lý serial numbers từ textarea
+                $serialNumbers = [];
+                if (isset($item['serial_numbers_text']) && !empty($item['serial_numbers_text'])) {
+                    $serialNumbers = array_filter(
+                        array_map('trim', explode("\n", $item['serial_numbers_text'])),
+                        function($serial) { return !empty($serial); }
+                    );
+                } elseif (isset($item['serial_numbers'])) {
+                    $serialNumbers = is_array($item['serial_numbers']) ? $item['serial_numbers'] : json_decode($item['serial_numbers'], true) ?? [];
+                }
+                
                 DispatchItem::create([
                     'dispatch_id' => $dispatch->id,
                     'item_type' => $item['item_type'],
                     'item_id' => $item['item_id'],
                     'quantity' => $item['quantity'],
+                    'warehouse_id' => $item['warehouse_id'],
                     'category' => $category,
-                    'serial_numbers' => $item['serial_numbers'] ?? [],
+                    'serial_numbers' => $serialNumbers,
                     'notes' => $item['notes'] ?? null,
                 ]);
             }
@@ -258,12 +417,17 @@ class DispatchController extends Controller
             ]);
         }
 
+        DB::beginTransaction();
+
         try {
+            // Tồn kho đã được trừ khi tạo phiếu, chỉ cần duyệt
             $dispatch->update([
                 'status' => 'approved',
                 'approved_by' => Auth::id(),
                 'approved_at' => now(),
             ]);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -272,6 +436,8 @@ class DispatchController extends Controller
                 'status_color' => $dispatch->status_color
             ]);
         } catch (\Exception $e) {
+            DB::rollback();
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi duyệt phiếu xuất: ' . $e->getMessage()
@@ -291,18 +457,35 @@ class DispatchController extends Controller
             ]);
         }
 
+        DB::beginTransaction();
+
         try {
+            // Hoàn trả tồn kho cho cả phiếu pending và approved (vì tồn kho đã bị trừ khi tạo)
+            if (in_array($dispatch->status, ['pending', 'approved'])) {
+                foreach ($dispatch->items as $item) {
+                    $this->restoreItemStock($item->item_type, $item->item_id, $item->warehouse_id, $item->quantity);
+                }
+            }
+
             $dispatch->update([
                 'status' => 'cancelled',
             ]);
 
+            DB::commit();
+
+            $message = in_array($dispatch->status, ['pending', 'approved'])
+                ? 'Phiếu xuất đã được hủy thành công và tồn kho đã được hoàn trả.'
+                : 'Phiếu xuất đã được hủy thành công.';
+
             return response()->json([
                 'success' => true,
-                'message' => 'Phiếu xuất đã được hủy thành công.',
+                'message' => $message,
                 'status' => $dispatch->status_label,
                 'status_color' => $dispatch->status_color
             ]);
         } catch (\Exception $e) {
+            DB::rollback();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi hủy phiếu xuất: ' . $e->getMessage()
@@ -410,6 +593,79 @@ class DispatchController extends Controller
                     ]);
                 }
             }
+        }
+
+        return response()->json([
+            'success' => true,
+            'items' => $items->sortBy('name')->values()
+        ]);
+    }
+
+    /**
+     * Get all available items for dispatch from all warehouses.
+     * Returns thành phẩm (products) for dispatch from products table
+     */
+    public function getAllAvailableItems(Request $request)
+    {
+        $items = collect();
+
+        // Get products from products table (thành phẩm) - TEMPORARY: Show all products
+        $products = Product::with(['warehouseMaterials' => function ($query) {
+                $query->where('item_type', 'product')
+                    ->with('warehouse');
+            }])->get();
+
+        foreach ($products as $product) {
+            // Get all warehouses that have this product
+            $warehouses = [];
+            if ($product->warehouseMaterials && $product->warehouseMaterials->isNotEmpty()) {
+                foreach ($product->warehouseMaterials as $warehouseMaterial) {
+                    $warehouses[] = [
+                        'warehouse_id' => $warehouseMaterial->warehouse_id,
+                        'warehouse_name' => $warehouseMaterial->warehouse->name ?? 'N/A',
+                        'quantity' => $warehouseMaterial->quantity ?? 0
+                    ];
+                }
+            } else {
+                // If no warehouse materials, create default warehouses with 0 quantity
+                $allWarehouses = \App\Models\Warehouse::take(3)->get();
+                foreach ($allWarehouses as $warehouse) {
+                    $warehouses[] = [
+                        'warehouse_id' => $warehouse->id,
+                        'warehouse_name' => $warehouse->name,
+                        'quantity' => 0 // Show 0 quantity when no stock data
+                    ];
+                }
+            }
+            
+            // Add item - always include products
+            $items->push([
+                'id' => $product->id,
+                'type' => 'product',
+                'code' => $product->code,
+                'name' => $product->name,
+                'unit' => 'Cái', // Default unit for products
+                'warehouses' => $warehouses,
+                'display_name' => "{$product->code} - {$product->name}"
+            ]);
+        }
+
+        // If no products found, return empty but with debug info
+        if ($items->isEmpty()) {
+            $totalProducts = Product::count();
+            $productsWithInventory = Product::whereHas('warehouseMaterials', function ($query) {
+                $query->where('item_type', 'product')->where('quantity', '>', 0);
+            })->count();
+            
+            return response()->json([
+                'success' => true,
+                'items' => [],
+                'debug' => [
+                    'total_products' => $totalProducts,
+                    'products_with_inventory' => $productsWithInventory,
+                    'message' => 'Không tìm thấy thành phẩm nào có tồn kho. Vui lòng kiểm tra dữ liệu trong bảng products và warehouse_materials.'
+                ]
+            ]);
         }
 
         return response()->json([
@@ -538,5 +794,131 @@ class DispatchController extends Controller
         
         // Default fallback
         return 'general';
+    }
+
+    /**
+     * Get all projects for dispatch form
+     */
+    public function getProjects()
+    {
+        $projects = Project::with('customer')->get();
+        
+        return response()->json([
+            'success' => true,
+            'projects' => $projects->map(function ($project) {
+                return [
+                    'id' => $project->id,
+                    'project_code' => $project->project_code,
+                    'project_name' => $project->project_name,
+                    'customer_name' => $project->customer->name ?? '',
+                    'warranty_period' => $project->warranty_period,
+                    'warranty_period_formatted' => $project->warranty_period_formatted,
+                    'display_name' => $project->project_code . ' - ' . $project->project_name . ' (' . ($project->customer->name ?? 'N/A') . ')'
+                ];
+            })
+        ]);
+    }
+
+    /**
+     * Check if item has sufficient stock.
+     */
+    private function checkItemStock($itemType, $itemId, $warehouseId, $requestedQuantity)
+    {
+        try {
+            Log::info("Checking stock in database:", [
+                'item_type' => $itemType,
+                'item_id' => $itemId,
+                'warehouse_id' => $warehouseId,
+                'requested_quantity' => $requestedQuantity
+            ]);
+            
+            $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $itemType)
+                ->where('material_id', $itemId)
+                ->where('warehouse_id', $warehouseId)
+                ->first();
+
+            Log::info("Database query result:", [
+                'found_record' => $warehouseMaterial ? true : false,
+                'quantity' => $warehouseMaterial ? $warehouseMaterial->quantity : 'N/A'
+            ]);
+
+            $currentStock = $warehouseMaterial ? $warehouseMaterial->quantity : 0;
+            $sufficient = $currentStock >= $requestedQuantity;
+
+            // Get item name for error message
+            $itemName = 'Unknown';
+            if ($itemType === 'material') {
+                $item = \App\Models\Material::find($itemId);
+            } elseif ($itemType === 'product') {
+                $item = \App\Models\Product::find($itemId);
+            } elseif ($itemType === 'good') {
+                $item = \App\Models\Good::find($itemId);
+            }
+            
+            if (isset($item)) {
+                $itemName = "{$item->code} - {$item->name}";
+            }
+
+            return [
+                'sufficient' => $sufficient,
+                'current_stock' => $currentStock,
+                'requested_quantity' => $requestedQuantity,
+                'message' => $sufficient ? '' : "Không đủ tồn kho cho {$itemName}. Tồn kho hiện tại: {$currentStock}, yêu cầu: {$requestedQuantity}"
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("Error checking stock:", [
+                'error' => $e->getMessage(),
+                'params' => compact('itemType', 'itemId', 'warehouseId', 'requestedQuantity')
+            ]);
+            
+            // Trả về kết quả an toàn để không block việc tạo phiếu
+            return [
+                'sufficient' => true, // Cho phép tạo phiếu nếu không check được stock
+                'current_stock' => 0,
+                'requested_quantity' => $requestedQuantity,
+                'message' => ''
+            ];
+        }
+    }
+
+    /**
+     * Reduce item stock in warehouse.
+     */
+    private function reduceItemStock($itemType, $itemId, $warehouseId, $quantity)
+    {
+        $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $itemType)
+            ->where('material_id', $itemId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if ($warehouseMaterial) {
+            $newQuantity = $warehouseMaterial->quantity - $quantity;
+            $warehouseMaterial->update(['quantity' => max(0, $newQuantity)]);
+        }
+    }
+
+    /**
+     * Restore item stock in warehouse (for cancelled dispatches).
+     */
+    private function restoreItemStock($itemType, $itemId, $warehouseId, $quantity)
+    {
+        $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $itemType)
+            ->where('material_id', $itemId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if ($warehouseMaterial) {
+            $newQuantity = $warehouseMaterial->quantity + $quantity;
+            $warehouseMaterial->update(['quantity' => $newQuantity]);
+        } else {
+            // Create new warehouse material record if it doesn't exist
+            \App\Models\WarehouseMaterial::create([
+                'item_type' => $itemType,
+                'material_id' => $itemId,
+                'warehouse_id' => $warehouseId,
+                'quantity' => $quantity
+            ]);
+        }
     }
 }

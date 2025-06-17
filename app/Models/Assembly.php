@@ -41,6 +41,14 @@ class Assembly extends Model
     }
 
     /**
+     * Get all products for this assembly (many-to-many through assembly_products).
+     */
+    public function products()
+    {
+        return $this->hasMany(AssemblyProduct::class);
+    }
+
+    /**
      * Get the source warehouse (where components are taken from).
      */
     public function warehouse()
@@ -86,13 +94,5 @@ class Assembly extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
-    }
-
-    /**
-     * Get the testing records associated with this assembly.
-     */
-    public function testings()
-    {
-        return $this->hasMany(Testing::class);
     }
 } 

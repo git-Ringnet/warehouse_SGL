@@ -20,24 +20,23 @@ return new class extends Migration
             $table->string('project_receiver');
             $table->string('warranty_period')->nullable();
             $table->unsignedBigInteger('company_representative_id')->nullable();
-            $table->unsignedBigInteger('warehouse_id');
             $table->text('dispatch_note')->nullable();
             $table->enum('status', ['pending', 'approved', 'completed', 'cancelled'])->default('pending');
             $table->unsignedBigInteger('created_by');
             $table->unsignedBigInteger('approved_by')->nullable();
+            $table->unsignedBigInteger('project_id')->nullable();
             $table->timestamp('approved_at')->nullable();
             $table->timestamps();
 
             // Foreign key constraints
-            $table->foreign('warehouse_id')->references('id')->on('warehouses');
             $table->foreign('company_representative_id')->references('id')->on('employees');
             $table->foreign('created_by')->references('id')->on('users');
             $table->foreign('approved_by')->references('id')->on('users');
+            $table->foreign('project_id')->references('id')->on('projects');
 
             // Indexes
             $table->index(['dispatch_date', 'status']);
             $table->index('dispatch_type');
-            $table->index('warehouse_id');
         });
     }
 

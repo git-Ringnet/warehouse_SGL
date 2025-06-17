@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 
 <body>
@@ -17,15 +18,26 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('repair_list') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ route('repairs.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <h1 class="text-xl font-bold text-gray-800">Sửa chữa & Bảo trì thiết bị</h1>
+                <h1 class="text-xl font-bold text-gray-800">Tạo phiếu sửa chữa & Bảo trì thiết bị</h1>
             </div>
         </header>
 
         <main class="p-6">
-            <form action="#" method="POST">
+            <!-- Error Messages -->
+            @if ($errors->any())
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <ul class="list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            <form action="{{ route('repairs.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
 
                 <!-- Thông tin bảo hành -->
@@ -37,12 +49,13 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã
-                                bảo hành hoặc thiết bị<span class="text-red-500">*</span></label>
+                            <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1">Mã bảo hành hoặc thiết bị 
+                                <span class="text-red-500">*</span>
+                            </label>
                             <div class="relative">
-                                <input type="text" id="warranty_code" name="warranty_code" required
+                                <input type="text" id="warranty_code" name="warranty_code" value="{{ old('warranty_code') }}"
                                     class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                    placeholder="Nhập mã bảo hành">
+                                    placeholder="Nhập mã bảo hành (nếu có)">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <i class="fas fa-hashtag text-gray-500"></i>
                                 </div>
@@ -157,26 +170,32 @@
                             <select id="repair_type" name="repair_type" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Chọn loại sửa chữa</option>
-                                <option value="maintenance">Bảo trì định kỳ</option>
-                                <option value="repair">Sửa chữa lỗi</option>
-                                <option value="replacement">Thay thế linh kiện</option>
-                                <option value="upgrade">Nâng cấp</option>
-                                <option value="other">Khác</option>
+                                <option value="maintenance" {{ old('repair_type') == 'maintenance' ? 'selected' : '' }}>Bảo trì định kỳ</option>
+                                <option value="repair" {{ old('repair_type') == 'repair' ? 'selected' : '' }}>Sửa chữa lỗi</option>
+                                <option value="replacement" {{ old('repair_type') == 'replacement' ? 'selected' : '' }}>Thay thế linh kiện</option>
+                                <option value="upgrade" {{ old('repair_type') == 'upgrade' ? 'selected' : '' }}>Nâng cấp</option>
+                                <option value="other" {{ old('repair_type') == 'other' ? 'selected' : '' }}>Khác</option>
                             </select>
                         </div>
                         <div>
                             <label for="repair_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày
                                 sửa chữa <span class="text-red-500">*</span></label>
-                            <input type="date" id="repair_date" name="repair_date" required
+                            <input type="date" id="repair_date" name="repair_date" value="{{ old('repair_date', date('Y-m-d')) }}" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
-                            <label for="technician_name"
+                            <label for="technician_id"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ thuật viên <span
                                     class="text-red-500">*</span></label>
-                            <input type="text" id="technician_name" name="technician_name" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                placeholder="Nhập tên kỹ thuật viên">
+                            <select id="technician_id" name="technician_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn kỹ thuật viên --</option>
+                                @foreach(App\Models\Employee::where('status', 'active')->get() as $employee)
+                                    <option value="{{ $employee->id }}" {{ old('technician_id') == $employee->id ? 'selected' : '' }}>
+                                        {{ $employee->name }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div>
                             <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">
@@ -184,20 +203,10 @@
                             <select id="warehouse_id" name="warehouse_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn Kho linh kiện thay thế --</option>
-                                <option value="1">Kho chính</option>
-                                <option value="2">Kho phụ</option>
-                                <option value="3">Kho linh kiện</option>
-                                <option value="4">Kho bảo hành</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="repair_status"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái <span
-                                    class="text-red-500">*</span></label>
-                            <select id="repair_status" name="repair_status" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="completed">Đã xử lý</option>
-                                <option value="in_progress">Đang xử lý</option>
+                                <option value="1" {{ old('warehouse_id') == '1' ? 'selected' : '' }}>Kho chính</option>
+                                <option value="2" {{ old('warehouse_id') == '2' ? 'selected' : '' }}>Kho phụ</option>
+                                <option value="3" {{ old('warehouse_id') == '3' ? 'selected' : '' }}>Kho linh kiện</option>
+                                <option value="4" {{ old('warehouse_id') == '4' ? 'selected' : '' }}>Kho bảo hành</option>
                             </select>
                         </div>
                     </div>
@@ -208,39 +217,7 @@
                                 class="text-red-500">*</span></label>
                         <textarea id="repair_description" name="repair_description" rows="3" required
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Nhập mô tả chi tiết về vấn đề và cách sửa chữa"></textarea>
-                    </div>
-
-                    <!-- Linh kiện thiết bị -->
-                    <div class="mt-4">
-                        <h3 class="text-md font-semibold text-gray-800 mb-3 flex items-center">
-                            <i class="fas fa-microchip text-blue-500 mr-2"></i>
-                            Chi tiết vật tư thiết bị
-                        </h3>
-
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 border rounded-lg">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Mã thiết bị
-                                        </th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Mã vật tư
-                                        </th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Tên vật tư
-                                        </th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Thao tác
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody id="device-parts-table" class="bg-white divide-y divide-gray-200">
-                                    <!-- Dữ liệu vật tư sẽ được thêm vào đây bằng JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
+                            placeholder="Nhập mô tả chi tiết về vấn đề và cách sửa chữa">{{ old('repair_description') }}</textarea>
                     </div>
                 </div>
 
@@ -263,12 +240,12 @@
                         <label for="repair_notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
                         <textarea id="repair_notes" name="repair_notes" rows="3"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Nhập ghi chú bổ sung"></textarea>
+                            placeholder="Nhập ghi chú bổ sung">{{ old('repair_notes') }}</textarea>
                     </div>
                 </div>
 
                 <div class="flex justify-end space-x-3">
-                    <a href="{{ asset('warranties/repair_list') }}"
+                    <a href="{{ route('repairs.index') }}"
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg transition-colors">
                         Hủy
                     </a>
@@ -281,74 +258,56 @@
         </main>
     </div>
 
-    <!-- Hộp thông báo thay thế vật tư -->
-    <div id="replace-part-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <!-- Modal thêm thiết bị -->
+    <div id="add-device-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Thay thế vật tư</h3>
-                <button type="button" id="close-replace-modal" class="text-gray-400 hover:text-gray-500">
+                <h3 class="text-lg font-semibold text-gray-900">Thêm thiết bị</h3>
+                <button type="button" id="close-device-modal" class="text-gray-400 hover:text-gray-500">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <div class="mb-4">
-                <p class="text-gray-700 mb-2">Thông tin vật tư cần thay thế:</p>
-                <div class="bg-gray-50 p-3 rounded-lg mb-4">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-sm font-medium text-gray-600">Mã vật tư:</span>
-                            <span class="text-sm text-gray-900 ml-1" id="old-part-code">VT001-C</span>
-                        </div>
-                        <div>
-                            <span class="text-sm font-medium text-gray-600">Tên vật tư:</span>
-                            <span class="text-sm text-gray-900 ml-1" id="old-part-name">Bộ nhớ Flash</span>
-                        </div>
-                    </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="device_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã thiết bị <span class="text-red-500">*</span></label>
+                    <input type="text" id="device_code" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Nhập mã thiết bị">
                 </div>
-
-                <div class="border-t border-gray-200 pt-4 mb-4">
-                    <p class="text-gray-700 mb-2">Chuyển vật tư cũ đến kho:</p>
-                    <select id="replace_warehouse_id" name="replace_warehouse_id"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4">
-                        <option value="">-- Chọn kho chuyển --</option>
-                        <option value="3">Kho linh kiện</option>
-                        <option value="4">Kho bảo hành</option>
-                        <option value="5">Kho vật tư hỏng</option>
-                        <option value="6">Kho tái chế</option>
-                    </select>
+                <div>
+                    <label for="device_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên thiết bị <span class="text-red-500">*</span></label>
+                    <input type="text" id="device_name" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Nhập tên thiết bị">
                 </div>
-
-                <p class="text-gray-700 mb-2">Thay thế bằng vật tư mới:</p>
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <label for="new_part_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã
-                            vật tư mới <span class="text-red-500">*</span></label>
-                        <select id="new_part_code" name="new_part_code"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">-- Chọn vật tư mới --</option>
-                            <option value="VT002-C">VT002-C - Bộ nhớ Flash 16GB</option>
-                            <option value="VT003-C">VT003-C - Bộ nhớ Flash 32GB</option>
-                            <option value="VT004-C">VT004-C - Bộ nhớ Flash 64GB</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="new_part_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
-                            chú</label>
-                        <textarea id="new_part_note" name="new_part_note" rows="2" placeholder="Nhập ghi chú về việc thay thế vật tư"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    </div>
+                <div>
+                    <label for="device_serial" class="block text-sm font-medium text-gray-700 mb-1">Serial number</label>
+                    <input type="text" id="device_serial"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Nhập serial number">
+                </div>
+                <div>
+                    <label for="device_notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                    <textarea id="device_notes" rows="2"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Nhập ghi chú về thiết bị"></textarea>
+                </div>
+                <div>
+                    <label for="device_images" class="block text-sm font-medium text-gray-700 mb-1">Hình ảnh thiết bị</label>
+                    <input type="file" id="device_images" multiple accept="image/*"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 </div>
             </div>
 
-            <div class="flex justify-end space-x-3">
-                <button type="button" id="cancel-replace-btn"
+            <div class="flex justify-end space-x-3 mt-6">
+                <button type="button" id="cancel-device-btn"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
                     Hủy
                 </button>
-                <button type="button" id="confirm-replace-btn"
+                <button type="button" id="confirm-device-btn"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    <i class="fas fa-check mr-2"></i> Xác nhận thay thế
+                    <i class="fas fa-plus mr-2"></i> Thêm thiết bị
                 </button>
             </div>
         </div>
@@ -361,622 +320,197 @@
             const searchWarrantyBtn = document.getElementById('search_warranty');
             const customerNameInput = document.getElementById('customer_name');
             const selectedDevicesContainer = document.getElementById('selected_devices');
-            const devicesContainer = document.getElementById('devices_container');
-            const devicesList = document.getElementById('devices_list');
-            const selectedDeviceInfo = document.getElementById('selected_device_info');
-            const deviceCodeDisplay = document.getElementById('device_code_display');
-            const deviceNameDisplay = document.getElementById('device_name_display');
-            const deviceSerialDisplay = document.getElementById('device_serial_display');
             const repairHistory = document.getElementById('repair_history');
             const repairHistoryBody = document.getElementById('repair_history_body');
+            const addDeviceBtn = document.getElementById('add_device_btn');
+            const addDeviceModal = document.getElementById('add-device-modal');
+            const closeDeviceModal = document.getElementById('close-device-modal');
+            const cancelDeviceBtn = document.getElementById('cancel-device-btn');
+            const confirmDeviceBtn = document.getElementById('confirm-device-btn');
             
             // Mảng lưu trữ các thiết bị đã chọn
             let selectedDevices = [];
+            let deviceCounter = 0;
 
-            // Ẩn container thiết bị ban đầu
-            devicesContainer.style.display = 'none';
-
-            // Giả lập dữ liệu mẫu
-            const sampleData = {
-                "W12345": {
-                    customer_name: "Công ty TNHH ABC",
-                    devices: [{
-                            id: 1,
-                            code: "DEV001",
-                            name: "Bộ điều khiển chính",
-                            serial: "SN001122",
-                            parts: [
-                                { id: "VT001-A", name: "Bo mạch chính", condition: false },
-                                { id: "VT001-B", name: "Cảm biến nhiệt độ", condition: false },
-                                { id: "VT001-C", name: "Bộ nhớ Flash", condition: true }
-                            ]
-                        },
-                        {
-                            id: 2,
-                            code: "DEV002",
-                            name: "Cảm biến nhiệt độ",
-                            serial: "SN002233",
-                            parts: [
-                                { id: "VT002-A", name: "Cảm biến nhiệt", condition: false },
-                                { id: "VT002-B", name: "Dây cáp kết nối", condition: true }
-                            ]
-                        }
-                    ],
-                    repair_history: [
-                        {
-                            date: "2023-05-15",
-                            type: "Bảo trì định kỳ",
-                            description: "Kiểm tra và vệ sinh thiết bị",
-                            technician: "Nguyễn Văn A"
-                        },
-                        {
-                            date: "2023-08-20",
-                            type: "Sửa chữa lỗi",
-                            description: "Thay thế cảm biến bị lỗi",
-                            technician: "Trần Văn B"
-                        }
-                    ]
-                },
-                "W67890": {
-                    customer_name: "Công ty CP XYZ",
-                    devices: [{
-                        id: 3,
-                        code: "DEV003",
-                        name: "Màn hình giám sát",
-                        serial: "SN003344",
-                        parts: [
-                            { id: "VT003-A", name: "Màn hình LCD", condition: false },
-                            { id: "VT003-B", name: "Bo mạch xử lý", condition: false },
-                            { id: "VT003-C", name: "Cáp nguồn", condition: true }
-                        ]
-                    }],
-                    repair_history: []
-                }
-            };
-
+            // Setup CSRF token for AJAX requests
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
             // Xử lý sự kiện tìm kiếm mã bảo hành
             searchWarrantyBtn.addEventListener('click', function() {
                 const warrantyCode = warrantyCodeInput.value.trim();
+                
+                if (!warrantyCode) {
+                    alert('Vui lòng nhập mã bảo hành');
+                    return;
+                }
 
-                if (warrantyCode && sampleData[warrantyCode]) {
-                    const data = sampleData[warrantyCode];
-
-                    // Hiển thị thông tin khách hàng
-                    customerNameInput.value = data.customer_name;
-
-                    // Cập nhật danh sách thiết bị
-                    devicesList.innerHTML = '';
-                    
-                    // Thêm thiết bị mới vào danh sách
-                    data.devices.forEach(device => {
-                        const row = document.createElement('tr');
-
-                        // Status class và text
-                        let statusClass, statusText;
-                        switch (device.status || 'active') {
-                            case 'active':
-                                statusClass = 'bg-green-100 text-green-800';
-                                statusText = 'Hoạt động';
-                                break;
-                            case 'maintenance':
-                                statusClass = 'bg-yellow-100 text-yellow-800';
-                                statusText = 'Bảo trì';
-                                break;
-                            case 'inactive':
-                                statusClass = 'bg-red-100 text-red-800';
-                                statusText = 'Ngừng hoạt động';
-                                break;
-                            default:
-                                statusClass = 'bg-green-100 text-green-800';
-                                statusText = 'Hoạt động';
+                // Call API to search warranty
+                fetch('/api/repairs/search-warranty?warranty_code=' + encodeURIComponent(warrantyCode), {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const warranty = data.warranty;
+                        
+                        // Hiển thị thông tin khách hàng
+                        customerNameInput.value = warranty.customer_name;
+                        
+                        // Thêm thiết bị từ bảo hành vào danh sách
+                        if (warranty.devices && warranty.devices.length > 0) {
+                            warranty.devices.forEach(device => {
+                                addDeviceToList({
+                                    id: device.id,
+                                    code: device.code,
+                                    name: device.name,
+                                    serial: device.serial || '',
+                                    notes: '',
+                                    fromWarranty: true
+                                });
+                            });
                         }
 
-                        row.innerHTML = `
-                            <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.code}</td>
-                            <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.name}</td>
-                            <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.serial}</td>
-                            <td class="px-3 py-2 whitespace-nowrap text-sm">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                                    ${statusText}
-                                </span>
-                            </td>
-                            <td class="px-3 py-2 text-sm">
-                                <textarea name="device_notes[${device.code}]" rows="2" 
-                                    class="w-full text-xs border border-gray-300 rounded px-2 py-1" 
-                                    placeholder="Nhập chú thích..."></textarea>
-                            </td>
-                            <td class="px-3 py-2 text-sm">
-                                <input type="file" name="device_images[${device.code}][]" multiple accept="image/*" 
-                                    class="text-xs border border-gray-300 rounded px-2 py-1">
-                            </td>
-                            <td class="px-3 py-2 whitespace-nowrap text-sm">
-                                <div class="flex space-x-1">
-                                    <button type="button" class="select-device-btn bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs"
-                                        data-device-id="${device.id}" data-device-code="${device.code}">
-                                        <i class="fas fa-check-circle mr-1"></i> Chọn
-                                    </button>
-                                    <button type="button" class="reject-device-btn bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs"
-                                        data-device-id="${device.id}" data-device-code="${device.code}" data-device-name="${device.name}">
-                                        <i class="fas fa-times mr-1"></i> Từ chối
-                                    </button>
-                                </div>
-                            </td>
-                        `;
-
-                        devicesList.appendChild(row);
-                    });
-                    
-                    // Hiển thị container thiết bị
-                    devicesContainer.style.display = 'block';
-                    
-                    // Thêm sự kiện chọn thiết bị
-                    const selectDeviceBtns = document.querySelectorAll('.select-device-btn');
-                    selectDeviceBtns.forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const deviceId = parseInt(this.getAttribute('data-device-id'));
-                            
-                            // Kiểm tra xem thiết bị đã được chọn chưa
-                            if (selectedDevices.some(d => d.id === deviceId)) {
-                                alert('Thiết bị này đã được chọn!');
-                                return;
-                            }
-                            
-                            // Tìm thiết bị từ dữ liệu mẫu
-                            const warrantyCode = warrantyCodeInput.value.trim();
-                            if (warrantyCode && sampleData[warrantyCode]) {
-                                const selectedDevice = sampleData[warrantyCode].devices.find(device => device.id === deviceId);
-                                
-                                if (selectedDevice) {
-                                    // Thêm thiết bị vào danh sách đã chọn
-                                    selectedDevices.push(selectedDevice);
-                                    
-                                    // Cập nhật hiển thị danh sách thiết bị đã chọn
-                                    updateSelectedDevicesDisplay();
-                                    
-                                    // Cập nhật hiển thị danh sách vật tư
-                                    updatePartsDisplay();
-                                    
-                                    // Hiển thị thông tin thiết bị
-                                    selectedDeviceInfo.classList.remove('hidden');
-                                }
-                            }
-                        });
-                    });
-
-                    // Thêm sự kiện từ chối thiết bị
-                    const rejectDeviceBtns = document.querySelectorAll('.reject-device-btn');
-                    rejectDeviceBtns.forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const deviceId = this.getAttribute('data-device-id');
-                            const deviceCode = this.getAttribute('data-device-code');
-                            const deviceName = this.getAttribute('data-device-name');
-                            
-                            // Hiển thị modal từ chối thiết bị
-                            showRejectDeviceModal(deviceId, deviceCode, deviceName);
-                        });
-                    });
-
-                    // Hiển thị lịch sử sửa chữa nếu có
-                    if (data.repair_history && data.repair_history.length > 0) {
-                        repairHistoryBody.innerHTML = '';
-                        data.repair_history.forEach(repair => {
-                            repairHistoryBody.innerHTML += `
-                                <tr>
-                                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${repair.date}</td>
-                                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${repair.type}</td>
-                                    <td class="px-3 py-2 text-sm text-gray-700">${repair.description}</td>
-                                    <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${repair.technician}</td>
-                                </tr>
-                            `;
-                        });
-                        repairHistory.classList.remove('hidden');
+                        // Hiển thị lịch sử sửa chữa nếu có
+                        if (warranty.repair_history && warranty.repair_history.length > 0) {
+                            repairHistoryBody.innerHTML = '';
+                            warranty.repair_history.forEach(repair => {
+                                repairHistoryBody.innerHTML += `
+                                    <tr>
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${repair.date}</td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${repair.type}</td>
+                                        <td class="px-3 py-2 text-sm text-gray-700">${repair.description}</td>
+                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${repair.technician}</td>
+                                    </tr>
+                                `;
+                            });
+                            repairHistory.classList.remove('hidden');
+                        } else {
+                            repairHistory.classList.add('hidden');
+                        }
                     } else {
-                        repairHistory.classList.add('hidden');
+                        alert(data.message || 'Không tìm thấy thông tin bảo hành');
                     }
-                } else {
-                    alert('Không tìm thấy thông tin bảo hành với mã này!');
-                    customerNameInput.value = '';
-                    devicesContainer.style.display = 'none';
-                    selectedDeviceInfo.classList.add('hidden');
-                    repairHistory.classList.add('hidden');
-                    
-                    // Xóa danh sách vật tư
-                    document.getElementById('device-parts-table').innerHTML = '';
-                    
-                    // Xóa danh sách thiết bị đã chọn
-                    selectedDevices = [];
-                    updateSelectedDevicesDisplay();
-                }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi tìm kiếm bảo hành');
+                });
             });
-            
-            // Hiển thị danh sách thiết bị đã chọn
+
+            // Xử lý thêm thiết bị thủ công
+            addDeviceBtn.addEventListener('click', function() {
+                addDeviceModal.classList.remove('hidden');
+                resetDeviceForm();
+            });
+
+            closeDeviceModal.addEventListener('click', function() {
+                addDeviceModal.classList.add('hidden');
+            });
+
+            cancelDeviceBtn.addEventListener('click', function() {
+                addDeviceModal.classList.add('hidden');
+            });
+
+            confirmDeviceBtn.addEventListener('click', function() {
+                const deviceCode = document.getElementById('device_code').value.trim();
+                const deviceName = document.getElementById('device_name').value.trim();
+                const deviceSerial = document.getElementById('device_serial').value.trim();
+                const deviceNotes = document.getElementById('device_notes').value.trim();
+
+                if (!deviceCode || !deviceName) {
+                    alert('Vui lòng nhập mã thiết bị và tên thiết bị');
+                    return;
+                }
+
+                // Kiểm tra trùng lặp
+                if (selectedDevices.some(device => device.code === deviceCode)) {
+                    alert('Thiết bị này đã được thêm vào danh sách');
+                    return;
+                }
+
+                addDeviceToList({
+                    id: 'manual_' + (++deviceCounter),
+                    code: deviceCode,
+                    name: deviceName,
+                    serial: deviceSerial,
+                    notes: deviceNotes,
+                    fromWarranty: false
+                });
+
+                addDeviceModal.classList.add('hidden');
+            });
+
+            // Hàm thêm thiết bị vào danh sách
+            function addDeviceToList(device) {
+                selectedDevices.push(device);
+                updateSelectedDevicesDisplay();
+            }
+
+            // Hàm cập nhật hiển thị danh sách thiết bị đã chọn
             function updateSelectedDevicesDisplay() {
                 selectedDevicesContainer.innerHTML = '';
                 
                 selectedDevices.forEach((device, index) => {
                     const deviceDiv = document.createElement('div');
-                    deviceDiv.className = 'flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-200';
+                    deviceDiv.className = 'flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200';
                     deviceDiv.innerHTML = `
                         <input type="hidden" name="selected_devices[]" value="${device.id}">
-                        <div class="flex-1 text-sm text-gray-900">${device.code} - ${device.name}</div>
-                        <button type="button" class="remove-device-btn text-red-500 hover:text-red-700 ml-2" data-index="${index}">
+                        <input type="hidden" name="device_code[${device.id}]" value="${device.code}">
+                        <input type="hidden" name="device_name[${device.id}]" value="${device.name}">
+                        <input type="hidden" name="device_serial[${device.id}]" value="${device.serial}">
+                        <input type="hidden" name="device_notes[${device.id}]" value="${device.notes}">
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-gray-900">${device.code} - ${device.name}</div>
+                            <div class="text-xs text-gray-500">
+                                ${device.serial ? 'Serial: ' + device.serial : 'Không có serial'}
+                                ${device.fromWarranty ? ' • Từ bảo hành' : ' • Thêm thủ công'}
+                            </div>
+                            ${device.notes ? '<div class="text-xs text-gray-600 mt-1">' + device.notes + '</div>' : ''}
+                        </div>
+                        <button type="button" class="text-red-500 hover:text-red-700 ml-2" onclick="removeDevice(${index})">
                             <i class="fas fa-times"></i>
                         </button>
                     `;
                     selectedDevicesContainer.appendChild(deviceDiv);
                 });
-                
-                // Thêm sự kiện xóa thiết bị
-                const removeDeviceBtns = document.querySelectorAll('.remove-device-btn');
-                removeDeviceBtns.forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const index = parseInt(this.getAttribute('data-index'));
-                        selectedDevices.splice(index, 1);
-                        updateSelectedDevicesDisplay();
-                        updatePartsDisplay();
-                        
-                        // Ẩn thông tin thiết bị nếu không còn thiết bị nào
-                        if (selectedDevices.length === 0) {
-                            selectedDeviceInfo.classList.add('hidden');
-                        }
-                    });
-                });
             }
-            
-            // Cập nhật hiển thị danh sách vật tư từ tất cả thiết bị đã chọn
-            function updatePartsDisplay() {
-                const devicePartsTable = document.getElementById('device-parts-table');
-                devicePartsTable.innerHTML = '';
-                
-                // Nếu không có thiết bị nào được chọn, không hiển thị gì
+
+            // Hàm xóa thiết bị
+            window.removeDevice = function(index) {
+                selectedDevices.splice(index, 1);
+                updateSelectedDevicesDisplay();
+            };
+
+            // Hàm reset form thiết bị
+            function resetDeviceForm() {
+                document.getElementById('device_code').value = '';
+                document.getElementById('device_name').value = '';
+                document.getElementById('device_serial').value = '';
+                document.getElementById('device_notes').value = '';
+                document.getElementById('device_images').value = '';
+            }
+
+            // Đóng modal khi click bên ngoài
+            addDeviceModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.add('hidden');
+                }
+            });
+
+            // Validate form before submit
+            document.querySelector('form').addEventListener('submit', function(e) {
                 if (selectedDevices.length === 0) {
-                    return;
-                }
-                
-                // Thêm vật tư từ tất cả thiết bị đã chọn
-                selectedDevices.forEach(device => {
-                    if (device.parts && device.parts.length > 0) {
-                        device.parts.forEach((part, index) => {
-                            const row = document.createElement('tr');
-                            
-                            row.innerHTML = `
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${device.code}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${part.id}</td>
-                                <td class="px-4 py-3 text-sm text-gray-700">${part.name}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center">
-                                            <input type="checkbox" id="damaged_part_${device.code}_${part.id}" 
-                                                name="damaged_parts[]" value="${part.id}" 
-                                                ${part.condition ? 'checked' : ''} 
-                                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded damage-checkbox"
-                                                data-device-code="${device.code}">
-                                            <label for="damaged_part_${device.code}_${part.id}" class="ml-2 text-sm text-gray-700">Hư hỏng</label>
-                                        </div>
-                                        <button type="button" data-part-id="${part.id}" data-device-code="${device.code}" data-part-name="${part.name}"
-                                            class="replace-part-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs ml-2">
-                                            <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                        </button>
-                                    </div>
-                                </td>
-                            `;
-                            
-                            devicePartsTable.appendChild(row);
-                        });
-                    }
-                });
-                
-                // Cập nhật event listeners cho các checkbox và nút thay thế
-                setupDamagedPartsCheckboxes();
-                setupReplacePartButtons();
-            }
-
-            // Xử lý các checkbox đánh dấu hư hỏng
-            function setupDamagedPartsCheckboxes() {
-                const damageCheckboxes = document.querySelectorAll('.damage-checkbox');
-                damageCheckboxes.forEach(checkbox => {
-                    // Xử lý sự kiện thay đổi
-                    checkbox.addEventListener('change', function() {
-                        // Cập nhật trạng thái của part trong mảng selectedDevices
-                        const partId = this.value;
-                        const deviceCode = this.getAttribute('data-device-code');
-                        const isChecked = this.checked;
-                        
-                        // Tìm thiết bị và vật tư tương ứng trong mảng selectedDevices
-                        const device = selectedDevices.find(d => d.code === deviceCode);
-                        if (device && device.parts) {
-                            const part = device.parts.find(p => p.id === partId);
-                            if (part) {
-                                part.condition = isChecked;
-                            }
-                        }
-                    });
-                });
-            }
-
-            // Xử lý các nút thay thế vật tư
-            function setupReplacePartButtons() {
-                const replacePartBtns = document.querySelectorAll('.replace-part-btn');
-                replacePartBtns.forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const partId = this.getAttribute('data-part-id');
-                        const deviceCode = this.getAttribute('data-device-code');
-                        const partName = this.getAttribute('data-part-name');
-                        showReplacePartDialog(partId, deviceCode, partName);
-                    });
-                });
-            }
-
-            // Hiển thị dialog thay thế vật tư
-            function showReplacePartDialog(partId, deviceCode, partName) {
-                // Cập nhật thông tin trong modal
-                document.getElementById('old-part-code').textContent = partId;
-                document.getElementById('old-part-name').textContent = partName;
-
-                // Hiển thị modal thay thế vật tư
-                const replacePartModal = document.getElementById('replace-part-modal');
-                replacePartModal.classList.remove('hidden');
-
-                // Xử lý các sự kiện nút trong modal
-                const closeReplaceModalBtn = document.getElementById('close-replace-modal');
-                const cancelReplaceBtn = document.getElementById('cancel-replace-btn');
-                const confirmReplaceBtn = document.getElementById('confirm-replace-btn');
-
-                // Đóng modal khi click vào nút đóng hoặc hủy
-                const closeReplaceModal = () => {
-                    replacePartModal.classList.add('hidden');
-                };
-
-                closeReplaceModalBtn.addEventListener('click', closeReplaceModal);
-                cancelReplaceBtn.addEventListener('click', closeReplaceModal);
-
-                // Xử lý xác nhận thay thế
-                confirmReplaceBtn.addEventListener('click', function() {
-                    const newPartCode = document.getElementById('new_part_code').value;
-                    const warehouseId = document.getElementById('replace_warehouse_id').value;
-
-                    if (!newPartCode) {
-                        alert('Vui lòng chọn vật tư mới!');
-                        return;
-                    }
-
-                    if (!warehouseId) {
-                        alert('Vui lòng chọn kho để chuyển vật tư cũ!');
-                        return;
-                    }
-
-                    // Tìm thiết bị và vật tư tương ứng trong mảng selectedDevices
-                    const device = selectedDevices.find(d => d.code === deviceCode);
-                    if (device && device.parts) {
-                        const part = device.parts.find(p => p.id === partId);
-                        if (part) {
-                            // Đánh dấu vật tư cũ là hư hỏng
-                            part.condition = true;
-                            
-                            // Hiển thị thông báo chuyển vật tư thành công
-                            const warehouseSelect = document.getElementById('replace_warehouse_id');
-                            const warehouseName = warehouseSelect.options[warehouseSelect.selectedIndex].text;
-                            
-                            alert(
-                                `Đã thay thế vật tư ${partId} bằng ${newPartCode}. Vật tư cũ đã được chuyển đến ${warehouseName}.`);
-                                
-                            // Cập nhật lại hiển thị danh sách vật tư
-                            updatePartsDisplay();
-                        }
-                    }
-
-                    // Đóng modal
-                    closeReplaceModal();
-                });
-            }
-
-            // Tự động đặt ngày hiện tại cho ngày sửa chữa
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('repair_date').value = today;
-
-            // Hàm hiển thị modal từ chối thiết bị
-            window.showRejectDeviceModal = function(deviceId, deviceCode, deviceName) {
-                const rejectModal = document.getElementById('reject-device-modal');
-                const deviceIdField = document.getElementById('reject-device-id');
-                const deviceCodeField = document.getElementById('reject-device-code');
-                
-                document.getElementById('reject-device-name').textContent = deviceName;
-                deviceIdField.value = deviceId;
-                deviceCodeField.value = deviceCode;
-                
-                rejectModal.classList.remove('hidden');
-            };
-
-            // Đóng modal từ chối
-            document.getElementById('close-reject-modal').addEventListener('click', function() {
-                document.getElementById('reject-device-modal').classList.add('hidden');
-            });
-
-            document.getElementById('cancel-reject-btn').addEventListener('click', function() {
-                document.getElementById('reject-device-modal').classList.add('hidden');
-            });
-
-            // Xác nhận từ chối thiết bị
-            document.getElementById('confirm-reject-btn').addEventListener('click', function() {
-                const deviceId = document.getElementById('reject-device-id').value;
-                const deviceCode = document.getElementById('reject-device-code').value;
-                const rejectReason = document.getElementById('reject-reason').value;
-                const rejectWarehouse = document.getElementById('reject-warehouse').value;
-
-                if (!rejectReason.trim()) {
-                    alert('Vui lòng nhập lý do từ chối!');
-                    return;
-                }
-
-                if (!rejectWarehouse) {
-                    alert('Vui lòng chọn kho lưu trữ thiết bị từ chối!');
-                    return;
-                }
-
-                // Tìm và ẩn hàng thiết bị bị từ chối
-                const deviceRows = document.querySelectorAll('#devices_list tr');
-                deviceRows.forEach(row => {
-                    const selectBtn = row.querySelector(`[data-device-id="${deviceId}"]`);
-                    if (selectBtn) {
-                        row.style.backgroundColor = '#fef2f2'; // Màu nền đỏ nhạt
-                        row.style.opacity = '0.6';
-                        
-                        // Vô hiệu hóa các nút
-                        const actionButtons = row.querySelectorAll('button');
-                        actionButtons.forEach(btn => {
-                            btn.disabled = true;
-                            btn.classList.add('cursor-not-allowed', 'opacity-50');
-                        });
-                        
-                        // Thêm nhãn "Đã từ chối"
-                        const statusCell = row.cells[3];
-                        statusCell.innerHTML = `
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                Đã từ chối
-                            </span>
-                        `;
-                    }
-                });
-
-                const warehouseName = document.getElementById('reject-warehouse').selectedOptions[0].text;
-
-                // Đóng modal
-                document.getElementById('reject-device-modal').classList.add('hidden');
-
-                alert(`Đã từ chối thiết bị ${deviceCode}.\nLý do: ${rejectReason}\nThiết bị sẽ được chuyển đến ${warehouseName}.`);
-
-                // Reset form
-                document.getElementById('reject-reason').value = '';
-                document.getElementById('reject-warehouse').value = '';
-            });
-
-            // Hàm hiển thị modal hình ảnh
-            window.showImageModal = function(imageSrc) {
-                const modal = document.getElementById('imageModal');
-                const modalImage = document.getElementById('modalImage');
-                modalImage.src = imageSrc;
-                modal.classList.remove('hidden');
-            };
-
-            // Hàm đóng modal hình ảnh
-            window.closeImageModal = function() {
-                const modal = document.getElementById('imageModal');
-                modal.classList.add('hidden');
-            };
-
-            // Đóng modal khi click vào backdrop
-            document.addEventListener('click', function(e) {
-                if (e.target && e.target.id === 'imageModal') {
-                    closeImageModal();
-                }
-            });
-
-            // Xử lý preview hình ảnh khi upload
-            document.addEventListener('change', function(e) {
-                if (e.target && e.target.type === 'file' && e.target.accept === 'image/*') {
-                    const files = e.target.files;
-                    const deviceCode = e.target.name.match(/device_images\[([^\]]+)\]/)?.[1];
-                    
-                    if (files.length > 0 && deviceCode) {
-                        // Tạo container preview nếu chưa có
-                        let previewContainer = e.target.parentNode.querySelector('.image-preview-container');
-                        if (!previewContainer) {
-                            previewContainer = document.createElement('div');
-                            previewContainer.className = 'image-preview-container mt-2 flex flex-wrap gap-2';
-                            e.target.parentNode.appendChild(previewContainer);
-                        }
-                        
-                        // Xóa preview cũ
-                        previewContainer.innerHTML = '';
-                        
-                        // Hiển thị preview từng file
-                        Array.from(files).forEach((file, index) => {
-                            if (file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = function(e) {
-                                    const imgWrapper = document.createElement('div');
-                                    imgWrapper.className = 'relative';
-                                    imgWrapper.innerHTML = `
-                                        <img src="${e.target.result}" alt="Preview ${index + 1}" 
-                                             class="w-12 h-12 object-cover rounded border cursor-pointer" 
-                                             onclick="showImageModal('${e.target.result}')">
-                                        <button type="button" 
-                                                class="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center"
-                                                onclick="this.parentElement.remove()">×</button>
-                                    `;
-                                    previewContainer.appendChild(imgWrapper);
-                                };
-                                reader.readAsDataURL(file);
-                            }
-                        });
-                    }
+                    e.preventDefault();
+                    alert('Vui lòng thêm ít nhất một thiết bị');
+                    return false;
                 }
             });
         });
     </script>
-
-    <!-- Modal xem hình ảnh -->
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
-        <div class="bg-white rounded-lg max-w-3xl max-h-[90%] overflow-auto">
-            <div class="flex justify-between items-center p-4 border-b">
-                <h3 class="text-lg font-semibold">Xem hình ảnh</h3>
-                <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="p-4">
-                <img id="modalImage" src="" alt="Device image" class="max-w-full h-auto">
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal từ chối thiết bị -->
-    <div id="reject-device-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-900">Từ chối thiết bị</h3>
-                <button type="button" id="close-reject-modal" class="text-gray-400 hover:text-gray-500">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <div class="mb-4">
-                <p class="text-gray-700 mb-2">Thiết bị: <span id="reject-device-name" class="font-medium"></span></p>
-                <input type="hidden" id="reject-device-id" value="">
-                <input type="hidden" id="reject-device-code" value="">
-            </div>
-
-            <div class="mb-4">
-                <label for="reject-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối <span class="text-red-500">*</span></label>
-                <textarea id="reject-reason" rows="3" 
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                    placeholder="Nhập lý do từ chối thiết bị..."></textarea>
-            </div>
-
-            <div class="mb-6">
-                <label for="reject-warehouse" class="block text-sm font-medium text-gray-700 mb-1">Kho lưu trữ thiết bị từ chối <span class="text-red-500">*</span></label>
-                <select id="reject-warehouse"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                    <option value="">-- Chọn kho lưu trữ --</option>
-                    <option value="5">Kho thiết bị từ chối</option>
-                    <option value="6">Kho tái chế</option>
-                    <option value="7">Kho phế liệu</option>
-                    <option value="8">Kho bảo hành hết hạn</option>
-                </select>
-            </div>
-
-            <div class="flex space-x-3">
-                <button type="button" id="cancel-reject-btn"
-                    class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
-                    Hủy
-                </button>
-                <button type="button" id="confirm-reject-btn"
-                    class="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
-                    Xác nhận từ chối
-                </button>
-            </div>
-        </div>
-    </div>
 </body>
 
 </html>

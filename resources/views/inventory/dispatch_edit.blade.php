@@ -25,7 +25,30 @@
         </header>
 
         <main class="p-6">
-            <form action="#" method="POST">
+            @if ($errors->any())
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <strong>Có lỗi xảy ra:</strong>
+                    <ul class="mt-2">
+                        @foreach ($errors->all() as $error)
+                            <li>• {{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if (session('success'))
+                <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            <form action="{{ route('inventory.dispatch.update', $dispatch->id) }}" method="POST">
                 @csrf
                 @method('PUT')
 
@@ -40,14 +63,16 @@
                         <div>
                             <label for="dispatch_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu
                                 xuất</label>
-                            <input type="text" id="dispatch_code" name="dispatch_code" value="XK001" readonly
+                            <input type="text" id="dispatch_code" name="dispatch_code"
+                                value="{{ $dispatch->dispatch_code }}" readonly
                                 class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
                         </div>
                         <div>
                             <label for="dispatch_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày xuất <span
                                     class="text-red-500">*</span></label>
-                            <input type="date" id="dispatch_date" name="dispatch_date" value="2023-05-05" required
+                            <input type="date" id="dispatch_date" name="dispatch_date"
+                                value="{{ $dispatch->dispatch_date->format('Y-m-d') }}" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
@@ -57,9 +82,12 @@
                             <select id="dispatch_type" name="dispatch_type" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn loại hình --</option>
-                                <option value="project" selected>Dự án</option>
-                                <option value="rental">Cho thuê</option>
-                                <option value="other">Khác</option>
+                                <option value="project" {{ $dispatch->dispatch_type == 'project' ? 'selected' : '' }}>Dự
+                                    án</option>
+                                <option value="rental" {{ $dispatch->dispatch_type == 'rental' ? 'selected' : '' }}>Cho
+                                    thuê</option>
+                                <option value="warranty"
+                                    {{ $dispatch->dispatch_type == 'warranty' ? 'selected' : '' }}>Bảo hành</option>
                             </select>
                         </div>
                         <div>
@@ -67,9 +95,13 @@
                                 xuất kho <span class="text-red-500">*</span></label>
                             <select id="dispatch_detail" name="dispatch_detail"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="all" selected>Tất cả</option>
-                                <option value="contract">Xuất theo hợp đồng</option>
-                                <option value="backup">Xuất thiết bị dự phòng</option>
+                                <option value="all" {{ $dispatch->dispatch_detail == 'all' ? 'selected' : '' }}>Tất
+                                    cả</option>
+                                <option value="contract"
+                                    {{ $dispatch->dispatch_detail == 'contract' ? 'selected' : '' }}>Xuất theo hợp đồng
+                                </option>
+                                <option value="backup" {{ $dispatch->dispatch_detail == 'backup' ? 'selected' : '' }}>
+                                    Xuất thiết bị dự phòng</option>
                             </select>
                         </div>
                     </div>
@@ -81,870 +113,793 @@
                                     class="text-red-500">*</span></label>
                             <select id="project_receiver" name="project_receiver" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="project_1">Dự án: IoT A1 -- Người nhận: Trần Văn A</option>
-                                <option value="project_2">Dự án: Smart City A2 -- Người nhận: Trần Văn B</option>
-                                <option value="project_3">Dự án: Nhà máy thông minh A3 -- Người nhận: Trần Văn C
-                                </option>
+                                <option value="">-- Chọn dự án --</option>
+                                @if (isset($projects))
+                                    @foreach ($projects as $project)
+                                        <option
+                                            value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
+                                            data-project-id="{{ $project->id }}"
+                                            data-warranty-period="{{ $project->warranty_period }}"
+                                            {{ $dispatch->project_receiver == $project->project_code . ' - ' . $project->project_name . ' (' . ($project->customer->name ?? 'N/A') . ')' ? 'selected' : '' }}>
+                                            {{ $project->project_code }} - {{ $project->project_name }}
+                                            ({{ $project->customer->name ?? 'N/A' }})
+                                        </option>
+                                    @endforeach
+                                @endif
                             </select>
+                            <input type="hidden" id="project_id" name="project_id"
+                                value="{{ $dispatch->project_id }}">
                         </div>
                         <div>
                             <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian
                                 bảo hành</label>
-                            <input type="text" id="warranty_period" name="warranty_period" value="12 tháng" readonly
+                            <input type="text" id="warranty_period" name="warranty_period"
+                                value="{{ $dispatch->warranty_period }}" readonly
                                 class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
                         </div>
                         <div>
                             <label for="company_representative"
                                 class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
-                            <select id="company_representative" name="company_representative"
+                            <select id="company_representative" name="company_representative_id"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn người đại diện --</option>
-                                <option value="1" selected>Nguyễn Văn A (Giám đốc dự án)</option>
-                                <option value="2">Trần Thị B (Trưởng phòng kỹ thuật)</option>
-                                <option value="3">Lê Văn C (Kỹ sư công nghệ)</option>
+                                @if (isset($employees))
+                                    @foreach ($employees as $employee)
+                                        <option value="{{ $employee->id }}"
+                                            {{ $dispatch->company_representative_id == $employee->id ? 'selected' : '' }}>
+                                            {{ $employee->name }}
+                                        </option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
-                        <div>
-                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho
-                                xuất <span class="text-red-500">*</span></label>
-                            <select id="warehouse_id" name="warehouse_id" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn kho xuất --</option>
-                                <option value="1" selected>Kho chính</option>
-                                <option value="2">Kho phụ</option>
-                                <option value="3">Kho linh kiện</option>
-                                <option value="4">Kho bảo hành</option>
-                            </select>
+                        <div class="md:col-span-2">
+                            <label for="dispatch_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
+                                chú</label>
+                            <textarea id="dispatch_note" name="dispatch_note" rows="2"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Nhập ghi chú cho phiếu xuất (nếu có)">{{ $dispatch->dispatch_note }}</textarea>
                         </div>
-                    </div>
-                    <div class="w-full">
-                        <label for="dispatch_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
-                            chú</label>
-                        <textarea id="dispatch_note" name="dispatch_note" rows="2"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">Xuất hàng theo đơn đặt hàng số ĐH-2023-056 ngày 28/04/2023</textarea>
                     </div>
                 </div>
 
-                <!-- Danh sách thành phẩm chính đã được ẩn -->
+                <!-- Danh sách sản phẩm hợp đồng hiện tại -->
+                @php
+                    $contractItems = $dispatch->items->where('category', 'contract');
+                    $backupItems = $dispatch->items->where('category', 'backup');
+                    $generalItems = $dispatch->items->whereNotIn('category', ['contract', 'backup']);
+                @endphp
 
-                <!-- Block Xuất theo hợp đồng -->
-                <div id="contract-export-block" class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6" style="display: none;">
-                    <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-                        <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                        <span id="contract-block-title">Danh sách thành phẩm theo hợp đồng</span>
-                    </h2>
+                @if ($contractItems->count() > 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6">
+                        <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                            <i class="fas fa-file-contract text-blue-500 mr-2"></i>
+                            Danh sách sản phẩm hợp đồng hiện tại
+                        </h2>
 
-                    <!-- Chọn sản phẩm hợp đồng -->
-                    <div class="mb-4">
-                        <div class="flex gap-2">
-                            <div class="flex-1">
-                                <select id="contract_product_select" 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- Chọn thành phẩm để thêm vào hợp đồng --</option>
-                                </select>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-blue-50">
+                                    <tr>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Mã SP</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Tên sản phẩm</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Loại</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Đơn vị</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Kho xuất</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Số lượng</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Serial</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
+                                            Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach ($contractItems as $index => $item)
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-900">
+                                                {{ $item->item_code }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $item->item_name }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span
+                                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                {{ $item->item_type == 'product'
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : ($item->item_type == 'material'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-yellow-100 text-yellow-800') }}">
+                                                    {{ $item->item_type_label }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $item->item_unit }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $item->warehouse->name ?? 'N/A' }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="number"
+                                                    name="contract_items[{{ $item->id }}][quantity]"
+                                                    value="{{ $item->quantity }}" min="1"
+                                                    class="w-20 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <input type="hidden"
+                                                    name="contract_items[{{ $item->id }}][item_type]"
+                                                    value="{{ $item->item_type }}">
+                                                <input type="hidden"
+                                                    name="contract_items[{{ $item->id }}][item_id]"
+                                                    value="{{ $item->item_id }}">
+                                                <input type="hidden"
+                                                    name="contract_items[{{ $item->id }}][warehouse_id]"
+                                                    value="{{ $item->warehouse_id }}">
+                                                <input type="hidden"
+                                                    name="contract_items[{{ $item->id }}][category]"
+                                                    value="{{ $item->category }}">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex flex-col space-y-1">
+                                                    @php
+                                                        $serialNumbers = is_array($item->serial_numbers)
+                                                            ? $item->serial_numbers
+                                                            : [];
+                                                        $quantity = $item->quantity;
+                                                    @endphp
+                                                    @for ($i = 0; $i < $quantity; $i++)
+                                                        <input type="text"
+                                                            name="contract_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
+                                                            placeholder="Serial {{ $i + 1 }}"
+                                                            value="{{ $serialNumbers[$i] ?? '' }}"
+                                                            class="w-32 border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                                    @endfor
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <button type="button"
+                                                    class="text-red-600 hover:text-red-900 remove-contract-item-btn"
+                                                    data-item-id="{{ $item->id }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Danh sách sản phẩm dự phòng hiện tại -->
+                @if ($backupItems->count() > 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-orange-200 mb-6">
+                        <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                            <i class="fas fa-shield-alt text-orange-500 mr-2"></i>
+                            Danh sách sản phẩm dự phòng hiện tại
+                        </h2>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-orange-50">
+                                    <tr>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Mã SP</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Tên sản phẩm</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Loại</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Đơn vị</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Kho xuất</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Số lượng</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Serial</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
+                                            Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach ($backupItems as $index => $item)
+                                        <tr>
+                                            <td
+                                                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-900">
+                                                {{ $item->item_code }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $item->item_name }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span
+                                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                {{ $item->item_type == 'product'
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : ($item->item_type == 'material'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-yellow-100 text-yellow-800') }}">
+                                                    {{ $item->item_type_label }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $item->item_unit }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $item->warehouse->name ?? 'N/A' }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="number"
+                                                    name="backup_items[{{ $item->id }}][quantity]"
+                                                    value="{{ $item->quantity }}" min="1"
+                                                    class="w-20 border border-orange-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                <input type="hidden"
+                                                    name="backup_items[{{ $item->id }}][item_type]"
+                                                    value="{{ $item->item_type }}">
+                                                <input type="hidden"
+                                                    name="backup_items[{{ $item->id }}][item_id]"
+                                                    value="{{ $item->item_id }}">
+                                                <input type="hidden"
+                                                    name="backup_items[{{ $item->id }}][warehouse_id]"
+                                                    value="{{ $item->warehouse_id }}">
+                                                <input type="hidden"
+                                                    name="backup_items[{{ $item->id }}][category]"
+                                                    value="{{ $item->category }}">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex flex-col space-y-1">
+                                                    @php
+                                                        $serialNumbers = is_array($item->serial_numbers)
+                                                            ? $item->serial_numbers
+                                                            : [];
+                                                        $quantity = $item->quantity;
+                                                    @endphp
+                                                    @for ($i = 0; $i < $quantity; $i++)
+                                                        <input type="text"
+                                                            name="backup_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
+                                                            placeholder="Serial {{ $i + 1 }}"
+                                                            value="{{ $serialNumbers[$i] ?? '' }}"
+                                                            class="w-32 border border-orange-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+                                                    @endfor
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <button type="button"
+                                                    class="text-red-600 hover:text-red-900 remove-backup-item-btn"
+                                                    data-item-id="{{ $item->id }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Danh sách sản phẩm chung (nếu có) -->
+                @if ($generalItems->count() > 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-boxes text-gray-500 mr-2"></i>
+                            Danh sách sản phẩm chung
+                        </h2>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Mã SP</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Tên sản phẩm</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Loại</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Đơn vị</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Kho xuất</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Số lượng</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Serial</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach ($generalItems as $index => $item)
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {{ $item->item_code }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $item->item_name }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span
+                                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                {{ $item->item_type == 'product'
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : ($item->item_type == 'material'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-yellow-100 text-yellow-800') }}">
+                                                    {{ $item->item_type_label }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $item->item_unit }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $item->warehouse->name ?? 'N/A' }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <input type="number"
+                                                    name="general_items[{{ $item->id }}][quantity]"
+                                                    value="{{ $item->quantity }}" min="1"
+                                                    class="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                <input type="hidden"
+                                                    name="general_items[{{ $item->id }}][item_type]"
+                                                    value="{{ $item->item_type }}">
+                                                <input type="hidden"
+                                                    name="general_items[{{ $item->id }}][item_id]"
+                                                    value="{{ $item->item_id }}">
+                                                <input type="hidden"
+                                                    name="general_items[{{ $item->id }}][warehouse_id]"
+                                                    value="{{ $item->warehouse_id }}">
+                                                <input type="hidden"
+                                                    name="general_items[{{ $item->id }}][category]"
+                                                    value="{{ $item->category }}">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex flex-col space-y-1">
+                                                    @php
+                                                        $serialNumbers = is_array($item->serial_numbers)
+                                                            ? $item->serial_numbers
+                                                            : [];
+                                                        $quantity = $item->quantity;
+                                                    @endphp
+                                                    @for ($i = 0; $i < $quantity; $i++)
+                                                        <input type="text"
+                                                            name="general_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
+                                                            placeholder="Serial {{ $i + 1 }}"
+                                                            value="{{ $serialNumbers[$i] ?? '' }}"
+                                                            class="w-32 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                                    @endfor
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <button type="button"
+                                                    class="text-red-600 hover:text-red-900 remove-general-item-btn"
+                                                    data-item-id="{{ $item->id }}">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+
+                @if ($dispatch->items->count() == 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                        <div class="text-center py-8">
+                            <div class="text-gray-500">
+                                <i class="fas fa-inbox text-4xl mb-4"></i>
+                                <p>Chưa có sản phẩm nào trong phiếu xuất này.</p>
                             </div>
-                            <button type="button" id="add_contract_product_btn"
-                                class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                                <i class="fas fa-plus mr-1"></i> Thêm
-                            </button>
                         </div>
                     </div>
-
-                    <!-- Bảng sản phẩm hợp đồng -->
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-blue-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên thành phẩm</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đơn vị</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tồn kho</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số lượng xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serial</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="contract_product_list" class="bg-white divide-y divide-gray-200">
-                                <tr id="no_contract_products_row">
-                                    <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
-                                        Chưa có thành phẩm nào được thêm vào danh sách hợp đồng
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Nút cập nhật mã thiết bị hợp đồng -->
-                    <div class="mt-4 flex justify-end">
-                        <button type="button" id="update_contract_device_codes_btn"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                            <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Block Xuất thiết bị dự phòng -->
-                <div id="backup-export-block" class="bg-white rounded-xl shadow-md p-6 border border-orange-200 mb-6" style="display: none;">
-                    <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
-                        <i class="fas fa-shield-alt text-orange-500 mr-2"></i>
-                        <span id="backup-block-title">Danh sách thiết bị dự phòng</span>
-                    </h2>
-
-                    <!-- Chọn sản phẩm dự phòng -->
-                    <div class="mb-4">
-                        <div class="flex gap-2">
-                            <div class="flex-1">
-                                <select id="backup_product_select" 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                    <option value="">-- Chọn thiết bị dự phòng --</option>
-                                </select>
-                            </div>
-                            <button type="button" id="add_backup_product_btn"
-                                class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
-                                <i class="fas fa-plus mr-1"></i> Thêm
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Bảng sản phẩm dự phòng -->
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-orange-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên thành phẩm</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Đơn vị</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tồn kho</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Số lượng xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serial</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="backup_product_list" class="bg-white divide-y divide-gray-200">
-                                <tr id="no_backup_products_row">
-                                    <td colspan="7" class="px-6 py-4 text-sm text-gray-500 text-center">
-                                        Chưa có thiết bị dự phòng nào được thêm
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Nút cập nhật mã thiết bị dự phòng -->
-                    <div class="mt-4 flex justify-end">
-                        <button type="button" id="update_backup_device_codes_btn"
-                            class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
-                            <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                        </button>
-                    </div>
-                </div>
+                @endif
 
                 <div class="flex justify-end space-x-3">
-                    <a href="{{ asset('inventory/dispatch_detail') }}"
+                    <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}"
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg transition-colors">
                         Hủy
                     </a>
                     <button type="submit" id="submit-btn"
                         class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors">
-                        <i class="fas fa-save mr-2"></i> Cập nhật
+                        <i class="fas fa-save mr-2"></i> Cập nhật phiếu xuất
                     </button>
                 </div>
             </form>
         </main>
     </div>
 
-    <!-- Modal cập nhật mã thiết bị -->
-    <div id="device-code-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">Cập nhật mã thiết bị</h3>
-                <button type="button" class="text-gray-400 hover:text-gray-500" id="close-device-code-modal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
 
-            <div class="mb-4">
-                <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng
-                    bên dưới:</p>
-
-                <div class="overflow-x-auto">
-                    <table class="min-w-full border border-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri chính
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri vật tư
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Seri sim
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Mã truy cập
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    ID IoT
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Mac 4G
-                                </th>
-                                <th scope="col"
-                                    class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
-                                    Chú thích
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="device-code-tbody">
-                            <!-- Dữ liệu sẽ được tạo động từ JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-4 flex justify-between">
-                    <button type="button" id="import-device-codes"
-                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-file-import mr-2"></i> Import Excel
-                    </button>
-                    <div>
-                        <button type="button" id="cancel-device-codes"
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors mr-2">
-                            Hủy
-                        </button>
-                        <button type="button" id="save-device-codes"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                            <i class="fas fa-save mr-2"></i> Lưu thông tin
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Input file ẩn cho import Excel -->
-    <input type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" style="display: none;">
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Dữ liệu mẫu cho thành phẩm
-            const sampleProducts = [{
-                    id: 1,
-                    code: 'SP001',
-                    name: 'Bộ điều khiển chính v2.1',
-                    unit: 'Cái',
-                    stock: 25,
-                    price: 5000000,
-                    components: [{
-                            name: 'Vi xử lý ARM Cortex-M4',
-                            serial: 'ARM001'
-                        },
-                        {
-                            name: 'Bộ nhớ Flash 256KB',
-                            serial: 'FL256'
-                        },
-                        {
-                            name: 'Module WiFi ESP32',
-                            serial: 'ESP32001'
-                        },
-                        {
-                            name: 'Cảm biến nhiệt độ DHT22',
-                            serial: 'DHT001'
-                        }
-                    ]
-                },
-                {
-                    id: 2,
-                    code: 'SP002',
-                    name: 'Cảm biến nhiệt độ độ chính xác cao',
-                    unit: 'Cái',
-                    stock: 40,
-                    price: 1200000,
-                    components: [{
-                            name: 'Chip cảm biến SHT30',
-                            serial: 'SHT001'
-                        },
-                        {
-                            name: 'Module ADC 16-bit',
-                            serial: 'ADC16001'
-                        },
-                        {
-                            name: 'Bộ lọc nhiễu',
-                            serial: 'FILTER001'
-                        }
-                    ]
-                },
-                {
-                    id: 3,
-                    code: 'SP003',
-                    name: 'Màn hình hiển thị TFT 7 inch',
-                    unit: 'Bộ',
-                    stock: 15,
-                    price: 3500000,
-                    components: [{
-                            name: 'Panel TFT 7 inch',
-                            serial: 'TFT7001'
-                        },
-                        {
-                            name: 'Driver IC ILI9341',
-                            serial: 'ILI001'
-                        },
-                        {
-                            name: 'Cảm ứng điện dung',
-                            serial: 'TOUCH001'
-                        },
-                        {
-                            name: 'Backlight LED',
-                            serial: 'LED001'
-                        }
-                    ]
-                },
-                {
-                    id: 4,
-                    code: 'SP004',
-                    name: 'Bo mạch nguồn 24V/5A',
-                    unit: 'Cái',
-                    stock: 30,
-                    price: 800000,
-                    components: [{
-                            name: 'IC chuyển đổi LM2596',
-                            serial: 'LM001'
-                        },
-                        {
-                            name: 'Cuộn cảm 220µH',
-                            serial: 'L220001'
-                        },
-                        {
-                            name: 'Tụ điện 1000µF',
-                            serial: 'C1000001'
-                        }
-                    ]
-                },
-                {
-                    id: 5,
-                    code: 'SP005',
-                    name: 'Dây cáp kết nối RS485',
-                    unit: 'Cuộn',
-                    stock: 50,
-                    price: 250000,
-                    components: [{
-                            name: 'Dây đồng 2x0.75mm²',
-                            serial: 'WIRE001'
-                        },
-                        {
-                            name: 'Connector RJ45',
-                            serial: 'RJ45001'
-                        },
-                        {
-                            name: 'Vỏ bọc chống nhiễu',
-                            serial: 'SHIELD001'
-                        }
-                    ]
-                },
-                {
-                    id: 6,
-                    code: 'SP006',
-                    name: 'Module truyền thông 4G LTE',
-                    unit: 'Cái',
-                    stock: 20,
-                    price: 2800000,
-                    components: [{
-                            name: 'Chip 4G Quectel EC25',
-                            serial: 'EC25001'
-                        },
-                        {
-                            name: 'Anten 4G',
-                            serial: 'ANT4G001'
-                        },
-                        {
-                            name: 'SIM Slot',
-                            serial: 'SIM001'
-                        }
-                    ]
-                },
-                {
-                    id: 7,
-                    code: 'SP007',
-                    name: 'Bộ cảm biến áp suất',
-                    unit: 'Cái',
-                    stock: 35,
-                    price: 1800000,
-                    components: [{
-                            name: 'Cảm biến áp suất MPX5700',
-                            serial: 'MPX001'
-                        },
-                        {
-                            name: 'Bộ khuếch đại',
-                            serial: 'AMP001'
-                        },
-                        {
-                            name: 'Housing chống nước IP67',
-                            serial: 'IP67001'
-                        }
-                    ]
-                }
-            ];
-
-            // Mảng cho hợp đồng và dự phòng với dữ liệu mẫu
-            let selectedContractProducts = [{
-                    id: 1,
-                    code: 'SP001',
-                    name: 'Bộ điều khiển chính v2.1',
-                    unit: 'Cái',
-                    stock: 25,
-                    quantity: 2
-                },
-                {
-                    id: 3,
-                    code: 'SP003',
-                    name: 'Màn hình hiển thị TFT 7 inch',
-                    unit: 'Bộ',
-                    stock: 15,
-                    quantity: 1
-                }
-            ];
-            
-            let selectedBackupProducts = [{
-                    id: 2,
-                    code: 'SP002',
-                    name: 'Cảm biến nhiệt độ độ chính xác cao',
-                    unit: 'Cái',
-                    stock: 40,
-                    quantity: 3
-                },
-                {
-                    id: 4,
-                    code: 'SP004',
-                    name: 'Bo mạch nguồn 24V/5A',
-                    unit: 'Cái',
-                    stock: 30,
-                    quantity: 2
-                }
-            ];
-
-            // Khởi tạo dropdown sản phẩm cho 2 danh sách
-            const contractProductSelect = document.getElementById('contract_product_select');
-            const backupProductSelect = document.getElementById('backup_product_select');
-            
-            function populateProductDropdown(selectElement) {
-                sampleProducts.forEach(product => {
-                    const option = document.createElement('option');
-                    option.value = product.id;
-                    option.textContent = `${product.code} - ${product.name} (Tồn: ${product.stock})`;
-                    selectElement.appendChild(option);
-                });
-            }
-
-            populateProductDropdown(contractProductSelect);
-            populateProductDropdown(backupProductSelect);
-
-            // Xử lý hiển thị block theo chi tiết xuất kho
-            const dispatchDetailSelect = document.getElementById('dispatch_detail');
-            const contractBlock = document.getElementById('contract-export-block');
-            const backupBlock = document.getElementById('backup-export-block');
-
-            function updateDisplayBlocks() {
-                const selectedValue = dispatchDetailSelect.value;
-                
-                switch(selectedValue) {
-                    case 'all':
-                        // Hiển thị cả 2 block
-                        contractBlock.style.display = 'block';
-                        backupBlock.style.display = 'block';
-                        break;
-                    case 'contract':
-                        // Chỉ hiển thị block hợp đồng
-                        contractBlock.style.display = 'block';
-                        backupBlock.style.display = 'none';
-                        break;
-                    case 'backup':
-                        // Chỉ hiển thị block dự phòng
-                        contractBlock.style.display = 'none';
-                        backupBlock.style.display = 'block';
-                        break;
-                    default:
-                        // Mặc định hiển thị cả 2
-                        contractBlock.style.display = 'block';
-                        backupBlock.style.display = 'block';
-                }
-            }
-
-            // Khởi tạo hiển thị ban đầu
-            updateDisplayBlocks();
-
-            // Lắng nghe thay đổi dispatch detail
-            dispatchDetailSelect.addEventListener('change', updateDisplayBlocks);
-
-            // Xử lý thêm sản phẩm cho 2 danh sách
-            const addContractProductBtn = document.getElementById('add_contract_product_btn');
-            const addBackupProductBtn = document.getElementById('add_backup_product_btn');
-            const contractProductList = document.getElementById('contract_product_list');
-            const backupProductList = document.getElementById('backup_product_list');
-            const noContractProductsRow = document.getElementById('no_contract_products_row');
-            const noBackupProductsRow = document.getElementById('no_backup_products_row');
-
-            // Xử lý thêm sản phẩm hợp đồng
-            addContractProductBtn.addEventListener('click', function() {
-                const selectedId = parseInt(contractProductSelect.value);
-
-                if (!selectedId) {
-                    alert('Vui lòng chọn sản phẩm để thêm!');
-                    return;
-                }
-
-                const foundProduct = sampleProducts.find(p => p.id === selectedId);
-                if (!foundProduct) {
-                    alert('Không tìm thấy thông tin sản phẩm!');
-                    return;
-                }
-
-                if (selectedContractProducts.some(p => p.id === foundProduct.id)) {
-                    alert('Sản phẩm này đã được thêm vào danh sách hợp đồng!');
-                    return;
-                }
-
-                selectedContractProducts.push({
-                    ...foundProduct,
-                    quantity: 1
-                });
-
-                updateContractProductList();
-                contractProductSelect.value = '';
-            });
-
-            // Xử lý thêm sản phẩm dự phòng
-            addBackupProductBtn.addEventListener('click', function() {
-                const selectedId = parseInt(backupProductSelect.value);
-
-                if (!selectedId) {
-                    alert('Vui lòng chọn thiết bị để thêm!');
-                    return;
-                }
-
-                const foundProduct = sampleProducts.find(p => p.id === selectedId);
-                if (!foundProduct) {
-                    alert('Không tìm thấy thông tin thiết bị!');
-                    return;
-                }
-
-                if (selectedBackupProducts.some(p => p.id === foundProduct.id)) {
-                    alert('Thiết bị này đã được thêm vào danh sách dự phòng!');
-                    return;
-                }
-
-                selectedBackupProducts.push({
-                    ...foundProduct,
-                    quantity: 1
-                });
-
-                updateBackupProductList();
-                backupProductSelect.value = '';
-            });
-
-                        // Function updateProductList đã được loại bỏ
-
-            function updateContractProductList() {
-                if (selectedContractProducts.length > 0) {
-                    noContractProductsRow.style.display = 'none';
-                } else {
-                    noContractProductsRow.style.display = '';
-                }
-
-                const contractRows = document.querySelectorAll('.contract-product-row');
-                contractRows.forEach(row => row.remove());
-
-                selectedContractProducts.forEach((product, index) => {
-                    const row = document.createElement('tr');
-                    row.className = 'contract-product-row';
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <input type="hidden" name="contract_products[${index}][id]" value="${product.id}">
-                            ${product.code}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.unit}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.stock}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="number" name="contract_products[${index}][quantity]" min="1" max="${product.stock}" value="${product.quantity}"
-                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 contract-quantity-input"
-                                data-index="${index}">
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="text" name="contract_products[${index}][serial]" placeholder="Nhập serial (tùy chọn)" 
-                                class="w-100 border border-gray-300 rounded px-2 py-1 text-sm"
-                                value="${product.serial || ''}">
-                            <div class="text-xs text-gray-400 mt-1">Không bắt buộc</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button type="button" class="text-red-500 hover:text-red-700 delete-contract-product" data-index="${index}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    contractProductList.insertBefore(row, noContractProductsRow);
-                });
-
-                // Event listeners cho contract products
-                const contractQuantityInputs = document.querySelectorAll('.contract-quantity-input');
-                contractQuantityInputs.forEach(input => {
-                    input.addEventListener('change', function() {
-                        const index = parseInt(this.dataset.index);
-                        const newQuantity = parseInt(this.value);
-                        if (newQuantity < 1) {
-                            this.value = 1;
-                            selectedContractProducts[index].quantity = 1;
-                        } else if (newQuantity > selectedContractProducts[index].stock) {
-                            this.value = selectedContractProducts[index].stock;
-                            selectedContractProducts[index].quantity = selectedContractProducts[index].stock;
-                            alert(`Số lượng xuất không thể vượt quá số lượng tồn kho (${selectedContractProducts[index].stock})!`);
-                        } else {
-                            selectedContractProducts[index].quantity = newQuantity;
-                        }
-                    });
-                });
-
-                const deleteContractButtons = document.querySelectorAll('.delete-contract-product');
-                deleteContractButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const index = parseInt(this.dataset.index);
-                        selectedContractProducts.splice(index, 1);
-                        updateContractProductList();
-                    });
-                });
-            }
-
-            function updateBackupProductList() {
-                if (selectedBackupProducts.length > 0) {
-                    noBackupProductsRow.style.display = 'none';
-                } else {
-                    noBackupProductsRow.style.display = '';
-                }
-
-                const backupRows = document.querySelectorAll('.backup-product-row');
-                backupRows.forEach(row => row.remove());
-
-                selectedBackupProducts.forEach((product, index) => {
-                    const row = document.createElement('tr');
-                    row.className = 'backup-product-row';
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <input type="hidden" name="backup_products[${index}][id]" value="${product.id}">
-                            ${product.code}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.unit}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${product.stock}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                            <input type="number" name="backup_products[${index}][quantity]" min="1" max="${product.stock}" value="${product.quantity}"
-                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500 backup-quantity-input"
-                                data-index="${index}">
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <input type="text" name="backup_products[${index}][serial]" placeholder="Nhập serial (tùy chọn)" 
-                                class="w-100 border border-gray-300 rounded px-2 py-1 text-sm"
-                                value="${product.serial || ''}">
-                            <div class="text-xs text-gray-400 mt-1">Không bắt buộc</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button type="button" class="text-red-500 hover:text-red-700 delete-backup-product" data-index="${index}">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    backupProductList.insertBefore(row, noBackupProductsRow);
-                });
-
-                // Event listeners cho backup products
-                const backupQuantityInputs = document.querySelectorAll('.backup-quantity-input');
-                backupQuantityInputs.forEach(input => {
-                    input.addEventListener('change', function() {
-                        const index = parseInt(this.dataset.index);
-                        const newQuantity = parseInt(this.value);
-                        if (newQuantity < 1) {
-                            this.value = 1;
-                            selectedBackupProducts[index].quantity = 1;
-                        } else if (newQuantity > selectedBackupProducts[index].stock) {
-                            this.value = selectedBackupProducts[index].stock;
-                            selectedBackupProducts[index].quantity = selectedBackupProducts[index].stock;
-                            alert(`Số lượng xuất không thể vượt quá số lượng tồn kho (${selectedBackupProducts[index].stock})!`);
-                        } else {
-                            selectedBackupProducts[index].quantity = newQuantity;
-                        }
-                    });
-                });
-
-                const deleteBackupButtons = document.querySelectorAll('.delete-backup-product');
-                deleteBackupButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const index = parseInt(this.dataset.index);
-                        selectedBackupProducts.splice(index, 1);
-                        updateBackupProductList();
-                    });
-                });
-            }
-
-                        // Khởi tạo danh sách với dữ liệu có sẵn
-            updateContractProductList();
-            updateBackupProductList();
-
-            // Xử lý thay đổi warranty period khi chọn người nhận/dự án
+            // Xử lý thay đổi dự án - cập nhật thời gian bảo hành và project_id
             const projectReceiverSelect = document.getElementById('project_receiver');
-            const warrantyInput = document.getElementById('warranty_period');
+            if (projectReceiverSelect) {
+                projectReceiverSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const warrantyPeriodInput = document.getElementById('warranty_period');
+                    const projectIdInput = document.getElementById('project_id');
 
-            projectReceiverSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const warrantyPeriod = selectedOption.getAttribute('data-warranty') || '';
-                warrantyInput.value = warrantyPeriod;
-            });
-
-            // Xử lý modal cập nhật mã thiết bị
-            const updateContractDeviceCodesBtn = document.getElementById('update_contract_device_codes_btn');
-            const updateBackupDeviceCodesBtn = document.getElementById('update_backup_device_codes_btn');
-            const deviceCodeModal = document.getElementById('device-code-modal');
-            const deviceCodeTbody = document.getElementById('device-code-tbody');
-            const closeModalBtn = document.getElementById('close-device-code-modal');
-            const cancelBtn = document.getElementById('cancel-device-codes');
-            const saveBtn = document.getElementById('save-device-codes');
-            const importBtn = document.getElementById('import-device-codes');
-            const excelInput = document.getElementById('excel-file-input');
-
-            let currentDeviceContext = 'contract'; // 'contract', 'backup'
-
-            function populateDeviceCodes() {
-                deviceCodeTbody.innerHTML = '';
-
-                let currentProducts;
-                let contextName;
-                
-                switch(currentDeviceContext) {
-                    case 'contract':
-                        currentProducts = selectedContractProducts;
-                        contextName = 'hợp đồng';
-                        break;
-                    case 'backup':
-                        currentProducts = selectedBackupProducts;
-                        contextName = 'dự phòng';
-                        break;
-                    default:
-                        currentProducts = selectedContractProducts;
-                        contextName = 'hợp đồng';
-                }
-
-                if (currentProducts.length === 0) {
-                    const noDataRow = document.createElement('tr');
-                    noDataRow.innerHTML = `
-                        <td colspan="7" class="px-4 py-8 text-center text-gray-500">
-                            <div class="flex flex-col items-center">
-                                <i class="fas fa-info-circle text-3xl mb-2"></i>
-                                <p>Chưa có sản phẩm nào được chọn trong danh sách ${contextName}</p>
-                                <p class="text-sm">Vui lòng thêm sản phẩm vào danh sách trước khi cập nhật mã thiết bị</p>
-                            </div>
-                        </td>
-                    `;
-                    deviceCodeTbody.appendChild(noDataRow);
-                    return;
-                }
-
-                currentProducts.forEach((product, index) => {
-                    for (let i = 0; i < product.quantity; i++) {
-                        const row = document.createElement('tr');
-
-                        // Tạo serial cho vật tư từ components
-                        let componentSerials = '';
-                        if (product.components && product.components.length > 0) {
-                            componentSerials = product.components.map(comp => comp.serial).join(', ');
-                        }
-
-                        row.innerHTML = `
-                            <td class="px-2 py-2 border border-gray-200">
-                                <input type="text" name="serial_main[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                                    placeholder="Nhập serial chính"
-                                    value="SG-2024-${String(Date.now() + index * 1000 + i).slice(-3)}">
-                            </td>
-                            <td class="px-2 py-2 border border-gray-200">
-                                <textarea name="serial_components[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm resize-none"
-                                    rows="2" placeholder="Serial vật tư...">${componentSerials}</textarea>
-                            </td>
-                            <td class="px-2 py-2 border border-gray-200">
-                                <input type="text" name="serial_sim[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                                    placeholder="Serial SIM"
-                                    value="SIM-${String(Date.now() + index * 100 + i).slice(-3)}">
-                            </td>
-                            <td class="px-2 py-2 border border-gray-200">
-                                <input type="text" name="access_code[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                                    placeholder="Mã truy cập"
-                                    value="AC-${String(Date.now() + index * 10 + i).slice(-4)}">
-                            </td>
-                            <td class="px-2 py-2 border border-gray-200">
-                                <input type="text" name="iot_id[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                                    placeholder="ID IoT"
-                                    value="IOT-${String(Date.now() + index + i).slice(-4)}">
-                            </td>
-                            <td class="px-2 py-2 border border-gray-200">
-                                <input type="text" name="mac_4g[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                                    placeholder="MAC 4G"
-                                    value="4G-${String(Date.now() + index * 50 + i).slice(-4)}">
-                            </td>
-                            <td class="px-2 py-2 border border-gray-200">
-                                <input type="text" name="note[]" 
-                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
-                                    placeholder="Chú thích"
-                                    value="${product.name} #${i + 1}">
-                            </td>
-                        `;
-                        deviceCodeTbody.appendChild(row);
+                    if (selectedOption && selectedOption.dataset.warrantyPeriod) {
+                        warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
+                        projectIdInput.value = selectedOption.dataset.projectId || '';
+                    } else {
+                        warrantyPeriodInput.value = '';
+                        projectIdInput.value = '';
                     }
                 });
             }
 
-            updateContractDeviceCodesBtn.addEventListener('click', function() {
-                currentDeviceContext = 'contract';
-                populateDeviceCodes();
-                deviceCodeModal.classList.remove('hidden');
+            // Thêm event listeners cho quantity inputs hiện tại theo category
+            const contractQuantityInputs = document.querySelectorAll(
+                'input[name*="contract_items"][name*="[quantity]"]');
+            contractQuantityInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    updateSerialInputs(this, 'contract');
+                    // Chỉ validate cho dispatch pending
+                    @if ($dispatch->status === 'pending')
+                        showEditStockWarnings();
+                    @endif
+                });
             });
 
-            updateBackupDeviceCodesBtn.addEventListener('click', function() {
-                currentDeviceContext = 'backup';
-                populateDeviceCodes();
-                deviceCodeModal.classList.remove('hidden');
+            const backupQuantityInputs = document.querySelectorAll(
+                'input[name*="backup_items"][name*="[quantity]"]');
+            backupQuantityInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    updateSerialInputs(this, 'backup');
+                    // Chỉ validate cho dispatch pending
+                    @if ($dispatch->status === 'pending')
+                        showEditStockWarnings();
+                    @endif
+                });
             });
 
-            closeModalBtn.addEventListener('click', function() {
-                deviceCodeModal.classList.add('hidden');
+            const generalQuantityInputs = document.querySelectorAll(
+                'input[name*="general_items"][name*="[quantity]"]');
+            generalQuantityInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    updateSerialInputs(this, 'general');
+                    // Chỉ validate cho dispatch pending
+                    @if ($dispatch->status === 'pending')
+                        showEditStockWarnings();
+                    @endif
+                });
             });
 
-            cancelBtn.addEventListener('click', function() {
-                deviceCodeModal.classList.add('hidden');
+            // Xử lý xóa item theo category
+            const removeContractItemBtns = document.querySelectorAll('.remove-contract-item-btn');
+            removeContractItemBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (confirm(
+                            'Bạn có chắc chắn muốn xóa sản phẩm hợp đồng này khỏi phiếu xuất?')) {
+                        const row = this.closest('tr');
+                        row.style.display = 'none';
+
+                        // Disable tất cả input trong row này để không submit
+                        const inputs = row.querySelectorAll('input, textarea');
+                        inputs.forEach(input => {
+                            input.disabled = true;
+                        });
+
+                        // Kiểm tra lại tồn kho sau khi xóa
+                        @if ($dispatch->status === 'pending')
+                            showEditStockWarnings();
+                        @endif
+                    }
+                });
             });
 
-            saveBtn.addEventListener('click', function() {
-                alert('Đã lưu thông tin mã thiết bị!');
-                deviceCodeModal.classList.add('hidden');
+            const removeBackupItemBtns = document.querySelectorAll('.remove-backup-item-btn');
+            removeBackupItemBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (confirm(
+                            'Bạn có chắc chắn muốn xóa sản phẩm dự phòng này khỏi phiếu xuất?')) {
+                        const row = this.closest('tr');
+                        row.style.display = 'none';
+
+                        // Disable tất cả input trong row này để không submit
+                        const inputs = row.querySelectorAll('input, textarea');
+                        inputs.forEach(input => {
+                            input.disabled = true;
+                        });
+
+                        // Kiểm tra lại tồn kho sau khi xóa
+                        @if ($dispatch->status === 'pending')
+                            showEditStockWarnings();
+                        @endif
+                    }
+                });
             });
 
-            importBtn.addEventListener('click', function() {
-                excelInput.click();
+            const removeGeneralItemBtns = document.querySelectorAll('.remove-general-item-btn');
+            removeGeneralItemBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (confirm('Bạn có chắc chắn muốn xóa sản phẩm này khỏi phiếu xuất?')) {
+                        const row = this.closest('tr');
+                        row.style.display = 'none';
+
+                        // Disable tất cả input trong row này để không submit
+                        const inputs = row.querySelectorAll('input, textarea');
+                        inputs.forEach(input => {
+                            input.disabled = true;
+                        });
+
+                        // Kiểm tra lại tồn kho sau khi xóa
+                        @if ($dispatch->status === 'pending')
+                            showEditStockWarnings();
+                        @endif
+                    }
+                });
             });
 
-            excelInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    alert(`Đã chọn file: ${file.name}. Chức năng import đang được phát triển.`);
-                    this.value = '';
+            // Hàm cập nhật serial inputs khi quantity thay đổi
+            function updateSerialInputs(quantityInput, category) {
+                const newQuantity = parseInt(quantityInput.value);
+                const row = quantityInput.closest('tr');
+                const serialContainer = row.querySelector('.flex.flex-col');
+
+                if (!serialContainer) return;
+
+                const currentSerialInputs = serialContainer.querySelectorAll('input[type="text"]');
+                const currentValues = Array.from(currentSerialInputs).map(input => input.value);
+
+                // Xóa tất cả serial inputs hiện tại
+                serialContainer.innerHTML = '';
+
+                // Tạo serial inputs mới theo quantity
+                for (let i = 0; i < newQuantity; i++) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.placeholder = `Serial ${i + 1}`;
+                    input.value = currentValues[i] || '';
+                    input.className = `w-32 border rounded px-2 py-1 text-xs focus:outline-none focus:ring-1`;
+
+                    // Xác định màu border theo category
+                    if (category === 'contract') {
+                        input.classList.add('border-blue-300', 'focus:ring-blue-500');
+                        input.name = quantityInput.name.replace('[quantity]', `[serial_numbers][${i}]`);
+                    } else if (category === 'backup') {
+                        input.classList.add('border-orange-300', 'focus:ring-orange-500');
+                        input.name = quantityInput.name.replace('[quantity]', `[serial_numbers][${i}]`);
+                    } else {
+                        input.classList.add('border-gray-300', 'focus:ring-blue-500');
+                        input.name = quantityInput.name.replace('[quantity]', `[serial_numbers][${i}]`);
+                    }
+
+                    serialContainer.appendChild(input);
+
+                    // Thêm margin bottom trừ item cuối
+                    if (i < newQuantity - 1) {
+                        input.classList.add('mb-1');
+                    }
                 }
-            });
+            }
+
+            // Hàm kiểm tra tồn kho tổng hợp cho trang edit
+            function validateEditStock() {
+                const stockErrors = [];
+                const groupedItems = {};
+
+                // Lấy tất cả items hiện tại (chỉ items cũ đã có trong database)
+                const allItems = [];
+
+                // Items hiện tại trong form theo category
+                // Contract items
+                const contractItems = form.querySelectorAll(
+                    'input[name*="contract_items"][name*="[item_id]"]:not([disabled])');
+                contractItems.forEach((input) => {
+                    const row = input.closest('tr');
+                    const itemType = row.querySelector('input[name*="[item_type]"]').value;
+                    const itemId = parseInt(input.value);
+                    const warehouseId = parseInt(row.querySelector('input[name*="[warehouse_id]"]').value);
+                    const quantity = parseInt(row.querySelector('input[name*="[quantity]"]').value);
+                    const category = row.querySelector('input[name*="[category]"]').value;
+
+                    allItems.push({
+                        item_type: itemType,
+                        item_id: itemId,
+                        warehouse_id: warehouseId,
+                        quantity: quantity,
+                        category: category
+                    });
+                });
+
+                // Backup items
+                const backupItems = form.querySelectorAll(
+                    'input[name*="backup_items"][name*="[item_id]"]:not([disabled])');
+                backupItems.forEach((input) => {
+                    const row = input.closest('tr');
+                    const itemType = row.querySelector('input[name*="[item_type]"]').value;
+                    const itemId = parseInt(input.value);
+                    const warehouseId = parseInt(row.querySelector('input[name*="[warehouse_id]"]').value);
+                    const quantity = parseInt(row.querySelector('input[name*="[quantity]"]').value);
+                    const category = row.querySelector('input[name*="[category]"]').value;
+
+                    allItems.push({
+                        item_type: itemType,
+                        item_id: itemId,
+                        warehouse_id: warehouseId,
+                        quantity: quantity,
+                        category: category
+                    });
+                });
+
+                // General items
+                const generalItems = form.querySelectorAll(
+                    'input[name*="general_items"][name*="[item_id]"]:not([disabled])');
+                generalItems.forEach((input) => {
+                    const row = input.closest('tr');
+                    const itemType = row.querySelector('input[name*="[item_type]"]').value;
+                    const itemId = parseInt(input.value);
+                    const warehouseId = parseInt(row.querySelector('input[name*="[warehouse_id]"]').value);
+                    const quantity = parseInt(row.querySelector('input[name*="[quantity]"]').value);
+                    const category = row.querySelector('input[name*="[category]"]').value;
+
+                    allItems.push({
+                        item_type: itemType,
+                        item_id: itemId,
+                        warehouse_id: warehouseId,
+                        quantity: quantity,
+                        category: category
+                    });
+                });
+
+                // Nhóm items theo key
+                allItems.forEach(item => {
+                    const key = `${item.item_type}_${item.item_id}_${item.warehouse_id}`;
+                    if (!groupedItems[key]) {
+                        groupedItems[key] = {
+                            item: item,
+                            totalQuantity: 0,
+                            categories: []
+                        };
+                    }
+                    groupedItems[key].totalQuantity += item.quantity;
+                    if (!groupedItems[key].categories.includes(item.category)) {
+                        groupedItems[key].categories.push(item.category);
+                    }
+                });
+
+                // Kiểm tra tồn kho cho từng nhóm
+                Object.keys(groupedItems).forEach(key => {
+                    const group = groupedItems[key];
+                    // Tìm thông tin sản phẩm từ availableItems hoặc từ existing data
+                    let currentStock = 0;
+                    let productName = 'Không xác định';
+                    let productCode = 'N/A';
+
+                    // Tìm trong availableItems nếu có
+                    if (typeof availableItems !== 'undefined') {
+                        const foundItem = availableItems.find(item =>
+                            item.id == group.item.item_id && item.type == group.item.item_type
+                        );
+                        if (foundItem) {
+                            const warehouse = foundItem.warehouses.find(w => w.warehouse_id == group.item
+                                .warehouse_id);
+                            if (warehouse) {
+                                currentStock = warehouse.quantity;
+                                productName = foundItem.name;
+                                productCode = foundItem.code;
+                            }
+                        }
+                    }
+
+                    if (group.totalQuantity > currentStock) {
+                        const categoriesText = group.categories.map(cat => {
+                            switch (cat) {
+                                case 'contract':
+                                    return 'hợp đồng';
+                                case 'backup':
+                                    return 'dự phòng';
+                                default:
+                                    return cat;
+                            }
+                        }).join(', ');
+
+                        stockErrors.push(
+                            `${productCode} - ${productName}: ` +
+                            `Tồn kho ${currentStock}, yêu cầu ${group.totalQuantity} ` +
+                            `(Tổng từ: ${categoriesText})`
+                        );
+                    }
+                });
+
+                return stockErrors;
+            }
+
+            // Hàm hiển thị cảnh báo tồn kho cho trang edit
+            function showEditStockWarnings() {
+                const stockErrors = validateEditStock();
+
+                // Xóa cảnh báo cũ
+                const oldWarnings = document.querySelectorAll('.stock-warning');
+                oldWarnings.forEach(warning => warning.remove());
+
+                if (stockErrors.length > 0) {
+                    // Tạo div cảnh báo
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className =
+                        'stock-warning bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
+                    warningDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Cảnh báo tồn kho:</strong>
+                        </div>
+                        <ul class="mt-2 ml-6">
+                            ${stockErrors.map(error => `<li>• ${error}</li>`).join('')}
+                        </ul>
+                    `;
+
+                    // Thêm vào đầu form
+                    form.insertBefore(warningDiv, form.firstChild);
+                }
+            }
+
+            // Xử lý form submit
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    // Kiểm tra xem còn item nào không bị disable (tất cả categories)
+                    const activeContractItems = form.querySelectorAll(
+                        'input[name*="contract_items"][name*="[item_id]"]:not([disabled])');
+                    const activeBackupItems = form.querySelectorAll(
+                        'input[name*="backup_items"][name*="[item_id]"]:not([disabled])');
+                    const activeGeneralItems = form.querySelectorAll(
+                        'input[name*="general_items"][name*="[item_id]"]:not([disabled])');
+
+                    const totalActiveItems = activeContractItems.length + activeBackupItems.length +
+                        activeGeneralItems.length;
+
+                    if (totalActiveItems === 0) {
+                        e.preventDefault();
+                        alert('Phiếu xuất phải có ít nhất một sản phẩm!');
+                        return;
+                    }
+
+                    // Kiểm tra tồn kho trước khi submit (chỉ cho dispatch pending)
+                    @if ($dispatch->status === 'pending')
+                        const stockErrors = validateEditStock();
+                        if (stockErrors.length > 0) {
+                            e.preventDefault();
+                            alert('Không đủ tồn kho:\n\n' + stockErrors.join('\n'));
+                            return;
+                        }
+                    @endif
+
+                    // Serial numbers đã được xử lý trực tiếp qua các input riêng biệt
+                    // Không cần xử lý thêm gì
+                });
+            }
         });
     </script>
 </body>

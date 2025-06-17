@@ -70,31 +70,30 @@
                             <label for="assembly_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp <span
                                     class="text-red-500">*</span></label>
-                            <input type="date" id="assembly_date" name="assembly_date" value="{{ $assembly->date }}" required
+                            <input type="date" id="assembly_date" name="assembly_date" value="{{ $assembly->date }}"
+                                required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
-                            <label for="product_id" class="block text-sm font-medium text-gray-700 mb-1 required">Thành
-                                phẩm <span class="text-red-500">*</span></label>
+                            <label for="product_id" class="block text-sm font-medium text-gray-700 mb-1">Thêm thành
+                                phẩm mới</label>
                             <div>
                                 <div class="relative flex space-x-2">
-                                    <select id="product_id" name="product_id" required
+                                    <select id="product_id" name="product_id"
                                         class="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                        <option value="">-- Chọn thành phẩm --</option>
+                                        <option value="">-- Chọn thành phẩm để thêm --</option>
                                         @foreach ($products as $product)
                                             <option value="{{ $product->id }}" data-name="{{ $product->name }}"
-                                                data-code="{{ $product->code }}" 
-                                                {{ $product->id == $assembly->product_id ? 'selected' : '' }}>
+                                                data-code="{{ $product->code }}">
                                                 [{{ $product->code }}] {{ $product->name }}
                                             </option>
                                         @endforeach
                                     </select>
                                     <div class="w-24">
-                                        <input type="number" id="product_add_quantity" min="1"
-                                            value="1"
+                                        <input type="number" id="product_add_quantity" min="1" value="1"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             placeholder="Số lượng">
                                     </div>
@@ -103,14 +102,11 @@
                                         Thêm
                                     </button>
                                 </div>
-                                <div class="text-xs text-gray-500 mt-1">Chọn thành phẩm, nhập số lượng và nhấn thêm. Có
-                                    thể
-                                    thêm nhiều thành phẩm.</div>
+                                <div class="text-xs text-gray-500 mt-1">Chọn thành phẩm từ dropdown, nhập số lượng và nhấn "Thêm" để bổ sung thêm thành phẩm vào phiếu lắp ráp.</div>
                             </div>
                         </div>
                         <div>
-                            <label for="assigned_to"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Người
+                            <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người
                                 phụ trách <span class="text-red-500">*</span></label>
                             <select id="assigned_to" name="assigned_to" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -119,7 +115,7 @@
                                     <option value="{{ $employee->id }}"
                                         {{ ($assembly->assigned_employee_id ?? $assembly->assigned_to) == $employee->id || $assembly->assigned_to == $employee->name ? 'selected' : '' }}>
                                         {{ $employee->name }}
-                                </option>
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -136,7 +132,7 @@
                                     <option value="{{ $employee->id }}"
                                         {{ $assembly->tester_id == $employee->id ? 'selected' : '' }}>
                                         {{ $employee->name }}
-                                </option>
+                                    </option>
                                 @endforeach
                             </select>
                         </div>
@@ -155,8 +151,8 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
-                            <label for="warehouse_id"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Kho xuất
+                            <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kho
+                                xuất
                                 <span class="text-red-500">*</span></label>
                             <select id="warehouse_id" name="warehouse_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -249,39 +245,117 @@
                                 </tr>
                             </thead>
                             <tbody id="product_list" class="bg-white divide-y divide-gray-200">
-                                <!-- Thành phẩm hiện tại -->
-                                <tr class="product-row bg-white hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        1
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {{ $assembly->product->name }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {{ $assembly->quantity }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-700">
-                                        @if ($assembly->quantity > 1)
-                                            <div class="space-y-2">
-                                                @for ($i = 0; $i < $assembly->quantity; $i++)
-                                                    <input type="text" name="product_serials[]" 
-                                                        value="{{ $productSerials[$i] ?? '' }}"
-                                                        placeholder="Serial {{ $i + 1 }}"
-                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                @endfor
-                                            </div>
-                                        @else
-                                            <input type="text" name="product_serials[]" 
-                                                value="{{ $productSerials[0] ?? '' }}"
-                                                placeholder="Serial"
-                                                class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button type="button" class="text-red-500 hover:text-red-700 delete-product"
-                                            data-index="0"><i class="fas fa-trash"></i></button>
-                                    </td>
-                                </tr>
+                                @if ($assembly->products && $assembly->products->count() > 0)
+                                    <!-- Hiển thị products từ assembly_products table -->
+                                    @foreach ($assembly->products as $index => $assemblyProduct)
+                                        <tr class="product-row bg-white hover:bg-gray-50"
+                                            data-product-id="{{ $assemblyProduct->product_id }}">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {{ $assemblyProduct->product->code }}
+                                                <input type="hidden" name="products[{{ $index }}][id]"
+                                                    value="{{ $assemblyProduct->product_id }}">
+                                                <input type="hidden" name="products[{{ $index }}][code]"
+                                                    value="{{ $assemblyProduct->product->code }}">
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                {{ $assemblyProduct->product->name }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                <input type="number" min="1"
+                                                    name="products[{{ $index }}][quantity]"
+                                                    value="{{ $assemblyProduct->quantity }}"
+                                                    class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-700">
+                                                @if ($assemblyProduct->serials)
+                                                    @php
+                                                        $serials = explode(',', $assemblyProduct->serials);
+                                                    @endphp
+                                                    @if ($assemblyProduct->quantity > 1)
+                                                        <div class="space-y-2">
+                                                            @for ($i = 0; $i < $assemblyProduct->quantity; $i++)
+                                                                <input type="text"
+                                                                    name="products[{{ $index }}][serials][]"
+                                                                    value="{{ $serials[$i] ?? '' }}"
+                                                                    placeholder="Serial {{ $i + 1 }}"
+                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                            @endfor
+                                                        </div>
+                                                    @else
+                                                        <input type="text"
+                                                            name="products[{{ $index }}][serials][]"
+                                                            value="{{ $serials[0] ?? '' }}" placeholder="Serial"
+                                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                    @endif
+                                                @else
+                                                    @if ($assemblyProduct->quantity > 1)
+                                                        <div class="space-y-2">
+                                                            @for ($i = 0; $i < $assemblyProduct->quantity; $i++)
+                                                                <input type="text"
+                                                                    name="products[{{ $index }}][serials][]"
+                                                                    value=""
+                                                                    placeholder="Serial {{ $i + 1 }}"
+                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                            @endfor
+                                                        </div>
+                                                    @else
+                                                        <input type="text"
+                                                            name="products[{{ $index }}][serials][]"
+                                                            value="" placeholder="Serial"
+                                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                    @endif
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <button type="button"
+                                                    class="text-red-500 hover:text-red-700 delete-product"
+                                                    data-index="{{ $index }}"><i
+                                                        class="fas fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @else
+                                    <!-- Fallback cho assemblies cũ (legacy support) -->
+                                    <tr class="product-row bg-white hover:bg-gray-50"
+                                        data-product-id="{{ $assembly->product_id }}">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $assembly->product->code ?? 'N/A' }}
+                                            <input type="hidden" name="products[0][id]"
+                                                value="{{ $assembly->product_id }}">
+                                            <input type="hidden" name="products[0][code]"
+                                                value="{{ $assembly->product->code ?? '' }}">
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {{ $assembly->product->name ?? 'Không có sản phẩm' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <input type="number" min="1" name="products[0][quantity]"
+                                                value="{{ $assembly->quantity ?? 1 }}"
+                                                class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-700">
+                                            @if (($assembly->quantity ?? 1) > 1)
+                                                <div class="space-y-2">
+                                                    @for ($i = 0; $i < ($assembly->quantity ?? 1); $i++)
+                                                        <input type="text" name="products[0][serials][]"
+                                                            value="{{ $productSerials[$i] ?? '' }}"
+                                                            placeholder="Serial {{ $i + 1 }}"
+                                                            class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                    @endfor
+                                                </div>
+                                            @else
+                                                <input type="text" name="products[0][serials][]"
+                                                    value="{{ $productSerials[0] ?? '' }}" placeholder="Serial"
+                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <button type="button"
+                                                class="text-red-500 hover:text-red-700 delete-product"
+                                                data-index="0"><i class="fas fa-trash"></i></button>
+                                        </td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
@@ -323,9 +397,21 @@
                             <div class="bg-blue-50 px-4 py-2 rounded-t-lg flex items-center justify-between">
                                 <div class="font-medium text-blue-800 flex items-center">
                                     <i class="fas fa-box-open mr-2"></i>
-                                    <span>Linh kiện cho: {{ $assembly->product->name }}</span>
+                                    <span>Linh kiện cho: 
+                                        @if($assembly->products && $assembly->products->count() > 0)
+                                            @foreach($assembly->products as $index => $assemblyProduct)
+                                                {{ $assemblyProduct->product->name }}@if(!$loop->last), @endif
+                                            @endforeach
+                                        @else
+                                            {{ $assembly->product->name ?? 'Không có sản phẩm' }}
+                                        @endif
+                                    </span>
                                     <span class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                        {{ $assembly->quantity }} thành phẩm
+                                        @if($assembly->products && $assembly->products->count() > 0)
+                                            {{ $assembly->products->sum('quantity') }} thành phẩm
+                                        @else
+                                            {{ $assembly->quantity ?? 0 }} thành phẩm
+                                        @endif
                                     </span>
                                 </div>
                                 <button type="button" class="toggle-components text-blue-700 hover:text-blue-900">
@@ -376,6 +462,9 @@
                                                         <input type="hidden"
                                                             name="components[{{ $index }}][id]"
                                                             value="{{ $material->material_id }}">
+                                                        <input type="hidden"
+                                                            name="components[{{ $index }}][product_id]"
+                                                            value="@if ($assembly->products && $assembly->products->count() > 0) {{ $assembly->products->first()->product_id }}@else{{ $assembly->product_id }} @endif">
                                                         {{ $material->material->code }}
                                                     </td>
                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -445,6 +534,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Global variables
+            let productIndex = {{ ($assembly->products && $assembly->products->count() > 0) ? $assembly->products->count() : 1 }};
+            let componentIndex = {{ count($assembly->materials) }};
+            
             // Component blocks toggle
             document.querySelectorAll('.toggle-components').forEach(button => {
                 button.addEventListener('click', function() {
@@ -461,6 +554,286 @@
                     }
                 });
             });
+
+            // Handle adding new products
+            const addProductBtn = document.getElementById('add_product_btn');
+            const productSelect = document.getElementById('product_id');
+            const productQuantityInput = document.getElementById('product_add_quantity');
+            const productList = document.getElementById('product_list');
+
+            if (addProductBtn) {
+                addProductBtn.addEventListener('click', function() {
+                    const selectedOption = productSelect.options[productSelect.selectedIndex];
+                    if (!selectedOption.value) {
+                        alert('Vui lòng chọn thành phẩm!');
+                        return;
+                    }
+
+                    const productId = selectedOption.value;
+                    const productCode = selectedOption.dataset.code;
+                    const productName = selectedOption.dataset.name;
+                    const quantity = parseInt(productQuantityInput.value) || 1;
+
+                    // Check if product already exists
+                    const existingRow = productList.querySelector(`tr[data-product-id="${productId}"]`);
+                    if (existingRow) {
+                        alert('Thành phẩm này đã được thêm vào danh sách!');
+                        return;
+                    }
+
+                    addProductRow(productId, productCode, productName, quantity);
+                    
+                    // Reset form
+                    productSelect.value = '';
+                    productQuantityInput.value = '1';
+                });
+            }
+
+            // Function to add product row
+            function addProductRow(productId, productCode, productName, quantity) {
+                const row = document.createElement('tr');
+                row.className = 'product-row bg-white hover:bg-gray-50';
+                row.setAttribute('data-product-id', productId);
+
+                let serialInputs = '';
+                for (let i = 0; i < quantity; i++) {
+                    serialInputs += `
+                        <input type="text" name="products[${productIndex}][serials][]" 
+                            value="" placeholder="Serial ${i + 1}"
+                            class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-1">
+                    `;
+                }
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        ${productCode}
+                        <input type="hidden" name="products[${productIndex}][id]" value="${productId}">
+                        <input type="hidden" name="products[${productIndex}][code]" value="${productCode}">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        ${productName}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <input type="number" min="1" name="products[${productIndex}][quantity]" 
+                            value="${quantity}" onchange="updateProductSerials(this, ${productIndex})"
+                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700">
+                        <div class="serials-container">
+                            ${serialInputs}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button type="button" class="text-red-500 hover:text-red-700 delete-product"
+                            data-index="${productIndex}"><i class="fas fa-trash"></i></button>
+                    </td>
+                `;
+
+                productList.appendChild(row);
+                productIndex++;
+                updateProductDeleteButtons();
+            }
+
+            // Function to update serial inputs when quantity changes
+            window.updateProductSerials = function(quantityInput, index) {
+                const newQuantity = parseInt(quantityInput.value) || 1;
+                const row = quantityInput.closest('tr');
+                const serialsContainer = row.querySelector('.serials-container');
+                
+                // Get existing serial values
+                const existingSerials = [];
+                const existingInputs = serialsContainer.querySelectorAll('input[type="text"]');
+                existingInputs.forEach(input => {
+                    if (input.value.trim()) {
+                        existingSerials.push(input.value.trim());
+                    }
+                });
+                
+                let serialInputs = '';
+                for (let i = 0; i < newQuantity; i++) {
+                    const existingValue = existingSerials[i] || '';
+                    serialInputs += `
+                        <input type="text" name="products[${index}][serials][]" 
+                            value="${existingValue}" placeholder="Serial ${i + 1}"
+                            class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-1">
+                    `;
+                }
+                
+                serialsContainer.innerHTML = serialInputs;
+            };
+
+            // Handle deleting products
+            function updateProductDeleteButtons() {
+                document.querySelectorAll('.delete-product').forEach(button => {
+                    button.addEventListener('click', function() {
+                        if (confirm('Bạn có chắc chắn muốn xóa thành phẩm này?')) {
+                            this.closest('tr').remove();
+                        }
+                    });
+                });
+            }
+
+            // Initialize existing delete buttons
+            updateProductDeleteButtons();
+
+            // Handle adding components
+            const addComponentBtn = document.getElementById('add_component_btn');
+            const componentSearchInput = document.getElementById('component_search');
+            const componentAddQuantity = document.getElementById('component_add_quantity');
+            const componentList = document.getElementById('component_list');
+            const noComponentsRow = document.getElementById('no_components_row');
+            
+            let selectedMaterial = null;
+
+            if (addComponentBtn) {
+                addComponentBtn.addEventListener('click', function() {
+                    if (!selectedMaterial) {
+                        alert('Vui lòng chọn linh kiện từ danh sách tìm kiếm!');
+                        return;
+                    }
+
+                    const quantity = parseInt(componentAddQuantity.value) || 1;
+                    
+                    // Check if component already exists
+                    const existingComponent = componentList.querySelector(`input[value="${selectedMaterial.id}"]`);
+                    if (existingComponent) {
+                        alert('Linh kiện này đã được thêm vào danh sách!');
+                        return;
+                    }
+
+                    // Get the first product ID for this component
+                    const firstProductId = getFirstProductId();
+                    if (!firstProductId) {
+                        alert('Vui lòng thêm ít nhất một thành phẩm trước!');
+                        return;
+                    }
+
+                    addComponentRow(selectedMaterial, quantity, firstProductId);
+                    
+                    // Reset form
+                    selectedMaterial = null;
+                    componentSearchInput.value = '';
+                    componentAddQuantity.value = '1';
+                    document.getElementById('search_results').classList.add('hidden');
+                });
+            }
+
+            // Function to get first product ID
+            function getFirstProductId() {
+                const firstProductRow = productList.querySelector('tr[data-product-id]');
+                return firstProductRow ? firstProductRow.getAttribute('data-product-id') : null;
+            }
+
+            // Function to add component row
+            function addComponentRow(material, quantity, productId) {
+                const row = document.createElement('tr');
+                row.className = 'component-row bg-white hover:bg-gray-50';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <input type="hidden" name="components[${componentIndex}][id]" value="${material.id}">
+                        <input type="hidden" name="components[${componentIndex}][product_id]" value="${productId}">
+                        ${material.code}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        ${material.category || '-'}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        ${material.name}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <input type="number" min="1" name="components[${componentIndex}][quantity]" 
+                            value="${quantity}"
+                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <input type="text" name="components[${componentIndex}][serial]" 
+                            value="" placeholder="Nhập serial"
+                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        <input type="text" name="components[${componentIndex}][note]" 
+                            value="" placeholder="Ghi chú"
+                            class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button type="button" class="text-red-500 hover:text-red-700 delete-component"
+                            data-index="${componentIndex}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+
+                // Hide "no components" row if it exists
+                if (noComponentsRow) {
+                    noComponentsRow.style.display = 'none';
+                }
+
+                componentList.appendChild(row);
+                componentIndex++;
+                updateComponentDeleteButtons();
+            }
+
+            // Handle deleting components
+            function updateComponentDeleteButtons() {
+                document.querySelectorAll('.delete-component').forEach(button => {
+                    button.addEventListener('click', function() {
+                        if (confirm('Bạn có chắc chắn muốn xóa linh kiện này?')) {
+                            this.closest('tr').remove();
+                            
+                            // Show "no components" row if no components left
+                            const remainingComponents = componentList.querySelectorAll('.component-row');
+                            if (remainingComponents.length === 0 && noComponentsRow) {
+                                noComponentsRow.style.display = '';
+                            }
+                        }
+                    });
+                });
+            }
+
+            // Initialize existing component delete buttons
+            updateComponentDeleteButtons();
+
+            // Handle existing product quantity changes
+            document.querySelectorAll('input[name*="[quantity]"]').forEach(input => {
+                if (input.name.includes('products')) {
+                    input.addEventListener('change', function() {
+                        const matches = this.name.match(/products\[(\d+)\]\[quantity\]/);
+                        if (matches) {
+                            const index = matches[1];
+                            updateProductSerials(this, index);
+                        }
+                    });
+                }
+            });
+
+            // Handle form submission validation
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const products = productList.querySelectorAll('.product-row');
+                    if (products.length === 0) {
+                        e.preventDefault();
+                        alert('Vui lòng thêm ít nhất một thành phẩm!');
+                        return false;
+                    }
+
+                    const components = componentList.querySelectorAll('.component-row');
+                    if (components.length === 0) {
+                        e.preventDefault();
+                        alert('Vui lòng thêm ít nhất một linh kiện!');
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            // Remove the required attribute from product dropdown on page load to prevent HTML5 validation
+            const productDropdown = document.getElementById('product_id');
+            if (productDropdown) {
+                productDropdown.removeAttribute('required');
+            }
 
             // Xử lý tìm kiếm linh kiện khi gõ
             const componentSearchInput = document.getElementById('component_search');
@@ -1189,7 +1562,7 @@
                     const isModified = component.quantity !== component.originalQuantity;
                     console.log(
                         `Component ${component.name}: current=${component.quantity}, original=${component.originalQuantity}, modified=${isModified}`
-                        );
+                    );
                     return isModified;
                 });
 

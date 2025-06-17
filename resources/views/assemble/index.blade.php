@@ -84,7 +84,18 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $assembly->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $assembly->product->name }}</td>
+                                    @if($assembly->products && $assembly->products->count() > 0)
+                                        @foreach($assembly->products as $assemblyProduct)
+                                            <div class="flex items-center space-x-2 mb-1">
+                                                <span>{{ $assemblyProduct->product->name }}</span>
+                                                <span class="text-gray-500">(x{{ $assemblyProduct->quantity }})</span>
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <!-- Legacy support for old assemblies -->
+                                        {{ $assembly->product->name ?? 'Không có sản phẩm' }}
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $assembly->assignedEmployee->name ?? $assembly->assigned_to }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
