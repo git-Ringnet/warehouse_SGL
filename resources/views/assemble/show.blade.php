@@ -61,15 +61,20 @@
                                     @foreach ($assembly->products as $assemblyProduct)
                                         <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
                                             <div class="flex items-center justify-between">
-                                                <span class="text-sm font-medium text-gray-800">{{ $assemblyProduct->product->name }}</span>
-                                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{{ $assemblyProduct->quantity }} sản phẩm</span>
+                                                <span
+                                                    class="text-sm font-medium text-gray-800">{{ $assemblyProduct->product->name }}</span>
+                                                <span
+                                                    class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{{ $assemblyProduct->quantity }}
+                                                    sản phẩm</span>
                                             </div>
                                             <div class="text-xs text-gray-600 mt-1">
-                                                <span class="font-medium">Mã:</span> {{ $assemblyProduct->product->code }}
+                                                <span class="font-medium">Mã:</span>
+                                                {{ $assemblyProduct->product->code }}
                                             </div>
-                                            @if($assemblyProduct->serials)
+                                            @if ($assemblyProduct->serials)
                                                 <div class="text-xs text-gray-600 mt-1">
-                                                    <span class="font-medium">Serial:</span> {{ $assemblyProduct->serials }}
+                                                    <span class="font-medium">Serial:</span>
+                                                    {{ $assemblyProduct->serials }}
                                                 </div>
                                             @endif
                                         </div>
@@ -78,10 +83,13 @@
                                     <!-- Legacy support for old assemblies -->
                                     <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400">
                                         <div class="flex items-center justify-between">
-                                            <span class="text-sm font-medium text-gray-800">{{ $assembly->product->name ?? 'Không có sản phẩm' }}</span>
-                                            <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">{{ $assembly->quantity ?? '1' }} sản phẩm</span>
+                                            <span
+                                                class="text-sm font-medium text-gray-800">{{ $assembly->product->name ?? 'Không có sản phẩm' }}</span>
+                                            <span
+                                                class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">{{ $assembly->quantity ?? '1' }}
+                                                sản phẩm</span>
                                         </div>
-                                        @if($assembly->product)
+                                        @if ($assembly->product)
                                             <div class="text-xs text-gray-600 mt-1">
                                                 <span class="font-medium">Mã:</span> {{ $assembly->product->code }}
                                             </div>
@@ -94,14 +102,16 @@
                     <div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người phụ trách:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->assignedEmployee->name ?? $assembly->assigned_to }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $assembly->assignedEmployee->name ?? $assembly->assigned_to }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người tiếp nhận kiểm thử:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->tester->name ?? 'Chưa phân công' }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $assembly->tester->name ?? 'Chưa phân công' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất linh kiện:</span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất vật tư:</span>
                             <span class="text-sm text-gray-700">{{ $assembly->warehouse->name }}
                                 ({{ $assembly->warehouse->code }})</span>
                         </div>
@@ -151,17 +161,66 @@
                     </div>
                 </div>
 
-                @if ($assembly->product_serials)
+                {{-- Display product serials --}}
+                @php
+                    $hasProductSerials = false;
+                    if ($assembly->products && $assembly->products->count() > 0) {
+                        foreach ($assembly->products as $product) {
+                            if ($product->serials) {
+                                $hasProductSerials = true;
+                                break;
+                            }
+                        }
+                    } elseif ($assembly->product_serials) {
+                        $hasProductSerials = true;
+                    }
+                @endphp
+
+                @if ($hasProductSerials)
                     <div class="mt-4 border-t border-gray-200 pt-4">
                         <h3 class="text-sm font-medium text-gray-700 mb-2">Serial thành phẩm:</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                            @foreach (explode(',', $assembly->product_serials) as $serial)
-                                @if (!empty($serial))
-                                    <div class="bg-gray-50 rounded-lg p-2 text-sm">
-                                        <span class="font-medium">{{ $loop->iteration }}.</span> {{ $serial }}
+                        <div class="space-y-3">
+                            @if ($assembly->products && $assembly->products->count() > 0)
+                                {{-- New structure: show serials grouped by product --}}
+                                @foreach ($assembly->products as $assemblyProduct)
+                                    @if ($assemblyProduct->serials)
+                                        <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-400">
+                                            <div class="text-sm font-medium text-gray-800 mb-2">
+                                                {{ $assemblyProduct->product->name }}
+                                                ({{ $assemblyProduct->product->code }})
+                                            </div>
+                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                                @foreach (explode(',', $assemblyProduct->serials) as $serial)
+                                                    @if (!empty(trim($serial)))
+                                                        <div class="bg-white rounded-lg p-2 text-sm border">
+                                                            <span class="font-medium">{{ $loop->iteration }}.</span>
+                                                            {{ trim($serial) }}
+                                                        </div>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            @elseif ($assembly->product_serials)
+                                {{-- Legacy structure: show serials for single product --}}
+                                <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-gray-400">
+                                    <div class="text-sm font-medium text-gray-800 mb-2">
+                                        {{ $assembly->product->name ?? 'Thành phẩm' }}
+                                        ({{ $assembly->product->code ?? '' }})
                                     </div>
-                                @endif
-                            @endforeach
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                        @foreach (explode(',', $assembly->product_serials) as $serial)
+                                            @if (!empty(trim($serial)))
+                                                <div class="bg-white rounded-lg p-2 text-sm border">
+                                                    <span class="font-medium">{{ $loop->iteration }}.</span>
+                                                    {{ trim($serial) }}
+                                                </div>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endif
@@ -180,95 +239,185 @@
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <i class="fas fa-microchip text-blue-500 mr-2"></i>
-                    Danh sách linh kiện
+                    Danh sách vật tư
                 </h2>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    STT
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Mã
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Loại linh kiện
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Tên vật tư
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Số lượng
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Serial
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Ghi chú
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Thao tác
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($assembly->materials as $index => $material)
-                                <tr class="bg-white hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $index + 1 }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $material->material->code }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $material->material->category }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $material->material->name }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">
-                                        {{ $material->quantity }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm text-gray-500">
-                                        @if ($material->serial && str_contains($material->serial, ','))
-                                            <div class="space-y-1">
-                                                @foreach (explode(',', $material->serial) as $serial)
-                                                    @if (!empty($serial))
-                                                        <div class="bg-gray-50 px-2 py-1 rounded">{{ $serial }}
-                                                        </div>
-                                                    @endif
-                                                @endforeach
-                                            </div>
-                                            <div class="text-xs text-gray-400 mt-1">
-                                                {{ count(array_filter(explode(',', $material->serial))) }} serial</div>
-                                        @else
-                                            {{ $material->serial }}
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $material->note }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <a href="{{ route('materials.show', $material->material_id) }}"
-                                            class="text-blue-500 hover:text-blue-600">
-                                            Xem chi tiết
-                                        </a>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                @php
+                    // Group materials by product
+                    $materialsByProduct = [];
+
+                    // Debug: Let's see what data we have
+// dd([
+//     'assembly_id' => $assembly->id,
+//     'products' => $assembly->products->pluck('product_id', 'id')->toArray(),
+//     'materials' => $assembly->materials->pluck('target_product_id', 'material_id')->toArray(),
+//     'materials_with_details' => $assembly->materials->map(function($m) {
+//         return [
+//             'id' => $m->id,
+//             'material_id' => $m->material_id,
+//             'target_product_id' => $m->target_product_id,
+//             'material_name' => $m->material->name ?? 'Unknown'
+//         ];
+//     })->toArray()
+// ]);
+
+// If assembly has products relationship (new structure)
+if ($assembly->products && $assembly->products->count() > 0) {
+    // Initialize arrays for each product - using product_id not id
+    foreach ($assembly->products as $product) {
+        $materialsByProduct[$product->product_id] = [
+            'product' => $product,
+            'materials' => [],
+        ];
+    }
+
+    // Group materials by target_product_id
+    foreach ($assembly->materials as $material) {
+        $productId = $material->target_product_id ?? $assembly->products->first()->product_id;
+        if (isset($materialsByProduct[$productId])) {
+            $materialsByProduct[$productId]['materials'][] = $material;
+        } else {
+            // If target_product_id doesn't match any product, assign to first product
+                                $firstProductId = $assembly->products->first()->product_id;
+                                $materialsByProduct[$firstProductId]['materials'][] = $material;
+                            }
+                        }
+                    } else {
+                        // Legacy structure - show all materials under single product
+                        $materialsByProduct['legacy'] = [
+                            'product' => $assembly->product,
+                            'materials' => $assembly->materials->toArray(),
+                        ];
+                    }
+                @endphp
+
+                @if (count($materialsByProduct) > 0)
+                    @foreach ($materialsByProduct as $productId => $productData)
+                        @if (count($productData['materials']) > 0)
+                            <!-- Product Header -->
+                            <div class="mb-6">
+                                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-4">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <h3 class="text-lg font-medium text-blue-800">
+                                                @if ($productData['product'] && $productData['product']->product)
+                                                    {{ $productData['product']->product->name }}
+                                                @else
+                                                    Thành phẩm chưa xác định (Product ID: {{ $productId }})
+                                                @endif
+                                            </h3>
+                                            <p class="text-sm text-blue-600">
+                                                @if ($productData['product'] && $productData['product']->product)
+                                                    Mã: {{ $productData['product']->product->code }}
+                                                @endif
+                                            </p>
+                                        </div>
+                                        <div class="text-sm text-blue-600">
+                                            {{ count($productData['materials']) }} vật tư
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Materials Table for this Product -->
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    STT</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Mã</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Loại vật tư</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Tên vật tư</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Số lượng</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Serial</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Ghi chú</th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            @foreach ($productData['materials'] as $index => $material)
+                                                <tr class="hover:bg-gray-50">
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {{ $index + 1 }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {{ is_object($material) ? $material->material->code : $material['material']['code'] }}
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {{ is_object($material) ? $material->material->category : $material['material']['category'] }}
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {{ is_object($material) ? $material->material->name : $material['material']['name'] }}
+                                                    </td>
+                                                    <td
+                                                        class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">
+                                                        {{ is_object($material) ? $material->quantity : $material['quantity'] }}
+                                                    </td>
+                                                    <td class="px-6 py-4 text-sm text-gray-500">
+                                                        @php
+                                                            $serialValue = is_object($material)
+                                                                ? $material->serial
+                                                                : $material['serial'];
+                                                        @endphp
+                                                        @if ($serialValue && str_contains($serialValue, ','))
+                                                            <div class="space-y-1">
+                                                                @foreach (explode(',', $serialValue) as $serial)
+                                                                    @if (!empty(trim($serial)))
+                                                                        <div class="bg-gray-50 px-2 py-1 rounded">
+                                                                            {{ trim($serial) }}</div>
+                                                                    @endif
+                                                                @endforeach
+                                                            </div>
+                                                            <div class="text-xs text-gray-400 mt-1">
+                                                                {{ count(array_filter(explode(',', $serialValue), 'trim')) }}
+                                                                serial
+                                                            </div>
+                                                        @else
+                                                            {{ $serialValue }}
+                                                        @endif
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        {{ is_object($material) ? $material->note : $material['note'] }}
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                        @php
+                                                            $materialId = is_object($material)
+                                                                ? $material->material_id
+                                                                : $material['material_id'];
+                                                        @endphp
+                                                        <a href="{{ route('materials.show', $materialId) }}"
+                                                            class="text-blue-500 hover:text-blue-600">
+                                                            Xem chi tiết
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @endif
+                    @endforeach
+                @else
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-box-open text-4xl mb-4"></i>
+                        <p>Không có vật tư nào trong phiếu lắp ráp này.</p>
+                    </div>
+                @endif
             </div>
 
             <!-- Buttons -->
@@ -296,13 +445,13 @@
             // Xử lý sự kiện xuất Excel
             const exportExcelBtn = document.getElementById('export-excel-btn');
             exportExcelBtn.addEventListener('click', function() {
-                alert('Tính năng xuất Excel đang được phát triển!');
+                window.location.href = '{{ route("assemblies.export.excel", $assembly->id) }}';
             });
 
             // Xử lý sự kiện xuất PDF
             const exportPdfBtn = document.getElementById('export-pdf-btn');
             exportPdfBtn.addEventListener('click', function() {
-                alert('Tính năng xuất PDF đang được phát triển!');
+                window.location.href = '{{ route("assemblies.export.pdf", $assembly->id) }}';
             });
         });
     </script>

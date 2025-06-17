@@ -4,13 +4,23 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SGL - Hệ thống quản lý kho</title>
+    <title>Quản lý lắp ráp - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <style>
+        .z-60 {
+            z-index: 60;
+        }
+
+        .z-70 {
+            z-index: 70;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-50">
@@ -22,294 +32,349 @@
             <h1 class="text-xl font-bold text-gray-800">Quản lý lắp ráp</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm phiếu lắp ráp..."
-                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
-                    <select
-                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="pending">Chờ xử lý</option>
-                        <option value="inprogress">Đang xử lý</option>
-                        <option value="completed">Hoàn thành</option>
-                        <option value="cancelled">Đã hủy</option>
-                    </select>
+                    <!-- Ô tìm kiếm -->
+                    <div class="relative flex-1 flex">
+                        <input type="text" id="searchInput" placeholder="Tìm kiếm..."
+                            class="flex-1 border border-gray-300 rounded-l-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700" />
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <button id="searchButton" type="button"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-lg border border-blue-500 transition-colors">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <!-- Dropdown bộ lọc -->
+                    <div class="relative inline-block text-left">
+                        <button id="filterDropdownButton" type="button"
+                            class="border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center transition-colors min-w-[120px]">
+                            <i class="fas fa-filter mr-2"></i> Bộ lọc
+                            <i class="fas fa-chevron-down ml-auto"></i>
+                        </button>
+                        <div id="filterDropdown"
+                            class="absolute left-0 mt-2 w-80 bg-white rounded-md shadow-lg z-30 hidden border border-gray-200">
+                            <div class="p-4 space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                                        <select id="statusFilter"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                            <option value="">Tất cả trạng thái</option>
+                                            @foreach ($statuses as $key => $value)
+                                                <option value="{{ $key }}">{{ $value }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Kho xuất</label>
+                                        <select id="warehouseFilter"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                            <option value="">Tất cả kho</option>
+                                            @foreach ($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}
+                                                    ({{ $warehouse->code }})</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Người phụ trách</label>
+                                    <select id="employeeFilter"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                        <option value="">Tất cả nhân viên</option>
+                                        @foreach ($employees as $employee)
+                                            <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày (lắp ráp)</label>
+                                        <input type="date" id="dateFromFilter"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày (lắp ráp)</label>
+                                        <input type="date" id="dateToFilter"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                    </div>
+                                </div>
+                                <div class="flex justify-between pt-2 border-t border-gray-200">
+                                    <button id="clearFiltersInDropdown"
+                                        class="text-gray-500 hover:text-gray-700 text-sm">
+                                        <i class="fas fa-times mr-1"></i> Xóa bộ lọc
+                                    </button>
+                                    <button id="applyFilters"
+                                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                        Áp dụng
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <a href="{{ route('assemblies.create') }}">
-                    <button
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center">
-                        <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
-                    </button>
-                </a>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <a href="{{ route('assemblies.create') }}">
+                        <button
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
+                        </button>
+                    </a>
+                </div>
             </div>
         </header>
-        @if (session('success'))
-            <x-alert type="success" :message="session('success')" />
-        @endif
-        @if (session('error'))
-            <x-alert type="error" :message="session('error')" />
-        @endif
         <main class="p-6">
-            <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                STT</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Mã Phiếu</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                thành phẩm</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Người Phụ Trách</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Người Kiểm Thử</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Ngày Tạo</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Trạng Thái</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                        @forelse($assemblies as $index => $assembly)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $assembly->code }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    @if($assembly->products && $assembly->products->count() > 0)
-                                        @foreach($assembly->products as $assemblyProduct)
-                                            <div class="flex items-center space-x-2 mb-1">
-                                                <span>{{ $assemblyProduct->product->name }}</span>
-                                                <span class="text-gray-500">(x{{ $assemblyProduct->quantity }})</span>
-                                            </div>
-                                        @endforeach
-                                    @else
-                                        <!-- Legacy support for old assemblies -->
-                                        {{ $assembly->product->name ?? 'Không có sản phẩm' }}
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $assembly->assignedEmployee->name ?? $assembly->assigned_to }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $assembly->tester->name ?? 'Chưa chỉ định' }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ date('d/m/Y', strtotime($assembly->date)) }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    @if ($assembly->status == 'completed')
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Hoàn
-                                            thành</span>
-                                    @elseif($assembly->status == 'in_progress')
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Đang
-                                            xử lý</span>
-                                    @elseif($assembly->status == 'pending')
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">Chờ
-                                            xử lý</span>
-                                    @else
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">Đã
-                                            hủy</span>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                    <a href="{{ route('assemblies.show', $assembly->id) }}">
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                            title="Xem">
-                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                        </button>
-                                    </a>
-                                    <a href="{{ route('assemblies.edit', $assembly->id) }}">
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                            title="Sửa">
-                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                        </button>
-                                    </a>
-                                    <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST"
-                                        onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                            title="Xóa">
-                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="px-6 py-4 text-sm text-gray-500 text-center">
-                                    Không có phiếu lắp ráp nào
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+            @if (session('success'))
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+                    {!! session('success') !!}
+                </div>
+            @endif
+            @if (session('error'))
+                <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                    {{ session('error') }}
+                </div>
+            @endif
+            <div class="mb-4">
+                <div class="text-sm text-gray-600">
+                    <span class="font-medium" id="resultCount">{{ $assemblies->count() }}</span> phiếu lắp ráp được tìm
+                    thấy
+                    <div id="filterTags" class="inline">
+                        @if (request()->hasAny(['search', 'status', 'warehouse', 'employee', 'date_from', 'date_to']))
+                            | Đang lọc
+                            @if (request('search'))
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs ml-1">
+                                    Từ khóa: "{{ request('search') }}"
+                                </span>
+                            @endif
+                            @if (request('status'))
+                                <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs ml-1">
+                                    Trạng thái: {{ $statuses[request('status')] ?? request('status') }}
+                                </span>
+                            @endif
+                            @if (request('warehouse'))
+                                @php
+                                    $selectedWarehouse = $warehouses->firstWhere('id', request('warehouse'));
+                                @endphp
+                                <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs ml-1">
+                                    Kho: {{ $selectedWarehouse->name ?? request('warehouse') }}
+                                </span>
+                            @endif
+                            @if (request('employee'))
+                                @php
+                                    $selectedEmployee = $employees->firstWhere('id', request('employee'));
+                                @endphp
+                                <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">
+                                    Nhân viên: {{ $selectedEmployee->name ?? request('employee') }}
+                                </span>
+                            @endif
+                            @if (request('date_from') || request('date_to'))
+                                <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs ml-1">
+                                    Thời gian: {{ request('date_from') ?? 'Từ đầu' }} -
+                                    {{ request('date_to') ?? 'Đến cuối' }}
+                                </span>
+                            @endif
+                        @endif
+                    </div>
+                </div>
+            </div>
+            <div id="assemblyTableContainer">
+                @include('assemble.partials.assembly-list', ['assemblies' => $assemblies])
             </div>
         </main>
     </div>
 
-    {{-- <script>
-        // Toggle sidebar
-        const toggleSidebar = document.getElementById('toggleSidebar');
-        const sidebar = document.getElementById('sidebar');
-        const content = document.getElementById('content');
-        const mobileMenuButton = document.getElementById('mobileMenuButton');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const searchButton = document.getElementById('searchButton');
+            const filterDropdownButton = document.getElementById('filterDropdownButton');
+            const filterDropdown = document.getElementById('filterDropdown');
+            const applyFiltersButton = document.getElementById('applyFilters');
+            const clearFiltersButton = document.getElementById('clearFiltersInDropdown');
+            const assemblyTableContainer = document.getElementById('assemblyTableContainer');
+            const resultCount = document.getElementById('resultCount');
+            const filterTags = document.getElementById('filterTags');
 
-        let isCollapsed = false;
-
-        toggleSidebar.addEventListener('click', function() {
-            isCollapsed = !isCollapsed;
-            if (isCollapsed) {
-                sidebar.classList.add('sidebar-collapsed');
-                content.classList.remove('content-full');
-                content.classList.add('content-expanded');
-            } else {
-                sidebar.classList.remove('sidebar-collapsed');
-                content.classList.remove('content-expanded');
-                content.classList.add('content-full');
-            }
-        });
-
-        // Mobile menu toggle
-        mobileMenuButton.addEventListener('click', function() {
-            sidebar.classList.toggle('sidebar-mobile-hidden');
-        });
-
-        // Initialize Charts
-        const assemblyProgressCtx = document.getElementById('assemblyProgressChart').getContext('2d');
-        const assemblyProgressChart = new Chart(assemblyProgressCtx, {
-            type: 'line',
-            data: {
-                labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'],
-                datasets: [{
-                    label: 'Đã Hoàn Thành',
-                    data: [15, 18, 20, 22, 25, 28],
-                    borderColor: '#10B981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }, {
-                    label: 'Đang Xử Lý',
-                    data: [5, 4, 6, 4, 3, 4],
-                    borderColor: '#3B82F6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }, {
-                    label: 'Chờ Xử Lý',
-                    data: [3, 2, 1, 2, 1, 2],
-                    borderColor: '#F59E0B',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            display: true,
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    }
-                }
-            }
-        });
-
-        const productTypeCtx = document.getElementById('productTypeChart').getContext('2d');
-        const productTypeChart = new Chart(productTypeCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Radio SPA Pro', 'Radio SPA Lite', 'Radio SPA Mini', 'Radio SPA Plus'],
-                datasets: [{
-                    data: [40, 25, 20, 15],
-                    backgroundColor: [
-                        '#3B82F6',
-                        '#10B981',
-                        '#F59E0B',
-                        '#EF4444'
-                    ],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20
-                        }
-                    }
-                },
-                cutout: '70%'
-            }
-        });
-
-        // Dropdown Menus
-        function toggleDropdown(id) {
-            const dropdown = document.getElementById(id);
-            const allDropdowns = document.querySelectorAll('.dropdown-content');
-
-            // Close all other dropdowns
-            allDropdowns.forEach(d => {
-                if (d.id !== id) {
-                    d.classList.remove('show');
+            // Toggle filter dropdown
+            filterDropdownButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (filterDropdown.classList.contains('hidden')) {
+                    // Show dropdown with animation
+                    filterDropdown.classList.remove('hidden');
+                    filterDropdown.style.opacity = '0';
+                    filterDropdown.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        filterDropdown.style.transition =
+                            'opacity 150ms ease-in-out, transform 150ms ease-in-out';
+                        filterDropdown.style.opacity = '1';
+                        filterDropdown.style.transform = 'translateY(0)';
+                    }, 10);
+                } else {
+                    // Hide dropdown with animation
+                    filterDropdown.style.opacity = '0';
+                    filterDropdown.style.transform = 'translateY(-10px)';
+                    setTimeout(() => {
+                        filterDropdown.classList.add('hidden');
+                        filterDropdown.style.transition = '';
+                    }, 150);
                 }
             });
 
-            // Toggle current dropdown
-            dropdown.classList.toggle('show');
-        }
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!filterDropdown.contains(e.target) && !filterDropdownButton.contains(e.target)) {
+                    filterDropdown.classList.add('hidden');
+                }
+            });
 
-        // Close dropdowns when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown')) {
-                document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-                    dropdown.classList.remove('show');
-                });
-            }
-        });
-
-        // Prevent dropdown from closing when clicking inside
-        document.querySelectorAll('.dropdown-content').forEach(dropdown => {
-            dropdown.addEventListener('click', (e) => {
+            // Prevent dropdown from closing when clicking inside it
+            filterDropdown.addEventListener('click', function(e) {
                 e.stopPropagation();
             });
+
+            // Search functionality
+            function performSearch() {
+                const searchTerm = searchInput.value;
+                const statusFilter = document.getElementById('statusFilter').value;
+                const warehouseFilter = document.getElementById('warehouseFilter').value;
+                const employeeFilter = document.getElementById('employeeFilter').value;
+                const dateFromFilter = document.getElementById('dateFromFilter').value;
+                const dateToFilter = document.getElementById('dateToFilter').value;
+
+                const params = new URLSearchParams();
+
+                if (searchTerm) params.append('search', searchTerm);
+                if (statusFilter) params.append('status', statusFilter);
+                if (warehouseFilter) params.append('warehouse', warehouseFilter);
+                if (employeeFilter) params.append('employee', employeeFilter);
+                if (dateFromFilter) params.append('date_from', dateFromFilter);
+                if (dateToFilter) params.append('date_to', dateToFilter);
+
+                // Show loading state
+                assemblyTableContainer.innerHTML =
+                    '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="text-gray-500 mt-2">Đang tìm kiếm...</p></div>';
+
+                // Make AJAX request
+                fetch(`{{ route('assemblies.index') }}?${params.toString()}`, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(html => {
+                        assemblyTableContainer.innerHTML = html;
+
+                        // Update result count
+                        const rows = assemblyTableContainer.querySelectorAll('tbody tr');
+                        const count = rows.length > 0 && !rows[0].querySelector('td[colspan]') ? rows.length :
+                        0;
+                        resultCount.textContent = count;
+
+                        // Update URL without page reload
+                        const newUrl =
+                            `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+                        window.history.pushState({}, '', newUrl);
+
+                        // Update filter tags
+                        updateFilterTags();
+                    })
+                    .catch(error => {
+                        console.error('Search error:', error);
+                        assemblyTableContainer.innerHTML =
+                            '<div class="text-center py-8 text-red-500"><i class="fas fa-exclamation-triangle text-2xl"></i><p class="mt-2">Có lỗi xảy ra khi tìm kiếm</p></div>';
+                    });
+            }
+
+            // Search button click
+            searchButton.addEventListener('click', performSearch);
+
+            // Search on Enter key
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            // Apply filters
+            applyFiltersButton.addEventListener('click', function() {
+                performSearch();
+                filterDropdown.classList.add('hidden');
+            });
+
+            // Clear filters
+            clearFiltersButton.addEventListener('click', function() {
+                searchInput.value = '';
+                document.getElementById('statusFilter').value = '';
+                document.getElementById('warehouseFilter').value = '';
+                document.getElementById('employeeFilter').value = '';
+                document.getElementById('dateFromFilter').value = '';
+                document.getElementById('dateToFilter').value = '';
+                performSearch();
+                filterDropdown.classList.add('hidden');
+            });
+
+            // Update filter tags
+            function updateFilterTags() {
+                const searchTerm = searchInput.value;
+                const statusFilter = document.getElementById('statusFilter').value;
+                const warehouseFilter = document.getElementById('warehouseFilter').value;
+                const employeeFilter = document.getElementById('employeeFilter').value;
+                const dateFromFilter = document.getElementById('dateFromFilter').value;
+                const dateToFilter = document.getElementById('dateToFilter').value;
+
+                let tagsHtml = '';
+
+                if (searchTerm || statusFilter || warehouseFilter || employeeFilter || dateFromFilter ||
+                    dateToFilter) {
+                    tagsHtml = ' | Đang lọc';
+
+                    if (searchTerm) {
+                        tagsHtml +=
+                            ` <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs ml-1">Từ khóa: "${searchTerm}"</span>`;
+                    }
+
+                    if (statusFilter) {
+                        const statusText = document.getElementById('statusFilter').options[document.getElementById(
+                            'statusFilter').selectedIndex].text;
+                        tagsHtml +=
+                            ` <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs ml-1">Trạng thái: ${statusText}</span>`;
+                    }
+
+                    if (warehouseFilter) {
+                        const warehouseText = document.getElementById('warehouseFilter').options[document
+                            .getElementById('warehouseFilter').selectedIndex].text;
+                        tagsHtml +=
+                            ` <span class="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs ml-1">Kho: ${warehouseText}</span>`;
+                    }
+
+                    if (employeeFilter) {
+                        const employeeText = document.getElementById('employeeFilter').options[document
+                            .getElementById('employeeFilter').selectedIndex].text;
+                        tagsHtml +=
+                            ` <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">Nhân viên: ${employeeText}</span>`;
+                    }
+
+                    if (dateFromFilter || dateToFilter) {
+                        tagsHtml +=
+                            ` <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs ml-1">Thời gian: ${dateFromFilter || 'Từ đầu'} - ${dateToFilter || 'Đến cuối'}</span>`;
+                    }
+                }
+
+                filterTags.innerHTML = tagsHtml;
+            }
+
+            // Load current filter values from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('search')) searchInput.value = urlParams.get('search');
+            if (urlParams.get('status')) document.getElementById('statusFilter').value = urlParams.get('status');
+            if (urlParams.get('warehouse')) document.getElementById('warehouseFilter').value = urlParams.get(
+                'warehouse');
+            if (urlParams.get('employee')) document.getElementById('employeeFilter').value = urlParams.get(
+                'employee');
+            if (urlParams.get('date_from')) document.getElementById('dateFromFilter').value = urlParams.get(
+                'date_from');
+            if (urlParams.get('date_to')) document.getElementById('dateToFilter').value = urlParams.get('date_to');
         });
-    </script> --}}
+    </script>
 </body>
 
 </html>
