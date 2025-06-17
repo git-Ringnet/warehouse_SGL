@@ -40,7 +40,7 @@ class WarehouseController extends Controller
         }
 
         $warehouses = $query->get();
-        
+
         // Get unique managers for filter dropdown
         $managers = Warehouse::where('is_hidden', false)
             ->where('status', 'active')
@@ -78,7 +78,7 @@ class WarehouseController extends Controller
         }
 
         $warehouses = $query->get();
-        
+
         // Get unique managers for filter dropdown
         $managers = Warehouse::where('is_hidden', true)
             ->select('manager')
@@ -115,7 +115,7 @@ class WarehouseController extends Controller
         }
 
         $warehouses = $query->get();
-        
+
         // Get unique managers for filter dropdown
         $managers = Warehouse::where('status', 'deleted')
             ->select('manager')
@@ -133,12 +133,12 @@ class WarehouseController extends Controller
     {
         try {
             $warehouse->update(['is_hidden' => false]);
-            
+
             return redirect()->route('warehouses.hidden')
                 ->with('success', 'Kho hàng đã được khôi phục thành công.');
         } catch (\Exception $e) {
             Log::error('Warehouse restore hidden error: ' . $e->getMessage());
-            
+
             return redirect()->route('warehouses.hidden')
                 ->with('error', 'Có lỗi xảy ra khi khôi phục kho hàng: ' . $e->getMessage());
         }
@@ -151,12 +151,12 @@ class WarehouseController extends Controller
     {
         try {
             $warehouse->update(['status' => 'active']);
-            
+
             return redirect()->route('warehouses.deleted')
                 ->with('success', 'Kho hàng đã được khôi phục thành công.');
         } catch (\Exception $e) {
             Log::error('Warehouse restore deleted error: ' . $e->getMessage());
-            
+
             return redirect()->route('warehouses.deleted')
                 ->with('error', 'Có lỗi xảy ra khi khôi phục kho hàng: ' . $e->getMessage());
         }
@@ -202,10 +202,10 @@ class WarehouseController extends Controller
             ->where('item_type', 'material')
             ->with('material')
             ->get()
-            ->filter(function($warehouseMaterial) {
+            ->filter(function ($warehouseMaterial) {
                 return $warehouseMaterial->material !== null;
             })
-            ->map(function($warehouseMaterial) {
+            ->map(function ($warehouseMaterial) {
                 return [
                     'id' => $warehouseMaterial->material->id,
                     'code' => $warehouseMaterial->material->code,
@@ -223,10 +223,10 @@ class WarehouseController extends Controller
             ->where('item_type', 'product')
             ->with('product')
             ->get()
-            ->filter(function($warehouseMaterial) {
+            ->filter(function ($warehouseMaterial) {
                 return $warehouseMaterial->product !== null;
             })
-            ->map(function($warehouseMaterial) {
+            ->map(function ($warehouseMaterial) {
                 return [
                     'id' => $warehouseMaterial->product->id,
                     'code' => $warehouseMaterial->product->code,
@@ -239,7 +239,24 @@ class WarehouseController extends Controller
             });
 
         // Since 'good' is not in enum, set empty collection
-        $goods = collect([]);
+        $goods = WarehouseMaterial::where('warehouse_id', $warehouse->id)
+            ->where('item_type', 'good')
+            ->with('product')
+            ->get()
+            ->filter(function ($warehouseMaterial) {
+                return $warehouseMaterial->product !== null;
+            })
+            ->map(function ($warehouseMaterial) {
+                return [
+                    'id' => $warehouseMaterial->product->id,
+                    'code' => $warehouseMaterial->product->code,
+                    'name' => $warehouseMaterial->product->name,
+                    'description' => $warehouseMaterial->product->description ?? '',
+                    'quantity' => $warehouseMaterial->quantity,
+                    'location' => $warehouseMaterial->location ?? '',
+                    'serial_number' => $warehouseMaterial->serial_number ?? '',
+                ];
+            });
 
         // Calculate totals
         $totalMaterials = $materials->sum('quantity');
@@ -283,17 +300,17 @@ class WarehouseController extends Controller
     {
         try {
             $warehouse = Warehouse::findOrFail($id);
-            
+
             // Tính tổng số lượng tất cả items trong kho này
             $totalQuantity = WarehouseMaterial::where('warehouse_id', $id)->sum('quantity');
-            
+
             return response()->json([
                 'hasInventory' => $totalQuantity > 0,
                 'totalQuantity' => $totalQuantity
             ]);
         } catch (\Exception $e) {
             Log::error('Check warehouse inventory error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'error' => true,
                 'message' => 'Có lỗi xảy ra khi kiểm tra tồn kho: ' . $e->getMessage()
@@ -308,7 +325,7 @@ class WarehouseController extends Controller
     {
         try {
             $action = $request->input('action', 'delete');
-            
+
             if ($action === 'hide') {
                 // Ẩn warehouse
                 $warehouse->update(['is_hidden' => true]);
@@ -321,15 +338,14 @@ class WarehouseController extends Controller
 
             return redirect()->route('warehouses.index')
                 ->with('success', $message);
-                
         } catch (\Exception $e) {
             Log::error('Warehouse delete/hide error: ' . $e->getMessage());
 
-        return redirect()->route('warehouses.index')
+            return redirect()->route('warehouses.index')
                 ->with('error', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Get materials for a specific warehouse
      */
@@ -337,36 +353,36 @@ class WarehouseController extends Controller
     {
         try {
             $searchTerm = $request->input('term');
-            
+
             // Get the warehouse
             $warehouse = Warehouse::findOrFail($warehouseId);
-            
+
             // Query for materials in this warehouse
             // Chỉ lấy các mục có item_type = 'material', nếu trường này đã tồn tại
             $query = WarehouseMaterial::where('warehouse_id', $warehouseId);
-            
+
             // Chỉ áp dụng điều kiện item_type nếu cột này đã tồn tại trong bảng
             if (Schema::hasColumn('warehouse_materials', 'item_type')) {
                 $query->where('item_type', 'material');
             }
-            
+
             $query->with('material');
-            
+
             // Add search filter if term is provided
             if ($searchTerm) {
-                $query->whereHas('material', function($q) use ($searchTerm) {
+                $query->whereHas('material', function ($q) use ($searchTerm) {
                     $q->whereRaw('LOWER(code) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
-                      ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
-                      ->orWhereRaw('LOWER(category) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
-                      ->orWhereRaw('LOWER(serial) LIKE ?', ['%' . strtolower($searchTerm) . '%']);
+                        ->orWhereRaw('LOWER(name) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
+                        ->orWhereRaw('LOWER(category) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
+                        ->orWhereRaw('LOWER(serial) LIKE ?', ['%' . strtolower($searchTerm) . '%']);
                 });
             }
-            
+
             // Get warehouse materials with their related material information
             $warehouseMaterials = $query->get();
-            
+
             // Format the response
-            $materials = $warehouseMaterials->map(function($warehouseMaterial) {
+            $materials = $warehouseMaterials->map(function ($warehouseMaterial) {
                 $material = $warehouseMaterial->material;
                 return [
                     'id' => $material->id,
@@ -377,11 +393,11 @@ class WarehouseController extends Controller
                     'stock_quantity' => $warehouseMaterial->quantity,
                 ];
             });
-            
+
             return response()->json($materials);
         } catch (\Exception $e) {
             Log::error('Warehouse materials error: ' . $e->getMessage());
-            
+
             return response()->json([
                 'error' => true,
                 'message' => 'Có lỗi xảy ra khi lấy danh sách vật tư: ' . $e->getMessage()
@@ -416,7 +432,7 @@ class WarehouseController extends Controller
         }
 
         $warehouses = $query->get();
-        
+
         // Get unique managers for filter dropdown
         $managers = Warehouse::where('is_hidden', false)
             ->where('status', 'active')
@@ -434,4 +450,4 @@ class WarehouseController extends Controller
             ]
         ]);
     }
-} 
+}

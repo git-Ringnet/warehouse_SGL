@@ -194,13 +194,23 @@ class AssemblyController extends Controller
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                        // Find assemblies with this serial
-                        $existingAssembly = Assembly::where('product_serials', 'like', '%' . $serial . '%')
-                            ->where('product_id', $productData['id'])
+                        // Check for existing serial in assembly_products table (for new multi-product assemblies)
+                        $existingAssemblyProduct = AssemblyProduct::where('product_id', $productData['id'])
+                            ->where('serials', 'like', '%' . $serial . '%')
                             ->first();
 
-                        if ($existingAssembly) {
+                        if ($existingAssemblyProduct) {
+                            $existingAssembly = Assembly::find($existingAssemblyProduct->assembly_id);
                             throw new \Exception("Serial thành phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
+                        }
+
+                        // Also check legacy assemblies with product_serials field
+                        $existingLegacyAssembly = Assembly::where('product_serials', 'like', '%' . $serial . '%')
+                            ->whereNotNull('product_serials')
+                            ->first();
+
+                        if ($existingLegacyAssembly) {
+                            throw new \Exception("Serial thành phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingLegacyAssembly->code}.");
                         }
 
                         // Also check in the serials table
@@ -763,16 +773,38 @@ class AssemblyController extends Controller
         $assemblyId = $request->assembly_id;
 
         try {
-            // Check in assemblies table
-            $query = Assembly::where('product_serials', 'like', '%' . $serial . '%')
-                ->where('product_id', $productId);
+            // Check in assembly_products table (for new multi-product assemblies)
+            $query = AssemblyProduct::where('product_id', $productId)
+                ->where('serials', 'like', '%' . $serial . '%');
 
             // Exclude current assembly if editing
             if ($assemblyId) {
-                $query->where('id', '!=', $assemblyId);
+                $query->whereHas('assembly', function ($q) use ($assemblyId) {
+                    $q->where('id', '!=', $assemblyId);
+                });
             }
 
-            $existingAssembly = $query->first();
+            $existingAssemblyProduct = $query->first();
+
+            if ($existingAssemblyProduct) {
+                $existingAssembly = $existingAssemblyProduct->assembly;
+                return response()->json([
+                    'exists' => true,
+                    'message' => "Serial đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}",
+                    'type' => 'assembly'
+                ]);
+            }
+
+            // Also check legacy assemblies with product_serials field
+            $legacyQuery = Assembly::where('product_serials', 'like', '%' . $serial . '%')
+                ->whereNotNull('product_serials');
+
+            // Exclude current assembly if editing
+            if ($assemblyId) {
+                $legacyQuery->where('id', '!=', $assemblyId);
+            }
+
+            $existingAssembly = $legacyQuery->first();
 
             if ($existingAssembly) {
                 return response()->json([

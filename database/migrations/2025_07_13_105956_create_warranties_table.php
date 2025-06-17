@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('dispatch_item_id')->constrained('dispatch_items')->onDelete('cascade'); // Liên kết với item trong phiếu xuất
             $table->string('item_type'); // material, product, good
             $table->unsignedBigInteger('item_id'); // ID của sản phẩm
-            $table->string('serial_number')->nullable(); // Số serial của sản phẩm
+            $table->text('serial_number')->nullable(); // Số serial của sản phẩm
             $table->string('customer_name'); // Tên khách hàng
             $table->string('customer_phone')->nullable(); // SĐT khách hàng
             $table->string('customer_email')->nullable(); // Email khách hàng
