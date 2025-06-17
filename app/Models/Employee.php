@@ -3,44 +3,53 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 
-class Employee extends Model
+class Employee extends Authenticatable
 {
-    use HasFactory;
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var array<int, string>
      */
     protected $fillable = [
         'username',
         'password',
-        'name', 
-        'avatar',
-        'email', 
-        'phone', 
-        'address', 
+        'name',
+        'email',
+        'phone',
+        'address',
         'notes',
         'role',
+        'status',
+        'avatar',
         'role_id',
         'department',
         'scope_value',
         'scope_type',
-        'status',
         'is_active'
     ];
 
     /**
-     * The attributes that should be hidden for arrays.
+     * The attributes that should be hidden for serialization.
      *
-     * @var array
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
-        'status'
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        // Không sử dụng casts cho password
     ];
 
     /**
@@ -48,7 +57,12 @@ class Employee extends Model
      */
     public function setPasswordAttribute($value)
     {
-        $this->attributes['password'] = Hash::make($value);
+        // Chỉ mã hóa nếu mật khẩu chưa được mã hóa
+        if ($value && substr($value, 0, 4) !== '$2y$') {
+            $this->attributes['password'] = Hash::make($value);
+        } else {
+            $this->attributes['password'] = $value;
+        }
     }
 
     /**
