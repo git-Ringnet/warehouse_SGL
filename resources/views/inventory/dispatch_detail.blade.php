@@ -24,24 +24,26 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu xuất kho</h1>
             </div>
             <div class="flex items-center gap-2">
-                @if(!in_array($dispatch->status, ['completed', 'cancelled']))
-                <a href="{{ route('inventory.dispatch.edit', $dispatch) }}">
-                    <button
-                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-edit mr-2"></i> Chỉnh sửa
-                    </button>
-                </a>
+                @if (!in_array($dispatch->status, ['completed', 'cancelled']))
+                    <a href="{{ route('inventory.dispatch.edit', $dispatch) }}">
+                        <button
+                            class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                        </button>
+                    </a>
                 @endif
                 <div class="flex flex-wrap gap-3 justify-end">
-                    @if($dispatch->status === 'pending')
-                    <button onclick="approveDispatch({{ $dispatch->id }})" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-check mr-2"></i> Duyệt phiếu
-                    </button>
+                    @if ($dispatch->status === 'pending')
+                        <button onclick="approveDispatch({{ $dispatch->id }})"
+                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-check mr-2"></i> Duyệt phiếu
+                        </button>
                     @endif
-                    @if(!in_array($dispatch->status, ['completed', 'cancelled']))
-                    <button onclick="cancelDispatch({{ $dispatch->id }})" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-times mr-2"></i> Hủy phiếu
-                    </button>
+                    @if (!in_array($dispatch->status, ['completed', 'cancelled']))
+                        <button onclick="cancelDispatch({{ $dispatch->id }})"
+                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-times mr-2"></i> Hủy phiếu
+                        </button>
                     @endif
                 </div>
                 <button id="print-btn"
@@ -66,7 +68,18 @@
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->warehouse->name ?? 'Không xác định' }}</span>
+                            <span class="text-sm text-gray-700">
+                                @php
+                                    $warehouses = $dispatch->items->pluck('warehouse.name')->filter()->unique();
+                                @endphp
+                                @if ($warehouses->count() > 1)
+                                    Nhiều kho ({{ $warehouses->implode(', ') }})
+                                @elseif($warehouses->count() == 1)
+                                    {{ $warehouses->first() }}
+                                @else
+                                    Không xác định
+                                @endif
+                            </span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
@@ -78,13 +91,16 @@
                                 @switch($dispatch->dispatch_type)
                                     @case('project')
                                         Dự án
-                                        @break
+                                    @break
+
                                     @case('rental')
                                         Cho thuê
-                                        @break
+                                    @break
+
                                     @case('other')
                                         Khác
-                                        @break
+                                    @break
+
                                     @default
                                         {{ ucfirst($dispatch->dispatch_type) }}
                                 @endswitch
@@ -95,40 +111,45 @@
                             <span class="text-sm text-gray-700">
                                 @switch($dispatch->dispatch_detail)
                                     @case('all')
-                                        Toàn bộ
-                                        @break
+                                        Tất cả
+                                    @break
+
                                     @case('contract')
                                         Theo hợp đồng
-                                        @break
+                                    @break
+
                                     @case('backup')
                                         Dự phòng
-                                        @break
+                                    @break
+
                                     @default
                                         {{ ucfirst($dispatch->dispatch_detail) }}
                                 @endswitch
                             </span>
                         </div>
-                        @if($dispatch->warranty_period)
-                        <div class="flex items-center">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Thời gian bảo hành:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->warranty_period }}</span>
-                        </div>
+                        @if ($dispatch->warranty_period)
+                            <div class="flex items-center">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Thời gian bảo hành:</span>
+                                <span class="text-sm text-gray-700">{{ $dispatch->warranty_period }}</span>
+                            </div>
                         @endif
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người lập phiếu:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->creator->name ?? 'Không xác định' }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $dispatch->creator->name ?? 'Không xác định' }}</span>
                         </div>
-                        @if($dispatch->companyRepresentative)
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Người đại diện công ty:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->companyRepresentative->name }}</span>
-                        </div>
+                        @if ($dispatch->companyRepresentative)
+                            <div class="flex items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Người đại diện công ty:</span>
+                                <span class="text-sm text-gray-700">{{ $dispatch->companyRepresentative->name }}</span>
+                            </div>
                         @endif
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Cập nhật lần cuối:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->updated_at->format('d/m/Y H:i:s') }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $dispatch->updated_at->format('d/m/Y H:i:s') }}</span>
                         </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
@@ -137,44 +158,45 @@
                                     'pending' => 'bg-yellow-100 text-yellow-800',
                                     'approved' => 'bg-blue-100 text-blue-800',
                                     'completed' => 'bg-green-100 text-green-800',
-                                    'cancelled' => 'bg-red-100 text-red-800'
+                                    'cancelled' => 'bg-red-100 text-red-800',
                                 ];
                                 $statusLabels = [
                                     'pending' => 'Chờ duyệt',
                                     'approved' => 'Đã duyệt',
                                     'completed' => 'Đã hoàn thành',
-                                    'cancelled' => 'Đã hủy'
+                                    'cancelled' => 'Đã hủy',
                                 ];
                             @endphp
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$dispatch->status] ?? 'bg-gray-100 text-gray-800' }}">
+                            <span
+                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $statusColors[$dispatch->status] ?? 'bg-gray-100 text-gray-800' }}">
                                 {{ $statusLabels[$dispatch->status] ?? ucfirst($dispatch->status) }}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                @if($dispatch->dispatch_note)
-                <div class="mt-4 border-t border-gray-200 pt-4">
-                    <div class="flex items-center">
-                        <span class="text-sm font-medium text-gray-700 mr-2">Ghi chú:</span>
-                        <span class="text-sm text-gray-700">{{ $dispatch->dispatch_note }}</span>
+                @if ($dispatch->dispatch_note)
+                    <div class="mt-4 border-t border-gray-200 pt-4">
+                        <div class="flex items-center">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Ghi chú:</span>
+                            <span class="text-sm text-gray-700">{{ $dispatch->dispatch_note }}</span>
+                        </div>
                     </div>
-                </div>
                 @endif
             </div>
 
             <!-- Product List -->
-            @if($dispatch->dispatch_detail === 'all')
+            @if ($dispatch->dispatch_detail === 'all')
                 <!-- Khi xuất tất cả, hiển thị 2 bảng riêng biệt -->
                 <!-- Danh sách thành phẩm theo hợp đồng -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                         <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                        📋 Danh sách thành phẩm theo hợp đồng
+                        Danh sách thành phẩm theo hợp đồng
                     </h2>
 
                     @php
-                        $contractItems = $dispatch->items->filter(function($item) {
+                        $contractItems = $dispatch->items->filter(function ($item) {
                             return $item->category === 'contract';
                         });
                     @endphp
@@ -183,83 +205,114 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-blue-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">STT</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Mã SP</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Tên thành phẩm</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Đơn vị</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Tồn kho</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Số lượng xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Serial</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">Thao tác</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        STT</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Mã SP</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Tên thành phẩm</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Đơn vị</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Tồn kho</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Số lượng xuất</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Serial</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                        Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($contractItems as $index => $item)
-                                <tr class="hover:bg-blue-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">
-                                        @if($item->item)
-                                            {{ $item->item->code ?? $item->item->id }}
-                                        @else
-                                            {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <div>
-                                            <div class="font-medium">
-                                                @if($item->item)
-                                                    {{ $item->item->name ?? 'Không xác định' }}
-                                                @else
-                                                    {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                    <tr class="hover:bg-blue-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $index + 1 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">
+                                            @if ($item->item)
+                                                {{ $item->item->code ?? $item->item->id }}
+                                            @else
+                                                {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <div>
+                                                <div class="font-medium">
+                                                    @if ($item->item)
+                                                        {{ $item->item->name ?? 'Không xác định' }}
+                                                    @else
+                                                        {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                    @endif
+                                                </div>
+                                                @if ($item->notes)
+                                                    <div class="text-xs text-blue-600">{{ $item->notes }}</div>
                                                 @endif
                                             </div>
-                                            @if($item->notes)
-                                                <div class="text-xs text-blue-600">{{ $item->notes }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if ($item->item && isset($item->item->unit))
+                                                {{ $item->item->unit }}
+                                            @else
+                                                Cái
                                             @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        @if($item->item && isset($item->item->unit))
-                                            {{ $item->item->unit }}
-                                        @else
-                                            Cái
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rand(50, 200) }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">{{ $item->quantity }}</td>
-                                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                         @php
-                                             $serialCount = 0;
-                                             if ($item->serial_numbers) {
-                                                 if (is_array($item->serial_numbers)) {
-                                                     $serialCount = count($item->serial_numbers);
-                                                 } elseif (is_string($item->serial_numbers)) {
-                                                     $decoded = json_decode($item->serial_numbers, true);
-                                                     $serialCount = is_array($decoded) ? count($decoded) : 0;
-                                                 }
-                                             }
-                                         @endphp
-                                         @if($serialCount > 0)
-                                             <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                 {{ $serialCount }} serial
-                                             </span>
-                                         @else
-                                             <span class="text-xs text-gray-500">Chưa có</span>
-                                         @endif
-                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
-                                        <button onclick="showItemDetail({{ $item->id }})" class="hover:text-blue-800">
-                                            Cập nhật mã thiết bị
-                                        </button>
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            @php
+                                                $currentStock = 0;
+                                                if ($item->item) {
+                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $item->item_type)
+                                                        ->where('material_id', $item->item_id)
+                                                        ->where('warehouse_id', $item->warehouse_id)
+                                                        ->first();
+                                                    $currentStock = $warehouseMaterial ? $warehouseMaterial->quantity : 0;
+                                                }
+                                            @endphp
+                                            {{ $currentStock }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">
+                                            {{ $item->quantity }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @php
+                                                $serialCount = 0;
+                                                if ($item->serial_numbers) {
+                                                    if (is_array($item->serial_numbers)) {
+                                                        $serialCount = count($item->serial_numbers);
+                                                    } elseif (is_string($item->serial_numbers)) {
+                                                        $decoded = json_decode($item->serial_numbers, true);
+                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                    }
+                                                }
+                                            @endphp
+                                            @if ($serialCount > 0)
+                                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                                    {{ $serialCount }} serial
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-gray-500">Chưa có</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                                            <a href="{{ route('products.show', $item->item_id) }}">
+                                                <button class="hover:text-blue-800">
+                                                    Xem chi tiết
+                                                </button>
+                                            </a>
+                                        </td>
+                                    </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                                        <i class="fas fa-file-contract text-4xl mb-4 text-gray-300"></i>
-                                        <p class="text-lg">Chưa có thành phẩm hợp đồng nào được thêm</p>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                            <i class="fas fa-file-contract text-4xl mb-4 text-gray-300"></i>
+                                            <p class="text-lg">Chưa có thành phẩm hợp đồng nào được thêm</p>
+                                        </td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -270,11 +323,11 @@
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
                         <i class="fas fa-tools text-orange-500 mr-2"></i>
-                        🔧 Danh sách thiết bị dự phòng
+                        Danh sách thiết bị dự phòng
                     </h2>
 
                     @php
-                        $backupItems = $dispatch->items->filter(function($item) {
+                        $backupItems = $dispatch->items->filter(function ($item) {
                             return $item->category === 'backup';
                         });
                     @endphp
@@ -283,83 +336,114 @@
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-orange-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">STT</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Mã SP</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Tên thiết bị</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Đơn vị</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Tồn kho</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Số lượng xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Serial</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">Thao tác</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        STT</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Mã SP</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Tên thiết bị</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Đơn vị</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Tồn kho</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Số lượng xuất</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Serial</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                        Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($backupItems as $index => $item)
-                                <tr class="hover:bg-orange-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">
-                                        @if($item->item)
-                                            {{ $item->item->code ?? $item->item->id }}
-                                        @else
-                                            {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <div>
-                                            <div class="font-medium">
-                                                @if($item->item)
-                                                    {{ $item->item->name ?? 'Không xác định' }}
-                                                @else
-                                                    {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                    <tr class="hover:bg-orange-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $index + 1 }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">
+                                            @if ($item->item)
+                                                {{ $item->item->code ?? $item->item->id }}
+                                            @else
+                                                {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            <div>
+                                                <div class="font-medium">
+                                                    @if ($item->item)
+                                                        {{ $item->item->name ?? 'Không xác định' }}
+                                                    @else
+                                                        {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                    @endif
+                                                </div>
+                                                @if ($item->notes)
+                                                    <div class="text-xs text-orange-600">{{ $item->notes }}</div>
                                                 @endif
                                             </div>
-                                            @if($item->notes)
-                                                <div class="text-xs text-orange-600">{{ $item->notes }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if ($item->item && isset($item->item->unit))
+                                                {{ $item->item->unit }}
+                                            @else
+                                                Cái
                                             @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        @if($item->item && isset($item->item->unit))
-                                            {{ $item->item->unit }}
-                                        @else
-                                            Cái
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ rand(20, 100) }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">{{ $item->quantity }}</td>
-                                                                         <td class="px-6 py-4 whitespace-nowrap">
-                                         @php
-                                             $serialCount = 0;
-                                             if ($item->serial_numbers) {
-                                                 if (is_array($item->serial_numbers)) {
-                                                     $serialCount = count($item->serial_numbers);
-                                                 } elseif (is_string($item->serial_numbers)) {
-                                                     $decoded = json_decode($item->serial_numbers, true);
-                                                     $serialCount = is_array($decoded) ? count($decoded) : 0;
-                                                 }
-                                             }
-                                         @endphp
-                                         @if($serialCount > 0)
-                                             <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                                 {{ $serialCount }} serial
-                                             </span>
-                                         @else
-                                             <span class="text-xs text-gray-500">Chưa có</span>
-                                         @endif
-                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
-                                        <button onclick="showItemDetail({{ $item->id }})" class="hover:text-orange-800">
-                                            Cập nhật mã thiết bị
-                                        </button>
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            @php
+                                                $currentStock = 0;
+                                                if ($item->item) {
+                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $item->item_type)
+                                                        ->where('material_id', $item->item_id)
+                                                        ->where('warehouse_id', $item->warehouse_id)
+                                                        ->first();
+                                                    $currentStock = $warehouseMaterial ? $warehouseMaterial->quantity : 0;
+                                                }
+                                            @endphp
+                                            {{ $currentStock }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">
+                                            {{ $item->quantity }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @php
+                                                $serialCount = 0;
+                                                if ($item->serial_numbers) {
+                                                    if (is_array($item->serial_numbers)) {
+                                                        $serialCount = count($item->serial_numbers);
+                                                    } elseif (is_string($item->serial_numbers)) {
+                                                        $decoded = json_decode($item->serial_numbers, true);
+                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                    }
+                                                }
+                                            @endphp
+                                            @if ($serialCount > 0)
+                                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                                    {{ $serialCount }} serial
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-gray-500">Chưa có</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
+                                            <a href="{{ route('products.show', $item->item_id) }}">
+                                                <button class="hover:text-orange-800">
+                                                    Xem chi tiết
+                                                </button>
+                                            </a>
+                                        </td>
+                                    </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
-                                        <i class="fas fa-tools text-4xl mb-4 text-gray-300"></i>
-                                        <p class="text-lg">Chưa có thiết bị dự phòng nào được thêm</p>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                                            <i class="fas fa-tools text-4xl mb-4 text-gray-300"></i>
+                                            <p class="text-lg">Chưa có thiết bị dự phòng nào được thêm</p>
+                                        </td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -368,9 +452,9 @@
             @else
                 <!-- Khi xuất riêng lẻ (contract hoặc backup), hiển thị 1 bảng với title tương ứng -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                    @if($dispatch->dispatch_detail === 'contract')
+                    @if ($dispatch->dispatch_detail === 'contract')
                         <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-                            <i class="fas fa-file-contract text-blue-500 mr-2"></i> 
+                            <i class="fas fa-file-contract text-blue-500 mr-2"></i>
                             📋 Danh sách thành phẩm theo hợp đồng
                         </h2>
                     @elseif($dispatch->dispatch_detail === 'backup')
@@ -387,67 +471,92 @@
 
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-50">
+                            <thead
+                                class="bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">STT</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Mã SP</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        STT</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        Mã SP</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
                                         {{ $dispatch->dispatch_detail === 'contract' ? 'Tên thành phẩm' : ($dispatch->dispatch_detail === 'backup' ? 'Tên thiết bị' : 'Tên sản phẩm') }}
                                     </th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Đơn vị</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Số lượng</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Kho xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">Thao tác</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        Đơn vị</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        Số lượng</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        Kho xuất</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 @forelse($dispatch->items as $index => $item)
-                                <tr class="hover:bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $index + 1 }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-900 font-medium">
-                                        @if($item->item)
-                                            {{ $item->item->code ?? $item->item->id }}
-                                        @else
-                                            {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <div>
-                                            <div class="font-medium">
-                                                @if($item->item)
-                                                    {{ $item->item->name ?? 'Không xác định' }}
-                                                @else
-                                                    {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                    <tr
+                                        class="hover:bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {{ $index + 1 }}</td>
+                                        <td
+                                            class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-900 font-medium">
+                                            @if ($item->item)
+                                                {{ $item->item->code ?? $item->item->id }}
+                                            @else
+                                                {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <div>
+                                                <div class="font-medium">
+                                                    @if ($item->item)
+                                                        {{ $item->item->name ?? 'Không xác định' }}
+                                                    @else
+                                                        {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                    @endif
+                                                </div>
+                                                @if ($item->notes)
+                                                    <div
+                                                        class="text-xs text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">
+                                                        {{ $item->notes }}</div>
                                                 @endif
                                             </div>
-                                            @if($item->notes)
-                                                <div class="text-xs text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">{{ $item->notes }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if ($item->item && isset($item->item->unit))
+                                                {{ $item->item->unit }}
+                                            @else
+                                                Cái
                                             @endif
-                                        </div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        @if($item->item && isset($item->item->unit))
-                                            {{ $item->item->unit }}
-                                        @else
-                                            Cái
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->quantity }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $dispatch->warehouse->name ?? 'Không xác định' }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">
-                                        <button onclick="showItemDetail({{ $item->id }})" class="hover:text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800">
-                                            Chi tiết
-                                        </button>
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {{ $item->quantity }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {{ $item->warehouse->name ?? 'Không xác định' }}</td>
+                                        <td
+                                            class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">
+                                            <a href="{{ route('products.show', $item->item_id) }}">
+                                                <button
+                                                    class="hover:text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800">
+                                                    Xem chi tiết
+                                                </button>
+                                            </a>
+                                        </td>
+                                    </tr>
                                 @empty
-                                <tr>
-                                    <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                                        <i class="fas fa-box-open text-4xl mb-4 text-gray-300"></i>
-                                        <p class="text-lg">Không có sản phẩm nào</p>
-                                        <p class="text-sm">Phiếu xuất này chưa có sản phẩm nào</p>
-                                    </td>
-                                </tr>
+                                    <tr>
+                                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                            <i class="fas fa-box-open text-4xl mb-4 text-gray-300"></i>
+                                            <p class="text-lg">Không có sản phẩm nào</p>
+                                            <p class="text-sm">Phiếu xuất này chưa có sản phẩm nào</p>
+                                        </td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
@@ -470,10 +579,12 @@
     </div>
 
     <!-- Modal chi tiết sản phẩm -->
-    <div id="product-detail-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div id="product-detail-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">Chi tiết sản phẩm: <span id="product-detail-name">Bộ điều khiển chính</span></h3>
+                <h3 class="text-lg font-semibold text-gray-800">Chi tiết sản phẩm: <span id="product-detail-name">Bộ
+                        điều khiển chính</span></h3>
                 <button type="button" class="text-gray-400 hover:text-gray-500" id="close-product-detail-modal">
                     <i class="fas fa-times"></i>
                 </button>
@@ -482,18 +593,21 @@
             <div class="mb-4">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <p class="text-sm text-gray-600">Mã sản phẩm: <span id="product-detail-code" class="font-medium">-</span></p>
+                        <p class="text-sm text-gray-600">Mã sản phẩm: <span id="product-detail-code"
+                                class="font-medium">-</span></p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-600">Đơn vị: <span id="product-detail-unit" class="font-medium">-</span></p>
+                        <p class="text-sm text-gray-600">Đơn vị: <span id="product-detail-unit"
+                                class="font-medium">-</span></p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-600">Số lượng: <span id="product-detail-quantity" class="font-medium">-</span></p>
+                        <p class="text-sm text-gray-600">Số lượng: <span id="product-detail-quantity"
+                                class="font-medium">-</span></p>
                     </div>
                 </div>
-                
+
                 <h4 class="text-md font-semibold text-gray-800 mb-3">Danh sách Serial Numbers</h4>
-                
+
                 <div class="overflow-x-auto">
                     <div id="serial-numbers-container" class="bg-gray-50 rounded-lg p-4">
                         <p class="text-sm text-gray-500">Đang tải dữ liệu...</p>
@@ -509,13 +623,16 @@
             </div>
 
             <div class="mt-4 flex justify-end space-x-3">
-                <button type="button" id="close-detail-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
+                <button type="button" id="close-detail-btn"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors">
                     Đóng
                 </button>
-                <button id="export-product-excel-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                <button id="export-product-excel-btn"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-file-excel mr-2"></i> Xuất Excel
                 </button>
-                <button id="export-product-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                <button id="export-product-pdf-btn"
+                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
                 </button>
             </div>
@@ -532,98 +649,32 @@
             printBtn.addEventListener('click', function() {
                 window.print();
             });
-            
+
             // Đóng modal chi tiết sản phẩm
             const productDetailModal = document.getElementById('product-detail-modal');
             const closeProductDetailModalBtn = document.getElementById('close-product-detail-modal');
             const closeDetailBtn = document.getElementById('close-detail-btn');
-            
+
             closeProductDetailModalBtn.addEventListener('click', function() {
                 productDetailModal.classList.add('hidden');
             });
-            
+
             closeDetailBtn.addEventListener('click', function() {
                 productDetailModal.classList.add('hidden');
             });
-            
+
             // Xử lý sự kiện xuất Excel chi tiết sản phẩm
             const exportProductExcelBtn = document.getElementById('export-product-excel-btn');
             exportProductExcelBtn.addEventListener('click', function() {
                 alert('Tính năng xuất Excel chi tiết sản phẩm đang được phát triển!');
             });
-            
+
             // Xử lý sự kiện xuất PDF chi tiết sản phẩm
             const exportProductPdfBtn = document.getElementById('export-product-pdf-btn');
             exportProductPdfBtn.addEventListener('click', function() {
                 alert('Tính năng xuất PDF chi tiết sản phẩm đang được phát triển!');
             });
         });
-
-        // Function to show item detail
-        function showItemDetail(itemId) {
-            const item = dispatchItems.find(i => i.id === itemId);
-            
-            if (!item) {
-                alert('Không tìm thấy thông tin sản phẩm');
-                return;
-            }
-
-            // Update modal title and basic info
-            document.getElementById('product-detail-name').textContent = item.item ? item.item.name : `${item.item_type} ID: ${item.item_id}`;
-            document.getElementById('product-detail-code').textContent = item.item ? (item.item.code || item.item.id) : `${item.item_type}-${item.item_id}`;
-            document.getElementById('product-detail-unit').textContent = item.item ? (item.item.unit || 'Cái') : 'Cái';
-            document.getElementById('product-detail-quantity').textContent = item.quantity;
-
-            // Update serial numbers
-            const serialContainer = document.getElementById('serial-numbers-container');
-            let serialNumbers = [];
-            
-            // Xử lý serial_numbers có thể là array hoặc string
-            if (item.serial_numbers) {
-                if (Array.isArray(item.serial_numbers)) {
-                    serialNumbers = item.serial_numbers;
-                } else if (typeof item.serial_numbers === 'string') {
-                    try {
-                        const parsed = JSON.parse(item.serial_numbers);
-                        if (Array.isArray(parsed)) {
-                            serialNumbers = parsed;
-                        }
-                    } catch (e) {
-                        // Nếu không parse được, coi như không có serial
-                        serialNumbers = [];
-                    }
-                }
-            }
-            
-            if (serialNumbers.length > 0) {
-                let serialHtml = '<div class="space-y-2">';
-                serialNumbers.forEach((serial, index) => {
-                    serialHtml += `
-                        <div class="flex items-center justify-between border border-gray-200 rounded-lg p-3 bg-white">
-                            <span class="font-medium text-gray-700">Serial ${index + 1}:</span>
-                            <span class="text-gray-900 font-mono">${serial}</span>
-                        </div>
-                    `;
-                });
-                serialHtml += '</div>';
-                serialContainer.innerHTML = serialHtml;
-            } else {
-                serialContainer.innerHTML = '<p class="text-sm text-gray-500 italic">Chưa có serial numbers</p>';
-            }
-
-            // Update notes
-            const notesContainer = document.getElementById('notes-container');
-            const itemNotes = document.getElementById('item-notes');
-            if (item.notes) {
-                itemNotes.textContent = item.notes;
-                notesContainer.style.display = 'block';
-            } else {
-                notesContainer.style.display = 'none';
-            }
-
-            // Show modal
-            document.getElementById('product-detail-modal').classList.remove('hidden');
-        }
 
         // Function to approve dispatch
         function approveDispatch(dispatchId) {
@@ -632,28 +683,28 @@
             }
 
             fetch(`/inventory/dispatch/${dispatchId}/approve`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    notes: 'Duyệt từ giao diện web'
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        notes: 'Duyệt từ giao diện web'
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('Có lỗi xảy ra: ' + (data.message || 'Không thể duyệt phiếu'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra khi duyệt phiếu');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Có lỗi xảy ra: ' + (data.message || 'Không thể duyệt phiếu'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi duyệt phiếu');
+                });
         }
 
         // Function to cancel dispatch
@@ -664,30 +715,30 @@
             }
 
             fetch(`/inventory/dispatch/${dispatchId}/cancel`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    reason: reason
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        reason: reason
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert('Có lỗi xảy ra: ' + (data.message || 'Không thể hủy phiếu'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra khi hủy phiếu');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload();
+                    } else {
+                        alert('Có lỗi xảy ra: ' + (data.message || 'Không thể hủy phiếu'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi hủy phiếu');
+                });
         }
     </script>
 </body>
 
-</html> 
+</html>

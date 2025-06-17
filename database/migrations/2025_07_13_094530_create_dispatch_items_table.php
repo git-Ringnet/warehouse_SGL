@@ -17,6 +17,7 @@ return new class extends Migration
             $table->enum('item_type', ['material', 'product', 'good']);
             $table->unsignedBigInteger('item_id');
             $table->integer('quantity');
+            $table->unsignedBigInteger('warehouse_id');
             $table->enum('category', ['contract', 'backup', 'general'])->default('general');
             $table->json('serial_numbers')->nullable();
             $table->text('notes')->nullable();
@@ -24,10 +25,12 @@ return new class extends Migration
 
             // Foreign key constraints
             $table->foreign('dispatch_id')->references('id')->on('dispatches')->onDelete('cascade');
+            $table->foreign('warehouse_id')->references('id')->on('warehouses');
 
             // Indexes
             $table->index(['dispatch_id', 'item_type']);
             $table->index(['item_type', 'item_id']);
+            $table->index('warehouse_id');
         });
     }
 

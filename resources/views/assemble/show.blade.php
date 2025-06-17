@@ -23,12 +23,6 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu lắp ráp</h1>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('testing.create', ['assembly_id' => $assembly->id]) }}">
-                    <button
-                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-vial mr-2"></i> Tạo phiếu kiểm thử
-                    </button>
-                </a>
                 <a href="{{ route('assemblies.edit', $assembly->id) }}">
                     <button
                         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
@@ -60,21 +54,41 @@
                             <span
                                 class="text-sm text-gray-700">{{ \Carbon\Carbon::parse($assembly->date)->format('d/m/Y') }}</span>
                         </div>
-                        <div class="flex items-center mb-2">
+                        <div class="mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Thành phẩm:</span>
-                            <div class="flex flex-col">
-                                @if (isset($assembly->products) && count($assembly->products) > 0)
-                                    @foreach ($assembly->products as $product)
-                                        <span class="text-sm text-gray-700">{{ $product->name }}</span>
+                            <div class="flex flex-col space-y-2">
+                                @if ($assembly->products && $assembly->products->count() > 0)
+                                    @foreach ($assembly->products as $assemblyProduct)
+                                        <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-sm font-medium text-gray-800">{{ $assemblyProduct->product->name }}</span>
+                                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{{ $assemblyProduct->quantity }} sản phẩm</span>
+                                            </div>
+                                            <div class="text-xs text-gray-600 mt-1">
+                                                <span class="font-medium">Mã:</span> {{ $assemblyProduct->product->code }}
+                                            </div>
+                                            @if($assemblyProduct->serials)
+                                                <div class="text-xs text-gray-600 mt-1">
+                                                    <span class="font-medium">Serial:</span> {{ $assemblyProduct->serials }}
+                                                </div>
+                                            @endif
+                                        </div>
                                     @endforeach
                                 @else
-                                    <span class="text-sm text-gray-700">{{ $assembly->product->name }}</span>
+                                    <!-- Legacy support for old assemblies -->
+                                    <div class="bg-gray-50 p-3 rounded-lg border-l-4 border-gray-400">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-800">{{ $assembly->product->name ?? 'Không có sản phẩm' }}</span>
+                                            <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded-full">{{ $assembly->quantity ?? '1' }} sản phẩm</span>
+                                        </div>
+                                        @if($assembly->product)
+                                            <div class="text-xs text-gray-600 mt-1">
+                                                <span class="font-medium">Mã:</span> {{ $assembly->product->code }}
+                                            </div>
+                                        @endif
+                                    </div>
                                 @endif
                             </div>
-                        </div>
-                        <div class="flex items-center mt-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Số lượng:</span>
-                            <span class="text-sm font-semibold text-gray-700">{{ $assembly->quantity ?? '1' }}</span>
                         </div>
                     </div>
                     <div>
@@ -255,90 +269,6 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-
-            <!-- Related Testing Records -->
-            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                    <i class="fas fa-vial text-green-500 mr-2"></i>
-                    Phiếu kiểm thử liên quan
-                </h2>
-
-                @if($assembly->testings && $assembly->testings->count() > 0)
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Mã phiếu
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Ngày kiểm thử
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Người kiểm thử
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Trạng thái
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Kết quả
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Thao tác
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($assembly->testings as $testing)
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">{{ $testing->test_code }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-500">{{ $testing->test_date->format('d/m/Y') }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-500">{{ $testing->tester->name ?? 'N/A' }}</div>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                        @if($testing->status == 'completed') bg-green-100 text-green-800
-                                        @elseif($testing->status == 'in_progress') bg-yellow-100 text-yellow-800
-                                        @elseif($testing->status == 'pending') bg-blue-100 text-blue-800
-                                        @else bg-red-100 text-red-800 @endif">
-                                        {{ $testing->status_text }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    @if($testing->status == 'completed')
-                                        <div class="text-sm font-medium">
-                                            {{ $testing->pass_rate }}% Đạt
-                                        </div>
-                                    @else
-                                        <div class="text-sm text-gray-500">Chưa hoàn thành</div>
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="{{ route('testing.show', $testing->id) }}" class="text-blue-600 hover:text-blue-900">
-                                        Xem chi tiết
-                                    </a>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                @else
-                <div class="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
-                    Chưa có phiếu kiểm thử nào được tạo cho phiếu lắp ráp này.
-                    <div class="mt-2">
-                        <a href="{{ route('testing.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600">
-                            <i class="fas fa-plus mr-2"></i> Tạo phiếu kiểm thử
-                        </a>
-                    </div>
-                </div>
-                @endif
             </div>
 
             <!-- Buttons -->

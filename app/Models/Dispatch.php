@@ -21,10 +21,10 @@ class Dispatch extends Model
         'dispatch_date',
         'dispatch_type',
         'dispatch_detail',
+        'project_id',
         'project_receiver',
         'warranty_period',
         'company_representative_id',
-        'warehouse_id',
         'dispatch_note',
         'status',
         'created_by',
@@ -43,11 +43,11 @@ class Dispatch extends Model
     ];
 
     /**
-     * Get the warehouse for this dispatch.
+     * Get the project for this dispatch.
      */
-    public function warehouse(): BelongsTo
+    public function project(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->belongsTo(Project::class);
     }
 
     /**
@@ -126,7 +126,7 @@ class Dispatch extends Model
         return match($this->dispatch_type) {
             'project' => 'Dự án',
             'rental' => 'Cho thuê',
-            'other' => 'Khác',
+            'warranty' => 'Bảo hành',
             default => 'Không xác định'
         };
     }

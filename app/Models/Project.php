@@ -49,4 +49,20 @@ class Project extends Model
         return $this->belongsToMany(Role::class, 'project_role')
                     ->withTimestamps();
     }
+
+    /**
+     * Lấy các phiếu xuất kho của dự án này
+     */
+    public function dispatches()
+    {
+        return $this->hasMany(Dispatch::class);
+    }
+
+    /**
+     * Lấy warranty period formatted
+     */
+    public function getWarrantyPeriodFormattedAttribute()
+    {
+        return $this->warranty_period . ' tháng';
+    }
 } 

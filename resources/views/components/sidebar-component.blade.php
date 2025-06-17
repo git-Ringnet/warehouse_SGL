@@ -119,7 +119,7 @@
                                 class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
                         </li>
                         <li>
-                            <a href="{{ asset('repair_list') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                            <a href="{{ route('repairs.index') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
                                 Sửa chữa - bảo trì
                             </a>
                         </li>
