@@ -433,6 +433,7 @@ Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyC
 Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials');
 Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees');
 Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock');
+Route::get('/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials');
 
 // Assembly export routes
 Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])->name('assemblies.export.excel');

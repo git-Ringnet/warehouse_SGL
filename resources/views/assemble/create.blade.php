@@ -2075,10 +2075,22 @@
                             serialHtml += '<input type="hidden" name="components[' + index +
                                 '][serials][]" value="' + (serial || '') + '">';
                         });
+                        // Multiple serial_ids
+                        if (component.serial_ids && component.serial_ids.length > 0) {
+                            component.serial_ids.forEach((serialId, serialIndex) => {
+                                serialHtml += '<input type="hidden" name="components[' + index +
+                                    '][serial_ids][]" value="' + (serialId || '') + '">';
+                            });
+                        }
                     } else {
                         // Single serial
                         serialHtml = '<input type="hidden" name="components[' + index +
                             '][serial]" value="' + (component.serial || '') + '">';
+                        // Add serial_id if available
+                        if (component.serial_id) {
+                            serialHtml += '<input type="hidden" name="components[' + index +
+                                '][serial_id]" value="' + component.serial_id + '">';
+                        }
                     }
 
                     row.innerHTML =
@@ -2151,44 +2163,113 @@
 
                 const quantity = parseInt(component.quantity) || 1;
 
-                // If quantity is 1, show single serial input
+                // If quantity is 1, show single serial dropdown
                 if (quantity === 1) {
-                    const input = document.createElement('input');
-                    input.type = 'text';
-                    input.name = 'components[' + index + '][serial]';
-                    input.value = component.serial || '';
-                    input.placeholder = 'Serial (tùy chọn)';
-                    input.className =
-                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                    const serialContainer = document.createElement('div');
+                    serialContainer.className = 'relative';
 
-                    input.addEventListener('input', function() {
+                    // Create select dropdown
+                    const selectElement = document.createElement('select');
+                    selectElement.name = 'components[' + index + '][serial]';
+                    selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                    selectElement.setAttribute('data-material-id', component.id);
+                    selectElement.setAttribute('data-component-index', index);
+
+                    // Add default option
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = 'Chọn serial (tùy chọn)';
+                    selectElement.appendChild(defaultOption);
+
+                    // Hidden input for serial_id
+                    const serialIdInput = document.createElement('input');
+                    serialIdInput.type = 'hidden';
+                    serialIdInput.name = 'components[' + index + '][serial_id]';
+                    serialIdInput.value = component.serial_id || '';
+
+                    // Load serials when warehouse is selected
+                    loadSerialsForSelect(selectElement, serialIdInput, component, index);
+
+                    // Add event listener for select change
+                    selectElement.addEventListener('change', function() {
+                        const selectedOption = this.options[this.selectedIndex];
                         component.serial = this.value;
+                        
+                        if (selectedOption.dataset.serialId) {
+                            component.serial_id = selectedOption.dataset.serialId;
+                            serialIdInput.value = selectedOption.dataset.serialId;
+                        } else {
+                            component.serial_id = '';
+                            serialIdInput.value = '';
+                        }
+                        
+                        // Reload all other serial dropdowns to hide selected serials
+                        setTimeout(() => {
+                            reloadAllComponentSerials(this);
+                        }, 100);
                     });
 
-                    cell.appendChild(input);
+                    serialContainer.appendChild(selectElement);
+                    serialContainer.appendChild(serialIdInput);
+                    cell.appendChild(serialContainer);
                 } else {
-                    // If quantity > 1, show multiple serial inputs
+                    // If quantity > 1, show multiple serial dropdowns
                     // Ensure serials array exists and has correct length
                     if (!component.serials) component.serials = [];
+                    if (!component.serial_ids) component.serial_ids = [];
 
                     for (let i = 0; i < quantity; i++) {
                         const serialDiv = document.createElement('div');
-                        serialDiv.className = 'mb-1';
+                        serialDiv.className = 'mb-1 relative';
 
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.name = 'components[' + index + '][serials][]';
-                        input.value = (component.serials && component.serials[i]) || '';
-                        input.placeholder = 'Serial ' + (i + 1) + ' (tùy chọn)';
-                        input.className =
-                            'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                        // Create select dropdown for each serial
+                        const selectElement = document.createElement('select');
+                        selectElement.name = 'components[' + index + '][serials][]';
+                        selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                        selectElement.setAttribute('data-material-id', component.id);
+                        selectElement.setAttribute('data-component-index', index);
+                        selectElement.setAttribute('data-serial-index', i);
 
-                        input.addEventListener('input', function() {
+                        // Add default option
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = 'Chọn serial ' + (i + 1) + ' (tùy chọn)';
+                        selectElement.appendChild(defaultOption);
+
+                        // Hidden input for serial_id
+                        const serialIdInput = document.createElement('input');
+                        serialIdInput.type = 'hidden';
+                        serialIdInput.name = 'components[' + index + '][serial_ids][]';
+                        serialIdInput.value = (component.serial_ids && component.serial_ids[i]) || '';
+
+                        // Load serials when warehouse is selected
+                        loadSerialsForMultipleSelect(selectElement, serialIdInput, component, index, i);
+
+                        // Add event listener for select change
+                        selectElement.addEventListener('change', function() {
+                            const selectedOption = this.options[this.selectedIndex];
+                            
                             if (!component.serials) component.serials = [];
+                            if (!component.serial_ids) component.serial_ids = [];
+                            
                             component.serials[i] = this.value;
+                            
+                            if (selectedOption.dataset.serialId) {
+                                component.serial_ids[i] = selectedOption.dataset.serialId;
+                                serialIdInput.value = selectedOption.dataset.serialId;
+                            } else {
+                                component.serial_ids[i] = '';
+                                serialIdInput.value = '';
+                            }
+                            
+                            // Reload all other serial dropdowns to hide selected serials
+                            setTimeout(() => {
+                                reloadAllComponentSerials(this);
+                            }, 100);
                         });
 
-                        serialDiv.appendChild(input);
+                        serialDiv.appendChild(selectElement);
+                        serialDiv.appendChild(serialIdInput);
                         cell.appendChild(serialDiv);
                     }
 
@@ -2452,6 +2533,9 @@
                     warehouseStockData = {};
                     updateAllStockWarnings();
                 }
+
+                // Reload serials for all components when warehouse changes
+                reloadAllComponentSerials();
             });
 
             // Khởi tạo: tải danh sách linh kiện của kho nếu đã chọn kho
@@ -2536,6 +2620,248 @@
                     updateComponentList();
                 }
             });
+
+            // Function to get all currently selected serials (excluding specific element)
+            function getAllSelectedSerials(excludeElement = null) {
+                const selectedSerials = new Set();
+                
+                // Get serials from all select dropdowns
+                document.querySelectorAll('select[data-material-id]').forEach(selectElement => {
+                    // Skip if this is the element we want to exclude
+                    if (excludeElement && selectElement === excludeElement) {
+                        return;
+                    }
+                    
+                    if (selectElement.value && selectElement.value !== '') {
+                        selectedSerials.add(selectElement.value);
+                    }
+                });
+                
+                return selectedSerials;
+            }
+
+            // Function to reload serials for all components (excluding specific element)
+            function reloadAllComponentSerials(excludeElement = null) {
+                // Find all serial select elements and reload their options
+                document.querySelectorAll('select[data-material-id]').forEach(selectElement => {
+                    // Skip if this is the element we want to exclude
+                    if (excludeElement && selectElement === excludeElement) {
+                        return;
+                    }
+                    
+                    const materialId = selectElement.getAttribute('data-material-id');
+                    const componentIndex = selectElement.getAttribute('data-component-index');
+                    const serialIndex = selectElement.getAttribute('data-serial-index');
+                    
+                    // Find the component and its serial input
+                    const component = selectedComponents[componentIndex];
+                    const serialIdInput = selectElement.parentNode.querySelector('input[type="hidden"]');
+                    
+                    if (component && serialIdInput) {
+                        if (serialIndex !== null) {
+                            // Multiple serials case
+                            loadSerialsForMultipleSelect(selectElement, serialIdInput, component, componentIndex, parseInt(serialIndex));
+                        } else {
+                            // Single serial case
+                            loadSerialsForSelect(selectElement, serialIdInput, component, componentIndex);
+                        }
+                    }
+                });
+            }
+
+            // Function to load serials for multiple select (quantity > 1)
+            async function loadSerialsForMultipleSelect(selectElement, serialIdInput, component, index, serialIndex) {
+                const warehouseId = document.getElementById('warehouse_id').value;
+                if (!warehouseId) {
+                    return; // Don't load if no warehouse selected
+                }
+
+                try {
+                    const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                        new URLSearchParams({
+                            material_id: component.id,
+                            warehouse_id: warehouseId
+                        }));
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.serials.length > 0) {
+                        // Get currently selected serials from all dropdowns (excluding this one)
+                        const allSelectedSerials = getAllSelectedSerials(selectElement);
+                        
+                        // Clear existing options except the first default one
+                        while (selectElement.children.length > 1) {
+                            selectElement.removeChild(selectElement.lastChild);
+                        }
+
+                        // Add serial options
+                        data.serials.forEach(serial => {
+                            // Skip this serial if it's already selected in another dropdown
+                            if (allSelectedSerials.has(serial.serial_number)) {
+                                return; // Skip this serial
+                            }
+                            
+                            const option = document.createElement('option');
+                            option.value = serial.serial_number;
+                            option.textContent = serial.serial_number;
+                            option.dataset.serialId = serial.id;
+                            
+                            // Select this option if it matches component's current serial for this index
+                            if ((component.serials && component.serials[serialIndex] === serial.serial_number) || 
+                                (component.serial_ids && component.serial_ids[serialIndex] == serial.id)) {
+                                option.selected = true;
+                                selectElement.value = serial.serial_number;
+                                if (!component.serials) component.serials = [];
+                                if (!component.serial_ids) component.serial_ids = [];
+                                component.serials[serialIndex] = serial.serial_number;
+                                component.serial_ids[serialIndex] = serial.id;
+                                serialIdInput.value = serial.id;
+                            }
+                            
+                            selectElement.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading serials:', error);
+                }
+            }
+
+            // Function to load serials for select dropdown
+            async function loadSerialsForSelect(selectElement, serialIdInput, component, index) {
+                const warehouseId = document.getElementById('warehouse_id').value;
+                if (!warehouseId) {
+                    return; // Don't load if no warehouse selected
+                }
+
+                try {
+                    const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                        new URLSearchParams({
+                            material_id: component.id,
+                            warehouse_id: warehouseId
+                        }));
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && data.serials.length > 0) {
+                        // Get currently selected serials from all dropdowns (excluding this one)
+                        const allSelectedSerials = getAllSelectedSerials(selectElement);
+                        
+                        // Clear existing options except the first default one
+                        while (selectElement.children.length > 1) {
+                            selectElement.removeChild(selectElement.lastChild);
+                        }
+
+                        // Add serial options
+                        data.serials.forEach(serial => {
+                            // Skip this serial if it's already selected in another dropdown
+                            if (allSelectedSerials.has(serial.serial_number)) {
+                                return; // Skip this serial
+                            }
+                            
+                            const option = document.createElement('option');
+                            option.value = serial.serial_number;
+                            option.textContent = serial.serial_number;
+                            option.dataset.serialId = serial.id;
+                            
+                            // Select this option if it matches component's current serial
+                            if (component.serial === serial.serial_number || component.serial_id == serial.id) {
+                                option.selected = true;
+                                selectElement.value = serial.serial_number;
+                                component.serial = serial.serial_number;
+                                component.serial_id = serial.id;
+                                serialIdInput.value = serial.id;
+                            }
+                            
+                            selectElement.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading serials:', error);
+                }
+            }
+
+            // Function to show serial dropdown
+            async function showSerialDropdown(input, serialIdInput, component, index) {
+                const warehouseId = document.getElementById('warehouse_id').value;
+                if (!warehouseId) {
+                    alert('Vui lòng chọn kho xuất trước!');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                        new URLSearchParams({
+                            material_id: component.id,
+                            warehouse_id: warehouseId
+                        }));
+                    
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        alert('Lỗi khi lấy danh sách serial: ' + data.message);
+                        return;
+                    }
+
+                    if (data.serials.length === 0) {
+                        alert('Không có serial nào khả dụng cho linh kiện này trong kho đã chọn');
+                        return;
+                    }
+
+                    // Create dropdown modal
+                    const modal = document.createElement('div');
+                    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                    
+                    const modalContent = document.createElement('div');
+                    modalContent.className = 'bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto';
+                    
+                    const title = document.createElement('h3');
+                    title.className = 'text-lg font-medium mb-4';
+                    title.textContent = 'Chọn Serial';
+                    
+                    const serialList = document.createElement('div');
+                    serialList.className = 'space-y-2';
+                    
+                    // Add serial options
+                    data.serials.forEach(serial => {
+                        const option = document.createElement('div');
+                        option.className = 'p-2 border rounded cursor-pointer hover:bg-blue-50 hover:border-blue-300';
+                        option.textContent = serial.serial_number;
+                        option.addEventListener('click', function() {
+                            input.value = serial.serial_number;
+                            serialIdInput.value = serial.id;
+                            component.serial = serial.serial_number;
+                            component.serial_id = serial.id;
+                            document.body.removeChild(modal);
+                        });
+                        serialList.appendChild(option);
+                    });
+                    
+                    const cancelBtn = document.createElement('button');
+                    cancelBtn.className = 'mt-4 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400';
+                    cancelBtn.textContent = 'Hủy';
+                    cancelBtn.addEventListener('click', function() {
+                        document.body.removeChild(modal);
+                    });
+                    
+                    modalContent.appendChild(title);
+                    modalContent.appendChild(serialList);
+                    modalContent.appendChild(cancelBtn);
+                    modal.appendChild(modalContent);
+                    
+                    // Close modal when clicking outside
+                    modal.addEventListener('click', function(e) {
+                        if (e.target === modal) {
+                            document.body.removeChild(modal);
+                        }
+                    });
+                    
+                    document.body.appendChild(modal);
+                    
+                } catch (error) {
+                    console.error('Error fetching serials:', error);
+                    alert('Lỗi khi lấy danh sách serial');
+                }
+            }
 
             // Function to check serial via API
             async function checkSerialExists(serial, productId, assemblyId = null) {

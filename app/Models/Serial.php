@@ -19,6 +19,7 @@ class Serial extends Model
         'product_id',
         'type',
         'status',
+        'warehouse_id',
         'notes'
     ];
 
@@ -44,6 +45,14 @@ class Serial extends Model
     public function good()
     {
         return $this->belongsTo(Good::class, 'product_id');
+    }
+
+    /**
+     * Get the warehouse that owns the serial.
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     /**
