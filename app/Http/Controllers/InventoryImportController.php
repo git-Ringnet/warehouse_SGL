@@ -10,6 +10,7 @@ use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
 use App\Models\Product;
 use App\Models\Good;
+use App\Models\Serial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -136,6 +137,27 @@ class InventoryImportController extends Controller
                                 "Số lượng số seri ({$serialCount}) phải bằng với số lượng vật tư nhập ({$quantity})"
                             );
                         }
+                        
+                        // Kiểm tra serial number đã tồn tại chưa
+                        if (!empty($material['item_type']) && !empty($material['material_id'])) {
+                            $itemType = $material['item_type'];
+                            $itemId = (int) $material['material_id'];
+                            
+                            foreach ($serialArray as $serialIndex => $serialNumber) {
+                                $existingSerial = Serial::where([
+                                    'product_id' => $itemId,
+                                    'type' => $itemType,
+                                    'serial_number' => $serialNumber
+                                ])->first();
+                                
+                                if ($existingSerial) {
+                                    $validator->errors()->add(
+                                        "materials.{$index}.serial_numbers", 
+                                        "Số seri '{$serialNumber}' đã tồn tại trong hệ thống cho sản phẩm này"
+                                    );
+                                }
+                            }
+                        }
                     }
                     
                     // Kiểm tra material_id có tồn tại trong loại sản phẩm tương ứng
@@ -219,24 +241,17 @@ class InventoryImportController extends Controller
                 $currentQty = $warehouseMaterial->quantity ?? 0;
                 $warehouseMaterial->quantity = $currentQty + $material['quantity'];
                 
-                // Lưu danh sách serial vào trường serial_number (nếu có)
+                                // Lưu serial numbers vào bảng serials (nếu có)
                 if (!empty($serialNumbers)) {
-                    // Nếu đã có serial từ trước, kết hợp với serial mới
-                    $existingSerials = [];
-                    if ($warehouseMaterial->exists && !empty($warehouseMaterial->serial_number)) {
-                        // Nếu serial_number hiện tại là một chuỗi JSON
-                        if ($this->isJson($warehouseMaterial->serial_number)) {
-                            $existingSerials = json_decode($warehouseMaterial->serial_number, true);
-                        } 
-                        // Nếu serial_number là một chuỗi thông thường
-                        else {
-                            $existingSerials = [$warehouseMaterial->serial_number];
-                        }
+                    foreach ($serialNumbers as $serialNumber) {
+                        Serial::create([
+                            'serial_number' => $serialNumber,
+                            'product_id' => $itemId,
+                            'type' => $itemType,
+                            'status' => 'active',
+                            'notes' => $material['notes'] ?? null,
+                        ]);
                     }
-                    
-                    // Kết hợp các serial hiện có với serial mới
-                    $combinedSerials = array_merge($existingSerials, $serialNumbers);
-                    $warehouseMaterial->serial_number = json_encode($combinedSerials);
                 }
                 
                 $warehouseMaterial->save();
@@ -288,10 +303,12 @@ class InventoryImportController extends Controller
             'order_code' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'materials' => 'required|array|min:1',
-            'materials.*.material_id' => 'required|exists:materials,id',
+            'materials.*.item_type' => 'required|in:material,product,good',
+            'materials.*.material_id' => 'required|integer',
             'materials.*.warehouse_id' => 'required|exists:warehouses,id',
             'materials.*.quantity' => 'required|integer|min:1',
             'materials.*.serial_numbers' => 'nullable|string',
+            'materials.*.notes' => 'nullable|string',
         ], [
             'supplier_id.required' => 'Nhà cung cấp không được để trống',
             'supplier_id.exists' => 'Nhà cung cấp không tồn tại',
@@ -301,8 +318,9 @@ class InventoryImportController extends Controller
             'import_date.date' => 'Ngày nhập kho không hợp lệ',
             'materials.required' => 'Vui lòng thêm ít nhất một vật tư',
             'materials.min' => 'Vui lòng thêm ít nhất một vật tư',
+            'materials.*.item_type.required' => 'Loại sản phẩm không được để trống',
+            'materials.*.item_type.in' => 'Loại sản phẩm không hợp lệ',
             'materials.*.material_id.required' => 'Vật tư không được để trống',
-            'materials.*.material_id.exists' => 'Vật tư không tồn tại',
             'materials.*.warehouse_id.required' => 'Kho nhập không được để trống',
             'materials.*.warehouse_id.exists' => 'Kho nhập không tồn tại',
             'materials.*.quantity.required' => 'Số lượng không được để trống',
@@ -311,7 +329,7 @@ class InventoryImportController extends Controller
         ]);
 
         // Validation custom cho số lượng serial
-        $validator->after(function ($validator) use ($request) {
+        $validator->after(function ($validator) use ($request, $id) {
             if ($request->has('materials')) {
                 foreach ($request->materials as $index => $material) {
                     // Chỉ kiểm tra khi có nhập danh sách số seri
@@ -326,6 +344,52 @@ class InventoryImportController extends Controller
                             $validator->errors()->add(
                                 "materials.{$index}.serial_numbers", 
                                 "Số lượng số seri ({$serialCount}) phải bằng với số lượng vật tư nhập ({$quantity})"
+                            );
+                        }
+                        
+                        // Kiểm tra serial number đã tồn tại chưa (ngoại trừ serials thuộc về chính phiếu nhập này)
+                        if (!empty($material['item_type']) && !empty($material['material_id'])) {
+                            $itemType = $material['item_type'];
+                            $itemId = (int) $material['material_id'];
+                            
+                            foreach ($serialArray as $serialIndex => $serialNumber) {
+                                $existingSerial = Serial::where([
+                                    'product_id' => $itemId,
+                                    'type' => $itemType,
+                                    'serial_number' => $serialNumber
+                                ])->first();
+                                
+                                if ($existingSerial) {
+                                    $validator->errors()->add(
+                                        "materials.{$index}.serial_numbers", 
+                                        "Số seri '{$serialNumber}' đã tồn tại trong hệ thống cho sản phẩm này"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Kiểm tra material_id có tồn tại trong loại sản phẩm tương ứng
+                    if (!empty($material['item_type']) && !empty($material['material_id'])) {
+                        $itemExists = false;
+                        $itemId = (int) $material['material_id'];
+                        
+                        switch ($material['item_type']) {
+                            case 'material':
+                                $itemExists = Material::where('id', $itemId)->exists();
+                                break;
+                            case 'product':
+                                $itemExists = Product::where('id', $itemId)->exists();
+                                break;
+                            case 'good':
+                                $itemExists = Good::where('id', $itemId)->exists();
+                                break;
+                        }
+                        
+                        if (!$itemExists) {
+                            $validator->errors()->add(
+                                "materials.{$index}.material_id", 
+                                "Sản phẩm đã chọn không tồn tại trong hệ thống"
                             );
                         }
                     }
@@ -343,38 +407,38 @@ class InventoryImportController extends Controller
             $inventoryImport = InventoryImport::with('materials')->findOrFail($id);
             $oldMaterials = $inventoryImport->materials->toArray();
             
-            // Trước khi cập nhật, cần giảm số lượng vật tư trong kho cũ
+            // Trước khi cập nhật, cần giảm số lượng vật tư trong kho cũ và xóa serials cũ
             foreach ($oldMaterials as $oldMaterial) {
                 $materialId = $oldMaterial['material_id'];
                 $quantity = $oldMaterial['quantity'];
                 $warehouseId = $oldMaterial['warehouse_id'];
+                $itemType = $oldMaterial['item_type'] ?? 'material';
                 $serialNumbers = $oldMaterial['serial_numbers'] ?? null;
                 
-                // Nếu có serial numbers, xóa từng bản ghi theo serial
+                // Xóa serial numbers từ bảng serials (nếu có)
                 if (!empty($serialNumbers) && is_array($serialNumbers)) {
                     foreach ($serialNumbers as $serial) {
-                        WarehouseMaterial::where([
-                            'warehouse_id' => $warehouseId,
-                            'material_id' => $materialId,
-                            'item_type' => 'material',
+                        Serial::where([
+                            'product_id' => $materialId,
+                            'type' => $itemType,
                             'serial_number' => $serial
                         ])->delete();
                     }
-                } else {
-                    // Nếu không có serial, giảm số lượng trong kho
-                    $warehouseMaterial = WarehouseMaterial::where([
-                        'warehouse_id' => $warehouseId,
-                        'material_id' => $materialId,
-                        'item_type' => 'material'
-                    ])->first();
-                    
-                    if ($warehouseMaterial) {
-                        if ($warehouseMaterial->quantity <= $quantity) {
-                            $warehouseMaterial->delete();
-                        } else {
-                            $warehouseMaterial->quantity -= $quantity;
-                            $warehouseMaterial->save();
-                        }
+                }
+                
+                // Giảm số lượng trong kho
+                $warehouseMaterial = WarehouseMaterial::where([
+                    'warehouse_id' => $warehouseId,
+                    'material_id' => $materialId,
+                    'item_type' => $itemType
+                ])->first();
+                
+                if ($warehouseMaterial) {
+                    if ($warehouseMaterial->quantity <= $quantity) {
+                        $warehouseMaterial->delete();
+                    } else {
+                        $warehouseMaterial->quantity -= $quantity;
+                        $warehouseMaterial->save();
                     }
                 }
             }
@@ -406,47 +470,42 @@ class InventoryImportController extends Controller
                 }
                 
                 $warehouseId = $material['warehouse_id'];
+                $itemType = $material['item_type'] ?? 'material';
+                $itemId = $material['material_id'];
                 
                 InventoryImportMaterial::create([
                     'inventory_import_id' => $inventoryImport->id,
-                    'material_id' => $material['material_id'],
+                    'material_id' => $itemId,
                     'warehouse_id' => $warehouseId,
                     'quantity' => $material['quantity'],
                     'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
+                    'item_type' => $itemType,
                 ]);
                 
                 // Cập nhật số lượng vật tư trong kho mới
                 $warehouseMaterial = WarehouseMaterial::firstOrNew([
                     'warehouse_id' => $warehouseId,
-                    'material_id' => $material['material_id'],
-                    'item_type' => 'material'
+                    'material_id' => $itemId,
+                    'item_type' => $itemType
                 ]);
                 
                 $currentQty = $warehouseMaterial->quantity ?? 0;
                 $warehouseMaterial->quantity = $currentQty + $material['quantity'];
-                
-                // Lưu danh sách serial vào trường serial_number (nếu có)
-                if (!empty($serialNumbers)) {
-                    // Nếu đã có serial từ trước, kết hợp với serial mới
-                    $existingSerials = [];
-                    if ($warehouseMaterial->exists && !empty($warehouseMaterial->serial_number)) {
-                        // Nếu serial_number hiện tại là một chuỗi JSON
-                        if ($this->isJson($warehouseMaterial->serial_number)) {
-                            $existingSerials = json_decode($warehouseMaterial->serial_number, true);
-                        } 
-                        // Nếu serial_number là một chuỗi thông thường
-                        else {
-                            $existingSerials = [$warehouseMaterial->serial_number];
-                        }
-                    }
-                    
-                    // Kết hợp các serial hiện có với serial mới
-                    $combinedSerials = array_merge($existingSerials, $serialNumbers);
-                    $warehouseMaterial->serial_number = json_encode($combinedSerials);
-                }
-                
                 $warehouseMaterial->save();
+                
+                // Lưu serial numbers vào bảng serials (nếu có)
+                if (!empty($serialNumbers)) {
+                    foreach ($serialNumbers as $serialNumber) {
+                        Serial::create([
+                            'serial_number' => $serialNumber,
+                            'product_id' => $itemId,
+                            'type' => $itemType,
+                            'status' => 'active',
+                            'notes' => $material['notes'] ?? null,
+                        ]);
+                    }
+                }
             }
             
             DB::commit();
@@ -468,37 +527,37 @@ class InventoryImportController extends Controller
             $inventoryImport = InventoryImport::with('materials')->findOrFail($id);
             $warehouseId = $inventoryImport->warehouse_id;
             
-            // Giảm số lượng vật tư trong kho
+            // Giảm số lượng vật tư trong kho và xóa serials
             foreach ($inventoryImport->materials as $material) {
                 $materialId = $material->material_id;
                 $quantity = $material->quantity;
                 $serialNumbers = $material->serial_numbers;
+                $itemType = $material->item_type ?? 'material';
                 
-                // Nếu có serial numbers, xóa từng bản ghi theo serial
+                // Xóa serial numbers từ bảng serials (nếu có)
                 if (!empty($serialNumbers) && is_array($serialNumbers)) {
                     foreach ($serialNumbers as $serial) {
-                        WarehouseMaterial::where([
-                            'warehouse_id' => $warehouseId,
-                            'material_id' => $materialId,
-                            'item_type' => 'material',
+                        Serial::where([
+                            'product_id' => $materialId,
+                            'type' => $itemType,
                             'serial_number' => $serial
                         ])->delete();
                     }
-                } else {
-                    // Nếu không có serial, giảm số lượng trong kho
-                    $warehouseMaterial = WarehouseMaterial::where([
-                        'warehouse_id' => $warehouseId,
-                        'material_id' => $materialId,
-                        'item_type' => 'material'
-                    ])->first();
-                    
-                    if ($warehouseMaterial) {
-                        if ($warehouseMaterial->quantity <= $quantity) {
-                            $warehouseMaterial->delete();
-                        } else {
-                            $warehouseMaterial->quantity -= $quantity;
-                            $warehouseMaterial->save();
-                        }
+                }
+                
+                // Giảm số lượng trong kho
+                $warehouseMaterial = WarehouseMaterial::where([
+                    'warehouse_id' => $material->warehouse_id,
+                    'material_id' => $materialId,
+                    'item_type' => $itemType
+                ])->first();
+                
+                if ($warehouseMaterial) {
+                    if ($warehouseMaterial->quantity <= $quantity) {
+                        $warehouseMaterial->delete();
+                    } else {
+                        $warehouseMaterial->quantity -= $quantity;
+                        $warehouseMaterial->save();
                     }
                 }
             }
@@ -537,8 +596,5 @@ class InventoryImportController extends Controller
         }
     }
 
-    private function isJson($string) {
-        json_decode($string);
-        return json_last_error() === JSON_ERROR_NONE;
-    }
+
 } 

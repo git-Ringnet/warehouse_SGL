@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('serials', function (Blueprint $table) {
             $table->id();
-            $table->string('serial_number')->unique();
+            $table->string('serial_number');
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->enum('type', ['product', 'material', 'good'])->default('product');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->text('notes')->nullable();
             $table->timestamps();

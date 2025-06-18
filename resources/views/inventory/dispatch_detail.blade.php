@@ -455,7 +455,7 @@
                     @if ($dispatch->dispatch_detail === 'contract')
                         <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                             <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                            📋 Danh sách thành phẩm theo hợp đồng
+                            Danh sách thành phẩm theo hợp đồng
                         </h2>
                     @elseif($dispatch->dispatch_detail === 'backup')
                         <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">

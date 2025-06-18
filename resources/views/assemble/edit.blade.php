@@ -313,11 +313,11 @@
                         @php
                             // Group components by product
                             $componentsByProduct = [];
-                            
+
                             // Group existing materials by target_product_id
                             foreach ($assembly->materials as $index => $material) {
                                 $productId = $material->target_product_id;
-                                
+
                                 // Map to product index for legacy compatibility
                                 if ($assembly->products && $assembly->products->count() > 0) {
                                     foreach ($assembly->products as $productIndex => $assemblyProduct) {
@@ -328,16 +328,16 @@
                                     }
                                 } else {
                                     // Legacy support
-                                    $productKey = "product_0";
+                                    $productKey = 'product_0';
                                 }
-                                
+
                                 if (!isset($componentsByProduct[$productKey])) {
                                     $componentsByProduct[$productKey] = [];
                                 }
-                                
+
                                 $componentsByProduct[$productKey][] = [
                                     'material' => $material,
-                                    'globalIndex' => $index
+                                    'globalIndex' => $index,
                                 ];
                             }
                         @endphp
@@ -349,17 +349,19 @@
                                     $productKey = "product_{$productIndex}";
                                     $components = $componentsByProduct[$productKey] ?? [];
                                 @endphp
-                                
+
                                 <div class="mb-6 border border-gray-200 rounded-lg">
                                     <div class="bg-blue-50 px-4 py-2 rounded-t-lg flex items-center justify-between">
                                         <div class="font-medium text-blue-800 flex items-center">
                                             <i class="fas fa-box-open mr-2"></i>
                                             <span>Linh kiện cho: {{ $assemblyProduct->product->name }}</span>
-                                            <span class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                            <span
+                                                class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                                 {{ $assemblyProduct->quantity }} thành phẩm
                                             </span>
                                         </div>
-                                        <button type="button" class="toggle-components text-blue-700 hover:text-blue-900">
+                                        <button type="button"
+                                            class="toggle-components text-blue-700 hover:text-blue-900">
                                             <i class="fas fa-chevron-up"></i>
                                         </button>
                                     </div>
@@ -368,44 +370,77 @@
                                             <table class="min-w-full divide-y divide-gray-200">
                                                 <thead class="bg-gray-50">
                                                     <tr>
-                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã</th>
-                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại linh kiện</th>
-                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên linh kiện</th>
-                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
-                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ghi chú</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Mã</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Loại linh kiện</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Tên linh kiện</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Số lượng</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Serial</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Ghi chú</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="bg-white divide-y divide-gray-200">
                                                     @if (count($components) === 0)
                                                         <tr>
-                                                            <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">
+                                                            <td colspan="6"
+                                                                class="px-6 py-4 text-sm text-gray-500 text-center">
                                                                 Chưa có linh kiện nào được thêm vào thành phẩm này
                                                             </td>
                                                         </tr>
                                                     @else
                                                         @foreach ($components as $component)
                                                             <tr class="component-row bg-white hover:bg-gray-50">
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                    <input type="hidden" name="components[{{ $component['globalIndex'] }}][id]" value="{{ $component['material']->material_id }}">
-                                                                    <input type="hidden" name="components[{{ $component['globalIndex'] }}][product_id]" value="product_{{ $productIndex }}">
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    <input type="hidden"
+                                                                        name="components[{{ $component['globalIndex'] }}][id]"
+                                                                        value="{{ $component['material']->material_id }}">
+                                                                    <input type="hidden"
+                                                                        name="components[{{ $component['globalIndex'] }}][product_id]"
+                                                                        value="product_{{ $productIndex }}">
                                                                     {{ $component['material']->material->code }}
                                                                 </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $component['material']->material->category ?? '' }}</td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $component['material']->material->name }}</td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <div class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    {{ $component['material']->material->category ?? '' }}
+                                                                </td>
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    {{ $component['material']->material->name }}</td>
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    <div
+                                                                        class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
                                                                         {{ $component['material']->quantity }}
                                                                     </div>
-                                                                    <input type="hidden" name="components[{{ $component['globalIndex'] }}][quantity]" value="{{ $component['material']->quantity }}">
+                                                                    <input type="hidden"
+                                                                        name="components[{{ $component['globalIndex'] }}][quantity]"
+                                                                        value="{{ $component['material']->quantity }}">
                                                                 </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <input type="text" name="components[{{ $component['globalIndex'] }}][serial]" value="{{ $component['material']->serial ?? '' }}"
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    <input type="text"
+                                                                        name="components[{{ $component['globalIndex'] }}][serial]"
+                                                                        value="{{ $component['material']->serial ?? '' }}"
                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                         placeholder="Nhập serial">
                                                                 </td>
-                                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <input type="text" name="components[{{ $component['globalIndex'] }}][note]" value="{{ $component['material']->note ?? '' }}"
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    <input type="text"
+                                                                        name="components[{{ $component['globalIndex'] }}][note]"
+                                                                        value="{{ $component['material']->note ?? '' }}"
                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                         placeholder="Ghi chú">
                                                                 </td>
@@ -424,12 +459,14 @@
                                 <div class="bg-blue-50 px-4 py-2 rounded-t-lg flex items-center justify-between">
                                     <div class="font-medium text-blue-800 flex items-center">
                                         <i class="fas fa-box-open mr-2"></i>
-                                        <span>Linh kiện cho: {{ $assembly->product->name ?? 'Không có sản phẩm' }}</span>
+                                        <span>Linh kiện cho:
+                                            {{ $assembly->product->name ?? 'Không có sản phẩm' }}</span>
                                         <span class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                                             {{ $assembly->quantity ?? 1 }} thành phẩm
                                         </span>
                                     </div>
-                                    <button type="button" class="toggle-components text-blue-700 hover:text-blue-900">
+                                    <button type="button"
+                                        class="toggle-components text-blue-700 hover:text-blue-900">
                                         <i class="fas fa-chevron-up"></i>
                                     </button>
                                 </div>
@@ -438,38 +475,69 @@
                                         <table class="min-w-full divide-y divide-gray-200">
                                             <thead class="bg-gray-50">
                                                 <tr>
-                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã</th>
-                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại linh kiện</th>
-                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên linh kiện</th>
-                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
-                                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ghi chú</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Mã</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Loại linh kiện</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Tên linh kiện</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Số lượng</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Serial</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Ghi chú</th>
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white divide-y divide-gray-200">
                                                 @if ($assembly->materials && $assembly->materials->count() > 0)
                                                     @foreach ($assembly->materials as $index => $material)
                                                         <tr class="component-row bg-white hover:bg-gray-50">
-                                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                                <input type="hidden" name="components[{{ $index }}][id]" value="{{ $material->material_id }}">
-                                                                <input type="hidden" name="components[{{ $index }}][product_id]" value="product_0">
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                <input type="hidden"
+                                                                    name="components[{{ $index }}][id]"
+                                                                    value="{{ $material->material_id }}">
+                                                                <input type="hidden"
+                                                                    name="components[{{ $index }}][product_id]"
+                                                                    value="product_0">
                                                                 {{ $material->material->code }}
                                                             </td>
-                                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->material->category ?? '' }}</td>
-                                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->material->name }}</td>
-                                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <div class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                {{ $material->material->category ?? '' }}</td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                {{ $material->material->name }}</td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                <div
+                                                                    class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
                                                                     {{ $material->quantity }}
                                                                 </div>
-                                                                <input type="hidden" name="components[{{ $index }}][quantity]" value="{{ $material->quantity }}">
+                                                                <input type="hidden"
+                                                                    name="components[{{ $index }}][quantity]"
+                                                                    value="{{ $material->quantity }}">
                                                             </td>
-                                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <input type="text" name="components[{{ $index }}][serial]" value="{{ $material->serial ?? '' }}"
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                <input type="text"
+                                                                    name="components[{{ $index }}][serial]"
+                                                                    value="{{ $material->serial ?? '' }}"
                                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     placeholder="Nhập serial">
                                                             </td>
-                                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <input type="text" name="components[{{ $index }}][note]" value="{{ $material->note ?? '' }}"
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                <input type="text"
+                                                                    name="components[{{ $index }}][note]"
+                                                                    value="{{ $material->note ?? '' }}"
                                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     placeholder="Ghi chú">
                                                             </td>
@@ -477,7 +545,8 @@
                                                     @endforeach
                                                 @else
                                                     <tr>
-                                                        <td colspan="6" class="px-6 py-4 text-sm text-gray-500 text-center">
+                                                        <td colspan="6"
+                                                            class="px-6 py-4 text-sm text-gray-500 text-center">
                                                             Chưa có linh kiện nào được thêm vào phiếu lắp ráp này
                                                         </td>
                                                     </tr>
@@ -525,30 +594,220 @@
                 });
             });
 
-            // Simple validation for edit mode - only check duplicate serials
+            // Function to check serial via API for edit mode
+            async function checkSerialExists(serial, productId, assemblyId = {{ $assembly->id }}) {
+                if (!serial || !serial.trim() || !productId) {
+                    return {
+                        exists: false,
+                        message: ''
+                    };
+                }
+
+                try {
+                    const response = await fetch('{{ route('api.check-serial') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            serial: serial.trim(),
+                            product_id: productId,
+                            assembly_id: assemblyId
+                        })
+                    });
+
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    console.error('Error checking serial:', error);
+                    return {
+                        exists: false,
+                        message: '',
+                        error: true
+                    };
+                }
+            }
+
+            // Function to show serial validation message
+            function showSerialValidation(input, isValid, message) {
+                // Remove existing validation message
+                const existingMsg = input.parentNode.querySelector('.serial-validation-msg');
+                if (existingMsg) {
+                    existingMsg.remove();
+                }
+
+                // Add validation styling
+                if (isValid) {
+                    input.classList.remove('border-red-500', 'bg-red-50');
+                    input.classList.add('border-green-500');
+                } else {
+                    input.classList.remove('border-green-500');
+                    input.classList.add('border-red-500', 'bg-red-50');
+
+                    // Add error message
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'serial-validation-msg text-xs text-red-600 mt-1';
+                    msgDiv.textContent = message;
+                    input.parentNode.appendChild(msgDiv);
+                }
+            }
+
+            // Function to add serial validation to product serial inputs
+            function addProductSerialValidation(input, productId) {
+                let validationTimeout;
+                // Store the original value to compare against
+                const originalValue = input.value.trim();
+
+                input.addEventListener('input', function() {
+                    const serial = this.value.trim();
+
+                    // Clear previous timeout
+                    clearTimeout(validationTimeout);
+
+                    // Reset styling
+                    this.classList.remove('border-red-500', 'border-green-500', 'bg-red-50');
+
+                    // Remove existing validation message
+                    const existingMsg = this.parentNode.querySelector('.serial-validation-msg');
+                    if (existingMsg) {
+                        existingMsg.remove();
+                    }
+
+                    if (!serial) {
+                        return; // No validation for empty serial
+                    }
+
+                    // If value hasn't changed from original, don't validate
+                    if (serial === originalValue) {
+                        return; // Don't validate if same as original value
+                    }
+
+                    // Show loading state
+                    this.classList.add('border-blue-300');
+
+                    // Debounce validation
+                    validationTimeout = setTimeout(async () => {
+                        const result = await checkSerialExists(serial, productId);
+
+                        this.classList.remove('border-blue-300');
+
+                        if (result.error) {
+                            showSerialValidation(this, false, 'Lỗi kiểm tra serial');
+                            return;
+                        }
+
+                        if (result.exists) {
+                            showSerialValidation(this, false, result.message);
+                        } else {
+                            // Check if it's a valid message indicating it belongs to current assembly
+                            if (result.message && result.message.includes(
+                                    'thuộc assembly hiện tại')) {
+                                showSerialValidation(this, true, result.message);
+                            } else {
+                                showSerialValidation(this, true, '');
+                            }
+                        }
+                    }, 500); // Wait 500ms after user stops typing
+                });
+
+                // Also check on blur (only if value changed)
+                input.addEventListener('blur', async function() {
+                    const serial = this.value.trim();
+
+                    // Don't validate if empty or same as original
+                    if (!serial || serial === originalValue) return;
+
+                    const result = await checkSerialExists(serial, productId);
+
+                    if (result.error) {
+                        showSerialValidation(this, false, 'Lỗi kiểm tra serial');
+                        return;
+                    }
+
+                    if (result.exists) {
+                        showSerialValidation(this, false, result.message);
+                    } else {
+                        // Check if it's a valid message indicating it belongs to current assembly
+                        if (result.message && result.message.includes('thuộc assembly hiện tại')) {
+                            showSerialValidation(this, true, result.message);
+                        } else {
+                            showSerialValidation(this, true, '');
+                        }
+                    }
+                });
+            }
+
+            // Add validation to existing product serial inputs
+            function addValidationToProductSerials() {
+                // For multi-product assemblies
+                @if ($assembly->products && $assembly->products->count() > 0)
+                    @foreach ($assembly->products as $productIndex => $assemblyProduct)
+                        const productSerialInputs{{ $productIndex }} = document.querySelectorAll(
+                            'input[name*="products[{{ $productIndex }}][serials]"]');
+                        productSerialInputs{{ $productIndex }}.forEach(input => {
+                            addProductSerialValidation(input, {{ $assemblyProduct->product_id }});
+                        });
+                    @endforeach
+                @endif
+            }
+
+            // Enhanced form validation to check for serial errors
             document.querySelector('form').addEventListener('submit', function(e) {
-                const serialInputs = document.querySelectorAll('input[name*="serials"]');
-                let serialValues = [];
+                // Only check for serial validation errors (not existing serials that haven't changed)
+                const serialErrors = document.querySelectorAll('.serial-validation-msg');
+                if (serialErrors.length > 0) {
+                    e.preventDefault();
+                    alert('Vui lòng sửa các lỗi serial trước khi cập nhật phiếu lắp ráp!');
+                    // Focus on first error
+                    const firstErrorInput = serialErrors[0].parentNode.querySelector('input');
+                    if (firstErrorInput) {
+                        firstErrorInput.focus();
+                    }
+                    return false;
+                }
+
+                // Check duplicate serials within this form only (not against database)
+                // Group serials by product to allow same serial for different products
+                const productSerialMap = new Map();
                 let hasDuplicateSerials = false;
 
-                serialInputs.forEach(input => {
-                    if (input.value.trim()) {
-                        if (serialValues.includes(input.value.trim())) {
-                            hasDuplicateSerials = true;
-                        } else {
-                            serialValues.push(input.value.trim());
+                // Check product serials (only within same product)
+                const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
+                productSerialInputs.forEach(input => {
+                    const serial = input.value.trim();
+                    if (serial) {
+                        // Extract product index from input name like "products[0][serials][0]"
+                        const match = input.name.match(/products\[(\d+)\]/);
+                        if (match) {
+                            const productIndex = match[1];
+                            
+                            if (!productSerialMap.has(productIndex)) {
+                                productSerialMap.set(productIndex, []);
+                            }
+                            
+                            const productSerials = productSerialMap.get(productIndex);
+                            if (productSerials.includes(serial)) {
+                                hasDuplicateSerials = true;
+                            } else {
+                                productSerials.push(serial);
+                            }
                         }
                     }
                 });
 
                 if (hasDuplicateSerials) {
                     e.preventDefault();
-                    alert('Phát hiện trùng lặp serial. Vui lòng kiểm tra lại!');
+                    alert('Phát hiện trùng lặp serial trong cùng một thành phẩm. Vui lòng kiểm tra lại!');
                     return false;
                 }
 
                 return true;
             });
+
+            // Initialize validation for product serials (only add event listeners, don't validate immediately)
+            addValidationToProductSerials();
         });
     </script>
 </body>

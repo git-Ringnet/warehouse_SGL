@@ -711,15 +711,24 @@ class DispatchController extends Controller
             return; // Skip if item not found
         }
 
-        // Create warranty for each quantity
-        for ($i = 0; $i < $dispatchItem->quantity; $i++) {
+        // Create warranty for the dispatch item (only one warranty per item type per project)
+        // Check if warranty already exists for this item in this project
+        $existingWarranty = Warranty::where('dispatch_id', $dispatch->id)
+            ->where('item_type', $dispatchItem->item_type)
+            ->where('item_id', $dispatchItem->item_id)
+            ->first();
+
+        if (!$existingWarranty) {
+            // Get all serial numbers for this item
+            $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
+            
             $warranty = Warranty::create([
                 'warranty_code' => Warranty::generateWarrantyCode(),
                 'dispatch_id' => $dispatch->id,
                 'dispatch_item_id' => $dispatchItem->id,
                 'item_type' => $dispatchItem->item_type,
                 'item_id' => $dispatchItem->item_id,
-                'serial_number' => $dispatchItem->serial_numbers[$i] ?? null,
+                'serial_number' => !empty($serialNumbers) ? implode(', ', $serialNumbers) : null,
                 'customer_name' => $dispatch->project_receiver,
                 'customer_phone' => null, // Can be added to form later
                 'customer_email' => null, // Can be added to form later
@@ -732,7 +741,7 @@ class DispatchController extends Controller
                 'warranty_type' => 'standard',
                 'status' => 'active',
                 'warranty_terms' => $this->getDefaultWarrantyTerms($item),
-                'notes' => "Bảo hành tự động tạo từ phiếu xuất {$dispatch->dispatch_code}",
+                'notes' => "Bảo hành tự động tạo từ phiếu xuất {$dispatch->dispatch_code} (Số lượng: {$dispatchItem->quantity})",
                 'created_by' => Auth::id() ?? 1,
                 'activated_at' => now(),
             ]);

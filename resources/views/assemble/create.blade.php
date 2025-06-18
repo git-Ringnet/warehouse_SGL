@@ -1556,7 +1556,7 @@
                 updateHiddenProductList();
             }
 
-            // Hàm tạo các trường nhập serial cho thành phẩm
+            // Hàm tạo các trường nhập serial cho thành phẩm với validation
             function generateProductSerialInputs(product, productIndex, container) {
                 container.innerHTML = '';
                 const quantity = parseInt(product.quantity);
@@ -1577,6 +1577,9 @@
                         product.serials[i] = this.value;
                         updateHiddenProductList(); // Update hidden inputs when serial changes
                     });
+
+                    // Add serial validation
+                    addProductSerialValidation(input, product.id);
 
                     serialInput.appendChild(input);
                     container.appendChild(serialInput);
@@ -2534,6 +2537,190 @@
                 }
             });
 
+            // Function to check serial via API
+            async function checkSerialExists(serial, productId, assemblyId = null) {
+                if (!serial || !serial.trim() || !productId) {
+                    return { exists: false, message: '' };
+                }
+
+                try {
+                    const response = await fetch('{{ route("api.check-serial") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            serial: serial.trim(),
+                            product_id: productId,
+                            assembly_id: assemblyId
+                        })
+                    });
+
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    console.error('Error checking serial:', error);
+                    return { exists: false, message: '', error: true };
+                }
+            }
+
+            // Function to show serial validation message
+            function showSerialValidation(input, isValid, message) {
+                // Remove existing validation message
+                const existingMsg = input.parentNode.querySelector('.serial-validation-msg');
+                if (existingMsg) {
+                    existingMsg.remove();
+                }
+
+                // Add validation styling
+                if (isValid) {
+                    input.classList.remove('border-red-500', 'bg-red-50');
+                    input.classList.add('border-green-500');
+                } else {
+                    input.classList.remove('border-green-500');
+                    input.classList.add('border-red-500', 'bg-red-50');
+                    
+                    // Add error message
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'serial-validation-msg text-xs text-red-600 mt-1';
+                    msgDiv.textContent = message;
+                    input.parentNode.appendChild(msgDiv);
+                }
+            }
+
+            // Function to add serial validation to product serial inputs
+            function addProductSerialValidation(input, productId) {
+                let validationTimeout;
+
+                input.addEventListener('input', function() {
+                    const serial = this.value.trim();
+                    
+                    // Clear previous timeout
+                    clearTimeout(validationTimeout);
+                    
+                    // Reset styling
+                    this.classList.remove('border-red-500', 'border-green-500', 'bg-red-50');
+                    
+                    // Remove existing validation message
+                    const existingMsg = this.parentNode.querySelector('.serial-validation-msg');
+                    if (existingMsg) {
+                        existingMsg.remove();
+                    }
+
+                    if (!serial) {
+                        return; // No validation for empty serial
+                    }
+
+                    // Show loading state
+                    this.classList.add('border-blue-300');
+                    
+                    // Debounce validation
+                    validationTimeout = setTimeout(async () => {
+                        const result = await checkSerialExists(serial, productId);
+                        
+                        this.classList.remove('border-blue-300');
+                        
+                        if (result.error) {
+                            showSerialValidation(this, false, 'Lỗi kiểm tra serial');
+                            return;
+                        }
+
+                        if (result.exists) {
+                            showSerialValidation(this, false, result.message);
+                        } else {
+                            showSerialValidation(this, true, '');
+                        }
+                    }, 500); // Wait 500ms after user stops typing
+                });
+
+                // Also check on blur
+                input.addEventListener('blur', async function() {
+                    const serial = this.value.trim();
+                    if (!serial) return;
+
+                    const result = await checkSerialExists(serial, productId);
+                    
+                    if (result.error) {
+                        showSerialValidation(this, false, 'Lỗi kiểm tra serial');
+                        return;
+                    }
+
+                    if (result.exists) {
+                        showSerialValidation(this, false, result.message);
+                    } else {
+                        showSerialValidation(this, true, '');
+                    }
+                });
+            }
+
+            // Enhanced function to add serial inputs with validation
+            function addProductSerialInputsToCell(cell, product, productIndex) {
+                // Clear existing content
+                cell.innerHTML = '';
+
+                const quantity = parseInt(product.quantity) || 1;
+
+                // Initialize serials array if needed
+                if (!product.serials) {
+                    product.serials = new Array(quantity).fill('');
+                }
+
+                for (let i = 0; i < quantity; i++) {
+                    const serialDiv = document.createElement('div');
+                    serialDiv.className = 'mb-2 last:mb-0';
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = product.serials[i] || '';
+                    input.placeholder = quantity > 1 ? `Serial ${i + 1} (tùy chọn)` : 'Serial (tùy chọn)';
+                    input.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+
+                    // Add event listener to update product.serials array
+                    input.addEventListener('input', function() {
+                        product.serials[i] = this.value;
+                        updateHiddenProductList();
+                    });
+
+                    // Add serial validation
+                    addProductSerialValidation(input, product.id);
+
+                    serialDiv.appendChild(input);
+                    cell.appendChild(serialDiv);
+                }
+            }
+
+            // Function to add validation to existing product serial inputs
+            function addValidationToExistingProductSerials() {
+                // Find all product serial inputs and add validation
+                document.querySelectorAll('.product-serials-cell input[type="text"]').forEach(input => {
+                    const row = input.closest('tr');
+                    const productIdInput = row.querySelector('input[name*="[id]"]');
+                    if (productIdInput && productIdInput.value) {
+                        addProductSerialValidation(input, productIdInput.value);
+                    }
+                });
+            }
+
+            // Enhanced form validation to check for serial errors
+            const originalFormValidation = document.querySelector('form').onsubmit;
+            document.querySelector('form').addEventListener('submit', function(e) {
+                // Check for serial validation errors
+                const serialErrors = document.querySelectorAll('.serial-validation-msg');
+                if (serialErrors.length > 0) {
+                    e.preventDefault();
+                    alert('Vui lòng sửa các lỗi serial trước khi lưu phiếu lắp ráp!');
+                    // Focus on first error
+                    const firstErrorInput = serialErrors[0].parentNode.querySelector('input');
+                    if (firstErrorInput) {
+                        firstErrorInput.focus();
+                    }
+                    return false;
+                }
+            });
+
+            // Initialize validation for existing inputs when page loads
+            setTimeout(addValidationToExistingProductSerials, 1000);
         });
     </script>
 </body>

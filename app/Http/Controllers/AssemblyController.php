@@ -30,45 +30,45 @@ class AssemblyController extends Controller
     {
         // Build the query
         $query = Assembly::with(['product', 'products.product', 'assignedEmployee', 'tester', 'warehouse', 'targetWarehouse', 'project']);
-        
+
         // Apply search filter
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('notes', 'LIKE', "%{$searchTerm}%")
-                  ->orWhereHas('assignedEmployee', function ($eq) use ($searchTerm) {
-                      $eq->where('name', 'LIKE', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('tester', function ($tq) use ($searchTerm) {
-                      $tq->where('name', 'LIKE', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('warehouse', function ($wq) use ($searchTerm) {
-                      $wq->where('name', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('code', 'LIKE', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('project', function ($pq) use ($searchTerm) {
-                      $pq->where('project_name', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('project_code', 'LIKE', "%{$searchTerm}%");
-                  });
+                    ->orWhere('notes', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('assignedEmployee', function ($eq) use ($searchTerm) {
+                        $eq->where('name', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('tester', function ($tq) use ($searchTerm) {
+                        $tq->where('name', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('warehouse', function ($wq) use ($searchTerm) {
+                        $wq->where('name', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('code', 'LIKE', "%{$searchTerm}%");
+                    })
+                    ->orWhereHas('project', function ($pq) use ($searchTerm) {
+                        $pq->where('project_name', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('project_code', 'LIKE', "%{$searchTerm}%");
+                    });
             });
         }
-        
+
         // Apply status filter
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        
+
         // Apply warehouse filter
         if ($request->filled('warehouse')) {
             $query->where('warehouse_id', $request->warehouse);
         }
-        
+
         // Apply employee filter
         if ($request->filled('employee')) {
             $query->where('assigned_employee_id', $request->employee);
         }
-        
+
         // Apply date range filter
         if ($request->filled('date_from')) {
             $query->whereDate('date', '>=', $request->date_from);
@@ -76,9 +76,9 @@ class AssemblyController extends Controller
         if ($request->filled('date_to')) {
             $query->whereDate('date', '<=', $request->date_to);
         }
-        
+
         $assemblies = $query->orderBy('created_at', 'desc')->get();
-        
+
         // Get filter options for dropdowns
         $statuses = [
             'pending' => 'Chờ xử lý',
@@ -86,21 +86,21 @@ class AssemblyController extends Controller
             'completed' => 'Hoàn thành',
             'cancelled' => 'Đã hủy'
         ];
-        
+
         $warehouses = Warehouse::where('status', 'active')
             ->where('is_hidden', false)
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
-            
+
         $employees = Employee::where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
-        
+
         // Handle AJAX requests
         if ($request->ajax()) {
             return view('assemble.partials.assembly-list', compact('assemblies'))->render();
         }
-        
+
         return view('assemble.index', compact('assemblies', 'statuses', 'warehouses', 'employees'));
     }
 
@@ -194,17 +194,8 @@ class AssemblyController extends Controller
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                        // Find assemblies with this serial
-                        $existingAssembly = Assembly::where('product_serials', 'like', '%' . $serial . '%')
-                            ->where('product_id', $productData['id'])
-                            ->first();
-
-                        if ($existingAssembly) {
-                            throw new \Exception("Serial thành phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
-                        }
-
-                        // Also check in the serials table
-                        $existingSerial = Serial::where('serial_number', $serial)
+                        // Check in the serials table (exact match, case-insensitive)
+                        $existingSerial = Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($serial)])
                             ->where('product_id', $productData['id'])
                             ->first();
 
@@ -311,15 +302,17 @@ class AssemblyController extends Controller
                         foreach ($filteredComponentSerials as $componentSerial) {
                             if (empty($componentSerial)) continue;
 
-                            // Find if this material serial already exists in other assemblies
-                            $existingMaterial = AssemblyMaterial::where('material_id', $component['id'])
-                                ->where('serial', 'like', '%' . $componentSerial . '%')
-                                ->first();
+                            // Find if this material serial already exists in other assemblies (exact match)
+                            $existingMaterials = AssemblyMaterial::where('material_id', $component['id'])
+                                ->whereNotNull('serial')
+                                ->get();
 
-                            if ($existingMaterial) {
-                                $existingAssembly = Assembly::find($existingMaterial->assembly_id);
-                                $materialName = Material::find($component['id'])->name ?? 'Unknown';
-                                throw new \Exception("Serial '{$componentSerial}' của linh kiện '{$materialName}' đã được sử dụng trong phiếu lắp ráp #{$existingAssembly->code}.");
+                            foreach ($existingMaterials as $existingMaterial) {
+                                if ($this->serialExistsInString($componentSerial, $existingMaterial->serial)) {
+                                    $existingAssembly = Assembly::find($existingMaterial->assembly_id);
+                                    $materialName = Material::find($component['id'])->name ?? 'Unknown';
+                                    throw new \Exception("Serial '{$componentSerial}' của linh kiện '{$materialName}' đã được sử dụng trong phiếu lắp ráp #{$existingAssembly->code}.");
+                                }
                             }
                         }
                     }
@@ -328,16 +321,18 @@ class AssemblyController extends Controller
                 } elseif (isset($component['serial'])) {
                     $serial = $component['serial'];
 
-                    // Check single serial existence in database if not empty
+                    // Check single serial existence in database if not empty (exact match, case-insensitive)
                     if (!empty($serial)) {
-                        $existingMaterial = AssemblyMaterial::where('material_id', $component['id'])
-                            ->where('serial', $serial)
-                            ->first();
+                        $existingMaterials = AssemblyMaterial::where('material_id', $component['id'])
+                            ->whereNotNull('serial')
+                            ->get();
 
-                        if ($existingMaterial) {
-                            $existingAssembly = Assembly::find($existingMaterial->assembly_id);
-                            $materialName = Material::find($component['id'])->name ?? 'Unknown';
-                            throw new \Exception("Serial '{$serial}' của linh kiện '{$materialName}' đã được sử dụng trong phiếu lắp ráp #{$existingAssembly->code}.");
+                        foreach ($existingMaterials as $existingMaterial) {
+                            if ($this->serialExistsInString($serial, $existingMaterial->serial)) {
+                                $existingAssembly = Assembly::find($existingMaterial->assembly_id);
+                                $materialName = Material::find($component['id'])->name ?? 'Unknown';
+                                throw new \Exception("Serial '{$serial}' của linh kiện '{$materialName}' đã được sử dụng trong phiếu lắp ráp #{$existingAssembly->code}.");
+                            }
                         }
                     }
                 }
@@ -412,10 +407,10 @@ class AssemblyController extends Controller
     {
         // Load necessary relationships for edit mode
         $assembly->load([
-            'product', 
-            'products.product', 
-            'materials.material', 
-            'warehouse', 
+            'product',
+            'products.product',
+            'materials.material',
+            'warehouse',
             'targetWarehouse',
             'assignedEmployee',
             'tester',
@@ -450,43 +445,31 @@ class AssemblyController extends Controller
         DB::beginTransaction();
         try {
             // 1. Validate product serials for duplicates
-            $allProductSerials = [];
-            foreach ($request->products as $productData) {
+            foreach ($request->products as $productIndex => $productData) {
                 if (isset($productData['serials']) && is_array($productData['serials'])) {
                     $filteredSerials = array_filter($productData['serials']);
-                    
-                    // Check for duplicates within the form
-                    foreach ($filteredSerials as $serial) {
-                        if (in_array($serial, $allProductSerials)) {
-                            throw new \Exception("Serial thành phẩm '{$serial}' bị trùng lặp.");
-                        }
-                        $allProductSerials[] = $serial;
+
+                    // Check for duplicates within this specific product only
+                    if (count($filteredSerials) !== count(array_unique($filteredSerials))) {
+                        $productCode = $productData['code'] ?? 'Unknown';
+                        throw new \Exception("Không được nhập trùng serial thành phẩm [{$productCode}].");
                     }
 
                     // Check for duplicates in database (excluding current assembly)
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                        $existingAssembly = Assembly::whereHas('products', function ($query) use ($serial, $productData) {
-                            $query->where('product_id', $productData['id'])
-                                ->where('serials', 'like', '%' . $serial . '%');
-                        })->where('id', '!=', $assembly->id)->first();
-
-                        if ($existingAssembly) {
-                            throw new \Exception("Serial thành phẩm '{$serial}' đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}.");
-                        }
-
-                        // Check in serials table
-                        $existingSerial = Serial::where('serial_number', $serial)
+                        // Check in serials table (exact match, case-insensitive)
+                        $existingSerial = Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($serial)])
                             ->where('product_id', $productData['id'])
-                            ->where(function ($query) use ($assembly) {
-                                $query->whereNull('notes')
-                                    ->orWhere('notes', 'not like', '%Assembly ID: ' . $assembly->id . '%');
-                            })
                             ->first();
 
+                        // If serial exists, check if it belongs to current assembly
                         if ($existingSerial) {
-                            throw new \Exception("Serial '{$serial}' đã tồn tại trong cơ sở dữ liệu.");
+                            $expectedNote = 'Assembly ID: ' . $assembly->id;
+                            if ($existingSerial->notes !== $expectedNote) {
+                                throw new \Exception("Serial '{$serial}' đã tồn tại trong cơ sở dữ liệu.");
+                            }
                         }
                     }
                 }
@@ -520,7 +503,7 @@ class AssemblyController extends Controller
 
             // 4. Update product serials
             $this->deleteSerialRecords($assembly->id);
-            
+
             foreach ($request->products as $productIndex => $productData) {
                 if (isset($productData['serials']) && is_array($productData['serials'])) {
                     $filteredSerials = array_filter($productData['serials']);
@@ -530,10 +513,10 @@ class AssemblyController extends Controller
                     $assemblyProduct = AssemblyProduct::where('assembly_id', $assembly->id)
                         ->where('product_id', $productData['id'])
                         ->first();
-                    
+
                     if ($assemblyProduct) {
                         $assemblyProduct->update(['serials' => $productSerialsStr]);
-                        
+
                         // Create new serial records
                         $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id);
                     }
@@ -547,7 +530,7 @@ class AssemblyController extends Controller
                     $assemblyMaterial = AssemblyMaterial::where('assembly_id', $assembly->id)
                         ->get()
                         ->get($componentIndex); // Get by array index
-                    
+
                     if ($assemblyMaterial) {
                         $assemblyMaterial->update([
                             'serial' => $component['serial'] ?? null,
@@ -748,6 +731,17 @@ class AssemblyController extends Controller
     }
 
     /**
+     * Check if a serial exists in a comma-separated string (case-insensitive)
+     */
+    private function serialExistsInString($needle, $haystack)
+    {
+        if (empty($haystack)) return false;
+
+        $serials = array_map('trim', explode(',', $haystack));
+        return in_array(strtolower($needle), array_map('strtolower', $serials));
+    }
+
+    /**
      * API to check if a serial exists 
      */
     public function checkSerial(Request $request)
@@ -763,43 +757,30 @@ class AssemblyController extends Controller
         $assemblyId = $request->assembly_id;
 
         try {
-            // Check in assemblies table
-            $query = Assembly::where('product_serials', 'like', '%' . $serial . '%')
-                ->where('product_id', $productId);
-
-            // Exclude current assembly if editing
-            if ($assemblyId) {
-                $query->where('id', '!=', $assemblyId);
-            }
-
-            $existingAssembly = $query->first();
-
-            if ($existingAssembly) {
-                return response()->json([
-                    'exists' => true,
-                    'message' => "Serial đã tồn tại trong phiếu lắp ráp #{$existingAssembly->code}",
-                    'type' => 'assembly'
-                ]);
-            }
-
-            // Check in serials table
-            $query = Serial::where('serial_number', $serial)
-                ->where('product_id', $productId);
-
-            // Exclude serials from current assembly if editing
-            if ($assemblyId) {
-                $query->where(function ($q) use ($assemblyId) {
-                    $q->whereNull('notes')
-                        ->orWhere('notes', 'not like', '%Assembly ID: ' . $assemblyId . '%');
-                });
-            }
-
-            $existingSerial = $query->first();
+            // Check in serials table (exact match, case-insensitive)
+            $existingSerial = Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($serial)])
+                ->where('product_id', $productId)
+                ->first();
 
             if ($existingSerial) {
+                // If editing assembly, check if this serial belongs to current assembly
+                if ($assemblyId && $existingSerial->notes) {
+                    $expectedNote = 'Assembly ID: ' . $assemblyId;
+                    if ($existingSerial->notes === $expectedNote) {
+                        // This serial belongs to current assembly, so it's valid
+                        return response()->json([
+                            'exists' => false,
+                            'message' => "Serial hợp lệ (thuộc assembly hiện tại)"
+                        ]);
+                    }
+                }
+
+                // Serial exists and doesn't belong to current assembly (or not editing)
+                $errorMessage = "Serial đã tồn tại trong cơ sở dữ liệu";
+
                 return response()->json([
                     'exists' => true,
-                    'message' => "Serial đã tồn tại trong cơ sở dữ liệu",
+                    'message' => $errorMessage,
                     'type' => 'serial'
                 ]);
             }
@@ -1136,7 +1117,7 @@ class AssemblyController extends Controller
             return $this->createTestingRecordForAssembly($assembly);
         }
     }
-    
+
     /**
      * Export assembly to Excel
      */
@@ -1149,7 +1130,7 @@ class AssemblyController extends Controller
             return back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
         }
     }
-    
+
     /**
      * Export assembly to PDF
      */
@@ -1166,9 +1147,9 @@ class AssemblyController extends Controller
                 'tester',
                 'project'
             ]);
-            
+
             $pdf = PDF::loadView('assemble.pdf', compact('assembly'));
-            
+
             return $pdf->download('phieu-lap-rap-' . $assembly->code . '-' . date('Y-m-d') . '.pdf');
         } catch (\Exception $e) {
             Log::error('Export Assembly PDF error: ' . $e->getMessage());
