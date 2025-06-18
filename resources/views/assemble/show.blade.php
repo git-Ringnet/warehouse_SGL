@@ -115,11 +115,13 @@
                             <span class="text-sm text-gray-700">{{ $assembly->warehouse->name }}
                                 ({{ $assembly->warehouse->code }})</span>
                         </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kho nhập thành phẩm:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->targetWarehouse->name ?? '' }}
-                                ({{ $assembly->targetWarehouse->code ?? '' }})</span>
-                        </div>
+                        @if ($assembly->targetWarehouse)
+                            <div class="flex items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Kho nhập thành phẩm:</span>
+                                <span class="text-sm text-gray-700">{{ $assembly->targetWarehouse->name ?? '' }}
+                                    ({{ $assembly->targetWarehouse->code ?? '' }})</span>
+                            </div>
+                        @endif
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
                             <span
@@ -142,20 +144,19 @@
                         <div class="flex items-center mt-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Mục đích:</span>
                             <span class="text-sm text-gray-700">
-                                {{-- @if ($assembly->purpose == 'storage')
+                                @if ($assembly->purpose == 'storage')
                                     Lưu kho
                                 @elseif($assembly->purpose == 'project')
                                     Xuất đi dự án
                                 @else
                                     {{ $assembly->purpose ?? 'Không xác định' }}
-                                @endif --}}
-                                Lưu kho
+                                @endif
                             </span>
                         </div>
                         @if ($assembly->purpose == 'project' && isset($assembly->project))
                             <div class="flex items-center mt-2">
                                 <span class="text-sm font-medium text-gray-700 mr-2">Dự án:</span>
-                                <span class="text-sm text-gray-700">{{ $assembly->project->name ?? '' }}</span>
+                                <span class="text-sm text-gray-700">{{ $assembly->project->project_name ?? '' }}</span>
                             </div>
                         @endif
                     </div>
@@ -445,13 +446,13 @@ if ($assembly->products && $assembly->products->count() > 0) {
             // Xử lý sự kiện xuất Excel
             const exportExcelBtn = document.getElementById('export-excel-btn');
             exportExcelBtn.addEventListener('click', function() {
-                window.location.href = '{{ route("assemblies.export.excel", $assembly->id) }}';
+                window.location.href = '{{ route('assemblies.export.excel', $assembly->id) }}';
             });
 
             // Xử lý sự kiện xuất PDF
             const exportPdfBtn = document.getElementById('export-pdf-btn');
             exportPdfBtn.addEventListener('click', function() {
-                window.location.href = '{{ route("assemblies.export.pdf", $assembly->id) }}';
+                window.location.href = '{{ route('assemblies.export.pdf', $assembly->id) }}';
             });
         });
     </script>

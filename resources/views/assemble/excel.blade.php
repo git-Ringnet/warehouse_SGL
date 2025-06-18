@@ -42,8 +42,10 @@
     <tr>
         <td style="font-weight: bold;">Kho xuất vật tư:</td>
         <td>{{ $assembly->warehouse->name ?? '' }} ({{ $assembly->warehouse->code ?? '' }})</td>
+        @if($assembly->targetWarehouse)
         <td style="font-weight: bold;">Kho nhập thành phẩm:</td>
         <td>{{ $assembly->targetWarehouse->name ?? '' }} ({{ $assembly->targetWarehouse->code ?? '' }})</td>
+        @endif
         @if($assembly->purpose == 'project' && $assembly->project)
         <td style="font-weight: bold;">Dự án:</td>
         <td>{{ $assembly->project->project_name ?? '' }}</td>

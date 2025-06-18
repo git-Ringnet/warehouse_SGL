@@ -17,6 +17,7 @@ class Serial extends Model
     protected $fillable = [
         'serial_number',
         'product_id',
+        'type',
         'status',
         'notes'
     ];
@@ -26,6 +27,39 @@ class Serial extends Model
      */
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    /**
+     * Get the material that owns the serial.
+     */
+    public function material()
+    {
+        return $this->belongsTo(Material::class, 'product_id');
+    }
+
+    /**
+     * Get the good that owns the serial.
+     */
+    public function good()
+    {
+        return $this->belongsTo(Good::class, 'product_id');
+    }
+
+    /**
+     * Get the related item based on type.
+     */
+    public function getRelatedItemAttribute()
+    {
+        switch ($this->type) {
+            case 'material':
+                return $this->material;
+            case 'product':
+                return $this->product;
+            case 'good':
+                return $this->good;
+            default:
+                return null;
+        }
     }
 } 
