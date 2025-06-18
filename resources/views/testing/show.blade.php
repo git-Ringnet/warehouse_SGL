@@ -268,28 +268,31 @@
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
                 <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết vật tư lắp ráp</h2>
                 
+                @if($testing->items && $testing->items->count() > 0)
                 @php
-                    // Lấy thông tin về thành phẩm đầu tiên (nếu có)
-                    $product = null;
-                    foreach($testing->items as $item) {
-                        if($item->item_type == 'product' && $item->product) {
-                            $product = $item->product;
-                            break;
-                        } elseif($item->item_type == 'finished_product' && $item->good) {
-                            // Nếu là hàng hóa thì hiển thị thông tin của nó
-                            $product = $item->good;
-                            break;
-                        }
-                    }
+                        // Lấy tất cả thành phẩm từ các items
+                        $productItems = $testing->items->filter(function($item) {
+                            return $item->item_type == 'product' && $item->product;
+                        });
+                        
+                        $goodItems = $testing->items->filter(function($item) {
+                            return $item->item_type == 'finished_product' && $item->good;
+                        });
                 @endphp
                 
-                @if($product)
-                    <div class="mb-4">
+                    @if($productItems->count() > 0 || $goodItems->count() > 0)
+                        <!-- Hiển thị từng thành phẩm và vật tư của nó -->
+                        @foreach($productItems as $productItem)
+                            <div class="mb-8">
+                                <div class="mb-4 pb-2 border-b border-gray-200">
                         <p class="text-sm text-gray-500 font-medium mb-1">Thành phẩm</p>
-                        <p class="text-base text-gray-800 font-semibold">{{ $product->code }} - {{ $product->name }}</p>
+                                    <p class="text-base text-gray-800 font-semibold">{{ $productItem->product->code }} - {{ $productItem->product->name }} ({{ $productItem->quantity }})</p>
+                                    @if($productItem->serial_number)
+                                        <p class="text-sm text-gray-600 mt-1">Serial: {{ $productItem->serial_number }}</p>
+                                    @endif
                     </div>
                     
-                    @if(isset($product->materials) && $product->materials->count() > 0)
+                                @if(isset($productItem->product->materials) && $productItem->product->materials->count() > 0)
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
@@ -302,7 +305,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-100">
-                                    @forelse($product->materials as $index => $material)
+                                                @forelse($productItem->product->materials as $index => $material)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $material->code }}</td>
@@ -321,6 +324,25 @@
                     @else
                         <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <p class="text-gray-500 text-center">Không có thông tin về vật tư lắp ráp cho thành phẩm này</p>
+                                    </div>
+                                @endif
+                            </div>
+                        @endforeach
+                        
+                        @foreach($goodItems as $goodItem)
+                            <div class="mb-8">
+                                <div class="mb-4 pb-2 border-b border-gray-200">
+                                    <p class="text-sm text-gray-500 font-medium mb-1">Hàng hóa</p>
+                                    <p class="text-base text-gray-800 font-semibold">{{ $goodItem->good->code }} - {{ $goodItem->good->name }} ({{ $goodItem->quantity }})</p>
+                                    @if($goodItem->serial_number)
+                                        <p class="text-sm text-gray-600 mt-1">Serial: {{ $goodItem->serial_number }}</p>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <p class="text-gray-500 text-center">Không tìm thấy thông tin thành phẩm</p>
                         </div>
                     @endif
                 @else
@@ -364,12 +386,21 @@
                     <div>
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">Thành phẩm</p>
-                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->product->name ?? 'N/A' }} ({{ $testing->assembly->quantity }})</p>
-                        </div>
-                        
-                        <div class="mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium mb-1">Serial sản phẩm</p>
-                            <p class="text-base text-gray-800">{{ $testing->assembly->product_serials ?: 'N/A' }}</p>
+                            <div class="space-y-2">
+                                @if($testing->assembly->products && $testing->assembly->products->count() > 0)
+                                    @foreach($testing->assembly->products as $product)
+                                        <div class="flex items-center">
+                                            <span class="text-base text-gray-800 font-semibold">{{ $product->product->name ?? 'N/A' }}</span>
+                                            <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{{ $product->quantity }} cái</span>
+                                        </div>
+                                        @if($product->serials)
+                                            <div class="text-sm text-gray-600">Serial: {{ $product->serials }}</div>
+                                        @endif
+                                    @endforeach
+                                @else
+                                    <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->product->name ?? 'N/A' }} ({{ $testing->assembly->quantity }})</p>
+                                @endif
+                            </div>
                         </div>
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
@@ -429,7 +460,7 @@
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    </div>
                 @endif
             </div>
             @endif
@@ -524,7 +555,7 @@
                             <p>{{ $testing->receiverEmployee->name ?? 'N/A' }}</p>
                             @if($testing->received_at)
                             <p class="text-sm text-gray-500 mt-2">{{ $testing->received_at->format('d/m/Y') }}</p>
-                            @endif
+                        @endif
                         </div>
                     </div>
                 </div>
@@ -566,6 +597,20 @@
                     <button onclick="openUpdateInventory()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center">
                         <i class="fas fa-warehouse mr-2"></i> Cập nhật về kho
                     </button>
+                    @endif
+                    
+                    @if($testing->is_inventory_updated)
+                    <div class="ml-3 px-4 py-2 bg-green-100 text-green-800 rounded-lg flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i> Đã cập nhật vào kho
+                        <span class="ml-2">
+                            (Kho đạt: {{ $testing->successWarehouse->name ?? 'N/A' }}, 
+                            Kho không đạt: {{ $testing->failWarehouse->name ?? 'N/A' }})
+                        </span>
+                        <span class="ml-2 px-2 py-0.5 bg-green-200 text-green-800 rounded-full text-xs">
+                            {{ $testing->items->where('result', 'pass')->count() }} đạt / 
+                            {{ $testing->items->where('result', 'fail')->count() }} không đạt
+                        </span>
+                    </div>
                     @endif
                     
                     @if($testing->status != 'completed')

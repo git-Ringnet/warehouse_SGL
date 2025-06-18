@@ -139,28 +139,31 @@
     <div class="mb-8">
         <h2 class="text-xl font-semibold mb-4">Chi tiết vật tư lắp ráp</h2>
         
+        @if($testing->items && $testing->items->count() > 0)
         @php
-            // Lấy thông tin về thành phẩm đầu tiên (nếu có)
-            $product = null;
-            foreach($testing->items as $item) {
-                if($item->item_type == 'product' && $item->product) {
-                    $product = $item->product;
-                    break;
-                } elseif($item->item_type == 'finished_product' && $item->good) {
-                    // Nếu là hàng hóa thì hiển thị thông tin của nó
-                    $product = $item->good;
-                    break;
-                }
-            }
+                // Lấy tất cả thành phẩm từ các items
+                $productItems = $testing->items->filter(function($item) {
+                    return $item->item_type == 'product' && $item->product;
+                });
+                
+                $goodItems = $testing->items->filter(function($item) {
+                    return $item->item_type == 'finished_product' && $item->good;
+                });
         @endphp
         
-        @if($product)
-            <div class="mb-4">
+            @if($productItems->count() > 0 || $goodItems->count() > 0)
+                <!-- Hiển thị từng thành phẩm và vật tư của nó -->
+                @foreach($productItems as $productItem)
+                    <div class="mb-6">
+                        <div class="mb-3">
                 <p class="text-sm text-gray-500 font-medium mb-1">Thành phẩm</p>
-                <p class="text-base text-gray-800 font-semibold">{{ $product->code }} - {{ $product->name }}</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $productItem->product->code }} - {{ $productItem->product->name }} ({{ $productItem->quantity }})</p>
+                            @if($productItem->serial_number)
+                                <p class="text-sm text-gray-600 mt-1">Serial: {{ $productItem->serial_number }}</p>
+                            @endif
             </div>
             
-            @if(isset($product->materials) && $product->materials->count() > 0)
+                        @if(isset($productItem->product->materials) && $productItem->product->materials->count() > 0)
                 <table class="w-full border-collapse border border-gray-300">
                     <thead>
                         <tr class="bg-gray-100">
@@ -172,7 +175,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($product->materials as $index => $material)
+                                    @forelse($productItem->product->materials as $index => $material)
                         <tr>
                             <td class="border border-gray-300 p-2">{{ $index + 1 }}</td>
                             <td class="border border-gray-300 p-2">{{ $material->code }}</td>
@@ -190,6 +193,25 @@
             @else
                 <div class="p-4 bg-gray-100 border border-gray-300 rounded">
                     <p class="text-center text-gray-500">Không có thông tin về vật tư lắp ráp cho thành phẩm này</p>
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+                
+                @foreach($goodItems as $goodItem)
+                    <div class="mb-6">
+                        <div class="mb-3">
+                            <p class="text-sm text-gray-500 font-medium mb-1">Hàng hóa</p>
+                            <p class="text-base text-gray-800 font-semibold">{{ $goodItem->good->code }} - {{ $goodItem->good->name }} ({{ $goodItem->quantity }})</p>
+                            @if($goodItem->serial_number)
+                                <p class="text-sm text-gray-600 mt-1">Serial: {{ $goodItem->serial_number }}</p>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            @else
+                <div class="p-4 bg-gray-100 border border-gray-300 rounded">
+                    <p class="text-center text-gray-500">Không tìm thấy thông tin thành phẩm</p>
                 </div>
             @endif
         @else
@@ -267,6 +289,16 @@
         </div>
         @endif
     </div>
+
+    @if($testing->is_inventory_updated)
+    <div class="mb-6 bg-green-50 p-4 rounded-lg border border-green-100">
+        <h3 class="font-medium text-green-800 mb-2">Đã cập nhật vào kho</h3>
+        <p class="text-green-700">
+            <span class="font-medium">Kho đạt:</span> {{ $testing->successWarehouse->name ?? 'N/A' }}<br>
+            <span class="font-medium">Kho không đạt:</span> {{ $testing->failWarehouse->name ?? 'N/A' }}
+        </p>
+    </div>
+    @endif
 
     <!-- Chữ ký -->
     <div class="grid grid-cols-2 gap-4 mt-12">
