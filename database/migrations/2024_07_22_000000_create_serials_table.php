@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->enum('type', ['product', 'material', 'good'])->default('product');
             $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->integer('warehouse_id')->default(0);
             $table->text('notes')->nullable();
             $table->timestamps();
         });
