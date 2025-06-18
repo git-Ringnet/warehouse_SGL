@@ -241,19 +241,19 @@ class WarehouseController extends Controller
         // Since 'good' is not in enum, set empty collection
         $goods = WarehouseMaterial::where('warehouse_id', $warehouse->id)
             ->where('item_type', 'good')
-            ->with('product')
+            ->with('good')
             ->get()
             ->filter(function ($warehouseMaterial) {
                 return $warehouseMaterial->product !== null;
             })
             ->map(function ($warehouseMaterial) {
                 return [
-                    'id' => $warehouseMaterial->product->id,
-                    'code' => $warehouseMaterial->product->code,
-                    'name' => $warehouseMaterial->product->name,
-                    'description' => $warehouseMaterial->product->description ?? '',
-                    'quantity' => $warehouseMaterial->quantity,
-                    'location' => $warehouseMaterial->location ?? '',
+                    'id' => $warehouseMaterial->good->id,
+                    'code' => $warehouseMaterial->good->code,
+                    'name' => $warehouseMaterial->good->name,
+                    'category' => $warehouseMaterial->good->category ?? '',
+                    'unit' => $warehouseMaterial->good->unit ?? '',
+                    'quantity' => $warehouseMaterial->quantity ?? '',
                     'serial_number' => $warehouseMaterial->serial_number ?? '',
                 ];
             });
