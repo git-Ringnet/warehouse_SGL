@@ -174,16 +174,16 @@
                             </div>
                             
                             <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <div id="test_items_container" class="space-y-3">
-                                    @forelse($testing->details as $detail)
+                                <div class="space-y-3" id="test_items_container">
+                                    @forelse($testing->details as $index => $detail)
                                         <div class="test-item flex items-center gap-4">
-                                            <input type="text" name="test_item_names[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $detail->test_item_name }}" placeholder="Nhập hạng mục kiểm thử">
-                                            <select name="test_results[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                            <input type="text" name="test_item_names[]" value="{{ $detail->test_item_name }}" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
+                                            <select name="test_results[]" class="testing-detail-result h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                                 <option value="pending" {{ $detail->result == 'pending' ? 'selected' : '' }}>Chưa có</option>
                                                 <option value="pass" {{ $detail->result == 'pass' ? 'selected' : '' }}>Đạt</option>
                                                 <option value="fail" {{ $detail->result == 'fail' ? 'selected' : '' }}>Không đạt</option>
                                             </select>
-                                            <input type="text" name="test_notes[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $detail->notes }}" placeholder="Ghi chú">
+                                            <input type="text" name="test_notes[]" value="{{ $detail->notes }}" class="h-10 border border-gray-300 rounded px-3 py-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú">
                                             <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -191,7 +191,7 @@
                                     @empty
                                         <div class="test-item flex items-center gap-4">
                                             <input type="text" name="test_item_names[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
-                                            <select name="test_results[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                            <select name="test_results[]" class="testing-detail-result h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                                 <option value="pending">Chưa có</option>
                                                 <option value="pass">Đạt</option>
                                                 <option value="fail">Không đạt</option>
@@ -206,18 +206,74 @@
                             </div>
                         </div>
 
-                        <!-- Kết quả kiểm thử -->
+                        <!-- Kết quả kiểm thử thiết bị -->
                         <div class="mt-6">
-                            <h3 class="text-md font-medium text-gray-800 mb-3">Kết quả kiểm thử</h3>
+                            <h3 class="text-md font-medium text-gray-800 mb-3">Kết quả kiểm thử thiết bị</h3>
+                            
+                            <div class="space-y-4">
+                                @forelse($testing->items as $index => $item)
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div>
+                                            <h4 class="font-medium text-gray-800">
+                                                {{ $index + 1 }}. 
+                                                @if($item->item_type == 'material' && $item->material)
+                                                    {{ $item->material->code }} - {{ $item->material->name }}
+                                                @elseif($item->item_type == 'product' && $item->product)
+                                                    {{ $item->product->code }} - {{ $item->product->name }}
+                                                @elseif($item->item_type == 'finished_product' && $item->good)
+                                                    {{ $item->good->code }} - {{ $item->good->name }}
+                                                @endif
+                                            </h4>
+                                            <div class="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                                                <span>Loại: 
+                                                    @if($item->item_type == 'material')
+                                                        Vật tư
+                                                    @elseif($item->item_type == 'product')
+                                                        Thành phẩm
+                                                    @elseif($item->item_type == 'finished_product')
+                                                        Hàng hóa
+                                                    @endif
+                                                </span>
+                                                <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
+                                                <span>Số lượng: {{ $item->quantity }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Kết quả:</label>
+                                            <select name="item_results[{{ $item->id }}]" class="testing-item-result h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                                <option value="pending" {{ $item->result == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                <option value="pass" {{ $item->result == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                <option value="fail" {{ $item->result == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Ghi chú thiết bị:</label>
+                                        <input type="text" name="item_notes[{{ $item->id }}]" value="{{ $item->notes }}" class="h-10 border border-gray-300 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho thiết bị này">
+                                    </div>
+                                </div>
+                                @empty
+                                <div class="text-center text-gray-500 py-4">
+                                    Chưa có thiết bị nào được thêm
+                                </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <!-- Kết quả tổng thể -->
+                        <div class="mt-6">
+                            <h3 class="text-md font-medium text-gray-800 mb-3">Kết quả tổng thể</h3>
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label for="pass_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng đạt</label>
+                                    <label for="pass_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng thiết bị đạt</label>
                                     <input type="number" id="pass_quantity" name="pass_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $testing->pass_quantity }}">
                                 </div>
                                 
                                 <div>
-                                    <label for="fail_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng không đạt</label>
+                                    <label for="fail_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng thiết bị không đạt</label>
                                     <input type="number" id="fail_quantity" name="fail_quantity" min="0" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $testing->fail_quantity }}">
                                 </div>
                         </div>
@@ -257,7 +313,7 @@
             newItem.className = 'test-item flex items-center gap-4';
             newItem.innerHTML = `
                 <input type="text" name="test_item_names[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
-                <select name="test_results[]" class="h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                <select name="test_results[]" class="testing-detail-result h-10 border border-gray-300 rounded px-3 py-2 w-32 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                     <option value="pending">Chưa có</option>
                         <option value="pass">Đạt</option>
                         <option value="fail">Không đạt</option>
@@ -567,9 +623,9 @@
             });
         });
 
-        // Tự động tính toán số lượng đạt/không đạt dựa trên kết quả kiểm thử
+        // Tự động tính toán số lượng đạt/không đạt dựa trên kết quả thiết bị
         function updateTestResults() {
-            const testResultSelects = document.querySelectorAll('select[name="test_results[]"]');
+            const itemResultSelects = document.querySelectorAll('select[name^="item_results"]');
             const passQuantityInput = document.getElementById('pass_quantity');
             const failQuantityInput = document.getElementById('fail_quantity');
             const failReasonsTextarea = document.getElementById('fail_reasons');
@@ -578,19 +634,20 @@
             let failCount = 0;
             let failReasons = [];
             
-            // Đếm số lượng đạt/không đạt
-            testResultSelects.forEach((select, index) => {
+            // Đếm số lượng thiết bị đạt/không đạt
+            itemResultSelects.forEach((select) => {
                 if (select.value === 'pass') {
                     passCount++;
                 } else if (select.value === 'fail') {
                     failCount++;
                     
-                    // Lấy tên hạng mục kiểm thử và ghi chú
-                    const testItemName = document.querySelectorAll('input[name="test_item_names[]"]')[index].value;
-                    const testNote = document.querySelectorAll('input[name="test_notes[]"]')[index].value;
+                    // Lấy tên thiết bị và ghi chú
+                    const itemContainer = select.closest('.border');
+                    const itemName = itemContainer.querySelector('h4').textContent.trim();
+                    const itemNote = itemContainer.querySelector('input[name^="item_notes"]').value;
                     
-                    if (testItemName) {
-                        failReasons.push(`${testItemName}${testNote ? ': ' + testNote : ''}`);
+                    if (itemName) {
+                        failReasons.push(`${itemName}${itemNote ? ': ' + itemNote : ''}`);
                     }
                 }
             });
@@ -615,25 +672,25 @@
                 let conclusion = '';
                 
                 if (passPercent >= 80) {
-                    conclusion = `Kết quả kiểm thử đạt yêu cầu với ${passPercent}% hạng mục đạt tiêu chuẩn.`;
+                    conclusion = `Kết quả kiểm thử đạt yêu cầu với ${passPercent}% thiết bị đạt tiêu chuẩn.`;
                 } else if (passPercent >= 50) {
-                    conclusion = `Kết quả kiểm thử đạt mức trung bình với ${passPercent}% hạng mục đạt tiêu chuẩn. Cần cải thiện các hạng mục không đạt.`;
+                    conclusion = `Kết quả kiểm thử đạt mức trung bình với ${passPercent}% thiết bị đạt tiêu chuẩn. Cần cải thiện các thiết bị không đạt.`;
                 } else {
-                    conclusion = `Kết quả kiểm thử không đạt yêu cầu với chỉ ${passPercent}% hạng mục đạt tiêu chuẩn. Cần kiểm tra lại toàn bộ.`;
+                    conclusion = `Kết quả kiểm thử không đạt yêu cầu với chỉ ${passPercent}% thiết bị đạt tiêu chuẩn. Cần kiểm tra lại toàn bộ.`;
                 }
                 
                 if (failReasons.length > 0) {
-                    conclusion += ` Các hạng mục cần khắc phục: ${failReasons.join(', ')}.`;
+                    conclusion += ` Các thiết bị cần khắc phục: ${failReasons.join(', ')}.`;
                 }
                 
                 conclusionTextarea.value = conclusion;
             }
         }
         
-        // Thêm event listener cho các select kết quả kiểm thử
+        // Thêm event listener cho các select kết quả thiết bị
         document.addEventListener('DOMContentLoaded', function() {
-            const testResultSelects = document.querySelectorAll('select[name="test_results[]"]');
-            testResultSelects.forEach(select => {
+            const itemResultSelects = document.querySelectorAll('select[name^="item_results"]');
+            itemResultSelects.forEach(select => {
                 select.addEventListener('change', updateTestResults);
             });
             

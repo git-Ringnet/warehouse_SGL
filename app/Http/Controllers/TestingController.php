@@ -97,7 +97,6 @@ class TestingController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'test_type' => 'required|in:material,finished_product',
-            'tester_id' => 'required|exists:employees,id',
             'assigned_to' => 'required|exists:employees,id',
             'receiver_id' => 'required|exists:employees,id',
             'test_date' => 'required|date',
@@ -136,11 +135,22 @@ class TestingController extends Controller
                 $testCode .= '001';
             }
 
+            // Lấy ID của người dùng đang đăng nhập
+            $testerId = null;
+            if (Auth::check() && Auth::user()->employee) {
+                $testerId = Auth::user()->employee->id;
+            }
+            
+            // Nếu không có người đăng nhập, sử dụng người phụ trách
+            if (!$testerId) {
+                $testerId = $request->assigned_to;
+            }
+
             // Create testing record
             $testing = Testing::create([
                 'test_code' => $testCode,
                 'test_type' => $request->test_type,
-                'tester_id' => $request->tester_id,
+                'tester_id' => $testerId,
                 'assigned_to' => $request->assigned_to,
                 'receiver_id' => $request->receiver_id,
                 'test_date' => $request->test_date,
@@ -149,7 +159,7 @@ class TestingController extends Controller
                 'assembly_id' => $request->assembly_id,
             ]);
 
-            // Add testing items
+            // Add testing items from request
             foreach ($request->items as $item) {
                 $itemData = [
                     'testing_id' => $testing->id,
@@ -177,6 +187,51 @@ class TestingController extends Controller
                 TestingItem::create($itemData);
             }
 
+            // If this testing is created from assembly, add all materials from assembly
+            if ($request->assembly_id) {
+                $assembly = Assembly::with(['materials.material', 'products.product'])->find($request->assembly_id);
+                
+                if ($assembly) {
+                    // Add all materials from assembly
+                    foreach ($assembly->materials as $assemblyMaterial) {
+                        // Check if this material is already added
+                        $existingItem = TestingItem::where('testing_id', $testing->id)
+                            ->where('material_id', $assemblyMaterial->material_id)
+                            ->first();
+                            
+                        if (!$existingItem) {
+                            TestingItem::create([
+                                'testing_id' => $testing->id,
+                                'item_type' => 'material',
+                                'material_id' => $assemblyMaterial->material_id,
+                                'quantity' => $assemblyMaterial->quantity,
+                                'serial_number' => $assemblyMaterial->serial,
+                                'result' => 'pending',
+                                'target_product_id' => $assemblyMaterial->target_product_id
+                            ]);
+                        }
+                    }
+
+                    // Add all products from assembly if they're not already added
+                    foreach ($assembly->products as $assemblyProduct) {
+                        $existingItem = TestingItem::where('testing_id', $testing->id)
+                            ->where('product_id', $assemblyProduct->product_id)
+                            ->first();
+                            
+                        if (!$existingItem) {
+                            TestingItem::create([
+                                'testing_id' => $testing->id,
+                                'item_type' => 'product',
+                                'product_id' => $assemblyProduct->product_id,
+                                'quantity' => $assemblyProduct->quantity,
+                                'serial_number' => $assemblyProduct->serials,
+                                'result' => 'pending'
+                            ]);
+                        }
+                    }
+                }
+            }
+
             // Add testing details (test items)
             foreach ($request->test_items as $testItem) {
                 TestingDetail::create([
@@ -192,6 +247,12 @@ class TestingController extends Controller
                 ->with('success', 'Phiếu kiểm thử đã được tạo thành công.');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Lỗi khi tạo phiếu kiểm thử: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return redirect()->back()
                 ->with('error', 'Đã xảy ra lỗi: ' . $e->getMessage())
                 ->withInput();
@@ -252,14 +313,16 @@ class TestingController extends Controller
             'receiver_id' => 'required|exists:employees,id',
             'test_date' => 'required|date',
             'notes' => 'nullable|string',
-            'pass_quantity' => 'required_if:status,completed|integer|min:0',
-            'fail_quantity' => 'required_if:status,completed|integer|min:0',
+            'pass_quantity' => 'nullable|integer|min:0',
+            'fail_quantity' => 'nullable|integer|min:0',
             'fail_reasons' => 'nullable|string',
             'conclusion' => 'nullable|string',
-            'test_item_names' => 'required|array|min:1',
-            'test_item_names.*' => 'required|string',
-            'test_results' => 'required|array|min:1',
-            'test_results.*' => 'required|in:pass,fail,pending',
+            'item_results' => 'nullable|array',
+            'item_results.*' => 'nullable|in:pass,fail,pending',
+            'item_notes' => 'nullable|array',
+            'item_notes.*' => 'nullable|string',
+            'test_results' => 'nullable|array',
+            'test_results.*' => 'nullable|in:pass,fail,pending',
             'test_notes' => 'nullable|array',
             'test_notes.*' => 'nullable|string',
         ]);
@@ -286,26 +349,122 @@ class TestingController extends Controller
                 'conclusion' => $request->conclusion,
             ]);
 
-            // Update testing details
-            // First, delete existing details
-            $testing->details()->delete();
-            
-            // Then create new ones
-            foreach ($request->test_item_names as $key => $testItemName) {
-                TestingDetail::create([
-                    'testing_id' => $testing->id,
-                    'test_item_name' => $testItemName,
-                    'result' => $request->test_results[$key] ?? 'pending',
-                    'notes' => $request->test_notes[$key] ?? null,
-                ]);
-            }
+            // Add detailed logging for debugging
+            Log::info('Cập nhật kiểm thử - Thông tin request', [
+                'testing_id' => $testing->id,
+                'item_results' => $request->item_results,
+                'has_item_results' => $request->has('item_results'),
+                'request_keys' => array_keys($request->all())
+            ]);
 
             // Update items results if we have item_results in the request
             if ($request->has('item_results')) {
+                Log::info('Bắt đầu xử lý kết quả kiểm thử cho các vật tư', [
+                    'item_results_count' => count($request->item_results),
+                    'item_results_keys' => array_keys($request->item_results)
+                ]);
+                
                 foreach ($request->item_results as $itemId => $result) {
-                    $item = TestingItem::find($itemId);
-                    if ($item && $item->testing_id == $testing->id) {
-                        $item->update(['result' => $result]);
+                    Log::info('Xử lý kết quả kiểm thử cho item', [
+                        'item_id' => $itemId,
+                        'result' => $result
+                    ]);
+                    
+                    // Tìm testing item dựa vào material_id hoặc id
+                    $item = TestingItem::where(function($query) use ($itemId, $testing) {
+                        $query->where('testing_id', $testing->id)
+                              ->where(function($q) use ($itemId) {
+                                  $q->where('id', $itemId)
+                                    ->orWhere('material_id', $itemId);
+                              });
+                    })->first();
+
+                    if ($item) {
+                        $item->update([
+                            'result' => $result,
+                            'updated_at' => now()
+                        ]);
+                        
+                        // Log để debug
+                        Log::info('Đã cập nhật kết quả kiểm thử', [
+                            'testing_id' => $testing->id,
+                            'item_id' => $item->id,
+                            'material_id' => $item->material_id,
+                            'old_result' => $item->getOriginal('result'),
+                            'new_result' => $result
+                        ]);
+                    } else {
+                        Log::info('Không tìm thấy item hiện có, tìm kiếm vật tư để tạo mới', [
+                            'item_id' => $itemId,
+                            'testing_id' => $testing->id
+                        ]);
+                        
+                        // Kiểm tra xem itemId có phải là material_id hay không
+                        $material = Material::find($itemId);
+                        
+                        if ($material) {
+                            // Tạo mới testing item
+                            $newItem = TestingItem::create([
+                                'testing_id' => $testing->id,
+                                'material_id' => $itemId,
+                                'item_type' => 'material',
+                                'result' => $result,
+                                'quantity' => 1
+                            ]);
+                            
+                            // Log tạo mới
+                            Log::info('Đã tạo mới testing item', [
+                                'testing_id' => $testing->id,
+                                'item_id' => $newItem->id,
+                                'material_id' => $itemId,
+                                'result' => $result
+                            ]);
+                        } else {
+                            Log::warning('Không tìm thấy vật tư với ID này', [
+                                'item_id' => $itemId
+                            ]);
+                        }
+                    }
+                }
+            } else {
+                Log::warning('Không có dữ liệu item_results trong request', [
+                    'request_keys' => array_keys($request->all())
+                ]);
+            }
+
+            // Update item notes if we have item_notes in the request
+            if ($request->has('item_notes')) {
+                foreach ($request->item_notes as $itemId => $note) {
+                    $item = TestingItem::where(function($query) use ($itemId, $testing) {
+                        $query->where('testing_id', $testing->id)
+                              ->where(function($q) use ($itemId) {
+                                  $q->where('id', $itemId)
+                                    ->orWhere('material_id', $itemId);
+                              });
+                    })->first();
+                    
+                    if ($item) {
+                        $item->update(['notes' => $note]);
+                    }
+                }
+            }
+
+            // Update testing details results if we have test_results in the request
+            if ($request->has('test_results')) {
+                foreach ($request->test_results as $detailId => $result) {
+                    $detail = TestingDetail::find($detailId);
+                    if ($detail && $detail->testing_id == $testing->id) {
+                        $detail->update(['result' => $result]);
+                    }
+                }
+            }
+
+            // Update testing details notes if we have test_notes in the request
+            if ($request->has('test_notes')) {
+                foreach ($request->test_notes as $detailId => $note) {
+                    $detail = TestingDetail::find($detailId);
+                    if ($detail && $detail->testing_id == $testing->id) {
+                        $detail->update(['notes' => $note]);
                     }
                 }
             }
@@ -316,6 +475,12 @@ class TestingController extends Controller
                 ->with('success', 'Phiếu kiểm thử đã được cập nhật thành công.');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Lỗi cập nhật phiếu kiểm thử: ' . $e->getMessage(), [
+                'testing_id' => $testing->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return redirect()->back()
                 ->with('error', 'Đã xảy ra lỗi: ' . $e->getMessage())
                 ->withInput();
@@ -369,14 +534,41 @@ class TestingController extends Controller
             $employeeId = Auth::user()->employee->id;
         }
 
+        DB::beginTransaction();
+        
+        try {
+            // Cập nhật phiếu kiểm thử
         $testing->update([
             'status' => 'in_progress',
             'approved_by' => $employeeId,
             'approved_at' => now(),
         ]);
+            
+            // Đồng bộ trạng thái với Assembly nếu có
+            if ($testing->assembly_id) {
+                $assembly = Assembly::find($testing->assembly_id);
+                if ($assembly) {
+                    $assembly->update([
+                        'status' => 'in_progress'
+                    ]);
+                    
+                    Log::info('Đồng bộ trạng thái Assembly sau khi duyệt Testing', [
+                        'testing_id' => $testing->id,
+                        'assembly_id' => $assembly->id,
+                        'new_status' => 'in_progress'
+                    ]);
+                }
+            }
+            
+            DB::commit();
 
         return redirect()->back()
             ->with('success', 'Phiếu kiểm thử đã được duyệt thành công.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Đã xảy ra lỗi khi duyệt phiếu: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -389,12 +581,39 @@ class TestingController extends Controller
                 ->with('error', 'Chỉ có thể từ chối phiếu kiểm thử đang ở trạng thái chờ xử lý.');
         }
 
+        DB::beginTransaction();
+        
+        try {
+            // Cập nhật phiếu kiểm thử
         $testing->update([
             'status' => 'cancelled',
         ]);
+            
+            // Đồng bộ trạng thái với Assembly nếu có
+            if ($testing->assembly_id) {
+                $assembly = Assembly::find($testing->assembly_id);
+                if ($assembly) {
+                    $assembly->update([
+                        'status' => 'cancelled'
+                    ]);
+                    
+                    Log::info('Đồng bộ trạng thái Assembly sau khi từ chối Testing', [
+                        'testing_id' => $testing->id,
+                        'assembly_id' => $assembly->id,
+                        'new_status' => 'cancelled'
+                    ]);
+                }
+            }
+            
+            DB::commit();
 
         return redirect()->back()
             ->with('success', 'Phiếu kiểm thử đã bị từ chối.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()
+                ->with('error', 'Đã xảy ra lỗi khi từ chối phiếu: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -432,50 +651,110 @@ class TestingController extends Controller
                 ->with('error', 'Chỉ có thể hoàn thành phiếu kiểm thử đang ở trạng thái đang thực hiện.');
         }
 
-        $validator = Validator::make($request->all(), [
-            'pass_quantity' => 'required|integer|min:0',
-            'fail_quantity' => 'required|integer|min:0',
-            'conclusion' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
-        // Tính tổng số lượng đạt và không đạt
-        $totalQuantity = intval($request->pass_quantity) + intval($request->fail_quantity);
-        
-        // Lấy tổng số lượng items để so sánh
-        $totalItems = $testing->items->sum('quantity');
-        
-        // Log thông tin hoàn thành phiếu
-        Log::info('Hoàn thành phiếu kiểm thử', [
-            'testing_id' => $testing->id,
-            'test_code' => $testing->test_code,
-            'pass_quantity' => $request->pass_quantity,
-            'fail_quantity' => $request->fail_quantity,
-            'total_quantity' => $totalQuantity,
-            'total_items' => $totalItems
-        ]);
-        
         DB::beginTransaction();
         
         try {
+            // Load chi tiết kiểm thử
+            $testing->load(['details', 'items']);
+            
+            // Kiểm tra items pending dựa vào loại kiểm thử
+            $itemsToCheck = $testing->test_type == 'finished_product' 
+                ? $testing->items->where('item_type', 'product') 
+                : $testing->items;
+            
+            $pendingItems = $itemsToCheck->where('result', 'pending')->count();
+            
+            if ($pendingItems > 0) {
+                $itemLabel = $testing->test_type == 'finished_product' ? 'thành phẩm' : 'thiết bị';
+                $errorMessage = "Không thể hoàn thành phiếu kiểm thử: Còn {$pendingItems} {$itemLabel} chưa có kết quả đánh giá. Vui lòng cập nhật đầy đủ kết quả trước khi hoàn thành.";
+                
+                DB::rollBack();
+                return redirect()->back()
+                    ->with('error', $errorMessage);
+            }
+            
+            // Tính toán số lượng đạt/không đạt dựa trên items đã lọc
+            $passCount = $itemsToCheck->where('result', 'pass')->count();
+            $failCount = $itemsToCheck->where('result', 'fail')->count();
+            $totalCount = $passCount + $failCount;
+            
+            // Nếu không có thiết bị nào có kết quả, sử dụng giá trị mặc định
+            if ($totalCount == 0) {
+                $passCount = 1;
+                $failCount = 0;
+                $totalCount = 1;
+            }
+            
+            // Tính tỉ lệ đạt
+            $passRate = ($totalCount > 0) ? round(($passCount / $totalCount) * 100) : 100;
+            
+            // Tạo danh sách các thiết bị không đạt
+            $failItems = $itemsToCheck->where('result', 'fail')->map(function($item) {
+                $itemName = '';
+                if ($item->item_type == 'material' && $item->material) {
+                    $itemName = $item->material->name;
+                } elseif ($item->item_type == 'product' && $item->product) {
+                    $itemName = $item->product->name;
+                } elseif ($item->item_type == 'finished_product' && $item->good) {
+                    $itemName = $item->good->name;
+                }
+                return $itemName . ': ' . ($item->notes ?: 'Không đạt yêu cầu');
+            })->join("\n");
+            
+            // Tạo kết luận tự động
+            $conclusion = '';
+            if ($passRate == 100) {
+                $conclusion = 'Kết quả kiểm thử đạt 100%. Tất cả các thiết bị đều đạt yêu cầu.';
+            } elseif ($passRate >= 80) {
+                $conclusion = "Kết quả kiểm thử đạt mức tốt với {$passRate}% thiết bị đạt tiêu chuẩn. Cần cải thiện các thiết bị không đạt.";
+            } elseif ($passRate >= 60) {
+                $conclusion = "Kết quả kiểm thử đạt mức trung bình với {$passRate}% thiết bị đạt tiêu chuẩn. Cần cải thiện các thiết bị không đạt.";
+            } else {
+                $conclusion = "Kết quả kiểm thử không đạt yêu cầu với chỉ {$passRate}% thiết bị đạt tiêu chuẩn. Cần xem xét lại toàn bộ quy trình.";
+            }
+            
+            // Thêm danh sách các thiết bị không đạt vào kết luận nếu có
+            if (!empty($failItems)) {
+                $conclusion .= " Các thiết bị cần khắc phục: {$failItems}.";
+            }
+            
+            // Log thông tin hoàn thành phiếu
+            Log::info('Hoàn thành phiếu kiểm thử tự động', [
+                'testing_id' => $testing->id,
+                'test_code' => $testing->test_code,
+                'pass_count' => $passCount,
+                'fail_count' => $failCount,
+                'pass_rate' => $passRate,
+                'conclusion' => $conclusion
+            ]);
+            
             // Cập nhật trạng thái phiếu
             $testing->update([
                 'status' => 'completed',
-                'pass_quantity' => $request->pass_quantity,
-                'fail_quantity' => $request->fail_quantity,
-                'conclusion' => $request->conclusion,
+                'pass_quantity' => $passCount,
+                'fail_quantity' => $failCount,
+                'fail_reasons' => $failItems,
+                'conclusion' => $conclusion,
             ]);
             
-            // Cập nhật kết quả cho từng item
-            $this->updateItemsResults($testing, $request->pass_quantity, $request->fail_quantity);
+            // Đồng bộ trạng thái với Assembly nếu có
+            if ($testing->assembly_id) {
+                $assembly = Assembly::find($testing->assembly_id);
+                if ($assembly) {
+                    $assembly->update([
+                        'status' => 'completed'
+                    ]);
+                    
+                    Log::info('Đồng bộ trạng thái Assembly sau khi hoàn thành Testing', [
+                        'testing_id' => $testing->id,
+                        'assembly_id' => $assembly->id,
+                        'new_status' => 'completed'
+                    ]);
+                }
+            }
             
             DB::commit();
-            
+
             return redirect()->back()
                 ->with('success', 'Phiếu kiểm thử đã được hoàn thành thành công.');
         } catch (\Exception $e) {
@@ -1065,5 +1344,24 @@ class TestingController extends Controller
         }
         
         return response()->json($serials);
+    }
+
+    /**
+     * Check if any testing details or items are pending.
+     */
+    public function checkPending(Testing $testing)
+    {
+        // Load thiết bị và hạng mục kiểm thử
+        $testing->load(['items', 'details']);
+        
+        // Đếm số lượng thiết bị và hạng mục đang pending
+        $pendingItems = $testing->items->where('result', 'pending')->count();
+        $pendingDetails = $testing->details->where('result', 'pending')->count();
+        
+        return response()->json([
+            'has_pending' => ($pendingItems > 0 || $pendingDetails > 0),
+            'pending_details' => $pendingDetails,
+            'pending_items' => $pendingItems
+        ]);
     }
 } 

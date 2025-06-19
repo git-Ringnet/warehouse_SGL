@@ -192,209 +192,123 @@
             </div>
 
             <!-- Danh sách thiết bị và vật tư -->
-            @php
-                $itemType = $testing->test_type == 'material' ? 'material' : 'product';
-            @endphp
-            @if($testing->test_type == 'material')
-                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết vật tư/hàng hóa kiểm thử</h2>
-                    <div class="overflow-x-auto">
-                        <form action="{{ route('testing.update', $testing->id) }}" method="POST" id="test-item-form-material">
-                            @csrf
-                            @method('PUT')
-                            <input type="hidden" name="tester_id" value="{{ $testing->tester_id }}">
-                            <input type="hidden" name="assigned_to" value="{{ $testing->assigned_to }}">
-                            <input type="hidden" name="receiver_id" value="{{ $testing->receiver_id }}">
-                            <input type="hidden" name="test_date" value="{{ $testing->test_date->format('Y-m-d') }}">
-                            <input type="hidden" name="notes" value="{{ $testing->notes }}">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn vị</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kết quả kiểm thử</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
-                                    @foreach($testing->items->whereIn('item_type', ['material', 'finished_product']) as $item)
-                                        <tr>
-                                            <td class="px-4 py-2 text-sm">
-                                                @if($item->item_type == 'material') Vật tư @elseif($item->item_type == 'finished_product') Hàng hóa @endif
-                                            </td>
-                                            <td class="px-4 py-2 text-sm">
-                                                @if($item->item_type == 'material')
-                                                    {{ $item->material->code ?? '' }}
-                                                @elseif($item->item_type == 'finished_product')
-                                                    {{ $item->good->code ?? '' }}
-                                                @endif
-                                            </td>
-                                            <td class="px-4 py-2 text-sm">
-                                                @if($item->item_type == 'material')
-                                                    {{ $item->material->name ?? '' }}
-                                                @elseif($item->item_type == 'finished_product')
-                                                    {{ $item->good->name ?? '' }}
-                                                @endif
-                                            </td>
-                                            <td class="px-4 py-2 text-sm">{{ $item->quantity }}</td>
-                                            <td class="px-4 py-2 text-sm">
-                                                @if($item->item_type == 'material')
-                                                    {{ $item->material->unit ?? '' }}
-                                                @elseif($item->item_type == 'finished_product')
-                                                    {{ $item->good->unit ?? '' }}
-                                                @endif
-                                            </td>
-                                            <td class="px-4 py-2 text-sm">
-                                                @if($testing->status == 'in_progress')
-                                                    <select name="item_results[{{ $item->id }}]" class="form-select testing-item-result rounded-md shadow-sm mt-1 block w-full" data-material-id="{{ $item->id }}" data-material-name="{{ $item->item_type == 'material' ? ($item->material->name ?? '') : ($item->good->name ?? '') }}">
-                                                        <option value="pending" {{ $item->result == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                                        <option value="pass" {{ $item->result == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                                        <option value="fail" {{ $item->result == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                                                    </select>
-                                                @else
-                                                    @if($item->result == 'pass')
-                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Đạt</span>
-                                                    @elseif($item->result == 'fail')
-                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Không đạt</span>
-                                                    @else
-                                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Chưa có</span>
-                                                    @endif
-                                                @endif
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                            @if($testing->status == 'in_progress')
-                            <div class="mt-6 flex justify-end">
-                                <button type="submit" class="test-item-submit-button px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
-                                    <i class="fas fa-save mr-2"></i> Lưu kết quả kiểm thử
-                                </button>
-                            </div>
-                            @endif
-                        </form>
-                    </div>
-                </div>
-            @else
-                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết thiết bị kiểm thử</h2>
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 print:border-0 print:shadow-none">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết thiết bị kiểm thử</h2>
 
-                    @if($testing->status == 'in_progress')
-                    <form action="{{ route('testing.update', $testing->id) }}" method="POST" class="mb-4" id="test-item-form">
-                        @csrf
-                        @method('PUT')
-                        
-                        <!-- Thêm các trường ẩn cần thiết -->
-                        <input type="hidden" name="tester_id" value="{{ $testing->tester_id }}">
-                        <input type="hidden" name="assigned_to" value="{{ $testing->assigned_to }}">
-                        <input type="hidden" name="receiver_id" value="{{ $testing->receiver_id }}">
-                        <input type="hidden" name="test_date" value="{{ $testing->test_date->format('Y-m-d') }}">
-                        <input type="hidden" name="notes" value="{{ $testing->notes }}">
-                        
-                        @if ($errors->any())
-                            <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-4">
-                                <div class="font-medium">Có lỗi xảy ra:</div>
-                                <ul class="mt-1.5 list-disc list-inside">
-                                    @foreach ($errors->all() as $error)
-                                        <li>{{ $error }}</li>
-                                    @endforeach
-                                </ul>
-                            </div>
-                    @endif
+                @if($testing->status == 'in_progress')
+                <form action="{{ route('testing.update', $testing->id) }}" method="POST" class="mb-4" id="test-item-form">
+                    @csrf
+                    @method('PUT')
                     
-                        <div class="space-y-6">
-                            @foreach($testing->items->where('item_type', 'product') as $itemIndex => $item)
-                            <div class="border border-gray-200 rounded-lg p-4">
-                                <div class="mb-4 pb-3 border-b border-gray-200">
-                                    <div class="flex items-center justify-between">
-                                        <div>
-                                            <h3 class="text-lg font-semibold text-gray-800">
-                                                {{ $itemIndex + 1 }}. {{ $item->product->code }} - {{ $item->product->name }}
-                                            </h3>
-                                            <div class="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                                                <span>Loại: Thành phẩm</span>
-                                                <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
-                                                <span>Số lượng: {{ $item->quantity }}</span>
-                                            </div>
-                                        </div>
-                                        <div class="text-right">
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Kết quả tổng thể:</label>
-                                            <select name="item_results[{{ $item->id }}]" class="form-select testing-item-result rounded-md shadow-sm mt-1 block w-full" required data-material-id="{{ $item->product_id }}" data-material-name="{{ $item->product->name }}">
-                                                <option value="pending" {{ $item->result == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                                <option value="pass" {{ $item->result == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                                <option value="fail" {{ $item->result == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                                            </select>
+                    <!-- Thêm các trường ẩn cần thiết -->
+                    <input type="hidden" name="tester_id" value="{{ $testing->tester_id }}">
+                    <input type="hidden" name="assigned_to" value="{{ $testing->assigned_to }}">
+                    <input type="hidden" name="receiver_id" value="{{ $testing->receiver_id }}">
+                    <input type="hidden" name="test_date" value="{{ $testing->test_date->format('Y-m-d') }}">
+                    <input type="hidden" name="notes" value="{{ $testing->notes }}">
+                    
+                    @if ($errors->any())
+                        <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-4">
+                            <div class="font-medium">Có lỗi xảy ra:</div>
+                            <ul class="mt-1.5 list-disc list-inside">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                @endif
+                
+                    <div class="space-y-6">
+                        @foreach($testing->items->where('item_type', 'product') as $itemIndex => $item)
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="mb-4 pb-3 border-b border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-gray-800">
+                                            {{ $itemIndex + 1 }}. {{ $item->product->code }} - {{ $item->product->name }}
+                                        </h3>
+                                        <div class="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                            <span>Loại: Thành phẩm</span>
+                                            <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
+                                            <span>Số lượng: {{ $item->quantity }}</span>
                                         </div>
                                     </div>
+                                    <div class="text-right">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Kết quả tổng thể:</label>
+                                        <select name="item_results[{{ $item->id }}]" class="form-select testing-item-result rounded-md shadow-sm mt-1 block w-full" required data-material-id="{{ $item->product_id }}" data-material-name="{{ $item->product->name }}">
+                                            <option value="pending" {{ $item->result == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                            <option value="pass" {{ $item->result == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                            <option value="fail" {{ $item->result == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                
-                                <!-- Vật tư lắp ráp cho thành phẩm này -->
-                                <div class="mb-4">
-                                    <h4 class="font-medium text-gray-800 mb-2">Vật tư lắp ráp cho thành phẩm này:</h4>
-                                    @php
-                                        // Lấy vật tư từ assembly nếu có
-                                        $assemblyMaterials = collect();
-                                        if ($testing->assembly) {
-                                            // Lấy danh sách testing_items cho các vật tư để dễ truy cập
-                                            $testingItems = $testing->items
-                                                ->where('item_type', 'material')
-                                                ->keyBy('material_id');
-                                            
-                                            $assemblyMaterials = $testing->assembly->materials
-                                                ->where('target_product_id', $item->product_id)
-                                                ->map(function($asmMaterial) use ($testingItems) {
-                                                    // Tìm testing_item tương ứng trong danh sách
-                                                    $testingItem = $testingItems->get($asmMaterial->material_id);
-                                                    
-                                                    return (object)[
-                                                        'material' => $asmMaterial->material,
-                                                        'material_id' => $asmMaterial->material_id,
-                                                        'quantity' => $asmMaterial->quantity,
-                                                        'serial' => $asmMaterial->serial,
-                                                        'testing_item' => $testingItem
-                                                    ];
-                                                });
-                                        }
+                            </div>
+                            
+                            <!-- Vật tư lắp ráp cho thành phẩm này -->
+                            <div class="mb-4">
+                                <h4 class="font-medium text-gray-800 mb-2">Vật tư lắp ráp cho thành phẩm này:</h4>
+                                @php
+                                    // Lấy vật tư từ assembly nếu có
+                                    $assemblyMaterials = collect();
+                                    if ($testing->assembly) {
+                                        // Lấy danh sách testing_items cho các vật tư để dễ truy cập
+                                        $testingItems = $testing->items
+                                            ->where('item_type', 'material')
+                                            ->keyBy('material_id');
                                         
-                                        // Nếu không có assembly hoặc không có vật tư từ assembly, 
-                                        // lấy từ product_materials
-                                        if ($assemblyMaterials->isEmpty() && $item->product) {
-                                            // Lấy danh sách testing_items cho các vật tư để dễ truy cập
-                                            $testingItems = $testing->items
-                                                ->where('item_type', 'material')
-                                                ->keyBy('material_id');
-                                                
-                                            $assemblyMaterials = $item->product->materials->map(function($material) use ($testing, $testingItems) {
+                                        $assemblyMaterials = $testing->assembly->materials
+                                            ->where('target_product_id', $item->product_id)
+                                            ->map(function($asmMaterial) use ($testingItems) {
                                                 // Tìm testing_item tương ứng trong danh sách
-                                                $testingItem = $testingItems->get($material->id);
+                                                $testingItem = $testingItems->get($asmMaterial->material_id);
                                                 
-                                                // Tạo object giống với assembly_materials để dùng chung code
                                                 return (object)[
-                                                    'material' => $material,
-                                                    'material_id' => $material->id,
-                                                    'quantity' => $material->pivot->quantity,
-                                                    'serial' => null,
-                                                    // Tìm testing_item tương ứng nếu có
+                                                    'material' => $asmMaterial->material,
+                                                    'material_id' => $asmMaterial->material_id,
+                                                    'quantity' => $asmMaterial->quantity,
+                                                    'serial' => $asmMaterial->serial,
                                                     'testing_item' => $testingItem
                                                 ];
                                             });
-                                        }
-                                    @endphp
+                                    }
+                                    
+                                    // Nếu không có assembly hoặc không có vật tư từ assembly, 
+                                    // lấy từ product_materials
+                                    if ($assemblyMaterials->isEmpty() && $item->product) {
+                                        // Lấy danh sách testing_items cho các vật tư để dễ truy cập
+                                        $testingItems = $testing->items
+                                            ->where('item_type', 'material')
+                                            ->keyBy('material_id');
+                                            
+                                        $assemblyMaterials = $item->product->materials->map(function($material) use ($testing, $testingItems) {
+                                            // Tìm testing_item tương ứng trong danh sách
+                                            $testingItem = $testingItems->get($material->id);
+                                            
+                                            // Tạo object giống với assembly_materials để dùng chung code
+                                            return (object)[
+                                                'material' => $material,
+                                                'material_id' => $material->id,
+                                                'quantity' => $material->pivot->quantity,
+                                                'serial' => null,
+                                                // Tìm testing_item tương ứng nếu có
+                                                'testing_item' => $testingItem
+                                            ];
+                                        });
+                                    }
+                                @endphp
 
-                                    @if($assemblyMaterials->isNotEmpty())
-                                        <table class="min-w-full divide-y divide-gray-200 mb-2">
-                                <thead class="bg-gray-50">
-                                    <tr>
+                                @if($assemblyMaterials->isNotEmpty())
+                                    <table class="min-w-full divide-y divide-gray-200 mb-2">
+                        <thead class="bg-gray-50">
+                            <tr>
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã vật tư</th>
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên vật tư</th>
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn vị</th>
                                                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kết quả kiểm thử</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-100">
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
                                             @foreach($assemblyMaterials as $material)
                                                 <tr>
                                                     <td class="px-4 py-2 text-sm">{{ $material->material->code }}</td>
@@ -417,15 +331,15 @@
                                                                     <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Không đạt</span>
                                                                 @else
                                                                     <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
-                                    @endif
+                                                                @endif
                                                                 {{-- Debug info: {{ 'ID:' . $material->testing_item->id . ', Result:' . $material->testing_item->result }} --}}
                                                             @else
                                                                 <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
                                                                     {{-- Debug info: No testing item found for material {{ $material->material_id }} --}}
-                                    @endif
-                                @endif
+                                                            @endif
+                                                        @endif
                                                     </td>
-                                            </tr>
+                            </tr>
                                             @endforeach
                                         </tbody>
                                     </table>
@@ -589,15 +503,15 @@
                                                                         <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Không đạt</span>
                                                                     @else
                                                                         <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
-                                    @endif
-                                                                {{-- Debug info: {{ 'ID:' . $material->testing_item->id . ', Result:' . $material->testing_item->result }} --}}
-                                                            @else
-                                                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
+                                                                    @endif
+                                                                    {{-- Debug info: {{ 'ID:' . $material->testing_item->id . ', Result:' . $material->testing_item->result }} --}}
+                                                                @else
+                                                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">Chưa có</span>
                                                                     {{-- Debug info: No testing item found for material {{ $material->material_id }} --}}
-                                    @endif
-                                @endif
-                                                    </td>
-                                            </tr>
+                                                                @endif
+                                                            @endif
+                                                        </td>
+                                                    </tr>
                                                 @endforeach
                         </tbody>
                     </table>
@@ -612,7 +526,6 @@
                 </div>
                 @endif
             </div>
-            @endif
             
             @if($testing->test_type == 'finished_product')
             <!-- Chi tiết vật tư lắp ráp cho thành phẩm -->
@@ -1205,4 +1118,4 @@
         });
     </script>
 </body>
-</html> 
+</html>  
