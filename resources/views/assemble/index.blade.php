@@ -122,16 +122,18 @@
             </div>
         </header>
         <main class="p-6">
-            @if (session('success'))
-                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
-                    {!! session('success') !!}
-                </div>
-            @endif
-            @if (session('error'))
-                <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-                    {{ session('error') }}
-                </div>
-            @endif
+            <div id="notificationArea">
+                @if (session('success'))
+                    <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4" id="successAlert">
+                        {!! session('success') !!}
+                    </div>
+                @endif
+                @if (session('error'))
+                    <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" id="errorAlert">
+                        {{ session('error') }}
+                    </div>
+                @endif
+            </div>
             <div class="mb-4">
                 <div class="text-sm text-gray-600">
                     <span class="font-medium" id="resultCount">{{ $assemblies->count() }}</span> phiếu lắp ráp được tìm
@@ -192,6 +194,58 @@
             const assemblyTableContainer = document.getElementById('assemblyTableContainer');
             const resultCount = document.getElementById('resultCount');
             const filterTags = document.getElementById('filterTags');
+
+            // Auto-hide success/error alerts after 5 seconds
+            const successAlert = document.getElementById('successAlert');
+            const errorAlert = document.getElementById('errorAlert');
+            
+            if (successAlert) {
+                setTimeout(() => {
+                    successAlert.style.transition = 'opacity 0.5s ease-out';
+                    successAlert.style.opacity = '0';
+                    setTimeout(() => {
+                        successAlert.remove();
+                    }, 500);
+                }, 5000);
+            }
+            
+            if (errorAlert) {
+                setTimeout(() => {
+                    errorAlert.style.transition = 'opacity 0.5s ease-out';
+                    errorAlert.style.opacity = '0';
+                    setTimeout(() => {
+                        errorAlert.remove();
+                    }, 500);
+                }, 5000);
+            }
+
+            // Function to show notification
+            function showNotification(message, type = 'success') {
+                const notificationArea = document.getElementById('notificationArea');
+                
+                // Remove existing notifications
+                const existingAlerts = notificationArea.querySelectorAll('.alert-notification');
+                existingAlerts.forEach(alert => alert.remove());
+                
+                const alertClass = type === 'success' 
+                    ? 'bg-green-100 border-green-200 text-green-700' 
+                    : 'bg-red-100 border-red-200 text-red-700';
+                
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `${alertClass} px-4 py-3 rounded-lg mb-4 alert-notification`;
+                alertDiv.innerHTML = message;
+                
+                notificationArea.appendChild(alertDiv);
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    alertDiv.style.transition = 'opacity 0.5s ease-out';
+                    alertDiv.style.opacity = '0';
+                    setTimeout(() => {
+                        alertDiv.remove();
+                    }, 500);
+                }, 5000);
+            }
 
             // Toggle filter dropdown
             filterDropdownButton.addEventListener('click', function(e) {

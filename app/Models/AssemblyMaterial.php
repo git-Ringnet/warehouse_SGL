@@ -20,6 +20,7 @@ class AssemblyMaterial extends Model
         'target_product_id',
         'quantity',
         'serial',
+        'serial_id',
         'note',
     ];
 
@@ -45,5 +46,13 @@ class AssemblyMaterial extends Model
     public function targetProduct()
     {
         return $this->belongsTo(Product::class, 'target_product_id');
+    }
+
+    /**
+     * Get the serial for this assembly material.
+     */
+    public function serial()
+    {
+        return $this->belongsTo(Serial::class, 'serial_id');
     }
 } 
