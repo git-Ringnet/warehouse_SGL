@@ -310,6 +310,7 @@ Route::post('testing/{testing}/receive', [TestingController::class, 'receive'])-
 Route::post('testing/{testing}/complete', [TestingController::class, 'complete'])->name('testing.complete');
 Route::post('testing/{testing}/update-inventory', [TestingController::class, 'updateInventory'])->name('testing.update-inventory');
 Route::get('testing/{testing}/print', [TestingController::class, 'print'])->name('testing.print');
+Route::get('testing/{testing}/check-pending', [TestingController::class, 'checkPending'])->name('testing.check-pending');
 Route::get('api/testing/materials-by-type', [TestingController::class, 'getMaterialsByType'])->name('api.testing.materials-by-type');
 Route::get('api/testing/serial-numbers', [TestingController::class, 'getSerialNumbers'])->name('api.testing.serial-numbers');
 Route::get('api/items/{type}/{id}', [TestingController::class, 'getItemDetails'])->name('api.items.details');

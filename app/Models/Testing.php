@@ -73,7 +73,7 @@ class Testing extends Model
     }
 
     /**
-     * Get the employee who received this test.
+     * Get the employee that received this testing.
      */
     public function receiver()
     {
@@ -81,7 +81,7 @@ class Testing extends Model
     }
 
     /**
-     * Get the success warehouse for this test.
+     * Get the success warehouse for this testing.
      */
     public function successWarehouse()
     {
@@ -89,7 +89,7 @@ class Testing extends Model
     }
 
     /**
-     * Get the fail warehouse for this test.
+     * Get the fail warehouse for this testing.
      */
     public function failWarehouse()
     {
@@ -113,11 +113,11 @@ class Testing extends Model
     }
 
     /**
-     * Get the assembly associated with this test.
+     * Get the assembly related to this testing.
      */
     public function assembly()
     {
-        return $this->belongsTo(Assembly::class, 'assembly_id');
+        return $this->belongsTo(Assembly::class);
     }
 
     /**

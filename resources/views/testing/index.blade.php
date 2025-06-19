@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/delete-modal.js') }}"></script>
 </head>
 <body>
     <x-sidebar-component />
@@ -35,19 +36,15 @@
                 </a>
             </div>
         </header>
-
-        <main class="p-6">
-            @if(session('success'))
-            <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded" role="alert">
-                <p>{{ session('success') }}</p>
-            </div>
+        @if(session('success'))
+                <x-alert type="success" :message="session('success')" />
             @endif
 
             @if(session('error'))
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded" role="alert">
-                <p>{{ session('error') }}</p>
-            </div>
+                <x-alert type="error" :message="session('error')" />
             @endif
+        <main class="p-6">
+          
 
             <div class="mb-6">
                 <ul class="flex flex-wrap text-sm font-medium text-center border-b border-gray-200">
@@ -178,13 +175,13 @@
                                     </button>
                                 </form>
                                 
-                                <button onclick="openCompleteModal({{ $testing->id }})" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Hoàn thành">
+                                <button data-testing-id="{{ $testing->id }}" onclick="openCompleteModal(this.dataset.testingId)" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Hoàn thành">
                                     <i class="fas fa-flag-checkered text-green-500 group-hover:text-white"></i>
                                 </button>
                                 @endif
                                 
                                 @if($testing->status == 'completed' && !$testing->is_inventory_updated)
-                                <button onclick="openUpdateInventory({{ $testing->id }}, '{{ $testing->test_code }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Cập nhật về kho">
+                                <button data-testing-id="{{ $testing->id }}" data-test-code="{{ $testing->test_code }}" onclick="openUpdateInventory(this.dataset.testingId, this.dataset.testCode)" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Cập nhật về kho">
                                     <i class="fas fa-warehouse text-purple-500 group-hover:text-white"></i>
                                 </button>
                                 @endif
@@ -194,10 +191,10 @@
                                 </a>
                                 
                                 @if($testing->status != 'completed')
-                                <form action="{{ route('testing.destroy', $testing->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu kiểm thử này?');">
+                                <form action="{{ route('testing.destroy', $testing->id) }}" method="POST" id="delete-form-{{ $testing->id }}" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                    <button type="button" onclick="openDeleteModal('{{ $testing->id }}', '{{ $testing->test_code }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                         <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                     </button>
                                 </form>
@@ -238,25 +235,17 @@
             <form id="completeTestingForm" method="POST">
                 @csrf
                 <div class="px-6 py-4">
-                <div class="mb-4">
-                        <label for="pass_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng đạt</label>
-                        <input type="number" id="pass_quantity" name="pass_quantity" min="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                </div>
-                <div class="mb-4">
-                        <label for="fail_quantity" class="block text-sm font-medium text-gray-700 mb-1">Số lượng không đạt</label>
-                        <input type="number" id="fail_quantity" name="fail_quantity" min="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                </div>
-                <div class="mb-4">
-                        <label for="conclusion" class="block text-sm font-medium text-gray-700 mb-1">Kết luận</label>
-                        <textarea id="conclusion" name="conclusion" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required></textarea>
-                </div>
+                    <div class="mb-4">
+                        <p class="text-gray-700">Bạn có chắc chắn muốn hoàn thành phiếu kiểm thử này?</p>
+                        <p class="text-sm text-gray-600 mt-2">Hệ thống sẽ tự động tính toán kết quả dựa trên các hạng mục kiểm thử đã nhập.</p>
+                    </div>
                 </div>
                 <div class="px-6 py-3 bg-gray-50 flex justify-end rounded-b-lg">
                     <button type="button" onclick="closeCompleteModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg mr-2">
                         Hủy
                     </button>
                     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
-                        Hoàn thành
+                        Xác nhận
                     </button>
                 </div>
             </form>
@@ -311,6 +300,16 @@
     </div>
 
     <script>
+        // Khởi tạo modal xóa
+        document.addEventListener('DOMContentLoaded', function() {
+            initDeleteModal();
+        });
+
+        // Hàm xóa phiếu kiểm thử
+        function deleteCustomer(id) {
+            document.getElementById(`delete-form-${id}`).submit();
+        }
+
         // Show/hide result details
         function showResultDetails(id) {
             const element = document.getElementById(id);
@@ -323,8 +322,34 @@
 
         // Complete Modal functions
         function openCompleteModal(testingId) {
+            // Kiểm tra xem có thiết bị hoặc hạng mục nào đang pending không
+            fetch(`/testing/${testingId}/check-pending`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.has_pending) {
+                        let message = "Không thể hoàn thành phiếu kiểm thử:";
+                        
+                        if (data.pending_items > 0) {
+                            message += "\n- Còn " + data.pending_items + " thiết bị chưa có kết quả đánh giá";
+                        }
+                        if (data.pending_details > 0) {
+                            message += "\n- Còn " + data.pending_details + " hạng mục kiểm thử chưa có kết quả";
+                        }
+                        
+                        message += "\n\nVui lòng cập nhật đầy đủ kết quả trước khi hoàn thành.";
+                        
+                        alert(message);
+                        return;
+                    }
+                    
+                    // Nếu không có gì pending, hiển thị modal xác nhận
             document.getElementById('completeTestingForm').action = `/testing/${testingId}/complete`;
             document.getElementById('completeTestingModal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi kiểm tra trạng thái phiếu kiểm thử.');
+                });
         }
         
         function closeCompleteModal() {
@@ -341,6 +366,19 @@
 
         function closeUpdateInventoryModal() {
             document.getElementById('updateInventoryModal').classList.add('hidden');
+        }
+
+        // Mở modal xác nhận xóa
+        function openDeleteModal(id, testCode) {
+            // Ghi đè hàm deleteCustomer từ delete-modal.js
+            window.deleteCustomer = function(id) {
+                document.getElementById(`delete-form-${id}`).submit();
+            };
+            
+            document.getElementById('customerNameToDelete').innerText = `phiếu kiểm thử ${testCode}`;
+            document.getElementById('confirmDeleteBtn').setAttribute('onclick', `deleteCustomer('${id}')`);
+            document.getElementById('deleteModal').classList.add('show');
+            document.body.style.overflow = 'hidden';
         }
 
         // Close modals when clicking outside

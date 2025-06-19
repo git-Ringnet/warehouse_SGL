@@ -422,38 +422,51 @@ if ($assembly->products && $assembly->products->count() > 0) {
             </div>
 
             <!-- Buttons -->
-            <div class="flex flex-wrap gap-3 justify-end">
-                <button id="export-excel-btn"
-                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 no-print">
+                <div class="flex flex-wrap gap-3">
+                    <a href="{{ route('assemblies.edit', $assembly->id) }}" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
+                        <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                    </a>
+                    
+                    <a href="{{ route('assemblies.export.excel', $assembly->id) }}" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
                     <i class="fas fa-file-excel mr-2"></i> Xuất Excel
+                    </a>
+                    
+                    <a href="{{ route('assemblies.export.pdf', $assembly->id) }}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                        <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+                    </a>
+                    
+                    <button onclick="window.print()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center">
+                        <i class="fas fa-print mr-2"></i> In phiếu
                 </button>
-                <button id="export-pdf-btn"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                    <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+
+                    @if ($assembly->testings->isEmpty() || $assembly->testings->first()->status === 'cancelled')
+                        <a href="{{ route('testing.create', ['assembly_id' => $assembly->id]) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                            <i class="fas fa-vial mr-2"></i> Tạo phiếu kiểm thử
+                        </a>
+                    @else
+                        <a href="{{ route('testing.show', $assembly->testings->first()->id) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                            <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
+                        </a>
+                    @endif
+                    
+                    @if ($assembly->status !== 'completed')
+                        <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                                <i class="fas fa-trash-alt mr-2"></i> Xóa
                 </button>
+                        </form>
+                    @endif
+                </div>
             </div>
         </main>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Xử lý sự kiện in phiếu
-            const printBtn = document.getElementById('print-btn');
-            printBtn.addEventListener('click', function() {
-                window.print();
-            });
-
-            // Xử lý sự kiện xuất Excel
-            const exportExcelBtn = document.getElementById('export-excel-btn');
-            exportExcelBtn.addEventListener('click', function() {
-                window.location.href = '{{ route('assemblies.export.excel', $assembly->id) }}';
-            });
-
-            // Xử lý sự kiện xuất PDF
-            const exportPdfBtn = document.getElementById('export-pdf-btn');
-            exportPdfBtn.addEventListener('click', function() {
-                window.location.href = '{{ route('assemblies.export.pdf', $assembly->id) }}';
-            });
+            // Các hàm JavaScript khác nếu cần
         });
     </script>
 </body>
