@@ -259,13 +259,14 @@ Route::get('/api/dispatch/items/all', [DispatchController::class, 'getAllAvailab
 Route::prefix('warranties')->name('warranties.')->group(function () {
     Route::get('/', [WarrantyController::class, 'index'])->name('index');
     Route::get('/{warranty}', [WarrantyController::class, 'show'])->name('show');
-    Route::patch('/{warranty}/status', [WarrantyController::class, 'updateStatus'])->name('update-status');
 });
 
 // Public warranty check routes
 Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
 Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
 Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
+
+
 
 // Legacy routes for compatibility
 Route::get('/inventory/dispatch', [DispatchController::class, 'create']);

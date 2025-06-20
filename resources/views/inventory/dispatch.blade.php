@@ -123,7 +123,7 @@
                             </select>
                             <input type="hidden" id="project_id" name="project_id">
                         </div>
-                        
+
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
                             <label for="rental_receiver"
@@ -414,54 +414,190 @@
             let selectedBackupProducts = [];
             let availableItems = []; // Lưu danh sách sản phẩm từ kho đã chọn
 
-            // Hàm tạo serial inputs theo quantity
+            // Hàm tạo serial selects theo quantity
             function generateSerialInputs(quantity, category, productId, index) {
                 let inputs = '';
                 const borderColor = category === 'contract' ? 'border-blue-300 focus:ring-blue-500' :
                     'border-orange-300 focus:ring-orange-500';
 
+                // Get product info for data attributes
+                const product = (category === 'contract' ? selectedContractProducts : selectedBackupProducts)[
+                    index];
+
                 for (let i = 0; i < quantity; i++) {
                     inputs +=
-                        `<input type="text" 
-                                     name="${category}_serials[${productId}][${i}]" 
-                                     placeholder="Serial ${i + 1}"
-                                     class="w-32 border ${borderColor} rounded px-2 py-1 text-xs focus:outline-none focus:ring-1">`;
+                        `<select name="${category}_serials[${productId}][${i}]" 
+                                class="w-32 border ${borderColor} rounded px-2 py-1 text-xs focus:outline-none focus:ring-1"
+                                data-item-type="${product?.type || 'product'}" 
+                                data-item-id="${productId}" 
+                                data-warehouse-id="${product?.selected_warehouse_id || ''}"
+                                data-serial-index="${i}">
+                            <option value="">-- Chọn Serial ${i + 1} --</option>
+                        </select>`;
                 }
                 return inputs;
             }
 
-            // Hàm cập nhật serial inputs khi quantity thay đổi
+            // Hàm cập nhật serial selects khi quantity thay đổi
             function updateSerialInputsCreate(quantity, category, productId, index) {
                 const container = document.getElementById(`${category}-serials-${index}`);
                 if (container) {
                     // Lưu giá trị hiện tại
-                    const currentInputs = container.querySelectorAll('input');
-                    const currentValues = Array.from(currentInputs).map(input => input.value);
+                    const currentSelects = container.querySelectorAll('select');
+                    const currentValues = Array.from(currentSelects).map(select => select.value);
 
-                    // Tạo lại inputs
+                    // Tạo lại selects
                     container.innerHTML = '';
                     const borderColor = category === 'contract' ? 'border-blue-300 focus:ring-blue-500' :
                         'border-orange-300 focus:ring-orange-500';
 
+                    // Get product info for data attributes
+                    const product = (category === 'contract' ? selectedContractProducts : selectedBackupProducts)[
+                        index];
+
                     for (let i = 0; i < quantity; i++) {
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.name = `${category}_serials[${productId}][${i}]`;
-                        input.placeholder = `Serial ${i + 1}`;
-                        input.value = currentValues[i] || '';
-                        input.className =
+                        const select = document.createElement('select');
+                        select.name = `${category}_serials[${productId}][${i}]`;
+                        select.className =
                             `w-32 border ${borderColor} rounded px-2 py-1 text-xs focus:outline-none focus:ring-1`;
 
-                        container.appendChild(input);
+                        // Set data attributes for loading serials
+                        select.setAttribute('data-item-type', product?.type || 'product');
+                        select.setAttribute('data-item-id', productId);
+                        select.setAttribute('data-warehouse-id', product?.selected_warehouse_id || '');
+                        select.setAttribute('data-serial-index', i);
+                        select.setAttribute('data-selected-serial', currentValues[i] || '');
+
+                        // Add default option
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = `-- Chọn Serial ${i + 1} --`;
+                        select.appendChild(defaultOption);
+
+                        // If there was a previously selected value, add it as selected option
+                        if (currentValues[i]) {
+                            const selectedOption = document.createElement('option');
+                            selectedOption.value = currentValues[i];
+                            selectedOption.textContent = currentValues[i];
+                            selectedOption.selected = true;
+                            select.appendChild(selectedOption);
+                        }
+
+                        // Add change event listener for validation
+                        select.addEventListener('change', validateSerialOnChange);
+                        select.setAttribute('data-validation-listener', 'true');
+
+                        container.appendChild(select);
                     }
+
+                    // Load available serials for new selects (this will populate all available options)
+                    loadAvailableSerials();
                 }
             }
 
             // Load tất cả sản phẩm từ tất cả kho ngay từ đầu
             loadAllAvailableItems();
-            
+
             // Load danh sách hợp đồng cho thuê
             loadRentals();
+
+            // Initial validation and option availability update after data loads
+            setTimeout(function() {
+                updateSerialOptionsAvailability();
+            }, 1000);
+
+            // Hàm load available serial numbers cho tất cả serial selects
+            async function loadAvailableSerials() {
+                const serialSelects = document.querySelectorAll('select[name*="serials"]');
+
+                for (const select of serialSelects) {
+                    if (select.disabled) continue; // Skip disabled selects
+
+                    const itemType = select.dataset.itemType;
+                    const itemId = select.dataset.itemId;
+                    const warehouseId = select.dataset.warehouseId;
+                    const selectedSerial = select.dataset.selectedSerial;
+
+                    if (!itemType || !itemId || !warehouseId) continue;
+
+                    try {
+                        const response = await fetch(
+                            `/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}`
+                        );
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Log serial availability info for debugging
+                            if (data.total_serials && data.used_serials) {
+                                console.log(
+                                    `Serials for ${itemType} ${itemId}: ${data.available_serials}/${data.total_serials} available (${data.used_serials} used)`
+                                );
+
+                                // Show warning if low availability
+                                if (data.available_serials < data.total_serials * 0.2 && data
+                                    .available_serials > 0) {
+                                    console.warn(
+                                        `Low serial availability for ${itemType} ${itemId}: Only ${data.available_serials} out of ${data.total_serials} serials available`
+                                    );
+                                } else if (data.available_serials === 0 && data.total_serials > 0) {
+                                    console.error(
+                                        `No serial available for ${itemType} ${itemId}: All ${data.total_serials} serials are already used in approved dispatches`
+                                    );
+                                }
+                            }
+
+                            if (data.serials.length > 0) {
+                                // Save currently selected value if any
+                                const currentlySelected = select.value;
+
+                                // Clear existing options except default and currently selected
+                                const optionsToRemove = [];
+                                for (let i = 1; i < select.children.length; i++) {
+                                    const option = select.children[i];
+                                    if (option.value !== currentlySelected) {
+                                        optionsToRemove.push(option);
+                                    }
+                                }
+                                optionsToRemove.forEach(option => option.remove());
+
+                                // Add serial options that are not already added
+                                data.serials.forEach(serial => {
+                                    // Check if this serial already exists in the select
+                                    const existingOption = Array.from(select.options).find(opt => opt
+                                        .value === serial);
+                                    if (!existingOption) {
+                                        const option = document.createElement('option');
+                                        option.value = serial;
+                                        option.textContent = serial;
+
+                                        // Select this option if it matches the previously selected serial
+                                        if (serial === selectedSerial || serial === currentlySelected) {
+                                            option.selected = true;
+                                        }
+
+                                        select.appendChild(option);
+                                    }
+                                });
+
+                                // Ensure the correct value is selected
+                                if (currentlySelected) {
+                                    select.value = currentlySelected;
+                                } else if (selectedSerial) {
+                                    select.value = selectedSerial;
+                                }
+
+                                // Add change event listener for validation
+                                if (!select.hasAttribute('data-validation-listener')) {
+                                    select.addEventListener('change', validateSerialOnChange);
+                                    select.setAttribute('data-validation-listener', 'true');
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error loading serials:', error);
+                    }
+                }
+            }
 
             // Xử lý thêm sản phẩm hợp đồng
             const addContractProductBtn = document.getElementById('add_contract_product_btn');
@@ -535,8 +671,9 @@
                         const rentalSelect = document.getElementById('rental_receiver');
                         if (rentalSelect) {
                             // Clear existing options
-                            rentalSelect.innerHTML = '<option value="">-- Chọn hợp đồng cho thuê --</option>';
-                            
+                            rentalSelect.innerHTML =
+                                '<option value="">-- Chọn hợp đồng cho thuê --</option>';
+
                             // Add rental options
                             data.rentals.forEach(rental => {
                                 const option = document.createElement('option');
@@ -561,13 +698,15 @@
                 // Cập nhật dropdown hợp đồng
                 const contractProductSelect = document.getElementById('contract_product_select');
                 if (contractProductSelect) {
-                    contractProductSelect.innerHTML = '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                    contractProductSelect.innerHTML =
+                        '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
                 }
 
                 // Cập nhật dropdown dự phòng
                 const backupProductSelect = document.getElementById('backup_product_select');
                 if (backupProductSelect) {
-                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                    backupProductSelect.innerHTML =
+                        '<option value="">-- Chọn thiết bị dự phòng --</option>';
                 }
 
                 // Thêm options từ availableItems
@@ -589,12 +728,14 @@
             function clearProductSelects() {
                 const contractProductSelect = document.getElementById('contract_product_select');
                 if (contractProductSelect) {
-                    contractProductSelect.innerHTML = '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                    contractProductSelect.innerHTML =
+                        '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
                 }
 
                 const backupProductSelect = document.getElementById('backup_product_select');
                 if (backupProductSelect) {
-                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                    backupProductSelect.innerHTML =
+                        '<option value="">-- Chọn thiết bị dự phòng --</option>';
                 }
             }
 
@@ -618,9 +759,11 @@
                     selectedContractProducts.push({
                         ...foundProduct,
                         quantity: 1,
-                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
-                            0].warehouse_id : null,
-                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0]
+                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct
+                            .warehouses[
+                                0].warehouse_id : null,
+                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
+                                0]
                             .quantity : 0
                     });
 
@@ -652,9 +795,11 @@
                     selectedBackupProducts.push({
                         ...foundProduct,
                         quantity: 1,
-                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
-                            0].warehouse_id : null,
-                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0]
+                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct
+                            .warehouses[
+                                0].warehouse_id : null,
+                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
+                                0]
                             .quantity : 0
                     });
 
@@ -698,7 +843,7 @@
             if (dispatchTypeSelect) {
                 dispatchTypeSelect.addEventListener('change', function() {
                     const selectedType = this.value;
-                    
+
                     const projectSection = document.getElementById('project_section');
                     const rentalSection = document.getElementById('rental_section');
                     const projectReceiverInput = document.getElementById('project_receiver');
@@ -715,37 +860,38 @@
                         // Hiển thị phần cho thuê, ẩn phần dự án
                         rentalSection.classList.remove('hidden');
                         rentalReceiverInput.setAttribute('required', 'required');
-                        
+
                         // Tắt required cho project_receiver vì đang dùng rental
                         projectReceiverInput.removeAttribute('required');
-                        
+
                         // Ẩn project section để tránh confusion
                         projectSection.classList.add('hidden');
-                        
+
                         // Set project_receiver = rental_receiver để tương thích với backend
                         const syncRentalToProject = function() {
                             projectReceiverInput.value = rentalReceiverInput.value;
                         };
-                        
+
                         // Xóa event listener cũ nếu có để tránh duplicate
                         rentalReceiverInput.removeEventListener('input', syncRentalToProject);
                         rentalReceiverInput.removeEventListener('change', syncRentalToProject);
-                        
+
                         // Thêm event listeners mới
                         rentalReceiverInput.addEventListener('input', syncRentalToProject);
                         rentalReceiverInput.addEventListener('change', syncRentalToProject);
-                        
+
                         // Đồng bộ giá trị hiện tại
                         syncRentalToProject();
-                        
+
                         // Không tự động chọn, để người dùng tự chọn
                         if (dispatchDetailSelect) {
                             dispatchDetailSelect.disabled = false;
                             dispatchDetailSelect.value = ''; // Reset về chưa chọn
                         }
-                        
+
                         // Xóa hidden input nếu có
-                        const hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                        const hiddenDispatchDetail = document.getElementById(
+                            'hidden_dispatch_detail');
                         if (hiddenDispatchDetail) {
                             hiddenDispatchDetail.remove();
                         }
@@ -753,15 +899,16 @@
                         // Hiển thị phần dự án, ẩn phần cho thuê
                         projectSection.classList.remove('hidden');
                         projectReceiverInput.setAttribute('required', 'required');
-                        
+
                         // Không tự động chọn, để người dùng tự chọn
                         if (dispatchDetailSelect) {
                             dispatchDetailSelect.disabled = false;
                             dispatchDetailSelect.value = ''; // Reset về chưa chọn
                         }
-                        
+
                         // Xóa hidden input nếu có
-                        const hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                        const hiddenDispatchDetail = document.getElementById(
+                            'hidden_dispatch_detail');
                         if (hiddenDispatchDetail) {
                             hiddenDispatchDetail.remove();
                         }
@@ -769,23 +916,25 @@
                         // Hiển thị phần dự án, ẩn phần cho thuê
                         projectSection.classList.remove('hidden');
                         projectReceiverInput.setAttribute('required', 'required');
-                        
+
                         // Tự động chọn "backup" và disable dropdown cho warranty
                         if (dispatchDetailSelect) {
                             dispatchDetailSelect.value = 'backup';
                             dispatchDetailSelect.disabled = true;
-                            
+
                             // Tạo hidden input để đảm bảo giá trị được gửi đi
-                            let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                            let hiddenDispatchDetail = document.getElementById(
+                                'hidden_dispatch_detail');
                             if (!hiddenDispatchDetail) {
                                 hiddenDispatchDetail = document.createElement('input');
                                 hiddenDispatchDetail.type = 'hidden';
                                 hiddenDispatchDetail.id = 'hidden_dispatch_detail';
                                 hiddenDispatchDetail.name = 'dispatch_detail';
-                                document.getElementById('dispatch-form').appendChild(hiddenDispatchDetail);
+                                document.getElementById('dispatch-form').appendChild(
+                                    hiddenDispatchDetail);
                             }
                             hiddenDispatchDetail.value = 'backup';
-                            
+
                             // Trigger change event để hiển thị backup product list
                             dispatchDetailSelect.dispatchEvent(new Event('change'));
                         }
@@ -801,7 +950,8 @@
                     const projectIdInput = document.getElementById('project_id');
 
                     if (selectedOption && selectedOption.dataset.warrantyPeriod) {
-                        warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
+                        warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod +
+                            ' tháng';
                         projectIdInput.value = selectedOption.dataset.projectId || '';
                     } else {
                         warrantyPeriodInput.value = '';
@@ -818,7 +968,8 @@
                 if (!contractProductList || !noContractProductsRow) return;
 
                 // Xóa tất cả hàng hiện tại (trừ hàng "không có sản phẩm")
-                const existingRows = contractProductList.querySelectorAll('tr:not(#no_contract_products_row)');
+                const existingRows = contractProductList.querySelectorAll(
+                    'tr:not(#no_contract_products_row)');
                 existingRows.forEach(row => row.remove());
 
                 if (selectedContractProducts.length === 0) {
@@ -873,7 +1024,8 @@
                 });
 
                 // Thêm event listeners cho dropdown kho xuất hợp đồng
-                const contractWarehouseSelects = contractProductList.querySelectorAll('.contract-warehouse-select');
+                const contractWarehouseSelects = contractProductList.querySelectorAll(
+                    '.contract-warehouse-select');
                 contractWarehouseSelects.forEach(select => {
                     select.addEventListener('change', function() {
                         const index = parseInt(this.dataset.index);
@@ -882,24 +1034,29 @@
                         const newQuantity = parseInt(selectedOption.dataset.quantity);
 
                         // Cập nhật thông tin kho đã chọn
-                        selectedContractProducts[index].selected_warehouse_id = newWarehouseId;
+                        selectedContractProducts[index].selected_warehouse_id =
+                            newWarehouseId;
                         selectedContractProducts[index].current_stock = newQuantity;
 
                         // Cập nhật hiển thị tồn kho
-                        const stockCell = document.getElementById(`contract-stock-${index}`);
+                        const stockCell = document.getElementById(
+                            `contract-stock-${index}`);
                         if (stockCell) {
                             stockCell.textContent = newQuantity;
                         }
 
                         // Cập nhật max cho input số lượng
-                        const quantityInput = document.getElementById(`contract-quantity-${index}`);
+                        const quantityInput = document.getElementById(
+                            `contract-quantity-${index}`);
                         if (quantityInput) {
                             quantityInput.max = newQuantity;
                             // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                             if (parseInt(quantityInput.value) > newQuantity) {
-                                quantityInput.value = Math.min(parseInt(quantityInput.value),
+                                quantityInput.value = Math.min(parseInt(quantityInput
+                                        .value),
                                     newQuantity);
-                                selectedContractProducts[index].quantity = parseInt(quantityInput
+                                selectedContractProducts[index].quantity = parseInt(
+                                    quantityInput
                                     .value);
                             }
                         }
@@ -910,7 +1067,8 @@
                 });
 
                 // Thêm event listeners cho các input và nút xóa
-                const contractQuantityInputs = contractProductList.querySelectorAll('.contract-quantity-input');
+                const contractQuantityInputs = contractProductList.querySelectorAll(
+                    '.contract-quantity-input');
                 contractQuantityInputs.forEach(input => {
                     input.addEventListener('change', function() {
                         const index = parseInt(this.dataset.index);
@@ -926,7 +1084,8 @@
                     });
                 });
 
-                const removeContractButtons = contractProductList.querySelectorAll('.remove-contract-product');
+                const removeContractButtons = contractProductList.querySelectorAll(
+                    '.remove-contract-product');
                 removeContractButtons.forEach(button => {
                     button.addEventListener('click', function() {
                         const index = parseInt(this.dataset.index);
@@ -936,6 +1095,9 @@
                         showStockWarnings();
                     });
                 });
+
+                // Load available serials cho contract products
+                loadAvailableSerials();
             }
 
             // Hàm hiển thị bảng thiết bị dự phòng
@@ -1001,7 +1163,8 @@
                 });
 
                 // Thêm event listeners cho dropdown kho xuất dự phòng
-                const backupWarehouseSelects = backupProductList.querySelectorAll('.backup-warehouse-select');
+                const backupWarehouseSelects = backupProductList.querySelectorAll(
+                    '.backup-warehouse-select');
                 backupWarehouseSelects.forEach(select => {
                     select.addEventListener('change', function() {
                         const index = parseInt(this.dataset.index);
@@ -1010,7 +1173,8 @@
                         const newQuantity = parseInt(selectedOption.dataset.quantity);
 
                         // Cập nhật thông tin kho đã chọn
-                        selectedBackupProducts[index].selected_warehouse_id = newWarehouseId;
+                        selectedBackupProducts[index].selected_warehouse_id =
+                            newWarehouseId;
                         selectedBackupProducts[index].current_stock = newQuantity;
 
                         // Cập nhật hiển thị tồn kho
@@ -1020,14 +1184,17 @@
                         }
 
                         // Cập nhật max cho input số lượng
-                        const quantityInput = document.getElementById(`backup-quantity-${index}`);
+                        const quantityInput = document.getElementById(
+                            `backup-quantity-${index}`);
                         if (quantityInput) {
                             quantityInput.max = newQuantity;
                             // Nếu số lượng hiện tại lớn hơn tồn kho mới, giảm xuống
                             if (parseInt(quantityInput.value) > newQuantity) {
-                                quantityInput.value = Math.min(parseInt(quantityInput.value),
+                                quantityInput.value = Math.min(parseInt(quantityInput
+                                        .value),
                                     newQuantity);
-                                selectedBackupProducts[index].quantity = parseInt(quantityInput
+                                selectedBackupProducts[index].quantity = parseInt(
+                                    quantityInput
                                     .value);
                             }
                         }
@@ -1046,8 +1213,9 @@
                         if (selectedBackupProducts[index]) {
                             selectedBackupProducts[index].quantity = newQuantity;
                             // Cập nhật serial inputs
-                            updateSerialInputsCreate(newQuantity, 'backup', selectedBackupProducts[
-                                index].id, index);
+                            updateSerialInputsCreate(newQuantity, 'backup',
+                                selectedBackupProducts[
+                                    index].id, index);
                         }
                         // Kiểm tra tồn kho ngay khi thay đổi
                         showStockWarnings();
@@ -1064,11 +1232,15 @@
                         showStockWarnings();
                     });
                 });
+
+                // Load available serials cho backup products
+                loadAvailableSerials();
             }
 
             // Xử lý modal cập nhật mã thiết bị
             const updateDeviceCodesBtn = document.getElementById('update_device_codes_btn');
-            const updateContractDeviceCodesBtn = document.getElementById('update_contract_device_codes_btn');
+            const updateContractDeviceCodesBtn = document.getElementById(
+                'update_contract_device_codes_btn');
             const updateBackupDeviceCodesBtn = document.getElementById('update_backup_device_codes_btn');
             const deviceCodeModal = document.getElementById('device-code-modal');
             const closeDeviceCodeModalBtn = document.getElementById('close-device-code-modal');
@@ -1307,6 +1479,101 @@
                 }
             }
 
+            // Hàm kiểm tra serial numbers có bị trùng lặp không
+            function validateSerialNumbers() {
+                const allSerialSelects = document.querySelectorAll('select[name*="serials"]');
+                const selectedSerials = [];
+                const duplicates = [];
+
+                // Thu thập tất cả serial numbers đã chọn
+                allSerialSelects.forEach(select => {
+                    if (select.value && select.value.trim() !== '') {
+                        const serialValue = select.value.trim();
+                        if (selectedSerials.includes(serialValue)) {
+                            if (!duplicates.includes(serialValue)) {
+                                duplicates.push(serialValue);
+                            }
+                        } else {
+                            selectedSerials.push(serialValue);
+                        }
+                    }
+                });
+
+                return duplicates;
+            }
+
+            // Hàm hiển thị cảnh báo serial trùng lặp
+            function showSerialDuplicateWarning(duplicates) {
+                // Xóa cảnh báo cũ
+                const oldWarning = document.querySelector('.serial-duplicate-warning');
+                if (oldWarning) {
+                    oldWarning.remove();
+                }
+
+                if (duplicates.length > 0) {
+                    // Tạo div cảnh báo
+                    const warningDiv = document.createElement('div');
+                    warningDiv.className =
+                        'serial-duplicate-warning bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                    warningDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Cảnh báo Serial trùng lặp:</strong>
+                        </div>
+                        <p class="mt-2">Các serial numbers sau đã được chọn nhiều lần: <strong>${duplicates.join(', ')}</strong></p>
+                        <p class="text-sm mt-1">Vui lòng chọn serial numbers khác nhau cho mỗi sản phẩm.</p>
+                    `;
+
+                    // Thêm vào đầu form
+                    const form = document.getElementById('dispatch-form');
+                    form.insertBefore(warningDiv, form.firstChild);
+                }
+            }
+
+            // Hàm validate serial khi user thay đổi selection
+            function validateSerialOnChange() {
+                const duplicates = validateSerialNumbers();
+                showSerialDuplicateWarning(duplicates);
+
+                // Disable các option đã chọn ở select khác
+                updateSerialOptionsAvailability();
+            }
+
+            // Hàm cập nhật available options cho serial selects
+            function updateSerialOptionsAvailability() {
+                const allSerialSelects = document.querySelectorAll('select[name*="serials"]');
+                const selectedValues = [];
+
+                // Thu thập tất cả giá trị đã chọn
+                allSerialSelects.forEach(select => {
+                    if (select.value && select.value.trim() !== '') {
+                        selectedValues.push(select.value.trim());
+                    }
+                });
+
+                // Cập nhật từng select
+                allSerialSelects.forEach(currentSelect => {
+                    const currentValue = currentSelect.value;
+
+                    Array.from(currentSelect.options).forEach(option => {
+                        if (option.value === '') return; // Skip default option
+
+                        if (selectedValues.includes(option.value) && option.value !==
+                            currentValue) {
+                            // Serial này đã được chọn ở select khác
+                            option.disabled = true;
+                            option.style.color = '#9CA3AF'; // Gray color
+                            option.style.backgroundColor = '#F3F4F6';
+                        } else {
+                            // Serial có thể chọn
+                            option.disabled = false;
+                            option.style.color = '';
+                            option.style.backgroundColor = '';
+                        }
+                    });
+                });
+            }
+
             // Xử lý form submit
             const dispatchForm = document.getElementById('dispatch-form');
             if (dispatchForm) {
@@ -1317,22 +1584,64 @@
                     const dispatchType = document.getElementById('dispatch_type').value;
                     const projectReceiver = document.getElementById('project_receiver').value;
                     const rentalReceiver = document.getElementById('rental_receiver').value;
-                    
+
                     console.log('Dispatch type:', dispatchType);
                     console.log('Project receiver:', projectReceiver);
                     console.log('Rental receiver:', rentalReceiver);
-                    
+
                     // Đảm bảo project_receiver có giá trị khi dispatch_type là rental
                     if (dispatchType === 'rental' && !projectReceiver && rentalReceiver) {
                         console.log('Syncing rental receiver to project receiver');
                         document.getElementById('project_receiver').value = rentalReceiver;
                     }
 
-                    // Kiểm tra xem có sản phẩm nào được chọn không
-                    if (selectedContractProducts.length === 0 && selectedBackupProducts.length === 0) {
+                    // Kiểm tra xem có sản phẩm nào được chọn không dựa trên dispatch_detail
+                    const dispatchDetail = document.getElementById('dispatch_detail').value;
+                    let hasRequiredProducts = false;
+                    let errorMessage = '';
+
+                    if (dispatchDetail === 'all') {
+                        // Với "Tất cả", cần ít nhất một sản phẩm hợp đồng VÀ một thiết bị dự phòng
+                        if (selectedContractProducts.length === 0 && selectedBackupProducts.length === 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Vui lòng chọn ít nhất một sản phẩm hợp đồng và một thiết bị dự phòng để xuất kho!';
+                        } else if (selectedContractProducts.length === 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Phiếu xuất "Tất cả" phải có ít nhất một sản phẩm hợp đồng!';
+                        } else if (selectedBackupProducts.length === 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Phiếu xuất "Tất cả" phải có ít nhất một thiết bị dự phòng!';
+                        } else {
+                            hasRequiredProducts = true;
+                        }
+                    } else if (dispatchDetail === 'contract') {
+                        // Với "Xuất theo hợp đồng", cần ít nhất một sản phẩm hợp đồng và KHÔNG được có dự phòng
+                        if (selectedContractProducts.length === 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Vui lòng chọn ít nhất một thành phẩm theo hợp đồng để xuất kho!';
+                        } else if (selectedBackupProducts.length > 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.';
+                        } else {
+                            hasRequiredProducts = true;
+                        }
+                    } else if (dispatchDetail === 'backup') {
+                        // Với "Xuất thiết bị dự phòng", cần ít nhất một thiết bị dự phòng và KHÔNG được có hợp đồng
+                        if (selectedBackupProducts.length === 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Vui lòng chọn ít nhất một thiết bị dự phòng để xuất kho!';
+                        } else if (selectedContractProducts.length > 0) {
+                            hasRequiredProducts = false;
+                            errorMessage = 'Phiếu xuất thiết bị dự phòng không được chứa sản phẩm hợp đồng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.';
+                        } else {
+                            hasRequiredProducts = true;
+                        }
+                    }
+
+                    if (!hasRequiredProducts) {
                         e.preventDefault();
-                        console.log('FORM SUBMIT PREVENTED: No products selected');
-                        alert('Vui lòng chọn ít nhất một sản phẩm để xuất kho!');
+                        console.log('FORM SUBMIT PREVENTED: No required products selected for dispatch_detail:', dispatchDetail);
+                        alert(errorMessage);
                         return;
                     }
 
@@ -1342,6 +1651,17 @@
                         e.preventDefault();
                         console.log('FORM SUBMIT PREVENTED: Stock validation failed');
                         alert('Không đủ tồn kho:\n\n' + stockErrors.join('\n'));
+                        return;
+                    }
+
+                    // Kiểm tra serial numbers trùng lặp trước khi submit
+                    const duplicateSerials = validateSerialNumbers();
+                    if (duplicateSerials.length > 0) {
+                        e.preventDefault();
+                        console.log('FORM SUBMIT PREVENTED: Duplicate serial numbers');
+                        alert('Có serial numbers bị trùng lặp:\n\n' + duplicateSerials.join(', ') +
+                            '\n\nVui lòng chọn serial numbers khác nhau!');
+                        showSerialDuplicateWarning(duplicateSerials);
                         return;
                     }
 
@@ -1355,7 +1675,8 @@
                         const itemTypeInput = document.createElement('input');
                         itemTypeInput.type = 'hidden';
                         itemTypeInput.name = `items[${itemIndex}][item_type]`;
-                        const validType = ['material', 'product', 'good'].includes(product.type) ?
+                        const validType = ['material', 'product', 'good'].includes(product
+                                .type) ?
                             product.type : 'material';
                         itemTypeInput.value = validType;
                         this.appendChild(itemTypeInput);
@@ -1386,19 +1707,23 @@
                         this.appendChild(categoryInput);
 
                         // Thêm serial numbers cho sản phẩm hợp đồng nếu có
-                        const contractSerialInputs = document.querySelectorAll(
-                            `input[name^="contract_serials[${product.id}]"]`);
-                        if (contractSerialInputs.length > 0) {
-                            const serialsArray = Array.from(contractSerialInputs)
-                                .map(input => input.value.trim())
+                        const contractSerialSelects = document.querySelectorAll(
+                            `select[name^="contract_serials[${product.id}]"]`);
+                        if (contractSerialSelects.length > 0) {
+                            const serialsArray = Array.from(contractSerialSelects)
+                                .map(select => select.value.trim())
                                 .filter(value => value.length > 0);
 
                             if (serialsArray.length > 0) {
                                 const serialNumbersInput = document.createElement('input');
                                 serialNumbersInput.type = 'hidden';
-                                serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                                serialNumbersInput.name =
+                                    `items[${itemIndex}][serial_numbers]`;
                                 serialNumbersInput.value = JSON.stringify(serialsArray);
                                 this.appendChild(serialNumbersInput);
+
+                                console.log(`Contract product ${product.id} serials:`,
+                                    serialsArray);
                             }
                         }
 
@@ -1410,7 +1735,8 @@
                         const itemTypeInput = document.createElement('input');
                         itemTypeInput.type = 'hidden';
                         itemTypeInput.name = `items[${itemIndex}][item_type]`;
-                        const validType = ['material', 'product', 'good'].includes(product.type) ?
+                        const validType = ['material', 'product', 'good'].includes(product
+                                .type) ?
                             product.type : 'material';
                         itemTypeInput.value = validType;
                         this.appendChild(itemTypeInput);
@@ -1441,19 +1767,23 @@
                         this.appendChild(categoryInput);
 
                         // Thêm serial numbers cho thiết bị dự phòng nếu có
-                        const backupSerialInputs = document.querySelectorAll(
-                            `input[name^="backup_serials[${product.id}]"]`);
-                        if (backupSerialInputs.length > 0) {
-                            const serialsArray = Array.from(backupSerialInputs)
-                                .map(input => input.value.trim())
+                        const backupSerialSelects = document.querySelectorAll(
+                            `select[name^="backup_serials[${product.id}]"]`);
+                        if (backupSerialSelects.length > 0) {
+                            const serialsArray = Array.from(backupSerialSelects)
+                                .map(select => select.value.trim())
                                 .filter(value => value.length > 0);
 
                             if (serialsArray.length > 0) {
                                 const serialNumbersInput = document.createElement('input');
                                 serialNumbersInput.type = 'hidden';
-                                serialNumbersInput.name = `items[${itemIndex}][serial_numbers]`;
+                                serialNumbersInput.name =
+                                    `items[${itemIndex}][serial_numbers]`;
                                 serialNumbersInput.value = JSON.stringify(serialsArray);
                                 this.appendChild(serialNumbersInput);
+
+                                console.log(`Backup product ${product.id} serials:`,
+                                    serialsArray);
                             }
                         }
 
@@ -1479,7 +1809,8 @@
                     const submitBtn = document.getElementById('submit-btn');
                     if (submitBtn) {
                         submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang xử lý...';
+                        submitBtn.innerHTML =
+                            '<i class="fas fa-spinner fa-spin mr-2"></i> Đang xử lý...';
                     }
                 });
             } else {
