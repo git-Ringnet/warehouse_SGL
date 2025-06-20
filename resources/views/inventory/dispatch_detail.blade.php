@@ -39,10 +39,15 @@
                             <i class="fas fa-check mr-2"></i> Duyệt phiếu
                         </button>
                     @endif
-                    @if (!in_array($dispatch->status, ['completed', 'cancelled']))
+                    @if ($dispatch->status === 'pending')
                         <button onclick="cancelDispatch({{ $dispatch->id }})"
                             class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                             <i class="fas fa-times mr-2"></i> Hủy phiếu
+                        </button>
+                    @elseif($dispatch->status === 'cancelled')
+                        <button onclick="deleteDispatch({{ $dispatch->id }})"
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-trash mr-2"></i> Xóa phiếu
                         </button>
                     @endif
                 </div>
@@ -268,11 +273,16 @@
                                             @php
                                                 $currentStock = 0;
                                                 if ($item->item) {
-                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $item->item_type)
+                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where(
+                                                        'item_type',
+                                                        $item->item_type,
+                                                    )
                                                         ->where('material_id', $item->item_id)
                                                         ->where('warehouse_id', $item->warehouse_id)
                                                         ->first();
-                                                    $currentStock = $warehouseMaterial ? $warehouseMaterial->quantity : 0;
+                                                    $currentStock = $warehouseMaterial
+                                                        ? $warehouseMaterial->quantity
+                                                        : 0;
                                                 }
                                             @endphp
                                             {{ $currentStock }}</td>
@@ -399,11 +409,16 @@
                                             @php
                                                 $currentStock = 0;
                                                 if ($item->item) {
-                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $item->item_type)
+                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where(
+                                                        'item_type',
+                                                        $item->item_type,
+                                                    )
                                                         ->where('material_id', $item->item_id)
                                                         ->where('warehouse_id', $item->warehouse_id)
                                                         ->first();
-                                                    $currentStock = $warehouseMaterial ? $warehouseMaterial->quantity : 0;
+                                                    $currentStock = $warehouseMaterial
+                                                        ? $warehouseMaterial->quantity
+                                                        : 0;
                                                 }
                                             @endphp
                                             {{ $currentStock }}</td>
@@ -736,6 +751,34 @@
                 .catch(error => {
                     console.error('Error:', error);
                     alert('Có lỗi xảy ra khi hủy phiếu');
+                });
+        }
+
+        // Function to delete dispatch
+        function deleteDispatch(dispatchId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa phiếu xuất này? Thao tác này không thể hoàn tác.')) {
+                return;
+            }
+
+            fetch(`/inventory/dispatch/${dispatchId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        window.location.href = '/inventory'; // Redirect to list page
+                    } else {
+                        alert('Có lỗi xảy ra: ' + (data.message || 'Không thể xóa phiếu'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi xóa phiếu');
                 });
         }
     </script>

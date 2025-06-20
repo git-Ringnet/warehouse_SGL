@@ -88,7 +88,7 @@ class DispatchSeeder extends Seeder
             [
                 'dispatch_code' => 'XK' . date('Ymd') . '-005',
                 'dispatch_date' => Carbon::now()->subDays(4),
-                'dispatch_type' => 'other',
+                'dispatch_type' => 'warranty',
                 'dispatch_detail' => 'backup',
                 'project_receiver' => 'Kho dự phòng khu vực miền Nam - Chi nhánh HCM',
                 'warranty_period' => '12 tháng',

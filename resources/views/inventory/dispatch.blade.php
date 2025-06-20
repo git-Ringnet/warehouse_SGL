@@ -101,7 +101,8 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <div>
+                        <!-- Phần chọn dự án (hiển thị khi loại hình = project/warranty) -->
+                        <div id="project_section">
                             <label for="project_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án<span
                                     class="text-red-500">*</span></label>
@@ -121,6 +122,18 @@
                                 @endif
                             </select>
                             <input type="hidden" id="project_id" name="project_id">
+                        </div>
+                        
+                        <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
+                        <div id="rental_section" class="hidden">
+                            <label for="rental_receiver"
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê<span
+                                    class="text-red-500">*</span></label>
+                            <select id="rental_receiver" name="rental_receiver"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn hợp đồng cho thuê --</option>
+                                <!-- Động load từ API -->
+                            </select>
                         </div>
                         <div>
                             <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian
@@ -446,6 +459,9 @@
 
             // Load tất cả sản phẩm từ tất cả kho ngay từ đầu
             loadAllAvailableItems();
+            
+            // Load danh sách hợp đồng cho thuê
+            loadRentals();
 
             // Xử lý thêm sản phẩm hợp đồng
             const addContractProductBtn = document.getElementById('add_contract_product_btn');
@@ -506,6 +522,37 @@
                     }
                 } catch (error) {
                     alert('Không thể tải danh sách sản phẩm: ' + error.message);
+                }
+            }
+
+            // Hàm load danh sách hợp đồng cho thuê
+            async function loadRentals() {
+                try {
+                    const response = await fetch('/api/dispatch/rentals');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const rentalSelect = document.getElementById('rental_receiver');
+                        if (rentalSelect) {
+                            // Clear existing options
+                            rentalSelect.innerHTML = '<option value="">-- Chọn hợp đồng cho thuê --</option>';
+                            
+                            // Add rental options
+                            data.rentals.forEach(rental => {
+                                const option = document.createElement('option');
+                                option.value = rental.display_name;
+                                option.textContent = rental.display_name;
+                                option.dataset.rentalId = rental.id;
+                                option.dataset.rentalCode = rental.rental_code;
+                                option.dataset.customerName = rental.customer_name;
+                                rentalSelect.appendChild(option);
+                            });
+                        }
+                    } else {
+                        console.error('Error loading rentals:', data.message);
+                    }
+                } catch (error) {
+                    console.error('Error loading rentals:', error);
                 }
             }
 
@@ -651,9 +698,98 @@
             if (dispatchTypeSelect) {
                 dispatchTypeSelect.addEventListener('change', function() {
                     const selectedType = this.value;
+                    
+                    const projectSection = document.getElementById('project_section');
+                    const rentalSection = document.getElementById('rental_section');
+                    const projectReceiverInput = document.getElementById('project_receiver');
+                    const rentalReceiverInput = document.getElementById('rental_receiver');
+                    const dispatchDetailSelect = document.getElementById('dispatch_detail');
 
-                    // Có thể thêm logic xử lý khác nếu cần thiết
-                    // Hiện tại project list đã static nên không cần cập nhật
+                    // Reset all sections
+                    projectSection.classList.add('hidden');
+                    rentalSection.classList.add('hidden');
+                    projectReceiverInput.removeAttribute('required');
+                    rentalReceiverInput.removeAttribute('required');
+
+                    if (selectedType === 'rental') {
+                        // Hiển thị phần cho thuê, ẩn phần dự án
+                        rentalSection.classList.remove('hidden');
+                        rentalReceiverInput.setAttribute('required', 'required');
+                        
+                        // Tắt required cho project_receiver vì đang dùng rental
+                        projectReceiverInput.removeAttribute('required');
+                        
+                        // Ẩn project section để tránh confusion
+                        projectSection.classList.add('hidden');
+                        
+                        // Set project_receiver = rental_receiver để tương thích với backend
+                        const syncRentalToProject = function() {
+                            projectReceiverInput.value = rentalReceiverInput.value;
+                        };
+                        
+                        // Xóa event listener cũ nếu có để tránh duplicate
+                        rentalReceiverInput.removeEventListener('input', syncRentalToProject);
+                        rentalReceiverInput.removeEventListener('change', syncRentalToProject);
+                        
+                        // Thêm event listeners mới
+                        rentalReceiverInput.addEventListener('input', syncRentalToProject);
+                        rentalReceiverInput.addEventListener('change', syncRentalToProject);
+                        
+                        // Đồng bộ giá trị hiện tại
+                        syncRentalToProject();
+                        
+                        // Không tự động chọn, để người dùng tự chọn
+                        if (dispatchDetailSelect) {
+                            dispatchDetailSelect.disabled = false;
+                            dispatchDetailSelect.value = ''; // Reset về chưa chọn
+                        }
+                        
+                        // Xóa hidden input nếu có
+                        const hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                        if (hiddenDispatchDetail) {
+                            hiddenDispatchDetail.remove();
+                        }
+                    } else if (selectedType === 'project') {
+                        // Hiển thị phần dự án, ẩn phần cho thuê
+                        projectSection.classList.remove('hidden');
+                        projectReceiverInput.setAttribute('required', 'required');
+                        
+                        // Không tự động chọn, để người dùng tự chọn
+                        if (dispatchDetailSelect) {
+                            dispatchDetailSelect.disabled = false;
+                            dispatchDetailSelect.value = ''; // Reset về chưa chọn
+                        }
+                        
+                        // Xóa hidden input nếu có
+                        const hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                        if (hiddenDispatchDetail) {
+                            hiddenDispatchDetail.remove();
+                        }
+                    } else if (selectedType === 'warranty') {
+                        // Hiển thị phần dự án, ẩn phần cho thuê
+                        projectSection.classList.remove('hidden');
+                        projectReceiverInput.setAttribute('required', 'required');
+                        
+                        // Tự động chọn "backup" và disable dropdown cho warranty
+                        if (dispatchDetailSelect) {
+                            dispatchDetailSelect.value = 'backup';
+                            dispatchDetailSelect.disabled = true;
+                            
+                            // Tạo hidden input để đảm bảo giá trị được gửi đi
+                            let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                            if (!hiddenDispatchDetail) {
+                                hiddenDispatchDetail = document.createElement('input');
+                                hiddenDispatchDetail.type = 'hidden';
+                                hiddenDispatchDetail.id = 'hidden_dispatch_detail';
+                                hiddenDispatchDetail.name = 'dispatch_detail';
+                                document.getElementById('dispatch-form').appendChild(hiddenDispatchDetail);
+                            }
+                            hiddenDispatchDetail.value = 'backup';
+                            
+                            // Trigger change event để hiển thị backup product list
+                            dispatchDetailSelect.dispatchEvent(new Event('change'));
+                        }
+                    }
                 });
             }
 
@@ -1176,6 +1312,21 @@
             if (dispatchForm) {
                 dispatchForm.addEventListener('submit', function(e) {
                     console.log('=== FORM SUBMIT EVENT TRIGGERED ===');
+
+                    // Debug: Kiểm tra giá trị các trường quan trọng
+                    const dispatchType = document.getElementById('dispatch_type').value;
+                    const projectReceiver = document.getElementById('project_receiver').value;
+                    const rentalReceiver = document.getElementById('rental_receiver').value;
+                    
+                    console.log('Dispatch type:', dispatchType);
+                    console.log('Project receiver:', projectReceiver);
+                    console.log('Rental receiver:', rentalReceiver);
+                    
+                    // Đảm bảo project_receiver có giá trị khi dispatch_type là rental
+                    if (dispatchType === 'rental' && !projectReceiver && rentalReceiver) {
+                        console.log('Syncing rental receiver to project receiver');
+                        document.getElementById('project_receiver').value = rentalReceiver;
+                    }
 
                     // Kiểm tra xem có sản phẩm nào được chọn không
                     if (selectedContractProducts.length === 0 && selectedBackupProducts.length === 0) {

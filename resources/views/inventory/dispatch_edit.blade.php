@@ -52,6 +52,34 @@
                 @csrf
                 @method('PUT')
 
+                <!-- Thông báo trạng thái phiếu -->
+                <div class="bg-{{ $dispatch->status === 'pending' ? 'yellow' : ($dispatch->status === 'approved' ? 'green' : 'gray') }}-100 border border-{{ $dispatch->status === 'pending' ? 'yellow' : ($dispatch->status === 'approved' ? 'green' : 'gray') }}-400 text-{{ $dispatch->status === 'pending' ? 'yellow' : ($dispatch->status === 'approved' ? 'green' : 'gray') }}-700 px-4 py-3 rounded mb-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        <div>
+                            <strong>Trạng thái phiếu:</strong> 
+                            <span class="font-semibold">
+                                @if($dispatch->status === 'pending')
+                                    Chờ xử lý
+                                @elseif($dispatch->status === 'approved')
+                                    Đã duyệt
+                                @elseif($dispatch->status === 'cancelled')
+                                    Đã hủy
+                                @elseif($dispatch->status === 'completed')
+                                    Hoàn thành
+                                @endif
+                            </span>
+                            @if($dispatch->status === 'pending')
+                                <br><span class="text-sm">Có thể chỉnh sửa đầy đủ thông tin phiếu xuất</span>
+                            @elseif($dispatch->status === 'approved')
+                                <br><span class="text-sm">Chỉ có thể cập nhật: Serial numbers (chưa xuất), người đại diện, ngày xuất, ghi chú</span>
+                            @else
+                                <br><span class="text-sm">Không thể chỉnh sửa phiếu ở trạng thái này</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Thông tin phiếu xuất -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -73,14 +101,16 @@
                                     class="text-red-500">*</span></label>
                             <input type="date" id="dispatch_date" name="dispatch_date"
                                 value="{{ $dispatch->dispatch_date->format('Y-m-d') }}" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}>
                         </div>
                         <div>
                             <label for="dispatch_type"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Loại hình <span
                                     class="text-red-500">*</span></label>
                             <select id="dispatch_type" name="dispatch_type" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100' : '' }}"
+                                {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="">-- Chọn loại hình --</option>
                                 <option value="project" {{ $dispatch->dispatch_type == 'project' ? 'selected' : '' }}>Dự
                                     án</option>
@@ -89,12 +119,16 @@
                                 <option value="warranty"
                                     {{ $dispatch->dispatch_type == 'warranty' ? 'selected' : '' }}>Bảo hành</option>
                             </select>
+                            @if($dispatch->status !== 'pending')
+                                <input type="hidden" name="dispatch_type" value="{{ $dispatch->dispatch_type }}">
+                            @endif
                         </div>
                         <div>
                             <label for="dispatch_detail" class="block text-sm font-medium text-gray-700 mb-1">Chi tiết
                                 xuất kho <span class="text-red-500">*</span></label>
                             <select id="dispatch_detail" name="dispatch_detail"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100' : '' }}"
+                                {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="all" {{ $dispatch->dispatch_detail == 'all' ? 'selected' : '' }}>Tất
                                     cả</option>
                                 <option value="contract"
@@ -103,16 +137,21 @@
                                 <option value="backup" {{ $dispatch->dispatch_detail == 'backup' ? 'selected' : '' }}>
                                     Xuất thiết bị dự phòng</option>
                             </select>
+                            @if($dispatch->status !== 'pending')
+                                <input type="hidden" name="dispatch_detail" value="{{ $dispatch->dispatch_detail }}">
+                            @endif
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <div>
+                        <!-- Phần chọn dự án (hiển thị khi loại hình = project/warranty) -->
+                        <div id="project_section">
                             <label for="project_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án <span
                                     class="text-red-500">*</span></label>
                             <select id="project_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100' : '' }}"
+                                {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="">-- Chọn dự án --</option>
                                 @if (isset($projects))
                                     @foreach ($projects as $project)
@@ -127,8 +166,23 @@
                                     @endforeach
                                 @endif
                             </select>
+                            @if($dispatch->status !== 'pending')
+                                <input type="hidden" name="project_receiver" value="{{ $dispatch->project_receiver }}">
+                            @endif
                             <input type="hidden" id="project_id" name="project_id"
                                 value="{{ $dispatch->project_id }}">
+                        </div>
+                        
+                        <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
+                        <div id="rental_section" class="hidden">
+                            <label for="rental_receiver"
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê<span
+                                    class="text-red-500">*</span></label>
+                            <select id="rental_receiver" name="rental_receiver"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn hợp đồng cho thuê --</option>
+                                <!-- Động load từ API -->
+                            </select>
                         </div>
                         <div>
                             <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian
@@ -163,14 +217,15 @@
                     </div>
                 </div>
 
-                <!-- Danh sách sản phẩm hợp đồng hiện tại -->
+                <!-- PHP variables for dispatch items (hidden sections) -->
                 @php
                     $contractItems = $dispatch->items->where('category', 'contract');
                     $backupItems = $dispatch->items->where('category', 'backup');
                     $generalItems = $dispatch->items->whereNotIn('category', ['contract', 'backup']);
                 @endphp
 
-                @if ($contractItems->count() > 0)
+                <!-- Hidden existing items sections - moved to "selected" tables -->
+                @if (false && $contractItems->count() > 0)
                     <div class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6">
                         <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                             <i class="fas fa-file-contract text-blue-500 mr-2"></i>
@@ -234,10 +289,17 @@
                                                 {{ $item->warehouse->name ?? 'N/A' }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <input type="number"
-                                                    name="contract_items[{{ $item->id }}][quantity]"
-                                                    value="{{ $item->quantity }}" min="1"
-                                                    class="w-20 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                @if($dispatch->status === 'pending')
+                                                    <input type="number"
+                                                        name="contract_items[{{ $item->id }}][quantity]"
+                                                        value="{{ $item->quantity }}" min="1"
+                                                        class="w-20 border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                @else
+                                                    <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
+                                                    <input type="hidden"
+                                                        name="contract_items[{{ $item->id }}][quantity]"
+                                                        value="{{ $item->quantity }}">
+                                                @endif
                                                 <input type="hidden"
                                                     name="contract_items[{{ $item->id }}][item_type]"
                                                     value="{{ $item->item_type }}">
@@ -264,16 +326,25 @@
                                                             name="contract_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
                                                             placeholder="Serial {{ $i + 1 }}"
                                                             value="{{ $serialNumbers[$i] ?? '' }}"
-                                                            class="w-32 border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                                            class="w-32 border border-blue-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                                            {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}
+                                                            data-item-id="{{ $item->id }}"
+                                                            data-serial-index="{{ $i }}">
                                                     @endfor
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button type="button"
-                                                    class="text-red-600 hover:text-red-900 remove-contract-item-btn"
-                                                    data-item-id="{{ $item->id }}">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                                @if($dispatch->status === 'pending')
+                                                    <button type="button"
+                                                        class="text-red-600 hover:text-red-900 remove-contract-item-btn"
+                                                        data-item-id="{{ $item->id }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                @else
+                                                    <span class="text-gray-400">
+                                                        <i class="fas fa-lock"></i>
+                                                    </span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -284,7 +355,7 @@
                 @endif
 
                 <!-- Danh sách sản phẩm dự phòng hiện tại -->
-                @if ($backupItems->count() > 0)
+                @if (false && $backupItems->count() > 0)
                     <div class="bg-white rounded-xl shadow-md p-6 border border-orange-200 mb-6">
                         <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
                             <i class="fas fa-shield-alt text-orange-500 mr-2"></i>
@@ -349,10 +420,17 @@
                                                 {{ $item->warehouse->name ?? 'N/A' }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <input type="number"
-                                                    name="backup_items[{{ $item->id }}][quantity]"
-                                                    value="{{ $item->quantity }}" min="1"
-                                                    class="w-20 border border-orange-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                @if($dispatch->status === 'pending')
+                                                    <input type="number"
+                                                        name="backup_items[{{ $item->id }}][quantity]"
+                                                        value="{{ $item->quantity }}" min="1"
+                                                        class="w-20 border border-orange-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                                @else
+                                                    <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
+                                                    <input type="hidden"
+                                                        name="backup_items[{{ $item->id }}][quantity]"
+                                                        value="{{ $item->quantity }}">
+                                                @endif
                                                 <input type="hidden"
                                                     name="backup_items[{{ $item->id }}][item_type]"
                                                     value="{{ $item->item_type }}">
@@ -379,16 +457,25 @@
                                                             name="backup_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
                                                             placeholder="Serial {{ $i + 1 }}"
                                                             value="{{ $serialNumbers[$i] ?? '' }}"
-                                                            class="w-32 border border-orange-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+                                                            class="w-32 border border-orange-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                                            {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}
+                                                            data-item-id="{{ $item->id }}"
+                                                            data-serial-index="{{ $i }}">
                                                     @endfor
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button type="button"
-                                                    class="text-red-600 hover:text-red-900 remove-backup-item-btn"
-                                                    data-item-id="{{ $item->id }}">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                                @if($dispatch->status === 'pending')
+                                                    <button type="button"
+                                                        class="text-red-600 hover:text-red-900 remove-backup-item-btn"
+                                                        data-item-id="{{ $item->id }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                @else
+                                                    <span class="text-gray-400">
+                                                        <i class="fas fa-lock"></i>
+                                                    </span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -399,7 +486,7 @@
                 @endif
 
                 <!-- Danh sách sản phẩm chung (nếu có) -->
-                @if ($generalItems->count() > 0)
+                @if (false && $generalItems->count() > 0)
                     <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
                         <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                             <i class="fas fa-boxes text-gray-500 mr-2"></i>
@@ -463,10 +550,17 @@
                                                 {{ $item->warehouse->name ?? 'N/A' }}
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <input type="number"
-                                                    name="general_items[{{ $item->id }}][quantity]"
-                                                    value="{{ $item->quantity }}" min="1"
-                                                    class="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                @if($dispatch->status === 'pending')
+                                                    <input type="number"
+                                                        name="general_items[{{ $item->id }}][quantity]"
+                                                        value="{{ $item->quantity }}" min="1"
+                                                        class="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                @else
+                                                    <span class="text-sm text-gray-600">{{ $item->quantity }}</span>
+                                                    <input type="hidden"
+                                                        name="general_items[{{ $item->id }}][quantity]"
+                                                        value="{{ $item->quantity }}">
+                                                @endif
                                                 <input type="hidden"
                                                     name="general_items[{{ $item->id }}][item_type]"
                                                     value="{{ $item->item_type }}">
@@ -493,16 +587,25 @@
                                                             name="general_items[{{ $item->id }}][serial_numbers][{{ $i }}]"
                                                             placeholder="Serial {{ $i + 1 }}"
                                                             value="{{ $serialNumbers[$i] ?? '' }}"
-                                                            class="w-32 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                                            class="w-32 border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'bg-gray-100' : '' }}"
+                                                            {{ $dispatch->status !== 'pending' && $dispatch->status !== 'approved' ? 'readonly' : '' }}
+                                                            data-item-id="{{ $item->id }}"
+                                                            data-serial-index="{{ $i }}">
                                                     @endfor
                                                 </div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <button type="button"
-                                                    class="text-red-600 hover:text-red-900 remove-general-item-btn"
-                                                    data-item-id="{{ $item->id }}">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                                @if($dispatch->status === 'pending')
+                                                    <button type="button"
+                                                        class="text-red-600 hover:text-red-900 remove-general-item-btn"
+                                                        data-item-id="{{ $item->id }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                @else
+                                                    <span class="text-gray-400">
+                                                        <i class="fas fa-lock"></i>
+                                                    </span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -512,13 +615,104 @@
                     </div>
                 @endif
 
-                @if ($dispatch->items->count() == 0)
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                        <div class="text-center py-8">
-                            <div class="text-gray-500">
-                                <i class="fas fa-inbox text-4xl mb-4"></i>
-                                <p>Chưa có sản phẩm nào trong phiếu xuất này.</p>
+                <!-- Empty state message is now handled by JavaScript -->
+
+                <!-- Phần chọn sản phẩm và hiển thị items đã chọn -->
+                @if(true) <!-- Always show, but enable/disable based on status -->
+                    <!-- Phần thêm sản phẩm bằng dropdown (chỉ hiển thị khi pending) -->
+                    @if($dispatch->status === 'pending')
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200 mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-plus-circle text-blue-500 mr-2"></i>
+                            Thêm sản phẩm vào phiếu xuất
+                        </h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Chọn sản phẩm</label>
+                                <select id="product-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">-- Chọn sản phẩm --</option>
+                                </select>
                             </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Kho xuất</label>
+                                <select id="warehouse-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
+                                    <option value="">-- Chọn kho --</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Số lượng</label>
+                                <input type="number" id="quantity-input" min="1" value="1" 
+                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled>
+                            </div>
+                            
+                            <div>
+                                <button type="button" id="add-product-btn" disabled
+                                    class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white py-2 px-4 rounded-lg transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Thêm
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="stock-info" class="mt-3 text-sm text-gray-600 hidden">
+                            Tồn kho: <span id="current-stock" class="font-medium"></span>
+                        </div>
+                    </div>
+                    @endif
+
+                    <!-- Bảng thành phẩm theo hợp đồng (hiển thị conditional) -->
+                    <div id="selected-contract-products" class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6 hidden">
+                        <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                            <i class="fas fa-file-contract text-blue-500 mr-2"></i>
+                            Danh sách thành phẩm theo hợp đồng
+                        </h2>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200" id="contract-product-table">
+                                <thead class="bg-blue-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">MÃ SP</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">TÊN THÀNH PHẨM</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">ĐƠN VỊ</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">TỒN KHO</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">KHO XUẤT</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">SỐ LƯỢNG XUẤT</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">SERIAL</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">THAO TÁC</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <!-- Nội dung sẽ được tạo bởi JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Bảng thiết bị dự phòng (hiển thị conditional) -->
+                    <div id="selected-backup-products" class="bg-white rounded-xl shadow-md p-6 border border-orange-200 mb-6 hidden">
+                        <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                            <i class="fas fa-shield-alt text-orange-500 mr-2"></i>
+                            Danh sách thiết bị dự phòng
+                        </h2>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200" id="backup-product-table">
+                                <thead class="bg-orange-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">MÃ SP</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">TÊN THÀNH PHẨM</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">ĐƠN VỊ</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">TỒN KHO</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">KHO XUẤT</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">SỐ LƯỢNG XUẤT</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">SERIAL</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">THAO TÁC</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <!-- Nội dung sẽ được tạo bởi JavaScript -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 @endif
@@ -528,10 +722,21 @@
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg transition-colors">
                         Hủy
                     </a>
-                    <button type="submit" id="submit-btn"
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors">
-                        <i class="fas fa-save mr-2"></i> Cập nhật phiếu xuất
-                    </button>
+                    @if($dispatch->status !== 'cancelled' && $dispatch->status !== 'completed')
+                        <button type="submit" id="submit-btn"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i> 
+                            @if($dispatch->status === 'pending')
+                                Cập nhật phiếu xuất
+                            @else
+                                Cập nhật thông tin bổ sung
+                            @endif
+                        </button>
+                    @else
+                        <span class="bg-gray-400 text-white px-5 py-2 rounded-lg cursor-not-allowed">
+                            <i class="fas fa-lock mr-2"></i> Không thể chỉnh sửa
+                        </span>
+                    @endif
                 </div>
             </form>
         </main>
@@ -541,8 +746,225 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Xử lý thay đổi dự án - cập nhật thời gian bảo hành và project_id
+            // Variables for edit page
+            let availableItems = [];
+            let selectedContractProducts = [];
+            let selectedBackupProducts = [];
+
+            // Always load existing items, only load available items if pending
+            loadExistingItemsOnly();
+            
+            // Show appropriate tables based on dispatch_detail
+            handleDispatchDetailDisplay();
+            
+            @if($dispatch->status === 'pending')
+                loadAvailableItems();
+            @endif
+
+            // Load available items from API
+            async function loadAvailableItems() {
+                try {
+                    const response = await fetch('/api/dispatch/items/all');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        availableItems = data.items;
+                        // Load existing items into selected arrays
+                        loadExistingItems();
+                        // Populate product dropdown
+                        populateProductDropdown();
+                        // Setup dropdown handlers
+                        setupDropdownHandlers();
+                    }
+                } catch (error) {
+                    console.error('Error loading available items:', error);
+                }
+            }
+
+            // Load existing items without API (for all statuses)
+            function loadExistingItemsOnly() {
+                @foreach($dispatch->items as $item)
+                    const existingItem = {
+                        id: {{ $item->item_id }},
+                        code: '{{ $item->item_code }}',
+                        name: '{{ $item->item_name }}',
+                        type: '{{ $item->item_type }}',
+                        unit: '{{ $item->item_unit }}',
+                        quantity: {{ $item->quantity }},
+                        selected_warehouse_id: {{ $item->warehouse_id }},
+                        current_stock: 0, // No API data for non-pending
+                        category: '{{ $item->category }}',
+                        serial_numbers: @json($item->serial_numbers ?? []),
+                        warehouses: [{
+                            warehouse_id: {{ $item->warehouse_id }},
+                            warehouse_name: '{{ $item->warehouse->name ?? "N/A" }}',
+                            quantity: 0 // No stock info for non-pending
+                        }],
+                        existing_item_id: {{ $item->id }}, // Track original dispatch item ID
+                        is_existing: true // Mark as existing item
+                    };
+
+                    @if($item->category === 'contract')
+                        selectedContractProducts.push(existingItem);
+                    @elseif($item->category === 'backup')
+                        selectedBackupProducts.push(existingItem);
+                    @endif
+                @endforeach
+
+                // Render selected product tables với items hiện tại
+                renderContractProductTable();
+                renderBackupProductTable();
+            }
+
+            // Load existing dispatch items into selected arrays (for pending with API data)
+            function loadExistingItems() {
+                // Clear arrays first to avoid duplicates
+                selectedContractProducts = [];
+                selectedBackupProducts = [];
+                @foreach($dispatch->items as $item)
+                    const existingItem = {
+                        id: {{ $item->item_id }},
+                        code: '{{ $item->item_code }}',
+                        name: '{{ $item->item_name }}',
+                        type: '{{ $item->item_type }}',
+                        unit: '{{ $item->item_unit }}',
+                        quantity: {{ $item->quantity }},
+                        selected_warehouse_id: {{ $item->warehouse_id }},
+                        current_stock: 0, // Will be updated from API
+                        category: '{{ $item->category }}',
+                        serial_numbers: @json($item->serial_numbers ?? []),
+                        warehouses: [], // Will be populated from availableItems
+                        existing_item_id: {{ $item->id }}, // Track original dispatch item ID
+                        is_existing: true // Mark as existing item
+                    };
+
+                    // Find the corresponding item in availableItems to get warehouse info
+                    const foundItem = availableItems.find(item => 
+                        item.id == {{ $item->item_id }} && item.type == '{{ $item->item_type }}'
+                    );
+                    
+                    if (foundItem) {
+                        existingItem.warehouses = foundItem.warehouses;
+                        const warehouse = foundItem.warehouses.find(w => w.warehouse_id == {{ $item->warehouse_id }});
+                        if (warehouse) {
+                            existingItem.current_stock = warehouse.quantity;
+                        }
+                    }
+
+                    @if($item->category === 'contract')
+                        selectedContractProducts.push(existingItem);
+                    @elseif($item->category === 'backup')
+                        selectedBackupProducts.push(existingItem);
+                    @endif
+                @endforeach
+
+                // Render selected product tables với items hiện tại
+                renderContractProductTable();
+                renderBackupProductTable();
+            }
+
+            // Xử lý thay đổi loại hình xuất kho trong edit form
+            const dispatchTypeSelect = document.getElementById('dispatch_type');
+            const dispatchDetailSelect = document.getElementById('dispatch_detail');
             const projectReceiverSelect = document.getElementById('project_receiver');
+            
+            if (dispatchTypeSelect) {
+                dispatchTypeSelect.addEventListener('change', function() {
+                    const selectedType = this.value;
+                    
+                    const projectSection = document.getElementById('project_section');
+                    const rentalSection = document.getElementById('rental_section');
+                    const projectReceiverInput = document.getElementById('project_receiver');
+                    const rentalReceiverInput = document.getElementById('rental_receiver');
+
+                    // Reset all sections
+                    projectSection.classList.add('hidden');
+                    rentalSection.classList.add('hidden');
+                    projectReceiverInput.removeAttribute('required');
+                    rentalReceiverInput.removeAttribute('required');
+
+                    if (selectedType === 'rental') {
+                        // Hiển thị phần cho thuê, ẩn phần dự án
+                        rentalSection.classList.remove('hidden');
+                        rentalReceiverInput.setAttribute('required', 'required');
+                        
+                        // Set project_receiver = rental_receiver để tương thích với backend
+                        rentalReceiverInput.addEventListener('input', function() {
+                            projectReceiverInput.value = this.value;
+                        });
+                        
+                        // Reset dispatch detail về mặc định cho rental
+                        if (dispatchDetailSelect) {
+                            dispatchDetailSelect.disabled = false;
+                        }
+                        
+                        // Xóa hidden input nếu có
+                        let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                        if (hiddenDispatchDetail) {
+                            hiddenDispatchDetail.remove();
+                        }
+                    } else if (selectedType === 'project') {
+                        // Hiển thị phần dự án, ẩn phần cho thuê
+                        projectSection.classList.remove('hidden');
+                        projectReceiverInput.setAttribute('required', 'required');
+                        
+                        // Reset dispatch detail về mặc định cho project
+                        if (dispatchDetailSelect) {
+                            dispatchDetailSelect.disabled = false;
+                        }
+                        
+                        // Xóa hidden input nếu có
+                        hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                        if (hiddenDispatchDetail) {
+                            hiddenDispatchDetail.remove();
+                        }
+                    } else if (selectedType === 'warranty') {
+                        // Hiển thị phần dự án, ẩn phần cho thuê
+                        projectSection.classList.remove('hidden');
+                        projectReceiverInput.setAttribute('required', 'required');
+                        
+                        // Tự động chọn "backup" và disable dropdown cho warranty
+                        if (dispatchDetailSelect) {
+                            dispatchDetailSelect.value = 'backup';
+                            dispatchDetailSelect.disabled = true;
+                            
+                            // Tạo hidden input để đảm bảo giá trị được gửi đi
+                            let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                            if (!hiddenDispatchDetail) {
+                                hiddenDispatchDetail = document.createElement('input');
+                                hiddenDispatchDetail.type = 'hidden';
+                                hiddenDispatchDetail.id = 'hidden_dispatch_detail';
+                                hiddenDispatchDetail.name = 'dispatch_detail';
+                                document.querySelector('form').appendChild(hiddenDispatchDetail);
+                            }
+                            hiddenDispatchDetail.value = 'backup';
+                        }
+                    }
+                });
+                
+                // Trigger change event để setup ban đầu
+                dispatchTypeSelect.dispatchEvent(new Event('change'));
+            }
+
+            // Setup ban đầu cho warranty dispatch
+            const currentDispatchType = document.getElementById('dispatch_type')?.value;
+            if (currentDispatchType === 'warranty' && dispatchDetailSelect) {
+                dispatchDetailSelect.value = 'backup';
+                dispatchDetailSelect.disabled = true;
+                
+                // Tạo hidden input để đảm bảo giá trị được gửi đi
+                let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
+                if (!hiddenDispatchDetail) {
+                    hiddenDispatchDetail = document.createElement('input');
+                    hiddenDispatchDetail.type = 'hidden';
+                    hiddenDispatchDetail.id = 'hidden_dispatch_detail';
+                    hiddenDispatchDetail.name = 'dispatch_detail';
+                    document.querySelector('form').appendChild(hiddenDispatchDetail);
+                }
+                hiddenDispatchDetail.value = 'backup';
+            }
+
+            // Xử lý thay đổi dự án - cập nhật thời gian bảo hành và project_id
             if (projectReceiverSelect) {
                 projectReceiverSelect.addEventListener('change', function() {
                     const selectedOption = this.options[this.selectedIndex];
@@ -557,6 +979,468 @@
                         projectIdInput.value = '';
                     }
                 });
+            }
+
+            // Nếu phiếu đã duyệt, load available serials cho các input serial
+            @if($dispatch->status === 'approved')
+                loadAvailableSerials();
+            @endif
+
+            // Hàm load available serial numbers cho approved dispatch
+            async function loadAvailableSerials() {
+                const serialInputs = document.querySelectorAll('input[name*="serial_numbers"]');
+                
+                for (const input of serialInputs) {
+                    if (input.readOnly) continue; // Skip readonly inputs
+                    
+                    const itemId = input.dataset.itemId;
+                    const serialIndex = input.dataset.serialIndex;
+                    
+                    if (!itemId) continue;
+                    
+                    // Tìm item info từ form
+                    const itemRow = input.closest('tr');
+                    const itemTypeInput = itemRow.querySelector('input[name*="[item_type]"]');
+                    const warehouseIdInput = itemRow.querySelector('input[name*="[warehouse_id]"]');
+                    
+                    if (!itemTypeInput || !warehouseIdInput) continue;
+                    
+                    const itemType = itemTypeInput.value;
+                    const warehouseId = warehouseIdInput.value;
+                    
+                    try {
+                        const response = await fetch(`/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}`);
+                        const data = await response.json();
+                        
+                        if (data.success && data.serials.length > 0) {
+                            // Tạo datalist cho autocomplete
+                            const datalistId = `serials-${itemId}-${serialIndex}`;
+                            let datalist = document.getElementById(datalistId);
+                            
+                            if (!datalist) {
+                                datalist = document.createElement('datalist');
+                                datalist.id = datalistId;
+                                document.body.appendChild(datalist);
+                            }
+                            
+                            datalist.innerHTML = '';
+                            data.serials.forEach(serial => {
+                                const option = document.createElement('option');
+                                option.value = serial;
+                                datalist.appendChild(option);
+                            });
+                            
+                            input.setAttribute('list', datalistId);
+                            input.placeholder = `Chọn serial (${data.serials.length} có sẵn)`;
+                        }
+                    } catch (error) {
+                        console.error('Error loading serials:', error);
+                    }
+                }
+            }
+
+            // Populate product dropdown
+            function populateProductDropdown() {
+                const productSelect = document.getElementById('product-select');
+                if (!productSelect) return;
+                
+                // Clear existing options except first one
+                productSelect.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
+                
+                // Filter products that have stock
+                const availableProducts = availableItems.filter(item => 
+                    item.type === 'product' && item.warehouses.some(w => w.quantity > 0)
+                );
+                
+                availableProducts.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({
+                        id: product.id,
+                        code: product.code,
+                        name: product.name,
+                        type: product.type,
+                        unit: product.unit,
+                        warehouses: product.warehouses
+                    });
+                    option.textContent = `${product.code} - ${product.name}`;
+                    productSelect.appendChild(option);
+                });
+            }
+
+            // Setup dropdown handlers
+            function setupDropdownHandlers() {
+                const productSelect = document.getElementById('product-select');
+                const warehouseSelect = document.getElementById('warehouse-select');
+                const quantityInput = document.getElementById('quantity-input');
+                const addBtn = document.getElementById('add-product-btn');
+                const stockInfo = document.getElementById('stock-info');
+                const currentStock = document.getElementById('current-stock');
+                
+                if (!productSelect || !warehouseSelect) return;
+                
+                let selectedProduct = null;
+                
+                // Product selection change
+                productSelect.addEventListener('change', function() {
+                    const value = this.value;
+                    warehouseSelect.innerHTML = '<option value="">-- Chọn kho --</option>';
+                    warehouseSelect.disabled = true;
+                    quantityInput.disabled = true;
+                    addBtn.disabled = true;
+                    stockInfo.classList.add('hidden');
+                    
+                    if (value) {
+                        selectedProduct = JSON.parse(value);
+                        
+                        // Populate warehouses with stock
+                        const warehousesWithStock = selectedProduct.warehouses.filter(w => w.quantity > 0);
+                        warehousesWithStock.forEach(warehouse => {
+                            const option = document.createElement('option');
+                            option.value = JSON.stringify(warehouse);
+                            option.textContent = `${warehouse.warehouse_name} (Tồn: ${warehouse.quantity})`;
+                            warehouseSelect.appendChild(option);
+                        });
+                        
+                        if (warehousesWithStock.length > 0) {
+                            warehouseSelect.disabled = false;
+                        }
+                    }
+                });
+                
+                // Warehouse selection change
+                warehouseSelect.addEventListener('change', function() {
+                    const value = this.value;
+                    quantityInput.disabled = true;
+                    addBtn.disabled = true;
+                    stockInfo.classList.add('hidden');
+                    
+                    if (value) {
+                        const warehouse = JSON.parse(value);
+                        currentStock.textContent = warehouse.quantity;
+                        stockInfo.classList.remove('hidden');
+                        quantityInput.disabled = false;
+                        quantityInput.max = warehouse.quantity;
+                        quantityInput.value = Math.min(1, warehouse.quantity);
+                        addBtn.disabled = false;
+                    }
+                });
+                
+                // Add product button click
+                addBtn.addEventListener('click', function() {
+                    if (!selectedProduct || !warehouseSelect.value) return;
+                    
+                    const warehouse = JSON.parse(warehouseSelect.value);
+                    const quantity = parseInt(quantityInput.value);
+                    const dispatchDetail = document.getElementById('dispatch_detail').value;
+                    
+                    if (quantity <= 0 || quantity > warehouse.quantity) {
+                        alert('Số lượng không hợp lệ!');
+                        return;
+                    }
+                    
+                    // Determine category based on dispatch_detail
+                    let category = 'general';
+                    if (dispatchDetail === 'contract' || dispatchDetail === 'all') {
+                        category = 'contract';
+                    } else if (dispatchDetail === 'backup') {
+                        category = 'backup';
+                    }
+                    
+                    // Check if product already exists in selected list
+                    const existingProducts = category === 'contract' ? selectedContractProducts : selectedBackupProducts;
+                    const existingProduct = existingProducts.find(p => p.id === selectedProduct.id && p.selected_warehouse_id === warehouse.warehouse_id);
+                    
+                    if (existingProduct) {
+                        alert('Sản phẩm này đã được thêm từ kho này!');
+                        return;
+                    }
+                    
+                    // Add to appropriate array
+                    const newProduct = {
+                        ...selectedProduct,
+                        quantity: quantity,
+                        selected_warehouse_id: warehouse.warehouse_id,
+                        current_stock: warehouse.quantity,
+                        serial_numbers: [],
+                        category: category,
+                        is_existing: false
+                    };
+                    
+                    if (category === 'contract') {
+                        selectedContractProducts.push(newProduct);
+                        renderContractProductTable();
+                    } else {
+                        selectedBackupProducts.push(newProduct);
+                        renderBackupProductTable();
+                    }
+                    
+                    // Reset form
+                    productSelect.value = '';
+                    warehouseSelect.innerHTML = '<option value="">-- Chọn kho --</option>';
+                    warehouseSelect.disabled = true;
+                    quantityInput.disabled = true;
+                    quantityInput.value = 1;
+                    addBtn.disabled = true;
+                    stockInfo.classList.add('hidden');
+                });
+            }
+
+
+
+            // Handle dispatch detail display
+            function handleDispatchDetailDisplay() {
+                const dispatchDetail = '{{ $dispatch->dispatch_detail }}';
+                const contractTable = document.getElementById('selected-contract-products');
+                const backupTable = document.getElementById('selected-backup-products');
+                
+                // Hide all tables first
+                if (contractTable) contractTable.classList.add('hidden');
+                if (backupTable) backupTable.classList.add('hidden');
+                
+                // Show tables based on dispatch_detail
+                if (dispatchDetail === 'all') {
+                    if (contractTable) contractTable.classList.remove('hidden');
+                    if (backupTable) backupTable.classList.remove('hidden');
+                } else if (dispatchDetail === 'contract') {
+                    if (contractTable) contractTable.classList.remove('hidden');
+                } else if (dispatchDetail === 'backup') {
+                    if (backupTable) backupTable.classList.remove('hidden');
+                }
+            }
+
+            // Render contract product table
+            function renderContractProductTable() {
+                const tbody = document.querySelector('#contract-product-table tbody');
+                
+                if (!tbody) return;
+
+                if (selectedContractProducts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Chưa có thành phẩm hợp đồng nào được thêm</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = selectedContractProducts.map((product, index) => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-900">${product.code}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${product.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.unit}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="font-medium ${product.current_stock >= product.quantity ? 'text-green-600' : 'text-red-600'}">
+                                ${product.current_stock}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <select onchange="updateWarehouse(${index}, this.value, 'contract')" 
+                                class="border border-gray-300 rounded px-2 py-1 text-sm"
+                                ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' ? 'disabled' : ''}>
+                                ${product.warehouses.map(w => `
+                                    <option value="${w.warehouse_id}" ${w.warehouse_id == product.selected_warehouse_id ? 'selected' : ''}>
+                                        ${w.warehouse_name}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' ? 
+                                `<span class="text-sm text-gray-600">${product.quantity}</span>
+                                 <input type="hidden" name="items[contract_${index}][quantity]" value="${product.quantity}">` :
+                                `<input type="number" value="${product.quantity}" min="1" 
+                                    onchange="updateQuantity(${index}, this.value, 'contract')"
+                                    class="w-20 border border-blue-300 rounded px-2 py-1 text-sm">
+                                 <input type="hidden" name="items[contract_${index}][quantity]" value="${product.quantity}">`}
+                            <input type="hidden" name="items[contract_${index}][item_type]" value="${product.type}">
+                            <input type="hidden" name="items[contract_${index}][item_id]" value="${product.id}">
+                            <input type="hidden" name="items[contract_${index}][warehouse_id]" value="${product.selected_warehouse_id}">
+                            <input type="hidden" name="items[contract_${index}][category]" value="contract">
+                            ${product.is_existing ? `<input type="hidden" name="items[contract_${index}][existing_item_id]" value="${product.existing_item_id}">` : ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="space-y-1">
+                                ${Array.from({length: product.quantity}, (_, i) => `
+                                    <input type="text" placeholder="Serial ${i + 1}" 
+                                        value="${product.serial_numbers[i] || ''}"
+                                        onchange="updateSerial(${index}, ${i}, this.value, 'contract')"
+                                        name="items[contract_${index}][serial_numbers][${i}]"
+                                        class="w-32 border border-blue-300 rounded px-2 py-1 text-xs ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' && '{{ $dispatch->status }}' !== 'approved' ? 'bg-gray-100' : ''}"
+                                        ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' && '{{ $dispatch->status }}' !== 'approved' ? 'readonly' : ''}>
+                                `).join('')}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' ? 
+                                `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
+                                `<button type="button" onclick="removeContractProduct(${index})" 
+                                    class="text-red-600 hover:text-red-900">
+                                    <i class="fas fa-trash"></i>
+                                </button>`}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Render backup product table (similar structure)
+            function renderBackupProductTable() {
+                const tbody = document.querySelector('#backup-product-table tbody');
+                
+                if (!tbody) return;
+
+                if (selectedBackupProducts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="px-6 py-4 text-center text-gray-500">Chưa có thiết bị dự phòng nào được thêm</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = selectedBackupProducts.map((product, index) => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-900">${product.code}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${product.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.unit}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="font-medium ${product.current_stock >= product.quantity ? 'text-green-600' : 'text-red-600'}">
+                                ${product.current_stock}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <select onchange="updateWarehouse(${index}, this.value, 'backup')" 
+                                class="border border-gray-300 rounded px-2 py-1 text-sm"
+                                ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' ? 'disabled' : ''}>
+                                ${product.warehouses.map(w => `
+                                    <option value="${w.warehouse_id}" ${w.warehouse_id == product.selected_warehouse_id ? 'selected' : ''}>
+                                        ${w.warehouse_name}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' ? 
+                                `<span class="text-sm text-gray-600">${product.quantity}</span>
+                                 <input type="hidden" name="items[backup_${index}][quantity]" value="${product.quantity}">` :
+                                `<input type="number" value="${product.quantity}" min="1" 
+                                    onchange="updateQuantity(${index}, this.value, 'backup')"
+                                    class="w-20 border border-orange-300 rounded px-2 py-1 text-sm">
+                                 <input type="hidden" name="items[backup_${index}][quantity]" value="${product.quantity}">`}
+                            <input type="hidden" name="items[backup_${index}][item_type]" value="${product.type}">
+                            <input type="hidden" name="items[backup_${index}][item_id]" value="${product.id}">
+                            <input type="hidden" name="items[backup_${index}][warehouse_id]" value="${product.selected_warehouse_id}">
+                            <input type="hidden" name="items[backup_${index}][category]" value="backup">
+                            ${product.is_existing ? `<input type="hidden" name="items[backup_${index}][existing_item_id]" value="${product.existing_item_id}">` : ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="space-y-1">
+                                ${Array.from({length: product.quantity}, (_, i) => `
+                                    <input type="text" placeholder="Serial ${i + 1}" 
+                                        value="${product.serial_numbers[i] || ''}"
+                                        onchange="updateSerial(${index}, ${i}, this.value, 'backup')"
+                                        name="items[backup_${index}][serial_numbers][${i}]"
+                                        class="w-32 border border-orange-300 rounded px-2 py-1 text-xs ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' && '{{ $dispatch->status }}' !== 'approved' ? 'bg-gray-100' : ''}"
+                                        ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' && '{{ $dispatch->status }}' !== 'approved' ? 'readonly' : ''}>
+                                `).join('')}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            ${product.is_existing && '{{ $dispatch->status }}' !== 'pending' ? 
+                                `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
+                                `<button type="button" onclick="removeBackupProduct(${index})" 
+                                    class="text-red-600 hover:text-red-900">
+                                    <i class="fas fa-trash"></i>
+                                </button>`}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Utility functions
+            window.updateWarehouse = function(index, warehouseId, category) {
+                const products = category === 'contract' ? selectedContractProducts : selectedBackupProducts;
+                const product = products[index];
+                
+                product.selected_warehouse_id = parseInt(warehouseId);
+                const warehouse = product.warehouses.find(w => w.warehouse_id == warehouseId);
+                product.current_stock = warehouse ? warehouse.quantity : 0;
+                
+                if (category === 'contract') {
+                    renderContractProductTable();
+                } else {
+                    renderBackupProductTable();
+                }
+                showStockWarnings();
+            };
+
+            window.updateQuantity = function(index, quantity, category) {
+                const products = category === 'contract' ? selectedContractProducts : selectedBackupProducts;
+                const product = products[index];
+                
+                product.quantity = parseInt(quantity);
+                product.serial_numbers = product.serial_numbers.slice(0, quantity);
+                
+                if (category === 'contract') {
+                    renderContractProductTable();
+                } else {
+                    renderBackupProductTable();
+                }
+                showStockWarnings();
+            };
+
+            window.updateSerial = function(index, serialIndex, value, category) {
+                const products = category === 'contract' ? selectedContractProducts : selectedBackupProducts;
+                const product = products[index];
+                
+                if (!product.serial_numbers) product.serial_numbers = [];
+                product.serial_numbers[serialIndex] = value;
+            };
+
+            window.removeContractProduct = function(index) {
+                selectedContractProducts.splice(index, 1);
+                renderContractProductTable();
+                showStockWarnings();
+            };
+
+            window.removeBackupProduct = function(index) {
+                selectedBackupProducts.splice(index, 1);
+                renderBackupProductTable();
+                showStockWarnings();
+            };
+
+            // Show stock warnings
+            function showStockWarnings() {
+                // Implementation similar to create page
+                console.log('Stock validation...');
+            }
+
+            // Handle dispatch detail changes
+            if (dispatchDetailSelect) {
+                dispatchDetailSelect.addEventListener('change', function() {
+                    const selectedDetail = this.value;
+                    
+                    // Update table visibility
+                    handleDispatchDetailDisplayOnChange(selectedDetail);
+                    
+                    // For pending status, dropdown remains visible but category logic changes
+                });
+
+                // Trigger initial load based on current value
+                if (dispatchDetailSelect.value) {
+                    dispatchDetailSelect.dispatchEvent(new Event('change'));
+                }
+            }
+
+            // Handle table display when dispatch_detail changes
+            function handleDispatchDetailDisplayOnChange(selectedDetail) {
+                const contractTable = document.getElementById('selected-contract-products');
+                const backupTable = document.getElementById('selected-backup-products');
+                
+                // Hide all tables first
+                if (contractTable) contractTable.classList.add('hidden');
+                if (backupTable) backupTable.classList.add('hidden');
+                
+                // Show tables based on selected detail
+                if (selectedDetail === 'all') {
+                    if (contractTable) contractTable.classList.remove('hidden');
+                    if (backupTable) backupTable.classList.remove('hidden');
+                } else if (selectedDetail === 'contract') {
+                    if (contractTable) contractTable.classList.remove('hidden');
+                } else if (selectedDetail === 'backup') {
+                    if (backupTable) backupTable.classList.remove('hidden');
+                }
             }
 
             // Thêm event listeners cho quantity inputs hiện tại theo category
@@ -869,16 +1753,24 @@
             const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', function(e) {
-                    // Kiểm tra xem còn item nào không bị disable (tất cả categories)
+
+
+                    // Kiểm tra xem còn item nào không bị disable (existing items + newly added items)
                     const activeContractItems = form.querySelectorAll(
                         'input[name*="contract_items"][name*="[item_id]"]:not([disabled])');
                     const activeBackupItems = form.querySelectorAll(
                         'input[name*="backup_items"][name*="[item_id]"]:not([disabled])');
                     const activeGeneralItems = form.querySelectorAll(
                         'input[name*="general_items"][name*="[item_id]"]:not([disabled])');
+                    
+                    // Count newly added items from pending dispatch
+                    let newlyAddedItems = 0;
+                    @if($dispatch->status === 'pending')
+                        newlyAddedItems = selectedContractProducts.length + selectedBackupProducts.length;
+                    @endif
 
                     const totalActiveItems = activeContractItems.length + activeBackupItems.length +
-                        activeGeneralItems.length;
+                        activeGeneralItems.length + newlyAddedItems;
 
                     if (totalActiveItems === 0) {
                         e.preventDefault();
@@ -892,6 +1784,30 @@
                         if (stockErrors.length > 0) {
                             e.preventDefault();
                             alert('Không đủ tồn kho:\n\n' + stockErrors.join('\n'));
+                            return;
+                        }
+                    @endif
+
+                    // Cho phiếu đã duyệt, validate serial numbers
+                    @if ($dispatch->status === 'approved')
+                        const emptySerials = [];
+                        const serialInputs = document.querySelectorAll('input[name*="serial_numbers"]:not([readonly])');
+                        
+                        serialInputs.forEach(input => {
+                            if (input.value.trim() === '') {
+                                const itemRow = input.closest('tr');
+                                const itemCode = itemRow.querySelector('td:first-child').textContent.trim();
+                                const serialIndex = input.getAttribute('name').match(/\[(\d+)\]/g)?.pop()?.replace(/[\[\]]/g, '') || '';
+                                emptySerials.push(`${itemCode} - Serial ${parseInt(serialIndex) + 1}`);
+                            }
+                        });
+                        
+                        if (emptySerials.length > 0) {
+                            e.preventDefault();
+                            if (confirm(`Các serial sau chưa được nhập:\n\n${emptySerials.join('\n')}\n\nBạn có muốn tiếp tục không?`)) {
+                                // User confirmed, allow submission
+                                e.target.submit();
+                            }
                             return;
                         }
                     @endif
