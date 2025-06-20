@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('dispatch_code')->unique();
             $table->date('dispatch_date');
-            $table->enum('dispatch_type', ['project', 'rental', 'other']);
+            $table->enum('dispatch_type', ['project', 'rental', 'warranty']);
             $table->enum('dispatch_detail', ['all', 'contract', 'backup']);
             $table->string('project_receiver');
             $table->string('warranty_period')->nullable();

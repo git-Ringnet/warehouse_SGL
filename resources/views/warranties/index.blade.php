@@ -51,6 +51,9 @@
                                 STT</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Mã bảo hành</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Khách hàng</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -74,6 +77,9 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ ($warranties->currentPage() - 1) * $warranties->perPage() + $index + 1 }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $warranty->warranty_code }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <div>
@@ -199,7 +205,7 @@
                 <p id="warranty-code-text" class="text-sm font-medium text-gray-800 mt-2"></p>
             </div>
             <div class="flex justify-between space-x-3">
-                <button type="button" onclick="downloadQR()" 
+                <button type="button" onclick="downloadQR()"
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1">
                     <i class="fas fa-download mr-2"></i> Tải xuống
                 </button>
@@ -217,12 +223,13 @@
             const modal = document.getElementById('qr-modal');
             const container = document.getElementById('qr-code-container');
             const codeText = document.getElementById('warranty-code-text');
-            
+
             // Generate QR code
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(warrantyCode)}`;
+            const qrUrl =
+                `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(warrantyCode)}`;
             container.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="mx-auto border rounded">`;
             codeText.textContent = `Mã bảo hành: ${warrantyCode}`;
-            
+
             modal.classList.remove('hidden');
         }
 
@@ -246,7 +253,7 @@
         function printQR() {
             const img = document.querySelector('#qr-code-container img');
             const warrantyCode = document.getElementById('warranty-code-text').textContent;
-            
+
             if (img) {
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(`
@@ -282,31 +289,31 @@
             }
 
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-            
+
             fetch(`/warranties/${warrantyId}/status`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken || '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    status: status,
-                    notes: status === 'void' ? 'Hủy bảo hành từ giao diện web' : null
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken || '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        status: status,
+                        notes: status === 'void' ? 'Hủy bảo hành từ giao diện web' : null
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert(data.message);
-                    location.reload(); // Refresh page to show updated status
-                } else {
-                    alert('Có lỗi xảy ra: ' + (data.message || 'Không thể cập nhật trạng thái'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Có lỗi xảy ra khi cập nhật trạng thái');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        location.reload(); // Refresh page to show updated status
+                    } else {
+                        alert('Có lỗi xảy ra: ' + (data.message || 'Không thể cập nhật trạng thái'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi cập nhật trạng thái');
+                });
         }
 
         // Close modal when clicking outside

@@ -11,11 +11,6 @@
         </button>
     </div>
     <div class="p-4 flex flex-col">
-        <div class="relative mb-4">
-            <input type="text" placeholder="Tìm kiếm..."
-                class="w-full bg-gray-700 text-white px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 placeholder-gray-400" />
-            <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
-        </div>
         <ul class="space-y-2">
             <li>
                 <a href="{{ asset('dashboard') }}" class="nav-item flex items-center px-4 py-3 rounded-lg">

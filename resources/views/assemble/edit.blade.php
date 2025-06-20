@@ -430,11 +430,18 @@
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <input type="text"
+                                                                    <select
+                                                                        name="components[{{ $component['globalIndex'] }}][serial_id]"
+                                                                        class="component-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                        data-material-id="{{ $component['material']->material_id }}"
+                                                                        data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                        data-current-serial="{{ $component['material']->serial ?? '' }}"
+                                                                        data-current-serial-id="{{ $component['material']->serial_id ?? '' }}">
+                                                                        <option value="">Chọn serial</option>
+                                                                    </select>
+                                                                    <input type="hidden"
                                                                         name="components[{{ $component['globalIndex'] }}][serial]"
-                                                                        value="{{ $component['material']->serial ?? '' }}"
-                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                        placeholder="Nhập serial">
+                                                                        value="{{ $component['material']->serial ?? '' }}">
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -527,11 +534,18 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <input type="text"
+                                                                <select
+                                                                    name="components[{{ $index }}][serial_id]"
+                                                                    class="component-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    data-material-id="{{ $material->material_id }}"
+                                                                    data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                    data-current-serial="{{ $material->serial ?? '' }}"
+                                                                    data-current-serial-id="{{ $material->serial_id ?? '' }}">
+                                                                    <option value="">Chọn serial</option>
+                                                                </select>
+                                                                <input type="hidden"
                                                                     name="components[{{ $index }}][serial]"
-                                                                    value="{{ $material->serial ?? '' }}"
-                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    placeholder="Nhập serial">
+                                                                    value="{{ $material->serial ?? '' }}">
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -753,6 +767,94 @@
                 @endif
             }
 
+            // Function to load material serials
+            async function loadMaterialSerials(selectElement) {
+                const materialId = selectElement.dataset.materialId;
+                const warehouseId = selectElement.dataset.warehouseId;
+                
+                if (!materialId || !warehouseId) {
+                    console.error('Missing material ID or warehouse ID');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`{{ route('assemblies.material-serials') }}?material_id=${materialId}&warehouse_id=${warehouseId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        }
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Clear existing options except the first one
+                        selectElement.innerHTML = '<option value="">Chọn serial</option>';
+                        
+                        const currentSerialId = selectElement.dataset.currentSerialId;
+                        
+                        // Add serial options
+                        data.serials.forEach(serial => {
+                            const option = document.createElement('option');
+                            option.value = serial.id;
+                            option.textContent = serial.serial_number;
+                            
+                            // Select current serial if it matches
+                            if (currentSerialId && serial.id == currentSerialId) {
+                                option.selected = true;
+                            }
+                            
+                            selectElement.appendChild(option);
+                        });
+                        
+                        // If no current serial_id but has current serial text, try to match by text
+                        if (!currentSerialId) {
+                            const currentSerial = selectElement.dataset.currentSerial;
+                            if (currentSerial) {
+                                const matchingOption = Array.from(selectElement.options).find(opt => 
+                                    opt.textContent === currentSerial
+                                );
+                                if (matchingOption) {
+                                    matchingOption.selected = true;
+                                }
+                            }
+                        }
+                    } else {
+                        console.error('Error loading serials:', data.message);
+                    }
+                } catch (error) {
+                    console.error('Error loading material serials:', error);
+                }
+            }
+
+            // Function to initialize material serial selects
+            function initializeMaterialSerialSelects() {
+                const serialSelects = document.querySelectorAll('.component-serial-select');
+                
+                serialSelects.forEach(select => {
+                    // Load serials when first opened
+                    select.addEventListener('focus', function() {
+                        if (this.children.length <= 1) { // Only default option
+                            loadMaterialSerials(this);
+                        }
+                    });
+
+                    // Handle selection change
+                    select.addEventListener('change', function() {
+                        const serialInput = this.parentNode.querySelector('input[name*="[serial]"]');
+                        
+                        if (this.value) {
+                            // Find selected option text
+                            const selectedOption = this.options[this.selectedIndex];
+                            serialInput.value = selectedOption.textContent;
+                        } else {
+                            serialInput.value = '';
+                        }
+                    });
+                });
+            }
+
             // Enhanced form validation to check for serial errors
             document.querySelector('form').addEventListener('submit', function(e) {
                 // Only check for serial validation errors (not existing serials that haven't changed)
@@ -808,6 +910,9 @@
 
             // Initialize validation for product serials (only add event listeners, don't validate immediately)
             addValidationToProductSerials();
+
+            // Initialize material serial selects
+            initializeMaterialSerialSelects();
         });
     </script>
 </body>

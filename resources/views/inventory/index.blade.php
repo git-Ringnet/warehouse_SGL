@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Quản lý xuất kho - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -142,7 +143,7 @@
                                     {{ $dispatch->total_items }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $dispatch->dispatch_type === 'project' ? $dispatch->project_receiver : '-' }}
+                                    {{ $dispatch->dispatch_type === 'project' || $dispatch->dispatch_type === 'warranty' ? $dispatch->project_receiver : '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $dispatch->companyRepresentative->name ?? '-' }}
@@ -179,12 +180,16 @@
                                             title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}">
                                             <i class="fas fa-check text-green-500 group-hover:text-white"></i>
                                         </button>
-                                        @endif
-                                        @if(!in_array($dispatch->status, ['completed', 'cancelled']))
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
                                             title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}">
                                             <i class="fas fa-times text-red-500 group-hover:text-white"></i>
+                                        </button>
+                                        @elseif($dispatch->status === 'cancelled')
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn"
+                                            title="Xóa phiếu xuất" data-id="{{ $dispatch->id }}">
+                                            <i class="fas fa-trash text-gray-500 group-hover:text-white"></i>
                                         </button>
                                         @endif
                                     </div>
@@ -312,38 +317,46 @@
                 alert(`Đã sắp xếp theo ngày xuất (${dateSortDirection === 'asc' ? 'tăng dần' : 'giảm dần'})!`);
             });
 
-            // Xử lý xóa bản ghi
-            const deleteButtons = document.querySelectorAll('.fa-trash');
-            deleteButtons.forEach(button => {
-                button.closest('button').addEventListener('click', function(e) {
-                    e.preventDefault();
-                    if (confirm('Bạn có chắc chắn muốn xóa phiếu xuất kho này?')) {
-                        // Xử lý xóa bản ghi
-                        alert('Đã xóa phiếu xuất kho!');
-                    }
-                });
-            });
-
-            // Các nút thao tác duyệt và hủy phiếu
+            // Các nút thao tác duyệt, hủy và xóa phiếu
             const approveButtons = document.querySelectorAll('.approve-btn');
             const cancelButtons = document.querySelectorAll('.cancel-btn');
+            const deleteButtons = document.querySelectorAll('.delete-btn');
             
             // Xử lý duyệt phiếu xuất
             approveButtons.forEach(button => {
                 button.addEventListener('click', function() {
                     const dispatchId = this.getAttribute('data-id');
                     if (confirm(`Bạn có chắc chắn muốn duyệt phiếu xuất ${dispatchId}?`)) {
-                        // Gọi API hoặc xử lý duyệt phiếu
-                        alert(`Đã duyệt phiếu xuất ${dispatchId}`);
+                        // Disable button để tránh double click
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin text-green-500"></i>';
                         
-                        // Cập nhật trạng thái phiếu (trong thực tế sẽ reload từ server)
-                        const row = this.closest('tr');
-                        const statusCell = row.querySelector('td:nth-child(8)');
-                        statusCell.innerHTML = `
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Đã hoàn thành
-                            </span>
-                        `;
+                        fetch(`/inventory/dispatch/${dispatchId}/approve`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                location.reload(); // Reload trang để cập nhật UI
+                            } else {
+                                alert('Lỗi: ' + data.message);
+                                // Re-enable button nếu lỗi
+                                this.disabled = false;
+                                this.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Có lỗi xảy ra khi duyệt phiếu xuất');
+                            // Re-enable button nếu lỗi
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                        });
                     }
                 });
             });
@@ -353,17 +366,75 @@
                 button.addEventListener('click', function() {
                     const dispatchId = this.getAttribute('data-id');
                     if (confirm(`Bạn có chắc chắn muốn hủy phiếu xuất ${dispatchId}?`)) {
-                        // Gọi API hoặc xử lý hủy phiếu
-                        alert(`Đã hủy phiếu xuất ${dispatchId}`);
+                        // Disable button để tránh double click
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin text-red-500"></i>';
                         
-                        // Cập nhật trạng thái phiếu (trong thực tế sẽ reload từ server)
-                        const row = this.closest('tr');
-                        const statusCell = row.querySelector('td:nth-child(8)');
-                        statusCell.innerHTML = `
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                Đã hủy
-                            </span>
-                        `;
+                        fetch(`/inventory/dispatch/${dispatchId}/cancel`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                location.reload(); // Reload trang để cập nhật UI
+                            } else {
+                                alert('Lỗi: ' + data.message);
+                                // Re-enable button nếu lỗi
+                                this.disabled = false;
+                                this.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Có lỗi xảy ra khi hủy phiếu xuất');
+                            // Re-enable button nếu lỗi
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                        });
+                    }
+                });
+            });
+            
+            // Xử lý xóa phiếu xuất
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const dispatchId = this.getAttribute('data-id');
+                    if (confirm(`Bạn có chắc chắn muốn xóa phiếu xuất ${dispatchId}? Thao tác này không thể hoàn tác.`)) {
+                        // Disable button để tránh double click
+                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-500"></i>';
+                        
+                        fetch(`/inventory/dispatch/${dispatchId}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert(data.message);
+                                location.reload(); // Reload trang để cập nhật UI
+                            } else {
+                                alert('Lỗi: ' + data.message);
+                                // Re-enable button nếu lỗi
+                                this.disabled = false;
+                                this.innerHTML = '<i class="fas fa-trash text-gray-500"></i>';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Có lỗi xảy ra khi xóa phiếu xuất');
+                            // Re-enable button nếu lỗi
+                            this.disabled = false;
+                            this.innerHTML = '<i class="fas fa-trash text-gray-500"></i>';
+                        });
                     }
                 });
             });

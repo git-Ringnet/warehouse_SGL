@@ -173,13 +173,16 @@ Route::prefix('inventory')->name('inventory.')->group(function () {
     Route::post('dispatch/{dispatch}/approve', [DispatchController::class, 'approve'])->name('dispatch.approve');
     Route::post('dispatch/{dispatch}/cancel', [DispatchController::class, 'cancel'])->name('dispatch.cancel');
     Route::post('dispatch/{dispatch}/complete', [DispatchController::class, 'complete'])->name('dispatch.complete');
+    Route::delete('dispatch/{dispatch}', [DispatchController::class, 'destroy'])->name('dispatch.destroy');
 });
 
 // API routes for dispatch
 Route::prefix('api/dispatch')->group(function () {
     Route::get('items', [DispatchController::class, 'getAvailableItems']);
     Route::get('items/all', [DispatchController::class, 'getAllAvailableItems']);
-    Route::get('projects', [DispatchController::class, 'getProjects'    ]);
+    Route::get('projects', [DispatchController::class, 'getProjects']);
+    Route::get('rentals', [DispatchController::class, 'getRentals']);
+    Route::get('item-serials', [DispatchController::class, 'getItemSerials']);
 });
 
 // Temporary route to add warehouse materials data
