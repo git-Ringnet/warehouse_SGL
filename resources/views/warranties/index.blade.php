@@ -119,13 +119,7 @@
                                             <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                         </button>
                                     </a>
-                                    @if ($warranty->status !== 'void')
-                                        <button onclick="updateWarrantyStatus({{ $warranty->id }}, 'void')"
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                            title="Hủy bảo hành">
-                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                        </button>
-                                    @endif
+
                                     <button onclick="showQRCode('{{ $warranty->warranty_code }}')"
                                         class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
                                         title="Xem QR Code">
@@ -224,9 +218,10 @@
             const container = document.getElementById('qr-code-container');
             const codeText = document.getElementById('warranty-code-text');
 
-            // Generate QR code
+            // Generate QR code with full URL
+            const warrantyUrl = `${window.location.origin}/warranty/check/${warrantyCode}`;
             const qrUrl =
-                `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(warrantyCode)}`;
+                `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(warrantyUrl)}`;
             container.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="mx-auto border rounded">`;
             codeText.textContent = `Mã bảo hành: ${warrantyCode}`;
 
@@ -283,38 +278,7 @@
         }
 
         // Update Warranty Status
-        function updateWarrantyStatus(warrantyId, status) {
-            if (!confirm('Bạn có chắc chắn muốn thực hiện thao tác này?')) {
-                return;
-            }
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-
-            fetch(`/warranties/${warrantyId}/status`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken || '{{ csrf_token() }}'
-                    },
-                    body: JSON.stringify({
-                        status: status,
-                        notes: status === 'void' ? 'Hủy bảo hành từ giao diện web' : null
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        location.reload(); // Refresh page to show updated status
-                    } else {
-                        alert('Có lỗi xảy ra: ' + (data.message || 'Không thể cập nhật trạng thái'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi cập nhật trạng thái');
-                });
-        }
 
         // Close modal when clicking outside
         document.getElementById('qr-modal').addEventListener('click', function(e) {

@@ -59,16 +59,31 @@ class WarrantyController extends Controller
      */
     public function check($warrantyCode)
     {
-        $warranty = Warranty::where('warranty_code', $warrantyCode)->first();
+        $warranty = Warranty::where('warranty_code', $warrantyCode)
+            ->with(['dispatch', 'dispatchItem', 'creator'])
+            ->first();
 
         if (!$warranty) {
-            return view('warranties.check', [
+            return view('warranties.verify', [
                 'warranty' => null,
                 'message' => 'Không tìm thấy thông tin bảo hành với mã: ' . $warrantyCode
             ]);
         }
 
-        return view('warranties.check', compact('warranty'));
+        // Load the item relationship dynamically based on item_type
+        switch ($warranty->item_type) {
+            case 'product':
+                $warranty->load(['product']);
+                break;
+            case 'material':
+                $warranty->load(['material']);
+                break;
+            case 'good':
+                $warranty->load(['good']);
+                break;
+        }
+
+        return view('warranties.verify', compact('warranty'));
     }
 
     /**
@@ -117,28 +132,7 @@ class WarrantyController extends Controller
         ]);
     }
 
-    /**
-     * Update warranty status
-     */
-    public function updateStatus(Request $request, Warranty $warranty)
-    {
-        $request->validate([
-            'status' => 'required|in:active,expired,claimed,void',
-            'notes' => 'nullable|string'
-        ]);
 
-        $warranty->update([
-            'status' => $request->status,
-            'notes' => $request->notes ? $warranty->notes . "\n" . now()->format('d/m/Y H:i') . ": " . $request->notes : $warranty->notes
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Cập nhật trạng thái bảo hành thành công',
-            'status' => $warranty->status_label,
-            'status_color' => $warranty->status_color
-        ]);
-    }
 
     /**
      * Get warranties for a specific dispatch

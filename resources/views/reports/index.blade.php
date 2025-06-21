@@ -60,7 +60,7 @@
                         <div class="flex justify-between">
                             <div>
                                 <div class="text-sm font-medium text-gray-500">Tổng số vật tư</div>
-                                <div class="text-2xl font-bold text-gray-800">1,250</div>
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['total_items']) }}</div>
                                 <div class="mt-1 text-xs text-green-500 font-medium">
                                     <i class="fas fa-arrow-up mr-1"></i> +8.2% so với tháng trước
                                 </div>
@@ -75,14 +75,14 @@
                     <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-purple-500">
                         <div class="flex justify-between">
                             <div>
-                                <div class="text-sm font-medium text-gray-500">Số lượng danh mục</div>
-                                <div class="text-2xl font-bold text-gray-800">45</div>
+                                <div class="text-sm font-medium text-gray-500">Số lượng kho</div>
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['total_categories']) }}</div>
                                 <div class="mt-1 text-xs text-green-500 font-medium">
                                     <i class="fas fa-arrow-up mr-1"></i> +4.6% so với tháng trước
                                 </div>
                             </div>
                             <div class="bg-purple-100 rounded-full h-12 w-12 flex items-center justify-center">
-                                <i class="fas fa-tags text-purple-500 text-xl"></i>
+                                <i class="fas fa-warehouse text-purple-500 text-xl"></i>
                             </div>
                         </div>
                     </div>
@@ -91,10 +91,11 @@
                     <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-green-500">
                         <div class="flex justify-between">
                             <div>
-                                <div class="text-sm font-medium text-gray-500">Nhập kho (30 ngày)</div>
-                                <div class="text-2xl font-bold text-gray-800">325</div>
-                                <div class="mt-1 text-xs text-green-500 font-medium">
-                                    <i class="fas fa-arrow-up mr-1"></i> +5.7% so với kỳ trước
+                                <div class="text-sm font-medium text-gray-500">Nhập kho (trong kỳ)</div>
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['imports']) }}</div>
+                                <div class="mt-1 text-xs {{ $stats['imports_change'] >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
+                                    <i class="fas fa-arrow-{{ $stats['imports_change'] >= 0 ? 'up' : 'down' }} mr-1"></i> 
+                                    {{ $stats['imports_change'] >= 0 ? '+' : '' }}{{ $stats['imports_change'] }}% so với kỳ trước
                                 </div>
                             </div>
                             <div class="bg-green-100 rounded-full h-12 w-12 flex items-center justify-center">
@@ -107,10 +108,11 @@
                     <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-red-500">
                         <div class="flex justify-between">
                             <div>
-                                <div class="text-sm font-medium text-gray-500">Xuất kho (30 ngày)</div>
-                                <div class="text-2xl font-bold text-gray-800">412</div>
-                                <div class="mt-1 text-xs text-red-500 font-medium">
-                                    <i class="fas fa-arrow-down mr-1"></i> -3.2% so với kỳ trước
+                                <div class="text-sm font-medium text-gray-500">Xuất kho (trong kỳ)</div>
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['exports']) }}</div>
+                                <div class="mt-1 text-xs {{ $stats['exports_change'] >= 0 ? 'text-green-500' : 'text-red-500' }} font-medium">
+                                    <i class="fas fa-arrow-{{ $stats['exports_change'] >= 0 ? 'up' : 'down' }} mr-1"></i> 
+                                    {{ $stats['exports_change'] >= 0 ? '+' : '' }}{{ $stats['exports_change'] }}% so với kỳ trước
                                 </div>
                             </div>
                             <div class="bg-red-100 rounded-full h-12 w-12 flex items-center justify-center">
@@ -136,23 +138,65 @@
                 </div>
             </div>
 
+            <!-- Bộ lọc -->
+            <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Bộ lọc báo cáo</h3>
+                <form method="GET" action="{{ route('reports.index') }}" id="filterForm">
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
+                            <input type="date" name="from_date" value="{{ $dateFrom }}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
+                            <input type="date" name="to_date" value="{{ $dateTo }}" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
+                            <input type="text" name="search" value="{{ $search }}" placeholder="Mã, tên vật tư..."
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Danh mục</label>
+                            <select name="category_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả danh mục</option>
+                                @foreach($categories as $cat)
+                                    <option value="{{ $cat }}" {{ $category == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" 
+                                    class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
+                                <i class="fas fa-search mr-1"></i> Áp dụng
+                            </button>
+                        </div>
+                        <div class="flex items-end space-x-1">
+                            <button type="button" onclick="exportToExcel()" 
+                                    class="flex-1 bg-green-600 text-white px-2 py-2 rounded-md hover:bg-green-700 transition duration-200 text-sm">
+                                <i class="fas fa-file-excel"></i> Excel
+                            </button>
+                            <button type="button" onclick="exportToPdf()" 
+                                    class="flex-1 bg-red-600 text-white px-2 py-2 rounded-md hover:bg-red-700 transition duration-200 text-sm">
+                                <i class="fas fa-file-pdf"></i> PDF
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
             <!-- Báo cáo chi tiết -->
             <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-semibold text-gray-800">Báo cáo chi tiết xuất nhập tồn vật tư</h2>
-                    <div class="flex items-center">
-                        <div class="relative mr-2">
-                            <input type="text" id="search_input" placeholder="Tìm kiếm vật tư..." 
-                                class="border border-gray-300 rounded-md py-1.5 pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <i class="fas fa-search absolute left-3 top-2 text-gray-400"></i>
-                        </div>
-                        <select id="category_filter" class="border border-gray-300 rounded-md py-1.5 px-3 text-sm">
-                            <option value="">Tất cả phân loại</option>
-                            <option value="cpu">CPU</option>
-                            <option value="ram">RAM</option>
-                            <option value="storage">Lưu trữ</option>
-                            <option value="peripherals">Thiết bị ngoại vi</option>
-                        </select>
+                    <div class="text-sm text-gray-500">
+                        @if($reportData->count() > 0)
+                            {{ $reportData->count() }} kết quả
+                        @else
+                            Không có kết quả
+                        @endif
                     </div>
                 </div>
                 
@@ -184,125 +228,73 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            <!-- Dữ liệu mẫu - sẽ được thay thế bằng dữ liệu thực tế -->
+                            @forelse($reportData as $index => $item)
                             <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">1</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">VT001</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Bộ vi xử lý Intel Core i5</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Cái</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">150</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">+50</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">-75</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">125</td>
+                                <td class="py-3 px-4 text-sm text-gray-900">{{ $index + 1 }}</td>
+                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ $item['item_code'] }}</td>
+                                <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_name'] }}</td>
+                                <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_unit'] }}</td>
+                                <td class="py-3 px-4 text-sm text-gray-900">{{ number_format($item['opening_stock']) }}</td>
+                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">
+                                    @if($item['imports'] > 0)
+                                        +{{ number_format($item['imports']) }}
+                                    @else
+                                        0
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">
+                                    @if($item['exports'] > 0)
+                                        -{{ number_format($item['exports']) }}
+                                    @else
+                                        0
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ number_format($item['closing_stock']) }}</td>
                                 <td class="py-3 px-4 text-sm">
-                                    <button class="text-blue-500 hover:text-blue-700 mr-2">
+                                    <button class="text-blue-500 hover:text-blue-700 mr-2" title="Xem chi tiết">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="text-gray-500 hover:text-gray-700">
+                                    <button class="text-gray-500 hover:text-gray-700" title="Lịch sử">
                                         <i class="fas fa-history"></i>
                                     </button>
                                 </td>
                             </tr>
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">2</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">VT002</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">RAM DDR4 8GB</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Thanh</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">300</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">+100</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">-120</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">280</td>
-                                <td class="py-3 px-4 text-sm">
-                                    <button class="text-blue-500 hover:text-blue-700 mr-2">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="text-gray-500 hover:text-gray-700">
-                                        <i class="fas fa-history"></i>
-                                    </button>
+                            @empty
+                            <tr>
+                                <td colspan="9" class="py-8 px-4 text-center text-gray-500">
+                                    <i class="fas fa-inbox text-4xl mb-4 text-gray-400"></i>
+                                    <p class="text-lg font-medium">Không có dữ liệu</p>
+                                    <p class="text-sm">Thử thay đổi bộ lọc để xem kết quả khác</p>
                                 </td>
                             </tr>
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">3</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">VT003</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">SSD 512GB</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Cái</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">200</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">+80</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">-95</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">185</td>
-                                <td class="py-3 px-4 text-sm">
-                                    <button class="text-blue-500 hover:text-blue-700 mr-2">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="text-gray-500 hover:text-gray-700">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">4</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">VT004</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Màn hình LCD 24 inch</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Cái</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">120</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">+30</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">-45</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">105</td>
-                                <td class="py-3 px-4 text-sm">
-                                    <button class="text-blue-500 hover:text-blue-700 mr-2">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="text-gray-500 hover:text-gray-700">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">5</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">VT005</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Bàn phím cơ</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">Cái</td>
-                                <td class="py-3 px-4 text-sm text-gray-900">100</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-green-600">+25</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 text-red-600">-40</td>
-                                <td class="py-3 px-4 text-sm text-gray-900 font-medium">85</td>
-                                <td class="py-3 px-4 text-sm">
-                                    <button class="text-blue-500 hover:text-blue-700 mr-2">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                    <button class="text-gray-500 hover:text-gray-700">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                </td>
-                            </tr>
+                            @endforelse
                         </tbody>
+                        @if($reportData->count() > 0)
                         <tfoot class="bg-gray-50">
                             <tr>
                                 <td colspan="4" class="py-3 px-4 text-sm font-medium text-gray-700 text-right">Tổng:</td>
-                                <td class="py-3 px-4 text-sm font-medium text-gray-700">870</td>
-                                <td class="py-3 px-4 text-sm font-medium text-green-600">+285</td>
-                                <td class="py-3 px-4 text-sm font-medium text-red-600">-375</td>
-                                <td class="py-3 px-4 text-sm font-medium text-gray-700">780</td>
+                                <td class="py-3 px-4 text-sm font-medium text-gray-700">{{ number_format($reportData->sum('opening_stock')) }}</td>
+                                <td class="py-3 px-4 text-sm font-medium text-green-600">+{{ number_format($reportData->sum('imports')) }}</td>
+                                <td class="py-3 px-4 text-sm font-medium text-red-600">-{{ number_format($reportData->sum('exports')) }}</td>
+                                <td class="py-3 px-4 text-sm font-medium text-gray-700">{{ number_format($reportData->sum('closing_stock')) }}</td>
                                 <td class="py-3 px-4"></td>
                             </tr>
                         </tfoot>
+                        @endif
                     </table>
                 </div>
 
                 <div class="mt-4 flex justify-between items-center">
-                    <div class="text-sm text-gray-500">Hiển thị 1-5 của 100 kết quả</div>
-                    <div class="flex space-x-1">
-                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm disabled:opacity-50">
-                            <i class="fas fa-chevron-left"></i>
-                        </button>
-                        <button class="px-3 py-1 border border-blue-500 bg-blue-500 text-white rounded-md text-sm">1</button>
-                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">2</button>
-                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">3</button>
-                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">...</button>
-                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">20</button>
-                        <button class="px-3 py-1 border border-gray-300 rounded-md text-sm">
-                            <i class="fas fa-chevron-right"></i>
-                        </button>
+                    <div class="text-sm text-gray-500">
+                        @if($reportData->count() > 0)
+                            Hiển thị {{ $reportData->count() }} kết quả từ {{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }} đến {{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}
+                        @else
+                            Không có kết quả
+                        @endif
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        <i class="fas fa-clock mr-1"></i>
+                        Cập nhật lúc: {{ \Carbon\Carbon::now()->format('H:i:s d/m/Y') }}
                     </div>
                 </div>
             </div>
@@ -310,64 +302,56 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set default date values (current month)
-            const today = new Date();
-            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        // Chức năng xuất Excel
+        function exportToExcel() {
+            const params = new URLSearchParams();
+            const form = document.getElementById('filterForm');
+            const formData = new FormData(form);
             
-            const fromDateInput = document.getElementById('from_date');
-            const toDateInput = document.getElementById('to_date');
+            for (let [key, value] of formData.entries()) {
+                if (value) params.append(key, value);
+            }
             
-            fromDateInput.valueAsDate = firstDayOfMonth;
-            toDateInput.valueAsDate = today;
-            
-            // Filter button functionality
-            document.getElementById('filter_button').addEventListener('click', function() {
-                // Placeholder for filter functionality
-                alert('Chức năng lọc dữ liệu sẽ được xử lý ở đây');
-            });
-            
-            // Export dropdown
-            const exportDropdownBtn = document.getElementById('export_dropdown_btn');
-            const exportDropdown = document.getElementById('export_dropdown');
-            
-            exportDropdownBtn.addEventListener('click', function() {
-                exportDropdown.classList.toggle('hidden');
-            });
-            
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!exportDropdownBtn.contains(e.target) && !exportDropdown.contains(e.target)) {
-                    exportDropdown.classList.add('hidden');
-                }
-            });
-            
-            // Export actions
-            document.getElementById('export_excel').addEventListener('click', function(e) {
-                e.preventDefault();
-                alert('Xuất báo cáo Excel');
-            });
-            
-            document.getElementById('export_pdf').addEventListener('click', function(e) {
-                e.preventDefault();
-                alert('Xuất báo cáo PDF');
-            });
-            
-            document.getElementById('print_report').addEventListener('click', function(e) {
-                e.preventDefault();
-                alert('In báo cáo');
-            });
+            window.location.href = '{{ route("reports.export.excel") }}?' + params.toString();
+        }
 
+        // Chức năng xuất PDF
+        function exportToPdf() {
+            const params = new URLSearchParams();
+            const form = document.getElementById('filterForm');
+            const formData = new FormData(form);
+            
+            for (let [key, value] of formData.entries()) {
+                if (value) params.append(key, value);
+            }
+            
+            fetch('{{ route("reports.export.pdf") }}?' + params.toString())
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message + ' Tìm thấy ' + data.data_count + ' kết quả.');
+                    } else {
+                        alert('Có lỗi xảy ra khi xuất PDF');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Có lỗi xảy ra khi xuất PDF');
+                });
+        }
+
+        // Khởi tạo khi trang load
+        document.addEventListener('DOMContentLoaded', function() {
             // Biểu đồ xu hướng nhập xuất
             const trendsCtx = document.getElementById('inventoryTrendsChart').getContext('2d');
             const trendsChart = new Chart(trendsCtx, {
                 type: 'line',
                 data: {
-                    labels: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'],
+                    labels: @json($chartData['months']),
                     datasets: [
                         {
                             label: 'Nhập kho',
-                            data: [65, 78, 52, 91, 43, 58, 85, 92, 110, 105, 98, 120],
+                            data: @json($chartData['imports_data']),
                             borderColor: '#10B981',
                             backgroundColor: 'rgba(16, 185, 129, 0.1)',
                             tension: 0.4,
@@ -375,7 +359,7 @@
                         },
                         {
                             label: 'Xuất kho',
-                            data: [40, 68, 86, 74, 56, 60, 87, 96, 105, 115, 90, 85],
+                            data: @json($chartData['exports_data']),
                             borderColor: '#EF4444',
                             backgroundColor: 'rgba(239, 68, 68, 0.1)',
                             tension: 0.4,
@@ -412,10 +396,10 @@
             const topChart = new Chart(topCtx, {
                 type: 'bar',
                 data: {
-                    labels: ['RAM DDR4 8GB', 'SSD 512GB', 'Bộ vi xử lý Intel Core i5', 'Màn hình LCD 24"', 'Bàn phím cơ'],
+                    labels: @json($chartData['top_items_labels']),
                     datasets: [{
                         label: 'Số lượng tồn',
-                        data: [280, 185, 125, 105, 85],
+                        data: @json($chartData['top_items_data']),
                         backgroundColor: [
                             'rgba(99, 102, 241, 0.7)',
                             'rgba(16, 185, 129, 0.7)',
@@ -442,28 +426,13 @@
                 }
             });
 
-            // Search functionality
-            const searchInput = document.getElementById('search_input');
-            searchInput.addEventListener('keyup', function() {
-                const searchValue = this.value.toLowerCase();
-                const tableRows = document.querySelectorAll('tbody tr');
-                
-                tableRows.forEach(row => {
-                    const materialCode = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-                    const materialName = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
-                    
-                    if (materialCode.includes(searchValue) || materialName.includes(searchValue)) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
-            });
         });
 
-        // Table sorting functionality
+        // Table sorting functionality  
         function sortTable(columnIndex) {
             const table = document.querySelector('table');
+            if (!table) return;
+            
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
             const headerCells = table.querySelectorAll('th');

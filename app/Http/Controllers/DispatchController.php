@@ -107,7 +107,11 @@ class DispatchController extends Controller
             }
 
             $request->validate($validationRules);
-            Log::info('Validation passed');
+            Log::info('Basic validation passed');
+
+            // Additional validation based on dispatch_detail
+            $this->validateItemsByDispatchDetail($request);
+            Log::info('Dispatch detail validation passed');
 
             // For rental type, ensure project_receiver is filled from rental_receiver if needed
             if ($request->dispatch_type === 'rental' && !$request->project_receiver && $request->rental_receiver) {
@@ -216,11 +220,32 @@ class DispatchController extends Controller
             $firstDispatchItem = null;
             foreach ($request->items as $index => $item) {
                 Log::info("Creating dispatch item $index:", $item);
+                Log::info("Raw serial_numbers for item $index:", [
+                    'serial_numbers' => $item['serial_numbers'] ?? 'not set',
+                    'type' => gettype($item['serial_numbers'] ?? null)
+                ]);
                 
                 // Determine category based on dispatch_detail and item data
                 $category = $this->determineItemCategory($dispatch->dispatch_detail, $item);
                 Log::info("Determined category for item $index:", ['category' => $category]);
                 
+                // Handle serial numbers - can be JSON string or array
+                $serialNumbers = [];
+                if (isset($item['serial_numbers'])) {
+                    if (is_string($item['serial_numbers'])) {
+                        // If it's a JSON string, decode it
+                        $decoded = json_decode($item['serial_numbers'], true);
+                        $serialNumbers = is_array($decoded) ? $decoded : [];
+                    } elseif (is_array($item['serial_numbers'])) {
+                        // If it's already an array, use it directly
+                        $serialNumbers = $item['serial_numbers'];
+                    }
+                    // Filter out empty values
+                    $serialNumbers = array_filter($serialNumbers, function($serial) {
+                        return !empty(trim($serial));
+                    });
+                }
+
                 $dispatchItemData = [
                     'dispatch_id' => $dispatch->id,
                     'item_type' => $item['item_type'],
@@ -228,10 +253,14 @@ class DispatchController extends Controller
                     'quantity' => $item['quantity'],
                     'warehouse_id' => $item['warehouse_id'],
                     'category' => $category,
-                    'serial_numbers' => $item['serial_numbers'] ?? [],
+                    'serial_numbers' => $serialNumbers,
                     'notes' => $item['notes'] ?? null,
                 ];
                 Log::info("Creating dispatch item with data:", $dispatchItemData);
+                Log::info("Final serial_numbers for item $index:", [
+                    'serial_numbers' => $serialNumbers,
+                    'count' => count($serialNumbers)
+                ]);
                 
                 $dispatchItem = DispatchItem::create($dispatchItemData);
                 Log::info("DispatchItem created with ID:", ['id' => $dispatchItem->id]);
@@ -327,6 +356,9 @@ class DispatchController extends Controller
                 'backup_items.*' => 'nullable|array',
                 'general_items.*' => 'nullable|array',
             ]);
+
+            // Additional validation for dispatch detail and items
+            $this->validateUpdateItemsByDispatchDetail($request, $dispatch);
         } else {
             // Limited editing for approved dispatch
             $request->validate([
@@ -418,9 +450,19 @@ class DispatchController extends Controller
         if ($request->has('items')) {
             foreach ($request->items as $itemKey => $itemData) {
                 if (isset($itemData['item_type']) && isset($itemData['item_id'])) {
+                    // Handle serial numbers - can be JSON string or array
                     $serialNumbers = [];
-                    if (isset($itemData['serial_numbers']) && is_array($itemData['serial_numbers'])) {
-                        $serialNumbers = array_filter($itemData['serial_numbers'], function($serial) {
+                    if (isset($itemData['serial_numbers'])) {
+                        if (is_string($itemData['serial_numbers'])) {
+                            // If it's a JSON string, decode it
+                            $decoded = json_decode($itemData['serial_numbers'], true);
+                            $serialNumbers = is_array($decoded) ? $decoded : [];
+                        } elseif (is_array($itemData['serial_numbers'])) {
+                            // If it's already an array, use it directly
+                            $serialNumbers = $itemData['serial_numbers'];
+                        }
+                        // Filter out empty values
+                        $serialNumbers = array_filter($serialNumbers, function($serial) {
                             return !empty(trim($serial));
                         });
                     }
@@ -573,6 +615,16 @@ class DispatchController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Chỉ có thể duyệt phiếu xuất đang chờ xử lý.'
+            ]);
+        }
+
+        // Check for duplicate serials with already approved dispatches
+        $duplicateSerials = $this->checkDuplicateSerials($dispatch);
+        if (!empty($duplicateSerials)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Phát hiện serial numbers trùng lặp với phiếu xuất đã duyệt',
+                'duplicate_serials' => $duplicateSerials
             ]);
         }
 
@@ -1325,12 +1377,14 @@ class DispatchController extends Controller
 
     /**
      * Get available serial numbers for a specific item in a specific warehouse
+     * Only returns serials that are not already used in approved dispatches
      */
     public function getItemSerials(Request $request)
     {
         $itemType = $request->get('item_type');
         $itemId = $request->get('item_id');
         $warehouseId = $request->get('warehouse_id');
+        $currentDispatchId = $request->get('current_dispatch_id'); // For edit mode
 
         if (!$itemType || !$itemId || !$warehouseId) {
             return response()->json([
@@ -1348,9 +1402,32 @@ class DispatchController extends Controller
                 ->pluck('serial_number')
                 ->toArray();
 
+            // Get serial numbers that are already used in approved dispatches
+            $usedSerials = \App\Models\DispatchItem::whereHas('dispatch', function($query) use ($currentDispatchId) {
+                    $query->where('status', 'approved');
+                    // Exclude current dispatch when editing
+                    if ($currentDispatchId) {
+                        $query->where('id', '!=', $currentDispatchId);
+                    }
+                })
+                ->where('item_type', $itemType)
+                ->where('item_id', $itemId)
+                ->where('warehouse_id', $warehouseId)
+                ->get()
+                ->pluck('serial_numbers')
+                ->flatten()
+                ->filter()
+                ->toArray();
+
+            // Filter out used serials
+            $availableSerials = array_diff($serials, $usedSerials);
+
             return response()->json([
                 'success' => true,
-                'serials' => $serials
+                'serials' => array_values($availableSerials), // Re-index array
+                'total_serials' => count($serials),
+                'used_serials' => count($usedSerials),
+                'available_serials' => count($availableSerials)
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -1358,6 +1435,50 @@ class DispatchController extends Controller
                 'message' => 'Error fetching serials: ' . $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Check for duplicate serial numbers with already approved dispatches
+     */
+    private function checkDuplicateSerials(Dispatch $dispatch)
+    {
+        $duplicates = [];
+
+        foreach ($dispatch->items as $dispatchItem) {
+            if (empty($dispatchItem->serial_numbers) || !is_array($dispatchItem->serial_numbers)) {
+                continue;
+            }
+
+            foreach ($dispatchItem->serial_numbers as $serial) {
+                if (empty(trim($serial))) continue;
+
+                // Check if this serial exists in any approved dispatch (excluding current one)
+                $existingItem = DispatchItem::whereHas('dispatch', function($query) use ($dispatch) {
+                        $query->where('status', 'approved')
+                              ->where('id', '!=', $dispatch->id);
+                    })
+                    ->where('item_type', $dispatchItem->item_type)
+                    ->where('item_id', $dispatchItem->item_id)
+                    ->where('warehouse_id', $dispatchItem->warehouse_id)
+                    ->whereJsonContains('serial_numbers', $serial)
+                    ->with('dispatch')
+                    ->first();
+
+                if ($existingItem) {
+                    $duplicates[] = [
+                        'serial' => $serial,
+                        'item_type' => $dispatchItem->item_type,
+                        'item_id' => $dispatchItem->item_id,
+                        'item_code' => $dispatchItem->item_code ?? 'N/A',
+                        'item_name' => $dispatchItem->item_name ?? 'N/A',
+                        'existing_dispatch_code' => $existingItem->dispatch->dispatch_code,
+                        'existing_dispatch_id' => $existingItem->dispatch->id,
+                    ];
+                }
+            }
+        }
+
+        return $duplicates;
     }
 
     /**
@@ -1485,5 +1606,336 @@ class DispatchController extends Controller
                 ];
             })
         ]);
+    }
+
+    /**
+     * Validate items based on dispatch_detail
+     */
+    private function validateItemsByDispatchDetail(Request $request)
+    {
+        $dispatchDetail = $request->dispatch_detail;
+        $items = $request->items ?? [];
+
+        if (empty($items)) {
+            throw new \Illuminate\Validation\ValidationException(
+                validator([], []), 
+                ['items' => ['Phiếu xuất phải có ít nhất một sản phẩm!']]
+            );
+        }
+
+        // Group items by category
+        $contractItems = [];
+        $backupItems = [];
+        $generalItems = [];
+
+        foreach ($items as $item) {
+            $category = $item['category'] ?? 'general';
+            switch ($category) {
+                case 'contract':
+                    $contractItems[] = $item;
+                    break;
+                case 'backup':
+                    $backupItems[] = $item;
+                    break;
+                default:
+                    $generalItems[] = $item;
+                    break;
+            }
+        }
+
+        // Validate based on dispatch_detail
+        switch ($dispatchDetail) {
+            case 'contract':
+                if (empty($contractItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Phiếu xuất theo hợp đồng phải có ít nhất một thành phẩm theo hợp đồng!']]
+                    );
+                }
+                if (!empty($backupItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
+                    );
+                }
+                break;
+
+            case 'backup':
+                if (empty($backupItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Phiếu xuất thiết bị dự phòng phải có ít nhất một thiết bị dự phòng!']]
+                    );
+                }
+                if (!empty($contractItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Phiếu xuất thiết bị dự phòng không được chứa sản phẩm hợp đồng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
+                    );
+                }
+                break;
+
+            case 'all':
+                if (empty($contractItems) && empty($backupItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Vui lòng chọn ít nhất một sản phẩm hợp đồng và một thiết bị dự phòng để xuất kho!']]
+                    );
+                }
+                if (empty($contractItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Phiếu xuất "Tất cả" phải có ít nhất một sản phẩm hợp đồng!']]
+                    );
+                }
+                if (empty($backupItems)) {
+                    throw new \Illuminate\Validation\ValidationException(
+                        validator([], []), 
+                        ['items' => ['Phiếu xuất "Tất cả" phải có ít nhất một thiết bị dự phòng!']]
+                    );
+                }
+                break;
+        }
+
+        Log::info('Dispatch detail validation passed', [
+            'dispatch_detail' => $dispatchDetail,
+            'contract_items' => count($contractItems),
+            'backup_items' => count($backupItems),
+            'general_items' => count($generalItems)
+        ]);
+    }
+
+    /**
+     * Validate items for update based on dispatch_detail
+     */
+    private function validateUpdateItemsByDispatchDetail(Request $request, Dispatch $dispatch)
+    {
+        $dispatchDetail = $request->dispatch_detail;
+        
+        // Count existing items + new items
+        $contractItemsCount = 0;
+        $backupItemsCount = 0;
+        $generalItemsCount = 0;
+
+        // Count existing items that are not disabled/removed
+        if ($request->has('contract_items')) {
+            foreach ($request->contract_items as $itemData) {
+                if (isset($itemData['item_type']) && isset($itemData['item_id'])) {
+                    $contractItemsCount++;
+                }
+            }
+        }
+
+        if ($request->has('backup_items')) {
+            foreach ($request->backup_items as $itemData) {
+                if (isset($itemData['item_type']) && isset($itemData['item_id'])) {
+                    $backupItemsCount++;
+                }
+            }
+        }
+
+        if ($request->has('general_items')) {
+            foreach ($request->general_items as $itemData) {
+                if (isset($itemData['item_type']) && isset($itemData['item_id'])) {
+                    $generalItemsCount++;
+                }
+            }
+        }
+
+        // Count newly added items
+        if ($request->has('items')) {
+            foreach ($request->items as $itemData) {
+                if (isset($itemData['item_type']) && isset($itemData['item_id'])) {
+                    $category = $itemData['category'] ?? 'general';
+                    switch ($category) {
+                        case 'contract':
+                            $contractItemsCount++;
+                            break;
+                        case 'backup':
+                            $backupItemsCount++;
+                            break;
+                        default:
+                            $generalItemsCount++;
+                            break;
+                    }
+                }
+            }
+        }
+
+                 // Validate based on dispatch_detail
+         switch ($dispatchDetail) {
+             case 'contract':
+                 if ($contractItemsCount === 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['contract_items' => ['Phiếu xuất theo hợp đồng phải có ít nhất một thành phẩm theo hợp đồng!']]
+                     );
+                 }
+                 if ($backupItemsCount > 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['backup_items' => ['Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
+                     );
+                 }
+                 break;
+
+             case 'backup':
+                 if ($backupItemsCount === 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['backup_items' => ['Phiếu xuất thiết bị dự phòng phải có ít nhất một thiết bị dự phòng!']]
+                     );
+                 }
+                 if ($contractItemsCount > 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['contract_items' => ['Phiếu xuất thiết bị dự phòng không được chứa sản phẩm hợp đồng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
+                     );
+                 }
+                 break;
+
+             case 'all':
+                 if ($contractItemsCount === 0 && $backupItemsCount === 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['items' => ['Vui lòng chọn ít nhất một sản phẩm hợp đồng và một thiết bị dự phòng để xuất kho!']]
+                     );
+                 }
+                 if ($contractItemsCount === 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['contract_items' => ['Phiếu xuất "Tất cả" phải có ít nhất một sản phẩm hợp đồng!']]
+                     );
+                 }
+                 if ($backupItemsCount === 0) {
+                     throw new \Illuminate\Validation\ValidationException(
+                         validator([], []), 
+                         ['backup_items' => ['Phiếu xuất "Tất cả" phải có ít nhất một thiết bị dự phòng!']]
+                     );
+                 }
+                 break;
+         }
+
+        Log::info('Update dispatch detail validation passed', [
+            'dispatch_detail' => $dispatchDetail,
+            'contract_items' => $contractItemsCount,
+            'backup_items' => $backupItemsCount,
+            'general_items' => $generalItemsCount
+        ]);
+    }
+
+    /**
+     * Search dispatches via AJAX
+     */
+    public function search(Request $request)
+    {
+        $query = Dispatch::with(['project', 'creator', 'companyRepresentative', 'items']);
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('dispatch_code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('project_receiver', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('dispatch_note', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Apply dispatch type filter
+        if ($request->filled('dispatch_type')) {
+            $query->where('dispatch_type', $request->dispatch_type);
+        }
+
+        // Apply date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('dispatch_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('dispatch_date', '<=', $request->date_to);
+        }
+
+        // Apply sorting
+        $sortBy = $request->get('sort_by', 'dispatch_date');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        
+        if (in_array($sortBy, ['dispatch_code', 'dispatch_date', 'status', 'dispatch_type'])) {
+            $query->orderBy($sortBy, $sortDirection);
+        } else {
+            $query->orderBy('dispatch_date', 'desc');
+        }
+        
+        $query->orderBy('created_at', 'desc');
+
+        $dispatches = $query->get();
+
+        // Transform dispatches for JSON response
+        $transformedDispatches = $dispatches->map(function ($dispatch) {
+            return [
+                'id' => $dispatch->id,
+                'dispatch_code' => $dispatch->dispatch_code,
+                'dispatch_date' => $dispatch->dispatch_date->format('d/m/Y'),
+                'project_receiver' => $dispatch->project_receiver,
+                'total_items' => $dispatch->items->count(),
+                'dispatch_type' => $dispatch->dispatch_type,
+                'company_representative' => $dispatch->companyRepresentative->name ?? '-',
+                'creator' => $dispatch->creator->name ?? '-',
+                'status' => $dispatch->status,
+                'status_label' => $this->getStatusLabel($dispatch->status),
+                'status_color' => $this->getStatusColor($dispatch->status),
+                'can_edit' => !in_array($dispatch->status, ['completed', 'cancelled']),
+                'can_approve' => $dispatch->status === 'pending',
+                'can_cancel' => $dispatch->status === 'pending',
+                'can_delete' => $dispatch->status === 'cancelled',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'dispatches' => $transformedDispatches,
+            'total' => $dispatches->count(),
+        ]);
+    }
+
+    /**
+     * Get status label for display
+     */
+    private function getStatusLabel($status)
+    {
+        switch ($status) {
+            case 'pending':
+                return 'Chờ xử lý';
+            case 'approved':
+                return 'Đã duyệt';
+            case 'completed':
+                return 'Đã hoàn thành';
+            case 'cancelled':
+                return 'Đã hủy';
+            default:
+                return 'Không xác định';
+        }
+    }
+
+    /**
+     * Get status color for styling
+     */
+    private function getStatusColor($status)
+    {
+        switch ($status) {
+            case 'pending':
+                return 'yellow';
+            case 'approved':
+                return 'blue';
+            case 'completed':
+                return 'green';
+            case 'cancelled':
+                return 'red';
+            default:
+                return 'gray';
+        }
     }
 }

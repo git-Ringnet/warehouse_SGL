@@ -510,6 +510,9 @@
                                         Kho xuất</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
+                                        Serial</th>
+                                    <th
+                                        class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
                                         Thao tác</th>
                                 </tr>
                             </thead>
@@ -554,6 +557,26 @@
                                             {{ $item->quantity }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {{ $item->warehouse->name ?? 'Không xác định' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            @php
+                                                $serialCount = 0;
+                                                if ($item->serial_numbers) {
+                                                    if (is_array($item->serial_numbers)) {
+                                                        $serialCount = count($item->serial_numbers);
+                                                    } elseif (is_string($item->serial_numbers)) {
+                                                        $decoded = json_decode($item->serial_numbers, true);
+                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                    }
+                                                }
+                                            @endphp
+                                            @if ($serialCount > 0)
+                                                <span class="text-xs bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-100 text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800 px-2 py-1 rounded">
+                                                    {{ $serialCount }} serial
+                                                </span>
+                                            @else
+                                                <span class="text-xs text-gray-500">Chưa có</span>
+                                            @endif
+                                        </td>
                                         <td
                                             class="px-6 py-4 whitespace-nowrap text-sm text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600">
                                             <a href="{{ route('products.show', $item->item_id) }}">
@@ -566,7 +589,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
                                             <i class="fas fa-box-open text-4xl mb-4 text-gray-300"></i>
                                             <p class="text-lg">Không có sản phẩm nào</p>
                                             <p class="text-sm">Phiếu xuất này chưa có sản phẩm nào</p>
@@ -713,7 +736,18 @@
                         alert(data.message);
                         location.reload();
                     } else {
-                        alert('Có lỗi xảy ra: ' + (data.message || 'Không thể duyệt phiếu'));
+                        let errorMessage = data.message || 'Không thể duyệt phiếu';
+                        
+                        // Handle duplicate serials error
+                        if (data.duplicate_serials && data.duplicate_serials.length > 0) {
+                            errorMessage += '\n\nSerial numbers trùng lặp:';
+                            data.duplicate_serials.forEach(duplicate => {
+                                errorMessage += `\n• ${duplicate.serial} (${duplicate.item_code} - ${duplicate.item_name}) - Đã có trong phiếu ${duplicate.existing_dispatch_code}`;
+                            });
+                            errorMessage += '\n\nVui lòng kiểm tra và chọn serial numbers khác.';
+                        }
+                        
+                        alert('Có lỗi xảy ra: ' + errorMessage);
                     }
                 })
                 .catch(error => {

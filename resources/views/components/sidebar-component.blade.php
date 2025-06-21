@@ -114,7 +114,8 @@
                                 class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
                         </li>
                         <li>
-                            <a href="{{ route('repairs.index') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                            <a href="{{ route('repairs.index') }}"
+                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
                                 Sửa chữa - bảo trì
                             </a>
                         </li>
@@ -196,8 +197,7 @@
                     </button>
                     <ul id="reports" class="dropdown-content reports-menu pl-4 mt-1 space-y-1">
                         <li>
-                            <a href="{{ asset('reports') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                            <a href="{{ asset('reports') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
                                 Báo cáo tổng hợp xuất nhập tồn
                             </a>
                         </li>

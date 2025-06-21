@@ -25,9 +25,6 @@
                     class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-qrcode mr-2"></i> Tạo QR Code
                 </button>
-                <button id="export-pdf-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                    Hủy phiếu
-                </button>
                 <a href="{{ route('warranties.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-arrow-left mr-2"></i> Quay lại
@@ -433,7 +430,7 @@
                 </button>
             </div>
             <div class="text-center mb-4">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode($warranty->warranty_code) }}" alt="QR Code" class="mx-auto border rounded">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode(url('/warranty/check/' . $warranty->warranty_code)) }}" alt="QR Code" class="mx-auto border rounded">
                 <p class="text-sm font-medium text-gray-800 mt-2">{{ $warranty->warranty_code }}</p>
                 <p class="text-sm text-gray-600">Quét mã QR này để kiểm tra thông tin bảo hành thiết bị</p>
             </div>

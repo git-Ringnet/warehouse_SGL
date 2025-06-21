@@ -90,6 +90,7 @@ class Dispatch extends Model
         return $this->hasMany(Warranty::class);
     }
 
+
     /**
      * Get the status label.
      */
