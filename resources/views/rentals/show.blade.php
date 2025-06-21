@@ -174,57 +174,105 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Mock data - Thay thế bằng dữ liệu thực tế từ database -->
+                                    @php
+                                        // Lấy các phiếu xuất kho thuộc phiếu cho thuê này và đã được duyệt
+                                        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+                                            ->whereIn('status', ['approved', 'completed'])
+                                            ->where(function($query) use ($rental) {
+                                                $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                    ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                            })
+                                            ->get();
+                                        
+                                        // Lấy các item thuộc loại "contract" (theo hợp đồng)
+                                        $contractItems = collect();
+                                        foreach ($dispatches as $dispatch) {
+                                            $items = $dispatch->items()->where('category', 'contract')->get();
+                                            $contractItems = $contractItems->concat($items);
+                                        }
+                                    @endphp
+                                    
+                                    @forelse($contractItems as $index => $item)
+                                    @php
+                                        $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                                    @endphp
                                     <tr class="hover:bg-gray-50">
-                                        <td class="py-2 px-4 border-b">1</td>
-                                        <td class="py-2 px-4 border-b">RENT001</td>
-                                        <td class="py-2 px-4 border-b">Máy chiếu Epson</td>
-                                        <td class="py-2 px-4 border-b">EPS2023001</td>
+                                        <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
                                         <td class="py-2 px-4 border-b">
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay đổi</span>
+                                            @if($item->item_type == 'material' && $item->material)
+                                                {{ $item->material->code }}
+                                            @elseif($item->item_type == 'product' && $item->product)
+                                                {{ $item->product->code }}
+                                            @elseif($item->item_type == 'good' && $item->good)
+                                                {{ $item->good->code }}
+                                            @else
+                                                N/A
+                                            @endif
                                         </td>
                                         <td class="py-2 px-4 border-b">
-                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                            @if($item->item_type == 'material' && $item->material)
+                                                {{ $item->material->name }}
+                                            @elseif($item->item_type == 'product' && $item->product)
+                                                {{ $item->product->name }}
+                                            @elseif($item->item_type == 'good' && $item->good)
+                                                {{ $item->good->name }}
+                                            @else
+                                                N/A
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            @if(is_array($item->serial_numbers) && count($item->serial_numbers) > 0)
+                                                {{ implode(', ', $item->serial_numbers) }}
+                                            @else
+                                                N/A
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            @if($isReturned)
+                                                <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
+                                            @else
+                                                @php
+                                                    // Kiểm tra xem thiết bị có phải là thiết bị gốc trong bảng DispatchReplacement không
+                                                    $isReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
+                                                @endphp
+                                                @if($isReplaced)
+                                                    <button data-id="{{ $item->id }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
+                                                        <i class="fas fa-exchange-alt"></i>
+                                                        <span>Đã thay thế</span>
+                                                    </button>
+                                                @else
+                                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs flex items-center justify-center space-x-1">
+                                                        <i class="fas fa-check"></i>
+                                                        <span>Đang sử dụng</span>
+                                                    </span>
+                                                @endif
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="{{ route('inventory.dispatch.show', $item->dispatch_id) }}" class="text-blue-500 hover:text-blue-700">
                                                 <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
                                             </a>
                                         </td>
                                         <td class="py-2 px-4 border-b">
+                                            @if(!$isReturned && !$isReplaced)
                                             <div class="flex space-x-2">
-                                                <button type="button" onclick="openModal('warranty-modal', 1, 'RENT001')" class="text-blue-500 hover:text-blue-700">
+                                                <button type="button" data-id="{{ $item->id }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
                                                     <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                                                 </button>
-                                                <button type="button" onclick="openModal('return-modal', 1, 'RENT001')" class="text-red-500 hover:text-red-700">
+                                                <button type="button" data-id="{{ $item->id }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="return-btn text-red-500 hover:text-red-700">
                                                     <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                                 </button>
                                             </div>
+                                            @endif
                                         </td>
                                     </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="py-2 px-4 border-b">2</td>
-                                        <td class="py-2 px-4 border-b">RENT002</td>
-                                        <td class="py-2 px-4 border-b">Laptop Dell XPS</td>
-                                        <td class="py-2 px-4 border-b">DELL2023078</td>
-                                        <td class="py-2 px-4 border-b">
-                                            <button onclick="openModal('history-modal', 2)" class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs hover:bg-yellow-200">
-                                                Đã thay đổi <i class="fas fa-history ml-1"></i>
-                                            </button>
-                                        </td>
-                                        <td class="py-2 px-4 border-b">
-                                            <a href="#" class="text-blue-500 hover:text-blue-700">
-                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
-                                            </a>
-                                        </td>
-                                        <td class="py-2 px-4 border-b">
-                                            <div class="flex space-x-2">
-                                                <button type="button" onclick="openModal('warranty-modal', 2, 'RENT002')" class="text-blue-500 hover:text-blue-700">
-                                                    <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
-                                                </button>
-                                                <button type="button" onclick="openModal('return-modal', 2, 'RENT002')" class="text-red-500 hover:text-red-700">
-                                                    <i class="fas fa-undo-alt mr-1"></i> Thu hồi
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="7" class="py-4 px-4 border-b text-center text-gray-500">
+                                                Không có thiết bị nào theo hợp đồng
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
@@ -251,67 +299,125 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Mock data - Thay thế bằng dữ liệu thực tế từ database -->
+                                    @php
+                                        // Lấy các item thuộc loại "backup" (dự phòng/bảo hành)
+                                        $backupItems = collect();
+                                        foreach ($dispatches as $dispatch) {
+                                            $items = $dispatch->items()->where('category', 'backup')->get();
+                                            $backupItems = $backupItems->concat($items);
+                                        }
+                                        
+                                        // Lấy các item từ phiếu bảo hành
+                                        $warrantyItems = \App\Models\Warranty::whereHas('dispatch', function($query) use ($rental) {
+                                            $query->where('dispatch_type', 'rental')
+                                                ->where(function($q) use ($rental) {
+                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                        ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                });
+                                        })->get();
+                                    @endphp
+                                    
+                                    @forelse($backupItems as $index => $item)
+                                    @php
+                                        $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                                    @endphp
                                     <tr class="hover:bg-gray-50">
-                                        <td class="py-2 px-4 border-b">1</td>
-                                        <td class="py-2 px-4 border-b">RENT003</td>
-                                        <td class="py-2 px-4 border-b">Bộ âm thanh hội nghị</td>
-                                        <td class="py-2 px-4 border-b">AUDIO2023045</td>
-                                        <td class="py-2 px-4 border-b">Thiết bị dự phòng</td>
+                                        <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
                                         <td class="py-2 px-4 border-b">
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay đổi</span>
+                                            @if($item->item_type == 'material' && $item->material)
+                                                {{ $item->material->code }}
+                                            @elseif($item->item_type == 'product' && $item->product)
+                                                {{ $item->product->code }}
+                                            @elseif($item->item_type == 'good' && $item->good)
+                                                {{ $item->good->code }}
+                                            @else
+                                                N/A
+                                            @endif
                                         </td>
                                         <td class="py-2 px-4 border-b">
-                                            <a href="#" class="text-blue-500 hover:text-blue-700">
+                                            @if($item->item_type == 'material' && $item->material)
+                                                {{ $item->material->name }}
+                                            @elseif($item->item_type == 'product' && $item->product)
+                                                {{ $item->product->name }}
+                                            @elseif($item->item_type == 'good' && $item->good)
+                                                {{ $item->good->name }}
+                                            @else
+                                                N/A
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            @if(is_array($item->serial_numbers) && count($item->serial_numbers) > 0)
+                                                {{ implode(', ', $item->serial_numbers) }}
+                                            @else
+                                                N/A
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            @if($item->notes && strpos($item->notes, 'bảo hành') !== false)
+                                                Thiết bị bảo hành
+                                            @else
+                                                Thiết bị dự phòng
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            @if($isReturned)
+                                                <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
+                                            @else
+                                                @php
+                                                    // Kiểm tra xem thiết bị có phải là thiết bị gốc trong bảng DispatchReplacement không
+                                                    $isReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
+                                                    $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
+                                                @endphp
+                                                @if($isReplaced)
+                                                    <button data-id="{{ $item->id }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
+                                                        <i class="fas fa-exchange-alt"></i>
+                                                        <span>Đã thay thế</span>
+                                                    </button>
+                                                @elseif($isUsed)
+                                                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs flex items-center justify-center space-x-1">
+                                                        <i class="fas fa-check"></i>
+                                                        <span>Đang sử dụng</span>
+                                                    </span>
+                                                @else
+                                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs flex items-center justify-center space-x-1">
+                                                        <i class="fas fa-box"></i>
+                                                        <span>Chưa sử dụng</span>
+                                                    </span>
+                                                @endif
+                                            @endif
+                                        </td>
+                                        <td class="py-2 px-4 border-b">
+                                            <a href="{{ route('inventory.dispatch.show', $item->dispatch_id) }}" class="text-blue-500 hover:text-blue-700">
                                                 <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
                                             </a>
                                         </td>
                                         <td class="py-2 px-4 border-b">
-                                            <button type="button" onclick="openModal('return-modal', 3, 'RENT003')" class="text-red-500 hover:text-red-700">
+                                            @if(!$isReturned && !$isReplaced)
+                                            @php
+                                                $itemCode = '';
+                                                if ($item->item_type == 'material' && $item->material) {
+                                                    $itemCode = $item->material->code;
+                                                } elseif ($item->item_type == 'product' && $item->product) {
+                                                    $itemCode = $item->product->code;
+                                                } elseif ($item->item_type == 'good' && $item->good) {
+                                                    $itemCode = $item->good->code;
+                                                } else {
+                                                    $itemCode = 'N/A';
+                                                }
+                                            @endphp
+                                            <button type="button" data-id="{{ $item->id }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
                                                 <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                             </button>
+                                            @endif
                                         </td>
                                     </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="py-2 px-4 border-b">2</td>
-                                        <td class="py-2 px-4 border-b">RENT004</td>
-                                        <td class="py-2 px-4 border-b">Camera hội nghị Logitech</td>
-                                        <td class="py-2 px-4 border-b">LOG2023056</td>
-                                        <td class="py-2 px-4 border-b">Thiết bị đã thay thế</td>
-                                        <td class="py-2 px-4 border-b">
-                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đã được thay đổi</span>
-                                        </td>
-                                        <td class="py-2 px-4 border-b">
-                                            <a href="#" class="text-blue-500 hover:text-blue-700">
-                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
-                                            </a>
-                                        </td>
-                                        <td class="py-2 px-4 border-b">
-                                            <button type="button" onclick="openModal('return-modal', 4, 'RENT004')" class="text-red-500 hover:text-red-700">
-                                                <i class="fas fa-undo-alt mr-1"></i> Thu hồi
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="py-2 px-4 border-b">3</td>
-                                        <td class="py-2 px-4 border-b">RENT005</td>
-                                        <td class="py-2 px-4 border-b">Máy chiếu Sony Portable</td>
-                                        <td class="py-2 px-4 border-b">SONY2023099</td>
-                                        <td class="py-2 px-4 border-b">Thiết bị bảo hành</td>
-                                        <td class="py-2 px-4 border-b">
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay đổi</span>
-                                        </td>
-                                        <td class="py-2 px-4 border-b">
-                                            <a href="#" class="text-blue-500 hover:text-blue-700">
-                                                <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
-                                            </a>
-                                        </td>
-                                        <td class="py-2 px-4 border-b">
-                                            <button type="button" onclick="openModal('return-modal', 5, 'RENT005')" class="text-red-500 hover:text-red-700">
-                                                <i class="fas fa-undo-alt mr-1"></i> Thu hồi
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="8" class="py-4 px-4 border-b text-center text-gray-500">
+                                                Không có thiết bị dự phòng/bảo hành
+                                            </td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
@@ -474,24 +580,22 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <form id="warranty-form" action="#" method="POST">
+                <form id="warranty-form" action="{{ route('equipment.replace') }}" method="POST">
                     @csrf
                     <input type="hidden" id="warranty-equipment-id" name="equipment_id">
                     
                     <p class="mb-4">Bạn đang thực hiện bảo hành/thay thế cho thiết bị <span id="warranty-equipment-code" class="font-semibold"></span></p>
                     
                     <div class="mb-4">
-                        <label for="replacement-device" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị thay thế</label>
-                        <select id="replacement-device" name="replacement_device_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                        <label for="replacement_device_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị thay thế</label>
+                        <select id="replacement_device_id" name="replacement_device_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value="">-- Chọn thiết bị --</option>
-                            <option value="1">RENT003 - Bộ âm thanh hội nghị - Thiết bị dự phòng</option>
-                            <option value="2">RENT005 - Máy chiếu Sony Portable - Thiết bị bảo hành</option>
                         </select>
                     </div>
                     
                     <div class="mb-4">
-                        <label for="warranty-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do bảo hành/thay thế</label>
-                        <textarea id="warranty-reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                        <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do bảo hành/thay thế</label>
+                        <textarea id="reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
                     </div>
                     
                     <div class="flex justify-end space-x-3 mt-5">
@@ -517,35 +621,9 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="mb-4">
-                    <h4 class="text-md font-medium text-gray-800 mb-2">Thông tin thiết bị gốc</h4>
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                        <p><span class="font-medium">Mã thiết bị gốc:</span> RENT007</p>
-                        <p><span class="font-medium">Tên thiết bị:</span> Laptop Dell XPS (cũ)</p>
-                        <p><span class="font-medium">Serial:</span> DELL2023045</p>
-                        <p><span class="font-medium">Lý do thay thế:</span> Hỏng ổ cứng</p>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h4 class="text-md font-medium text-gray-800 mb-2">Lịch sử thay đổi</h4>
-                    <div class="border border-gray-200 rounded-lg overflow-hidden">
-                        <table class="min-w-full">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Ngày thay đổi</th>
-                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Người thực hiện</th>
-                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Thiết bị thay thế</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td class="py-2 px-3 border-t">08/06/2024 10:15</td>
-                                    <td class="py-2 px-3 border-t">Nguyễn Thị B</td>
-                                    <td class="py-2 px-3 border-t">RENT002 - Laptop Dell XPS</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div id="history-content" class="mb-4">
+                    <div class="flex justify-center items-center py-8">
+                        <i class="fas fa-spinner fa-spin text-blue-500 mr-2"></i> Đang tải dữ liệu...
                     </div>
                 </div>
                 
@@ -568,7 +646,7 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <form id="return-form" action="#" method="POST">
+                <form id="return-form" action="{{ route('equipment.return') }}" method="POST">
                     @csrf
                     <input type="hidden" id="return-equipment-id" name="equipment_id">
                     
@@ -578,15 +656,15 @@
                         <label for="warehouse_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn kho</label>
                         <select id="warehouse_id" name="warehouse_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value="">-- Chọn kho --</option>
-                            <option value="1">Kho Hà Nội</option>
-                            <option value="2">Kho Hồ Chí Minh</option>
-                            <option value="3">Kho Đà Nẵng</option>
+                            @foreach($warehouses as $warehouse)
+                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                            @endforeach
                         </select>
                     </div>
                     
                     <div class="mb-4">
-                        <label for="return-reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do thu hồi</label>
-                        <textarea id="return-reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+                        <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do thu hồi</label>
+                        <textarea id="reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
                     </div>
                     
                     <div class="mb-4">
@@ -612,7 +690,7 @@
     </div>
 
     <script>
-        // Delete functionality setup
+        // Document ready event
         document.addEventListener('DOMContentLoaded', function() {
             initDeleteModal();
             
@@ -622,6 +700,36 @@
                 const rentalName = this.getAttribute('data-name');
                 const rentalId = this.getAttribute('data-id');
                 openDeleteModal(rentalId, rentalName);
+            });
+
+            // Attach event listeners for modal buttons
+            document.querySelectorAll('.history-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const equipmentId = this.getAttribute('data-id');
+                    openModal('history-modal');
+                    fetchEquipmentHistory(equipmentId);
+                });
+            });
+
+            document.querySelectorAll('.warranty-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const equipmentId = this.getAttribute('data-id');
+                    const equipmentCode = this.getAttribute('data-code');
+                    openModal('warranty-modal');
+                    document.getElementById('warranty-equipment-id').value = equipmentId;
+                    document.getElementById('warranty-equipment-code').textContent = equipmentCode;
+                    fetchBackupItems();
+                });
+            });
+
+            document.querySelectorAll('.return-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const equipmentId = this.getAttribute('data-id');
+                    const equipmentCode = this.getAttribute('data-code');
+                    openModal('return-modal');
+                    document.getElementById('return-equipment-id').value = equipmentId;
+                    document.getElementById('return-equipment-code').textContent = equipmentCode;
+                });
             });
         });
 
@@ -684,26 +792,206 @@
         }
 
         // Mở modal
-        function openModal(modalId, equipmentId, equipmentCode) {
+        function openModal(modalId) {
             document.getElementById(modalId).classList.add('show');
-            
-            if (modalId === 'convert-modal') {
-                document.getElementById('convert-equipment-id').value = equipmentId;
-                document.getElementById('convert-equipment-code').textContent = equipmentCode;
-            } else if (modalId === 'return-modal') {
-                document.getElementById('return-equipment-id').value = equipmentId;
-                document.getElementById('return-equipment-code').textContent = equipmentCode;
-            } else if (modalId === 'warranty-modal') {
-                document.getElementById('warranty-equipment-id').value = equipmentId;
-                document.getElementById('warranty-equipment-code').textContent = equipmentCode;
-            } else if (modalId === 'history-modal') {
-                // Handle history modal opening
-            }
         }
         
         // Đóng modal
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('show');
+        }
+
+        // Lấy danh sách thiết bị dự phòng
+        function fetchBackupItems() {
+            const replacementDeviceSelect = document.getElementById('replacement_device_id');
+            replacementDeviceSelect.innerHTML = '<option value="">-- Đang tải dữ liệu... --</option>';
+            
+            fetch(`/equipment-service/backup-items/rental/{{ $rental->id }}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const backupItems = data.backupItems;
+                        
+                        // Xóa tất cả options hiện tại
+                        replacementDeviceSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
+                        
+                        // Thêm các options mới
+                        backupItems.forEach(item => {
+                            let itemName = 'Không xác định';
+                            let itemCode = 'N/A';
+                            
+                            if (item.item_type === 'material' && item.material) {
+                                itemName = item.material.name;
+                                itemCode = item.material.code;
+                            } else if (item.item_type === 'product' && item.product) {
+                                itemName = item.product.name;
+                                itemCode = item.product.code;
+                            } else if (item.item_type === 'good' && item.good) {
+                                itemName = item.good.name;
+                                itemCode = item.good.code;
+                            }
+                            
+                            const option = document.createElement('option');
+                            option.value = item.id;
+                            option.textContent = `${itemCode} - ${itemName} - Thiết bị dự phòng`;
+                            replacementDeviceSelect.appendChild(option);
+                        });
+                        
+                        if (backupItems.length === 0) {
+                            const option = document.createElement('option');
+                            option.value = "";
+                            option.textContent = "Không có thiết bị dự phòng nào";
+                            replacementDeviceSelect.appendChild(option);
+                        }
+                    } else {
+                        replacementDeviceSelect.innerHTML = '<option value="">-- Lỗi khi tải dữ liệu --</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching backup items:', error);
+                    replacementDeviceSelect.innerHTML = '<option value="">-- Lỗi khi tải dữ liệu --</option>';
+                });
+        }
+
+        // Lấy lịch sử thay đổi thiết bị
+        function fetchEquipmentHistory(equipmentId) {
+            const historyContent = document.getElementById('history-content');
+            historyContent.innerHTML = `
+                <div class="flex justify-center items-center py-8">
+                    <i class="fas fa-spinner fa-spin text-blue-500 mr-2"></i> Đang tải dữ liệu...
+                </div>
+            `;
+            
+            fetch(`/equipment-service/history/${equipmentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const dispatchItem = data.dispatchItem;
+                        const replacements = data.replacements;
+                        
+                        // Tạo nội dung hiển thị thông tin thiết bị gốc
+                        let itemName = '';
+                        let itemCode = '';
+                        let serialNumbers = '';
+                        
+                        if (dispatchItem.item_type === 'material' && dispatchItem.material) {
+                            itemName = dispatchItem.material.name;
+                            itemCode = dispatchItem.material.code;
+                        } else if (dispatchItem.item_type === 'product' && dispatchItem.product) {
+                            itemName = dispatchItem.product.name;
+                            itemCode = dispatchItem.product.code;
+                        } else if (dispatchItem.item_type === 'good' && dispatchItem.good) {
+                            itemName = dispatchItem.good.name;
+                            itemCode = dispatchItem.good.code;
+                        }
+                        
+                        if (dispatchItem.serial_numbers && dispatchItem.serial_numbers.length > 0) {
+                            serialNumbers = dispatchItem.serial_numbers.join(', ');
+                        }
+                        
+                        // Hiển thị thông tin thiết bị gốc
+                        let html = `
+                            <div class="mb-4">
+                                <h4 class="text-md font-medium text-gray-800 mb-2">Thông tin thiết bị</h4>
+                                <div class="bg-gray-50 p-3 rounded-lg">
+                                    <p><span class="font-medium">Mã thiết bị:</span> ${itemCode || 'Không có mã'}</p>
+                                    <p><span class="font-medium">Tên thiết bị:</span> ${itemName || 'Không có tên'}</p>
+                                    <p><span class="font-medium">Serial:</span> ${serialNumbers || 'Không có serial'}</p>
+                                    <p><span class="font-medium">Phiếu xuất:</span> ${dispatchItem.dispatch ? dispatchItem.dispatch.dispatch_code : 'Không có phiếu xuất'}</p>
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Hiển thị lịch sử thay thế
+                        if (replacements && replacements.length > 0) {
+                            html += `
+                                <div class="mb-4">
+                                    <h4 class="text-md font-medium text-gray-800 mb-2">Lịch sử thay đổi</h4>
+                                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                                        <table class="min-w-full">
+                                            <thead>
+                                                <tr class="bg-gray-100">
+                                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Ngày thay đổi</th>
+                                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Người thực hiện</th>
+                                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Thiết bị thay thế</th>
+                                                    <th class="py-2 px-3 text-left text-xs font-medium text-gray-700">Lý do</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                            `;
+                            
+                            replacements.forEach(replacement => {
+                                const date = new Date(replacement.replacement_date).toLocaleString('vi-VN');
+                                const userName = replacement.user ? replacement.user.name : 'Không xác định';
+                                
+                                // Lấy thông tin thiết bị thay thế
+                                let replacementItem = replacement.replacement_dispatch_item;
+                                let replacementItemInfo = 'Không có thông tin';
+                                
+                                if (replacementItem) {
+                                    let itemName = '';
+                                    let itemCode = '';
+                                    let serialInfo = '';
+                                    
+                                    if (replacementItem.item_type === 'material' && replacementItem.material) {
+                                        itemName = replacementItem.material.name;
+                                        itemCode = replacementItem.material.code;
+                                    } else if (replacementItem.item_type === 'product' && replacementItem.product) {
+                                        itemName = replacementItem.product.name;
+                                        itemCode = replacementItem.product.code;
+                                    } else if (replacementItem.item_type === 'good' && replacementItem.good) {
+                                        itemName = replacementItem.good.name;
+                                        itemCode = replacementItem.good.code;
+                                    }
+                                    
+                                    if (replacementItem.serial_numbers && replacementItem.serial_numbers.length > 0) {
+                                        serialInfo = ` (Serial: ${replacementItem.serial_numbers.join(', ')})`;
+                                    }
+                                    
+                                    replacementItemInfo = `${itemCode} - ${itemName}${serialInfo}`;
+                                }
+                                
+                                html += `
+                                    <tr>
+                                        <td class="py-2 px-3 border-t">${date}</td>
+                                        <td class="py-2 px-3 border-t">${userName}</td>
+                                        <td class="py-2 px-3 border-t">${replacementItemInfo}</td>
+                                        <td class="py-2 px-3 border-t">${replacement.reason || 'Không có thông tin'}</td>
+                                    </tr>
+                                `;
+                            });
+                            
+                            html += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            html += `
+                                <div class="bg-yellow-50 p-4 rounded-lg mb-4">
+                                    <p class="text-yellow-700">Chưa có lịch sử thay đổi cho thiết bị này.</p>
+                                </div>
+                            `;
+                        }
+                        
+                        historyContent.innerHTML = html;
+                    } else {
+                        historyContent.innerHTML = `
+                            <div class="bg-red-50 p-4 rounded-lg">
+                                <p class="text-red-700">Có lỗi xảy ra khi lấy lịch sử thay đổi thiết bị.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching equipment history:', error);
+                    historyContent.innerHTML = `
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <p class="text-red-700">Có lỗi xảy ra khi lấy lịch sử thay đổi thiết bị.</p>
+                        </div>
+                    `;
+                });
         }
     </script>
 </body>

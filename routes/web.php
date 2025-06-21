@@ -23,6 +23,7 @@ use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EquipmentServiceController;
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -531,4 +532,13 @@ Route::get('/debug/warehouse-materials', function() {
             ->get()
     ]);
  });
+
+// Equipment service routes (bảo hành, thay thế, thu hồi)
+Route::prefix('equipment-service')->name('equipment.')->group(function () {
+    Route::post('/return', [EquipmentServiceController::class, 'returnEquipment'])->name('return');
+    Route::post('/replace', [EquipmentServiceController::class, 'replaceEquipment'])->name('replace');
+    Route::get('/history/{id}', [EquipmentServiceController::class, 'getEquipmentHistory'])->name('history');
+    Route::get('/backup-items/project/{projectId}', [EquipmentServiceController::class, 'getBackupItemsForProject'])->name('backup-items.project');
+    Route::get('/backup-items/rental/{rentalId}', [EquipmentServiceController::class, 'getBackupItemsForRental'])->name('backup-items.rental');
+});
 });

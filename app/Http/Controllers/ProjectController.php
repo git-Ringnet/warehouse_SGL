@@ -133,7 +133,21 @@ class ProjectController extends Controller
     public function show($id)
     {
         $project = Project::with('customer')->findOrFail($id);
-        return view('projects.show', compact('project'));
+        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+        
+        // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế
+        $backupItems = collect();
+        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
+            ->where('project_id', $project->id)
+            ->whereIn('status', ['approved', 'completed'])
+            ->get();
+            
+        foreach ($dispatches as $dispatch) {
+            $items = $dispatch->items()->where('category', 'backup')->get();
+            $backupItems = $backupItems->concat($items);
+        }
+        
+        return view('projects.show', compact('project', 'warehouses', 'backupItems'));
     }
 
     /**
@@ -208,10 +222,25 @@ class ProjectController extends Controller
      */
     public function destroy($id)
     {
+        try {
         $project = Project::findOrFail($id);
+            
+            // Kiểm tra xem dự án có phiếu xuất kho liên quan không
+            $dispatchCount = \App\Models\Dispatch::where('project_id', $id)->count();
+            
+            if ($dispatchCount > 0) {
+                return redirect()->route('projects.show', $id)
+                    ->with('error', 'Không thể xóa dự án này vì có ' . $dispatchCount . ' phiếu xuất kho liên quan. Vui lòng xóa các phiếu xuất kho trước khi xóa dự án.');
+            }
+            
+            // Nếu không có phiếu xuất kho liên quan, tiến hành xóa dự án
         $project->delete();
         
         return redirect()->route('projects.index')
             ->with('success', 'Dự án đã được xóa thành công');
+        } catch (\Exception $e) {
+            return redirect()->route('projects.index')
+                ->with('error', 'Có lỗi xảy ra khi xóa dự án: ' . $e->getMessage());
+        }
     }
 } 

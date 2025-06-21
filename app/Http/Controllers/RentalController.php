@@ -133,7 +133,24 @@ class RentalController extends Controller
     public function show($id)
     {
         $rental = Rental::with(['customer'])->findOrFail($id);
-        return view('rentals.show', compact('rental'));
+        $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
+        
+        // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế
+        $backupItems = collect();
+        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+            ->whereIn('status', ['approved', 'completed'])
+            ->where(function($query) use ($rental) {
+                $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                    ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+            })
+            ->get();
+            
+        foreach ($dispatches as $dispatch) {
+            $items = $dispatch->items()->where('category', 'backup')->get();
+            $backupItems = $backupItems->concat($items);
+        }
+        
+        return view('rentals.show', compact('rental', 'warehouses', 'backupItems'));
     }
 
     /**
@@ -211,6 +228,21 @@ class RentalController extends Controller
     {
         try {
             $rental = Rental::findOrFail($id);
+            
+            // Kiểm tra xem phiếu cho thuê có phiếu xuất kho liên quan không
+            $dispatchCount = \App\Models\Dispatch::where('dispatch_type', 'rental')
+                ->where(function($query) use ($rental) {
+                    $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                        ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                })
+                ->count();
+            
+            if ($dispatchCount > 0) {
+                return redirect()->route('rentals.show', $id)
+                    ->with('error', 'Không thể xóa phiếu cho thuê này vì có ' . $dispatchCount . ' phiếu xuất kho liên quan. Vui lòng xóa các phiếu xuất kho trước khi xóa phiếu cho thuê.');
+            }
+            
+            // Nếu không có phiếu xuất kho liên quan, tiến hành xóa phiếu cho thuê
             $rental->delete();
             
             return redirect()->route('rentals.index')
