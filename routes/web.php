@@ -24,6 +24,7 @@ use App\Http\Controllers\TestingController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EquipmentServiceController;
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -541,4 +542,14 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
         Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export.pdf');
     });
+
+    
+// Equipment service routes (bảo hành, thay thế, thu hồi)
+Route::prefix('equipment-service')->name('equipment.')->group(function () {
+    Route::post('/return', [EquipmentServiceController::class, 'returnEquipment'])->name('return');
+    Route::post('/replace', [EquipmentServiceController::class, 'replaceEquipment'])->name('replace');
+    Route::get('/history/{id}', [EquipmentServiceController::class, 'getEquipmentHistory'])->name('history');
+    Route::get('/backup-items/project/{projectId}', [EquipmentServiceController::class, 'getBackupItemsForProject'])->name('backup-items.project');
+    Route::get('/backup-items/rental/{rentalId}', [EquipmentServiceController::class, 'getBackupItemsForRental'])->name('backup-items.rental');
+});
 });
