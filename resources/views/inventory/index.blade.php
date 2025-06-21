@@ -56,15 +56,22 @@
                         <select id="status_filter"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Tất cả trạng thái</option>
-                            <option value="completed">Đã hoàn thành</option>
                             <option value="pending">Chờ xử lý</option>
+                            <option value="approved">Đã duyệt</option>
                             <option value="cancelled">Đã hủy</option>
                         </select>
-                        <div class="relative">
-                            <input type="date" id="date_from"
+                        <select id="type_filter"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Tất cả loại hình</option>
+                            <option value="project">Dự án</option>
+                            <option value="rental">Cho thuê</option>
+                            <option value="warranty">Bảo hành</option>
+                        </select>
+                        <div class="relative flex items-center">
+                            <input type="date" id="date_from" placeholder="Từ ngày"
                                 class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="mx-1">-</span>
-                            <input type="date" id="date_to"
+                            <span class="mx-2 text-gray-500">-</span>
+                            <input type="date" id="date_to" placeholder="Đến ngày"
                                 class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <button id="filter_btn"
@@ -265,179 +272,349 @@
             const dateTo = document.getElementById('date_to');
             const filterBtn = document.getElementById('filter_btn');
             const resetFilterBtn = document.getElementById('reset_filter_btn');
+            const tableBody = document.getElementById('dispatch_table_body');
 
             // Sắp xếp
             const sortId = document.getElementById('sort_id');
             const sortDate = document.getElementById('sort_date');
+            
+            // Biến lưu trữ trạng thái sắp xếp
+            let currentSort = {
+                field: 'dispatch_date',
+                direction: 'desc'
+            };
 
-            // Xử lý sự kiện lọc
-            filterBtn.addEventListener('click', function() {
-                // Mã xử lý lọc và tìm kiếm dữ liệu
-                console.log('Filtering data with:');
-                console.log('Search:', searchInput.value);
-                console.log('Status:', statusFilter.value);
-                console.log('Type:', typeFilter.value);
-                console.log('Date From:', dateFrom.value);
-                console.log('Date To:', dateTo.value);
+            // Loading state
+            function showLoading() {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-6 py-8 text-center text-gray-500">
+                            <div class="flex items-center justify-center">
+                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                Đang tải dữ liệu...
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
 
-                // Ở đây sẽ gọi API hoặc xử lý dữ liệu để lọc và cập nhật bảng
-                alert('Đã áp dụng bộ lọc!');
-            });
+            // Perform search and update table
+            function performSearch() {
+                showLoading();
+                
+                const params = new URLSearchParams({
+                    search: searchInput.value,
+                    status: statusFilter.value,
+                    dispatch_type: typeFilter.value,
+                    date_from: dateFrom.value,
+                    date_to: dateTo.value,
+                    sort_by: currentSort.field,
+                    sort_direction: currentSort.direction
+                });
 
-            // Xử lý sự kiện đặt lại bộ lọc
+                fetch(`{{ route('inventory.search') }}?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateTable(data.dispatches);
+                        } else {
+                            showError('Có lỗi xảy ra khi tìm kiếm');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showError('Không thể kết nối tới server');
+                    });
+            }
+
+            // Update table with new data
+            function updateTable(dispatches) {
+                if (dispatches.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                Không tìm thấy phiếu xuất kho nào
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tableBody.innerHTML = dispatches.map(dispatch => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ${dispatch.dispatch_code}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${dispatch.dispatch_date}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${dispatch.project_receiver}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                            ${dispatch.total_items}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${dispatch.dispatch_type === 'project' || dispatch.dispatch_type === 'warranty' ? dispatch.project_receiver : '-'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${dispatch.company_representative}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            ${dispatch.creator}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-${dispatch.status_color}-100 text-${dispatch.status_color}-800">
+                                ${dispatch.status_label}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <a href="/inventory/dispatch/${dispatch.id}">
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
+                                ${dispatch.can_edit ? `
+                                    <a href="/inventory/dispatch/${dispatch.id}/edit">
+                                        <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                ` : ''}
+                                ${dispatch.can_approve ? `
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn" title="Duyệt phiếu xuất" data-id="${dispatch.id}">
+                                        <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                    </button>
+                                ` : ''}
+                                ${dispatch.can_cancel ? `
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn" title="Hủy phiếu xuất" data-id="${dispatch.id}">
+                                        <i class="fas fa-times text-red-500 group-hover:text-white"></i>
+                                    </button>
+                                ` : ''}
+                                ${dispatch.can_delete ? `
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn" title="Xóa phiếu xuất" data-id="${dispatch.id}">
+                                        <i class="fas fa-trash text-gray-500 group-hover:text-white"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Re-attach event listeners to new buttons
+                attachActionButtonListeners();
+            }
+
+            // Show error message
+            function showError(message) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-6 py-4 text-center text-red-500">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            ${message}
+                        </td>
+                    </tr>
+                `;
+            }
+
+            // Event listeners for filter controls
+            filterBtn.addEventListener('click', performSearch);
+            
             resetFilterBtn.addEventListener('click', function() {
                 searchInput.value = '';
                 statusFilter.value = '';
                 typeFilter.value = '';
                 dateFrom.value = '';
                 dateTo.value = '';
-
-                // Đặt lại dữ liệu bảng về mặc định
-                alert('Đã đặt lại bộ lọc!');
+                currentSort = { field: 'dispatch_date', direction: 'desc' };
+                updateSortIcons();
+                performSearch();
             });
 
-            // Xử lý sự kiện sắp xếp
-            let idSortDirection = 'asc';
+            // Auto-search on input change (debounced)
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(performSearch, 500);
+            });
+
+            // Auto-search on filter change
+            statusFilter.addEventListener('change', performSearch);
+            typeFilter.addEventListener('change', performSearch);
+            dateFrom.addEventListener('change', performSearch);
+            dateTo.addEventListener('change', performSearch);
+
+            // Sorting functionality
+            function updateSortIcons() {
+                // Reset all sort icons
+                document.querySelectorAll('[id^="sort_"] i').forEach(icon => {
+                    icon.className = 'fas fa-sort ml-1 text-gray-400';
+                });
+
+                // Update active sort icon
+                const activeIcon = document.querySelector(`#sort_${currentSort.field.replace('_', '')} i`);
+                if (activeIcon) {
+                    activeIcon.className = currentSort.direction === 'asc' 
+                        ? 'fas fa-sort-up ml-1 text-blue-500' 
+                        : 'fas fa-sort-down ml-1 text-blue-500';
+                }
+            }
+
             sortId.addEventListener('click', function() {
-                idSortDirection = idSortDirection === 'asc' ? 'desc' : 'asc';
-                const icon = this.querySelector('i');
-                icon.className = idSortDirection === 'asc' ? 'fas fa-sort-up ml-1' : 'fas fa-sort-down ml-1';
-
-                // Mã xử lý sắp xếp theo ID
-                alert(`Đã sắp xếp theo mã phiếu (${idSortDirection === 'asc' ? 'tăng dần' : 'giảm dần'})!`);
+                if (currentSort.field === 'dispatch_code') {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.field = 'dispatch_code';
+                    currentSort.direction = 'asc';
+                }
+                updateSortIcons();
+                performSearch();
             });
 
-            let dateSortDirection = 'asc';
             sortDate.addEventListener('click', function() {
-                dateSortDirection = dateSortDirection === 'asc' ? 'desc' : 'asc';
-                const icon = this.querySelector('i');
-                icon.className = dateSortDirection === 'asc' ? 'fas fa-sort-up ml-1' : 'fas fa-sort-down ml-1';
-
-                // Mã xử lý sắp xếp theo ngày
-                alert(`Đã sắp xếp theo ngày xuất (${dateSortDirection === 'asc' ? 'tăng dần' : 'giảm dần'})!`);
+                if (currentSort.field === 'dispatch_date') {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.field = 'dispatch_date';
+                    currentSort.direction = 'desc';
+                }
+                updateSortIcons();
+                performSearch();
             });
 
-            // Các nút thao tác duyệt, hủy và xóa phiếu
-            const approveButtons = document.querySelectorAll('.approve-btn');
-            const cancelButtons = document.querySelectorAll('.cancel-btn');
-            const deleteButtons = document.querySelectorAll('.delete-btn');
-            
-            // Xử lý duyệt phiếu xuất
-            approveButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const dispatchId = this.getAttribute('data-id');
-                    if (confirm(`Bạn có chắc chắn muốn duyệt phiếu xuất ${dispatchId}?`)) {
-                        // Disable button để tránh double click
-                        this.disabled = true;
-                        this.innerHTML = '<i class="fas fa-spinner fa-spin text-green-500"></i>';
-                        
-                        fetch(`/inventory/dispatch/${dispatchId}/approve`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert(data.message);
-                                location.reload(); // Reload trang để cập nhật UI
-                            } else {
-                                alert('Lỗi: ' + data.message);
+            // Initialize sort icons
+            updateSortIcons();
+
+            // Action button event handlers
+            function attachActionButtonListeners() {
+                const approveButtons = document.querySelectorAll('.approve-btn');
+                const cancelButtons = document.querySelectorAll('.cancel-btn');
+                const deleteButtons = document.querySelectorAll('.delete-btn');
+                
+                // Xử lý duyệt phiếu xuất
+                approveButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const dispatchId = this.getAttribute('data-id');
+                        if (confirm(`Bạn có chắc chắn muốn duyệt phiếu xuất ${dispatchId}?`)) {
+                            // Disable button để tránh double click
+                            this.disabled = true;
+                            this.innerHTML = '<i class="fas fa-spinner fa-spin text-green-500"></i>';
+                            
+                            fetch(`/inventory/dispatch/${dispatchId}/approve`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(data.message);
+                                    performSearch(); // Refresh table instead of reload
+                                } else {
+                                    alert('Lỗi: ' + data.message);
+                                    // Re-enable button nếu lỗi
+                                    this.disabled = false;
+                                    this.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Có lỗi xảy ra khi duyệt phiếu xuất');
                                 // Re-enable button nếu lỗi
                                 this.disabled = false;
                                 this.innerHTML = '<i class="fas fa-check text-green-500"></i>';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('Có lỗi xảy ra khi duyệt phiếu xuất');
-                            // Re-enable button nếu lỗi
-                            this.disabled = false;
-                            this.innerHTML = '<i class="fas fa-check text-green-500"></i>';
-                        });
-                    }
+                            });
+                        }
+                    });
                 });
-            });
-            
-            // Xử lý hủy phiếu xuất
-            cancelButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const dispatchId = this.getAttribute('data-id');
-                    if (confirm(`Bạn có chắc chắn muốn hủy phiếu xuất ${dispatchId}?`)) {
-                        // Disable button để tránh double click
-                        this.disabled = true;
-                        this.innerHTML = '<i class="fas fa-spinner fa-spin text-red-500"></i>';
-                        
-                        fetch(`/inventory/dispatch/${dispatchId}/cancel`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert(data.message);
-                                location.reload(); // Reload trang để cập nhật UI
-                            } else {
-                                alert('Lỗi: ' + data.message);
+                
+                // Xử lý hủy phiếu xuất
+                cancelButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const dispatchId = this.getAttribute('data-id');
+                        if (confirm(`Bạn có chắc chắn muốn hủy phiếu xuất ${dispatchId}?`)) {
+                            // Disable button để tránh double click
+                            this.disabled = true;
+                            this.innerHTML = '<i class="fas fa-spinner fa-spin text-red-500"></i>';
+                            
+                            fetch(`/inventory/dispatch/${dispatchId}/cancel`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(data.message);
+                                    performSearch(); // Refresh table instead of reload
+                                } else {
+                                    alert('Lỗi: ' + data.message);
+                                    // Re-enable button nếu lỗi
+                                    this.disabled = false;
+                                    this.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Có lỗi xảy ra khi hủy phiếu xuất');
                                 // Re-enable button nếu lỗi
                                 this.disabled = false;
                                 this.innerHTML = '<i class="fas fa-times text-red-500"></i>';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('Có lỗi xảy ra khi hủy phiếu xuất');
-                            // Re-enable button nếu lỗi
-                            this.disabled = false;
-                            this.innerHTML = '<i class="fas fa-times text-red-500"></i>';
-                        });
-                    }
+                            });
+                        }
+                    });
                 });
-            });
-            
-            // Xử lý xóa phiếu xuất
-            deleteButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const dispatchId = this.getAttribute('data-id');
-                    if (confirm(`Bạn có chắc chắn muốn xóa phiếu xuất ${dispatchId}? Thao tác này không thể hoàn tác.`)) {
-                        // Disable button để tránh double click
-                        this.disabled = true;
-                        this.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-500"></i>';
-                        
-                        fetch(`/inventory/dispatch/${dispatchId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert(data.message);
-                                location.reload(); // Reload trang để cập nhật UI
-                            } else {
-                                alert('Lỗi: ' + data.message);
+                
+                // Xử lý xóa phiếu xuất
+                deleteButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const dispatchId = this.getAttribute('data-id');
+                        if (confirm(`Bạn có chắc chắn muốn xóa phiếu xuất ${dispatchId}? Thao tác này không thể hoàn tác.`)) {
+                            // Disable button để tránh double click
+                            this.disabled = true;
+                            this.innerHTML = '<i class="fas fa-spinner fa-spin text-gray-500"></i>';
+                            
+                            fetch(`/inventory/dispatch/${dispatchId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    alert(data.message);
+                                    performSearch(); // Refresh table instead of reload
+                                } else {
+                                    alert('Lỗi: ' + data.message);
+                                    // Re-enable button nếu lỗi
+                                    this.disabled = false;
+                                    this.innerHTML = '<i class="fas fa-trash text-gray-500"></i>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Có lỗi xảy ra khi xóa phiếu xuất');
                                 // Re-enable button nếu lỗi
                                 this.disabled = false;
                                 this.innerHTML = '<i class="fas fa-trash text-gray-500"></i>';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('Có lỗi xảy ra khi xóa phiếu xuất');
-                            // Re-enable button nếu lỗi
-                            this.disabled = false;
-                            this.innerHTML = '<i class="fas fa-trash text-gray-500"></i>';
-                        });
-                    }
+                            });
+                        }
+                    });
                 });
-            });
+            }
+
+            // Initial attachment of event listeners for existing buttons
+            attachActionButtonListeners();
+
+            // Perform initial search to load data
+            performSearch();
         });
     </script>
 </body>

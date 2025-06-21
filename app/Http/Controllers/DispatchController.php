@@ -1823,4 +1823,119 @@ class DispatchController extends Controller
             'general_items' => $generalItemsCount
         ]);
     }
+
+    /**
+     * Search dispatches via AJAX
+     */
+    public function search(Request $request)
+    {
+        $query = Dispatch::with(['project', 'creator', 'companyRepresentative', 'items']);
+
+        // Apply search filter
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('dispatch_code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('project_receiver', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('dispatch_note', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        // Apply status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Apply dispatch type filter
+        if ($request->filled('dispatch_type')) {
+            $query->where('dispatch_type', $request->dispatch_type);
+        }
+
+        // Apply date range filter
+        if ($request->filled('date_from')) {
+            $query->whereDate('dispatch_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('dispatch_date', '<=', $request->date_to);
+        }
+
+        // Apply sorting
+        $sortBy = $request->get('sort_by', 'dispatch_date');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        
+        if (in_array($sortBy, ['dispatch_code', 'dispatch_date', 'status', 'dispatch_type'])) {
+            $query->orderBy($sortBy, $sortDirection);
+        } else {
+            $query->orderBy('dispatch_date', 'desc');
+        }
+        
+        $query->orderBy('created_at', 'desc');
+
+        $dispatches = $query->get();
+
+        // Transform dispatches for JSON response
+        $transformedDispatches = $dispatches->map(function ($dispatch) {
+            return [
+                'id' => $dispatch->id,
+                'dispatch_code' => $dispatch->dispatch_code,
+                'dispatch_date' => $dispatch->dispatch_date->format('d/m/Y'),
+                'project_receiver' => $dispatch->project_receiver,
+                'total_items' => $dispatch->items->count(),
+                'dispatch_type' => $dispatch->dispatch_type,
+                'company_representative' => $dispatch->companyRepresentative->name ?? '-',
+                'creator' => $dispatch->creator->name ?? '-',
+                'status' => $dispatch->status,
+                'status_label' => $this->getStatusLabel($dispatch->status),
+                'status_color' => $this->getStatusColor($dispatch->status),
+                'can_edit' => !in_array($dispatch->status, ['completed', 'cancelled']),
+                'can_approve' => $dispatch->status === 'pending',
+                'can_cancel' => $dispatch->status === 'pending',
+                'can_delete' => $dispatch->status === 'cancelled',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'dispatches' => $transformedDispatches,
+            'total' => $dispatches->count(),
+        ]);
+    }
+
+    /**
+     * Get status label for display
+     */
+    private function getStatusLabel($status)
+    {
+        switch ($status) {
+            case 'pending':
+                return 'Chờ xử lý';
+            case 'approved':
+                return 'Đã duyệt';
+            case 'completed':
+                return 'Đã hoàn thành';
+            case 'cancelled':
+                return 'Đã hủy';
+            default:
+                return 'Không xác định';
+        }
+    }
+
+    /**
+     * Get status color for styling
+     */
+    private function getStatusColor($status)
+    {
+        switch ($status) {
+            case 'pending':
+                return 'yellow';
+            case 'approved':
+                return 'blue';
+            case 'completed':
+                return 'green';
+            case 'cancelled':
+                return 'red';
+            default:
+                return 'gray';
+        }
+    }
 }
