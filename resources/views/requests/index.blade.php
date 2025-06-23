@@ -1,308 +1,219 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phiếu yêu cầu - SGL</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('css/main.css') }}">
-    <script src="{{ asset('js/delete-modal.js') }}"></script>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-        }
-        .sidebar {
-            background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);
-            transition: all 0.3s ease;
-        }
-        .content-area {
-            margin-left: 256px;
-            min-height: 100vh;
-            background: #f8fafc;
-            transition: margin-left 0.3s ease;
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                z-index: 1000;
-                height: 100vh;
-                width: 70px;
-            }
-            .content-area {
-                margin-left: 0 !important;
-            }
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal {
-            background-color: white;
-            border-radius: 0.5rem;
-            max-width: 500px;
-            width: 90%;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-        
-        .modal-overlay.show .modal {
-            transform: scale(1);
-        }
-    </style>
-</head>
-<body>
-    <x-sidebar-component />
-    
-    <!-- Main Content -->
-    <div class="content-area">
-        <header class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
-            <h1 class="text-xl font-bold text-gray-800">Phiếu yêu cầu</h1>
-            <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
-                    <input type="text" placeholder="Tìm kiếm theo tên dự án, đối tác..." class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64 h-10" />
-                    <select class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
-                        <option value="">Loại phiếu</option>
-                        <option value="project">Triển khai dự án</option>
-                        <option value="maintenance">Bảo trì dự án</option>
-                        <option value="customer-maintenance">Khách yêu cầu bảo trì</option>
-                    </select>
-                </div>
-                <div class="dropdown relative">
-                    <button id="dropdownButton" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
-                        <i class="fas fa-plus-circle mr-2"></i> Tạo phiếu mới <i class="fas fa-chevron-down ml-2 text-xs"></i>
-                    </button>
-                    <div id="dropdownMenu" class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200">
-                        <a href="{{ url('/requests/project/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
-                            <i class="fas fa-project-diagram mr-2"></i> Phiếu đề xuất triển khai
-                        </a>
-                        <a href="{{ url('/requests/maintenance/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
-                            <i class="fas fa-tools mr-2"></i> Phiếu bảo trì dự án
-                        </a>
-                        <a href="{{ url('/requests/customer-maintenance/create') }}" class="block px-4 py-2 text-gray-800 hover:bg-blue-50 hover:text-blue-600">
-                            <i class="fas fa-headset mr-2"></i> Phiếu khách yêu cầu bảo trì
-                        </a>
-                    </div>
+@extends('layouts.app')
+
+@section('title', 'Quản lý phiếu yêu cầu - SGL')
+
+@section('content')
+<div class="container-fluid px-6 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-gray-800">Quản lý phiếu yêu cầu</h1>
+        <div class="flex space-x-2">
+            <div class="dropdown">
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center dropdown-toggle">
+                    <i class="fas fa-plus mr-2"></i> Tạo mới
+                    <i class="fas fa-chevron-down ml-2"></i>
+                </button>
+                <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                    <a href="{{ route('requests.project.create') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-project-diagram mr-2"></i> Đề xuất triển khai dự án
+                    </a>
+                    <a href="{{ url('/requests/maintenance/create') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-tools mr-2"></i> Bảo trì dự án
+                    </a>
+                    <a href="{{ url('/requests/customer-maintenance/create') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-user-cog mr-2"></i> Khách yêu cầu bảo trì
+                    </a>
                 </div>
             </div>
-        </header>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="p-4 border-b border-gray-200">
+            <form action="{{ route('requests.index') }}" method="GET" class="flex flex-wrap gap-4">
+                <div class="flex-grow min-w-[200px]">
+                    <input type="text" name="search" placeholder="Tìm kiếm..." value="{{ request('search') }}"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="w-full md:w-auto">
+                    <select name="filter" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Tìm theo --</option>
+                        <option value="request_code" {{ request('filter') == 'request_code' ? 'selected' : '' }}>Mã phiếu</option>
+                        <option value="project_name" {{ request('filter') == 'project_name' ? 'selected' : '' }}>Tên dự án</option>
+                        <option value="customer" {{ request('filter') == 'customer' ? 'selected' : '' }}>Khách hàng</option>
+                    </select>
+                </div>
+                <div class="w-full md:w-auto">
+                    <select name="status" class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Trạng thái --</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Chờ duyệt</option>
+                        <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Đã duyệt</option>
+                        <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Từ chối</option>
+                        <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang thực hiện</option>
+                        <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành</option>
+                        <option value="canceled" {{ request('status') == 'canceled' ? 'selected' : '' }}>Đã hủy</option>
+                    </select>
+                </div>
+                <div>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                        <i class="fas fa-search mr-2"></i> Tìm kiếm
+                    </button>
+                </div>
+            </form>
+            </div>
         
-        <main class="p-6">
-            <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
+        <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày đề xuất</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kỹ thuật đề xuất</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Loại phiếu</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên dự án</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Đối tác</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mã phiếu
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Loại phiếu
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tên dự án
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Khách hàng
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Ngày tạo
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Trạng thái
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Thao tác
+                        </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                        <!-- Phiếu 1 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">1</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">28/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Duy Đức</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Triển khai dự án</span>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @if(isset($projectRequests) && count($projectRequests) > 0)
+                        @foreach($projectRequests as $request)
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ $request->request_code }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                        Triển khai dự án
+                                    </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Đất Đỏ</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">VNPT Vũng Tàu</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Chờ duyệt</span>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $request->project_name }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/requests/project/1') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/requests/project/1/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button 
-                                    class="delete-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
-                                    title="Xóa" 
-                                    data-id="1" 
-                                    data-name="phiếu đề xuất dự án Đất Đỏ"
-                                    data-type="project">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <a href="{{ url('/requests/project/1/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
-                                    <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
-                                </a>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $request->customer ? $request->customer->company_name : $request->customer_name }}
                             </td>
-                        </tr>
-                        
-                        <!-- Phiếu 2 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">2</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">25/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Minh Trí</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">Bảo trì dự án</span>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ $request->request_date->format('d/m/Y') }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Tân Thành</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Viễn Thông A</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Đã duyệt</span>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    @switch($request->status)
+                                        @case('pending')
+                                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                                                Chờ duyệt
+                                            </span>
+                                            @break
+                                        @case('approved')
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                                Đã duyệt
+                                            </span>
+                                            @break
+                                        @case('rejected')
+                                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
+                                                Từ chối
+                                            </span>
+                                            @break
+                                        @case('in_progress')
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                                Đang thực hiện
+                                            </span>
+                                            @break
+                                        @case('completed')
+                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                                Hoàn thành
+                                            </span>
+                                            @break
+                                        @case('canceled')
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                                                Đã hủy
+                                            </span>
+                                            @break
+                                        @default
+                                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                                                Không xác định
+                                            </span>
+                                    @endswitch
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/requests/maintenance/2') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/requests/maintenance/2/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button 
-                                    class="delete-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
-                                    title="Xóa" 
-                                    data-id="2" 
-                                    data-name="phiếu bảo trì dự án Tân Thành"
-                                    data-type="maintenance">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <a href="{{ url('/requests/maintenance/2/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
-                                    <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        
-                        <!-- Phiếu 3 -->
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">3</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">22/05/2024</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Hoàng Nam</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs">Phiếu khách yêu cầu bảo trì</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">Bình Châu</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">FPT Telecom</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Từ chối</span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ url('/requests/customer-maintenance/3') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ url('/requests/customer-maintenance/3/edit') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button 
-                                    class="delete-btn w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
-                                    title="Xóa" 
-                                    data-id="3" 
-                                    data-name="phiếu yêu cầu bảo trì Bình Châu"
-                                    data-type="customer-maintenance">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
-                                <a href="{{ url('/requests/customer-maintenance/3/preview') }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel" target="_blank">
-                                    <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
-                                </a>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2">
+                                    <a href="{{ route('requests.project.show', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </a>
+                                    
+                                    <a href="{{ route('requests.project.preview', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Xem trước">
+                                        <i class="fas fa-file-alt text-purple-500 group-hover:text-white"></i>
+                                    </a>
+                                    
+                                    @if($request->status === 'pending')
+                                        <a href="{{ route('requests.project.edit', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Chỉnh sửa">
+                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        <form action="{{ route('requests.project.destroy', $request->id) }}" method="POST" class="inline-block">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu đề xuất này?')">
+                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    
+                                    <form action="{{ route('requests.project.store') }}" method="POST" class="inline-block">
+                                        @csrf
+                                        <input type="hidden" name="copy_from" value="{{ $request->id }}">
+                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group" title="Sao chép">
+                                            <i class="fas fa-copy text-teal-500 group-hover:text-white"></i>
+                                        </button>
+                                    </form>
                             </td>
                         </tr>
+                        @endforeach
+                    @else
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
+                                Không có phiếu yêu cầu nào
+                            </td>
+                        </tr>
+                    @endif
                     </tbody>
                 </table>
             </div>
 
-            <!-- Pagination -->
-            <div class="mt-6 flex justify-between items-center">
-                <div class="text-sm text-gray-500">Hiển thị 1-3 của 12 phiếu yêu cầu</div>
-                <div class="flex space-x-1">
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <a href="#" class="px-3 py-1 rounded border border-blue-500 bg-blue-500 text-white">1</a>
-                    <a href="#" class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100">2</a>
-                    <a href="#" class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100">3</a>
-                    <a href="#" class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-100">4</a>
-                    <button class="px-3 py-1 bg-white border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </div>
+        @if(isset($projectRequests) && $projectRequests->hasPages())
+            <div class="px-6 py-4 border-t border-gray-200">
+                {{ $projectRequests->links() }}
             </div>
-        </main>
+        @endif
+    </div>
     </div>
 
     <script>
-        // Dropdown Menus - Sửa lại để đơn giản hơn
         document.addEventListener('DOMContentLoaded', function() {
-            const dropdownButton = document.getElementById('dropdownButton');
-            const dropdownMenu = document.getElementById('dropdownMenu');
+        const dropdownToggle = document.querySelector('.dropdown-toggle');
+        const dropdownMenu = document.querySelector('.dropdown-menu');
             
-            // Hiển thị dropdown khi click vào nút
-            dropdownButton.addEventListener('click', function() {
+        dropdownToggle.addEventListener('click', function() {
                 dropdownMenu.classList.toggle('hidden');
             });
             
-            // Ẩn dropdown khi click ra ngoài
+        // Đóng dropdown khi click ra ngoài
             document.addEventListener('click', function(event) {
-                if (!dropdownButton.contains(event.target) && !dropdownMenu.contains(event.target)) {
+            if (!dropdownToggle.contains(event.target) && !dropdownMenu.contains(event.target)) {
                     dropdownMenu.classList.add('hidden');
                 }
             });
-
-            // Initialize delete modal
-            initDeleteModal();
-            
-            // Add click handlers to all delete buttons
-            document.querySelectorAll('.delete-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
-                    const name = this.getAttribute('data-name');
-                    const type = this.getAttribute('data-type');
-                    
-                    openDeleteModal(id, name);
-                });
-            });
-        });
-
-        // Override deleteCustomer function from delete-modal.js
-        function deleteCustomer(id) {
-            // Find the button with matching data-id
-            const button = document.querySelector(`.delete-btn[data-id="${id}"]`);
-            const type = button.getAttribute('data-type');
-            
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = "{{ url('/requests') }}/" + type + "/" + id;
-            
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = "{{ csrf_token() }}";
-            
-            const method = document.createElement('input');
-            method.type = 'hidden';
-            method.name = '_method';
-            method.value = 'DELETE';
-            
-            form.appendChild(csrfToken);
-            form.appendChild(method);
-            document.body.appendChild(form);
-            form.submit();
-        }
+    });
     </script>
-</body>
-</html> 
+@endsection 

@@ -22,6 +22,7 @@ use App\Http\Controllers\RentalController;
 use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ProjectRequestController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EquipmentServiceController;
@@ -332,36 +333,21 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::resource('rentals', RentalController::class);
     Route::post('/rentals/{rental}/extend', [RentalController::class, 'extend'])->name('rentals.extend');
 
-    // Quản lý phiếu yêu cầu
-    Route::get('/requests', function () {
-        return view('requests.index');
-    });
-
     // Phiếu đề xuất triển khai dự án
-    Route::get('/requests/project/create', function () {
-        return view('requests.project.create');
+    Route::get('/requests', [ProjectRequestController::class, 'index'])->name('requests.index');
+    
+    Route::prefix('requests/project')->name('requests.project.')->group(function () {
+        Route::get('/create', [ProjectRequestController::class, 'create'])->name('create');
+        Route::post('/', [ProjectRequestController::class, 'store'])->name('store');
+        Route::get('/{id}', [ProjectRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::get('/{id}/edit', [ProjectRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+        Route::patch('/{id}', [ProjectRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
+        Route::delete('/{id}', [ProjectRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+        Route::post('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
+        Route::post('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
+        Route::post('/{id}/status', [ProjectRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
+        Route::get('/{id}/preview', [ProjectRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
     });
-
-    Route::post('/requests/project', function () {
-        // Xử lý tạo phiếu đề xuất triển khai dự án
-        return redirect('/requests');
-    });
-
-    Route::get('/requests/project/{id}', function ($id) {
-        return view('requests.project.show', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/project/{id}/edit', function ($id) {
-        return view('requests.project.edit', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/project/{id}/preview', function ($id) {
-        return view('requests.project.preview', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/project/{id}/copy', function ($id) {
-        return view('requests.project.copy', ['id' => $id]);
-    })->where('id', '[0-9]+');
 
     // Phiếu bảo trì dự án
     Route::get('/requests/maintenance/create', function () {
@@ -467,14 +453,6 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
     Route::get('user-logs/{id}', [UserLogController::class, 'show'])->name('user-logs.show');
     Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export');
-
-    Route::get('/requests/project/create', function () {
-        return view('requests.project.create');
-    });
-
-    Route::get('/requests/maintenance/create', function () {
-        return view('requests.maintenance.create');
-    });
 
     // Temporary debug route
     Route::get('/debug/materials', function () {
