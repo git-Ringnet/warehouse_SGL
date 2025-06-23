@@ -49,7 +49,7 @@
                         <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Đã duyệt</option>
                         <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Từ chối</option>
                         <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang thực hiện</option>
-                        <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành</option>
+                         <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành</option>
                         <option value="canceled" {{ request('status') == 'canceled' ? 'selected' : '' }}>Đã hủy</option>
                     </select>
                 </div>
@@ -89,23 +89,29 @@
                         </tr>
                     </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    @if(isset($projectRequests) && count($projectRequests) > 0)
-                        @foreach($projectRequests as $request)
+                    @if(isset($requests) && count($requests) > 0)
+                        @foreach($requests as $request)
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $request->request_code }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                                        Triển khai dự án
-                                    </span>
-                            </td>
+                                    @if($request->type == 'project')
+                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                            Triển khai dự án
+                                        </span>
+                                    @elseif($request->type == 'maintenance')
+                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                            Bảo trì dự án
+                                        </span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $request->project_name }}
-                            </td>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $request->customer ? $request->customer->company_name : $request->customer_name }}
-                            </td>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     {{ $request->request_date->format('d/m/Y') }}
                             </td>
@@ -148,35 +154,83 @@
                                     @endswitch
                             </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex space-x-2">
-                                    <a href="{{ route('requests.project.show', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </a>
-                                    
-                                    <a href="{{ route('requests.project.preview', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Xem trước">
-                                        <i class="fas fa-file-alt text-purple-500 group-hover:text-white"></i>
-                                    </a>
-                                    
-                                    @if($request->status === 'pending')
-                                        <a href="{{ route('requests.project.edit', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Chỉnh sửa">
-                                            <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    @if($request->type == 'project')
+                                        <a href="{{ route('requests.project.show', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
+                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                </a>
+                                        
+                                        <a href="{{ route('requests.project.preview', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Xem trước">
+                                            <i class="fas fa-file-alt text-purple-500 group-hover:text-white"></i>
                                         </a>
                                         
-                                        <form action="{{ route('requests.project.destroy', $request->id) }}" method="POST" class="inline-block">
+                                        <a href="#" onclick="exportToExcel('project', '{{ $request->id }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel">
+                                            <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
+                                        </a>
+
+                                        <a href="#" onclick="exportToPDF('project', '{{ $request->id }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xuất PDF">
+                                            <i class="fas fa-file-pdf text-red-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        @if($request->status === 'pending')
+                                            <a href="{{ route('requests.project.edit', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Chỉnh sửa">
+                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                </a>
+                                            
+                                            <form action="{{ route('requests.project.destroy', $request->id) }}" method="POST" class="inline-block">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu đề xuất này?')">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                                            </form>
+                                        @endif
+                                        
+                                        <form action="{{ route('requests.project.store') }}" method="POST" class="inline-block">
                                             @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu đề xuất này?')">
-                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            <input type="hidden" name="copy_from" value="{{ $request->id }}">
+                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group" title="Sao chép">
+                                                <i class="fas fa-copy text-teal-500 group-hover:text-white"></i>
+                                            </button>
+                                        </form>
+                                    @elseif($request->type == 'maintenance')
+                                        <a href="{{ route('requests.maintenance.show', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
+                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                </a>
+                                        
+                                        <a href="{{ route('requests.maintenance.preview', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Xem trước">
+                                            <i class="fas fa-file-alt text-purple-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        <a href="#" onclick="exportToExcel('maintenance', '{{ $request->id }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel">
+                                            <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
+                                        </a>
+
+                                        <a href="#" onclick="exportToPDF('maintenance', '{{ $request->id }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xuất PDF">
+                                            <i class="fas fa-file-pdf text-red-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        @if($request->status === 'pending')
+                                            <a href="{{ route('requests.maintenance.edit', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Chỉnh sửa">
+                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                </a>
+                                            
+                                            <form action="{{ route('requests.maintenance.destroy', $request->id) }}" method="POST" class="inline-block">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu bảo trì này?')">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                                            </form>
+                                        @endif
+                                        
+                                        <form action="{{ route('requests.maintenance.store') }}" method="POST" class="inline-block">
+                                            @csrf
+                                            <input type="hidden" name="copy_from" value="{{ $request->id }}">
+                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group" title="Sao chép">
+                                                <i class="fas fa-copy text-teal-500 group-hover:text-white"></i>
                                             </button>
                                         </form>
                                     @endif
-                                    
-                                    <form action="{{ route('requests.project.store') }}" method="POST" class="inline-block">
-                                        @csrf
-                                        <input type="hidden" name="copy_from" value="{{ $request->id }}">
-                                        <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group" title="Sao chép">
-                                            <i class="fas fa-copy text-teal-500 group-hover:text-white"></i>
-                                        </button>
-                                    </form>
                             </td>
                         </tr>
                         @endforeach
@@ -191,9 +245,9 @@
                 </table>
             </div>
 
-        @if(isset($projectRequests) && $projectRequests->hasPages())
+        @if(isset($requests) && $requests->hasPages())
             <div class="px-6 py-4 border-t border-gray-200">
-                {{ $projectRequests->links() }}
+                {{ $requests->links() }}
             </div>
         @endif
     </div>
@@ -215,5 +269,13 @@
                 }
             });
     });
+
+    function exportToExcel(type, id) {
+        window.location.href = `/requests/${type}/${id}/export-excel`;
+    }
+
+    function exportToPDF(type, id) {
+        window.location.href = `/requests/${type}/${id}/export-pdf`;
+    }
     </script>
 @endsection 

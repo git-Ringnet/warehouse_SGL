@@ -26,21 +26,32 @@ class ProjectRequestController extends Controller
         $filter = $request->input('filter');
         $status = $request->input('status');
         
-        $query = ProjectRequest::with(['proposer', 'customer']);
+        // Query cho phiếu đề xuất triển khai dự án
+        $projectQuery = ProjectRequest::with(['proposer', 'customer']);
         
-        // Xử lý tìm kiếm
+        // Query cho phiếu bảo trì dự án
+        $maintenanceQuery = \App\Models\MaintenanceRequest::with(['proposer', 'customer']);
+        
+        // Xử lý tìm kiếm cho phiếu đề xuất triển khai dự án
         if ($search) {
             if ($filter) {
                 // Tìm kiếm theo trường được chọn
                 switch ($filter) {
                     case 'request_code':
-                        $query->where('request_code', 'like', "%{$search}%");
+                        $projectQuery->where('request_code', 'like', "%{$search}%");
+                        $maintenanceQuery->where('request_code', 'like', "%{$search}%");
                         break;
                     case 'project_name':
-                        $query->where('project_name', 'like', "%{$search}%");
+                        $projectQuery->where('project_name', 'like', "%{$search}%");
+                        $maintenanceQuery->where('project_name', 'like', "%{$search}%");
                         break;
                     case 'customer':
-                        $query->where('customer_name', 'like', "%{$search}%")
+                        $projectQuery->where('customer_name', 'like', "%{$search}%")
+                              ->orWhereHas('customer', function($q) use ($search) {
+                                  $q->where('name', 'like', "%{$search}%")
+                                    ->orWhere('company_name', 'like', "%{$search}%");
+                              });
+                        $maintenanceQuery->where('customer_name', 'like', "%{$search}%")
                               ->orWhereHas('customer', function($q) use ($search) {
                                   $q->where('name', 'like', "%{$search}%")
                                     ->orWhere('company_name', 'like', "%{$search}%");
@@ -49,7 +60,16 @@ class ProjectRequestController extends Controller
                 }
             } else {
                 // Tìm kiếm tổng quát nếu không chọn bộ lọc
-                $query->where(function ($q) use ($search) {
+                $projectQuery->where(function ($q) use ($search) {
+                    $q->where('request_code', 'like', "%{$search}%")
+                      ->orWhere('project_name', 'like', "%{$search}%")
+                      ->orWhere('customer_name', 'like', "%{$search}%")
+                      ->orWhereHas('customer', function($subq) use ($search) {
+                          $subq->where('name', 'like', "%{$search}%")
+                               ->orWhere('company_name', 'like', "%{$search}%");
+                      });
+                });
+                $maintenanceQuery->where(function ($q) use ($search) {
                     $q->where('request_code', 'like', "%{$search}%")
                       ->orWhere('project_name', 'like', "%{$search}%")
                       ->orWhere('customer_name', 'like', "%{$search}%")
@@ -63,19 +83,51 @@ class ProjectRequestController extends Controller
         
         // Lọc theo trạng thái
         if ($status) {
-            $query->where('status', $status);
+            $projectQuery->where('status', $status);
+            $maintenanceQuery->where('status', $status);
         }
         
-        $projectRequests = $query->latest()->paginate(10);
+        // Lấy dữ liệu phiếu đề xuất triển khai dự án
+        $projectRequests = $projectQuery->latest()->get();
+        
+        // Lấy dữ liệu phiếu bảo trì dự án
+        $maintenanceRequests = $maintenanceQuery->latest()->get();
+        
+        // Kết hợp hai loại phiếu và thêm trường type để phân biệt
+        $projectRequests = $projectRequests->map(function ($item) {
+            $item->type = 'project';
+            return $item;
+        });
+        
+        $maintenanceRequests = $maintenanceRequests->map(function ($item) {
+            $item->type = 'maintenance';
+            return $item;
+        });
+        
+        // Gộp hai collection và sắp xếp theo ngày tạo mới nhất
+        $allRequests = $projectRequests->concat($maintenanceRequests)->sortByDesc('created_at');
+        
+        // Phân trang thủ công
+        $perPage = 10;
+        $currentPage = request()->get('page', 1);
+        $currentItems = $allRequests->forPage($currentPage, $perPage);
+        
+        $requests = new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $allRequests->count(),
+            $perPage,
+            $currentPage,
+            ['path' => request()->url(), 'query' => request()->query()]
+        );
         
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
-        $projectRequests->appends([
+        $requests->appends([
             'search' => $search,
             'filter' => $filter,
             'status' => $status
         ]);
         
-        return view('requests.index', compact('projectRequests', 'search', 'filter', 'status'));
+        return view('requests.index', compact('requests', 'search', 'filter', 'status'));
     }
 
     /**

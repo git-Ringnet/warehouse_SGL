@@ -1,300 +1,418 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chi tiết phiếu bảo trì dự án - SGL</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('css/main.css') }}">
-    <script src="{{ asset('js/delete-modal.js') }}"></script>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-        }
-        .sidebar {
-            background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);
-            transition: all 0.3s ease;
-        }
-        .content-area {
-            margin-left: 256px;
-            min-height: 100vh;
-            background: #f8fafc;
-            transition: margin-left 0.3s ease;
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                z-index: 1000;
-                height: 100vh;
-                width: 70px;
-            }
-            .content-area {
-                margin-left: 0 !important;
-            }
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal {
-            background-color: white;
-            border-radius: 0.5rem;
-            max-width: 500px;
-            width: 90%;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-        
-        .modal-overlay.show .modal {
-            transform: scale(1);
-        }
-    </style>
-</head>
-<body>
-    <x-sidebar-component />
-    
-    <!-- Main Content -->
-    <div class="content-area">
-        <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
-            <div class="flex items-center">
-                <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu bảo trì dự án</h1>
-                <div class="ml-4 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-                    Mẫu REQ-MAINT
-                </div>
-                <div class="ml-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    ID: {{ $id }}
-                </div>
-                <div class="ml-2 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                    Đang xử lý
-                </div>
+@extends('layouts.app')
+
+@section('title', 'Chi tiết phiếu bảo trì dự án - SGL')
+
+@section('content')
+<div class="container-fluid px-6 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Chi tiết phiếu bảo trì dự án</h1>
+            <div class="mt-1 flex items-center">
+                <span class="text-sm text-gray-500">Mã phiếu: {{ $maintenanceRequest->request_code }}</span>
+                <span class="mx-2 text-gray-400">|</span>
+                <span class="text-sm text-gray-500">Ngày tạo: {{ $maintenanceRequest->request_date->format('d/m/Y') }}</span>
+                <span class="mx-2 text-gray-400">|</span>
+                <span class="text-sm">
+                    @switch($maintenanceRequest->status)
+                        @case('pending')
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Chờ duyệt</span>
+                            @break
+                        @case('approved')
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Đã duyệt</span>
+                            @break
+                        @case('rejected')
+                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Từ chối</span>
+                            @break
+                        @case('in_progress')
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đang thực hiện</span>
+                            @break
+                        @case('completed')
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Hoàn thành</span>
+                            @break
+                        @case('canceled')
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Đã hủy</span>
+                            @break
+                        @default
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Không xác định</span>
+                    @endswitch
+                </span>
+            </div>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ url('/requests/maintenance/'.$id.'/edit') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+            <a href="{{ route('requests.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Quay lại
+            </a>
+            
+            <a href="{{ route('requests.maintenance.preview', $maintenanceRequest->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-eye mr-2"></i> Xem trước
+            </a>
+            
+            <a href="#" onclick="window.print(); return false;" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-print mr-2"></i> In PDF
+            </a>
+            
+            <form action="{{ route('requests.maintenance.store') }}" method="POST" class="inline-block">
+                @csrf
+                <input type="hidden" name="copy_from" value="{{ $maintenanceRequest->id }}">
+                <button type="submit" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-copy mr-2"></i> Sao chép
+                </button>
+            </form>
+            
+            @if($maintenanceRequest->status === 'pending')
+                <a href="{{ route('requests.maintenance.edit', $maintenanceRequest->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                 </a>
-                <button id="deleteButton" 
-                    data-id="{{ $id }}" 
-                    data-name="phiếu bảo trì dự án"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                <form action="{{ route('requests.maintenance.destroy', $maintenanceRequest->id) }}" method="POST" class="inline-block">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu bảo trì này?')">
+                        <i class="fas fa-trash mr-2"></i> Xóa
                 </button>
-                <a href="{{ url('/requests') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-arrow-left mr-2"></i> Quay lại
-                </a>
-            </div>
-        </header>
-        
-        <main class="p-6">
-            <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-800">Thông tin chung</h2>
-                        <p class="text-sm text-gray-600">Mã phiếu: MAINT-{{ str_pad($id, 4, '0', STR_PAD_LEFT) }}</p>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button onclick="printRequest()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-print mr-2"></i> In phiếu
-                        </button>
-                        <a href="{{ url('/requests/maintenance/'.$id.'/copy') }}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-copy mr-2"></i> Sao chép
-                        </a>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Cột 1 -->
-                    <div class="space-y-6">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin đề xuất</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Ngày đề xuất</p>
-                                    <p class="text-base text-gray-800">20/06/2024</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Kỹ thuật đề xuất</p>
-                                    <p class="text-base text-gray-800">Trần Minh Trí</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin dự án</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Tên dự án</p>
-                                    <p class="text-base text-gray-800">Hệ thống giám sát Tân Thành</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Đối tác</p>
-                                    <p class="text-base text-gray-800">Viễn Thông A</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Địa chỉ dự án</p>
-                                    <p class="text-base text-gray-800">456 Đường Lê Hồng Phong, Phường Tân Thành, Quận Tân Phú, TP.HCM</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin khách hàng</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Tên khách hàng</p>
-                                    <p class="text-base text-gray-800">Lê Quang Hưng</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Số điện thoại</p>
-                                    <p class="text-base text-gray-800">0987654321</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Email</p>
-                                    <p class="text-base text-gray-800">hung.le@vienthonga.com</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Cột 2 -->
-                    <div class="space-y-6">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin bảo trì</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Ngày bảo trì dự kiến</p>
-                                    <p class="text-base text-gray-800">05/07/2024</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Loại bảo trì</p>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        <i class="fas fa-circle text-xs mr-1"></i> Định kỳ
-                                    </span>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Lý do bảo trì</p>
-                                    <p class="text-base text-gray-800 whitespace-pre-line">Bảo trì định kỳ 6 tháng theo hợp đồng. Kiểm tra các thiết bị camera, hệ thống lưu trữ và nâng cấp phần mềm quản lý.</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Trạng thái</p>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        <i class="fas fa-circle text-xs mr-1"></i> Đang xử lý
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Vật tư cần thiết</h3>
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead>
-                                    <tr>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên vật tư</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">1</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">Ổ cứng lưu trữ 4TB</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">2</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">2</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">Bộ nguồn dự phòng</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">1</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Nhân sự thực hiện</h3>
-                            <ul class="list-disc list-inside space-y-1">
-                                <li class="text-base text-gray-800">Nguyễn Văn An</li>
-                                <li class="text-base text-gray-800">Phạm Thị Bình</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <div class="text-sm text-gray-500">
-                            <p>Ngày tạo: 20/06/2024 10:30:00</p>
-                            <p>Cập nhật lần cuối: 21/06/2024 15:45:12</p>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-700 mb-2"><strong>Ghi chú:</strong></p>
-                            <p class="text-sm text-gray-700">Bảo trì định kỳ đã được thông báo cho khách hàng trước 2 tuần. Cần chuẩn bị đầy đủ vật tư và liên hệ xác nhận lịch trước khi thực hiện.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Timeline hoạt động -->
-            
-        </main>
+                </form>
+            @endif
+        </div>
     </div>
 
-    <script>
-        // Delete functionality setup
-        document.addEventListener('DOMContentLoaded', function() {
-            initDeleteModal();
-            
-            // Attach click event to delete button
-            document.getElementById('deleteButton').addEventListener('click', function() {
-                const requestName = this.getAttribute('data-name');
-                const requestId = this.getAttribute('data-id');
-                openDeleteModal(requestId, requestName);
-            });
-        });
+    @if(session('success'))
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded">
+            <div class="flex">
+                <div class="py-1"><i class="fas fa-check-circle text-green-500"></i></div>
+                <div class="ml-3">
+                    <p class="text-sm">{{ session('success') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
 
-        // Override deleteCustomer function from delete-modal.js
-        function deleteCustomer(id) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = "{{ url('/requests/maintenance') }}/" + id;
-            
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = "{{ csrf_token() }}";
-            
-            const method = document.createElement('input');
-            method.type = 'hidden';
-            method.name = '_method';
-            method.value = 'DELETE';
-            
-            form.appendChild(csrfToken);
-            form.appendChild(method);
-            document.body.appendChild(form);
-            form.submit();
+    @if(session('error'))
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+            <div class="flex">
+                <div class="py-1"><i class="fas fa-exclamation-circle text-red-500"></i></div>
+                <div class="ml-3">
+                    <p class="text-sm">{{ session('error') }}</p>
+                </div>
+                    </div>
+                    </div>
+    @endif
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Thông tin đề xuất -->
+        <div class="bg-white rounded-xl shadow-md p-6 md:col-span-2">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin đề xuất</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Người đề xuất</p>
+                    <p class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Không có' }}</p>
+                </div>
+                                <div>
+                    <p class="text-sm text-gray-500">Ngày đề xuất</p>
+                    <p class="font-medium">{{ $maintenanceRequest->request_date->format('d/m/Y') }}</p>
+                                </div>
+                                <div>
+                    <p class="text-sm text-gray-500">Tên dự án</p>
+                    <p class="font-medium">{{ $maintenanceRequest->project_name }}</p>
+                        </div>
+                                <div>
+                    <p class="text-sm text-gray-500">Địa chỉ dự án</p>
+                    <p class="font-medium">{{ $maintenanceRequest->project_address }}</p>
+                                </div>
+                                <div>
+                    <p class="text-sm text-gray-500">Loại bảo trì</p>
+                    <p class="font-medium">
+                        @if($maintenanceRequest->maintenance_type === 'regular')
+                            Định kỳ
+                        @elseif($maintenanceRequest->maintenance_type === 'emergency')
+                            Khẩn cấp
+                        @elseif($maintenanceRequest->maintenance_type === 'preventive')
+                            Phòng ngừa
+                        @else
+                            Không xác định
+                        @endif
+                    </p>
+                                </div>
+                                <div>
+                    <p class="text-sm text-gray-500">Người thực hiện</p>
+                    <p class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Chưa phân công' }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+        <!-- Thông tin khách hàng -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin khách hàng</h2>
+                                <div>
+                <p class="text-sm text-gray-500">Đối tác</p>
+                <p class="font-medium">{{ $maintenanceRequest->customer ? $maintenanceRequest->customer->company_name : $maintenanceRequest->customer_name }}</p>
+            </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Tên người liên hệ</p>
+                <p class="font-medium">{{ $maintenanceRequest->customer_name }}</p>
+                                </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Số điện thoại</p>
+                <p class="font-medium">{{ $maintenanceRequest->customer_phone }}</p>
+                                </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Email</p>
+                <p class="font-medium">{{ $maintenanceRequest->customer_email ?: 'Không có' }}</p>
+                                </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Địa chỉ</p>
+                <p class="font-medium">{{ $maintenanceRequest->customer_address }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+    <!-- Thông tin bảo trì -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin bảo trì</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                <p class="text-sm text-gray-500">Ngày bảo trì dự kiến</p>
+                <p class="font-medium">{{ $maintenanceRequest->maintenance_date->format('d/m/Y') }}</p>
+                                </div>
+                                <div>
+                <p class="text-sm text-gray-500">Lý do bảo trì</p>
+                <p class="font-medium">{{ $maintenanceRequest->maintenance_reason }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+    <!-- Danh sách thành phẩm -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-3">Thành phẩm cần bảo trì</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mã thành phẩm
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tên thành phẩm
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Số lượng
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Đơn vị
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Mô tả
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    @foreach($maintenanceRequest->products as $product)
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $product->product_code }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $product->product_name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $product->quantity }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $product->unit }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ $product->description }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+   
+
+    <!-- Ghi chú -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Ghi chú</h2>
+        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line">
+            {{ $maintenanceRequest->notes ?: 'Không có ghi chú' }}
+        </div>
+    </div>
+
+    <!-- Phần xử lý phiếu đề xuất -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Xử lý phiếu bảo trì</h2>
+        
+        @if($maintenanceRequest->status === 'pending')
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Duyệt phiếu -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-700 mb-3">Duyệt phiếu bảo trì</h3>
+                    <form action="{{ route('requests.maintenance.approve', $maintenanceRequest->id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="implementer_id" value="{{ $maintenanceRequest->proposer_id }}">
+                        <p class="mb-4 text-gray-700">Người thực hiện: <span class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Không có' }}</span></p>
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-check mr-2"></i> Duyệt phiếu
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Từ chối phiếu -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-700 mb-3">Từ chối phiếu bảo trì</h3>
+                    <form action="{{ route('requests.maintenance.reject', $maintenanceRequest->id) }}" method="POST">
+                        @csrf
+                        <div class="mb-4">
+                            <label for="reject_reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối</label>
+                            <textarea name="reject_reason" id="reject_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            @error('reject_reason')
+                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-times mr-2"></i> Từ chối phiếu
+                        </button>
+                    </form>
+                </div>
+            </div>
+        @elseif($maintenanceRequest->status === 'approved' || $maintenanceRequest->status === 'in_progress')
+            <div>
+                <h3 class="text-md font-medium text-gray-700 mb-3">Cập nhật trạng thái</h3>
+                <form action="{{ route('requests.maintenance.status', $maintenanceRequest->id) }}" method="POST">
+                    @csrf
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái mới</label>
+                            <select name="status" id="status" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="in_progress" {{ $maintenanceRequest->status === 'in_progress' ? 'selected' : '' }}>Đang thực hiện</option>
+                                <option value="completed">Hoàn thành</option>
+                                <option value="canceled">Đã hủy</option>
+                            </select>
+                            @error('status')
+                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="status_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                            <textarea name="status_note" id="status_note" rows="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            @error('status_note')
+                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-save mr-2"></i> Cập nhật trạng thái
+                    </button>
+                </form>
+            </div>
+        @endif
+    </div>
+</div>
+
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .container-fluid, .container-fluid * {
+            visibility: visible;
+        }
+        .container-fluid {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 20px;
+            background: white;
+        }
+        .flex.space-x-2, 
+        .bg-white.rounded-xl.shadow-md.p-6.mt-6:last-child,
+        .print-controls {
+            display: none !important;
+        }
+
+        /* Excel-like styling for print */
+        .bg-white {
+            box-shadow: none !important;
+            border: 1px solid #d1d5db !important;
+            margin-bottom: 20px !important;
         }
         
-        // Existing function for printing request
-        function printRequest() {
-            window.print();
+        h1 {
+            font-size: 24px !important;
+            text-align: center !important;
+            color: #1e40af !important;
+            margin-bottom: 10px !important;
         }
-    </script>
-</body>
-</html> 
+        
+        h2 {
+            font-size: 16px !important;
+            background-color: #e5e7eb !important;
+            padding: 5px 10px !important;
+            margin-bottom: 10px !important;
+        }
+        
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-bottom: 10px !important;
+        }
+        
+        th, td {
+            border: 1px solid #d1d5db !important;
+            padding: 8px !important;
+            text-align: left !important;
+        }
+        
+        th {
+            background-color: #e5e7eb !important;
+            font-weight: 500 !important;
+        }
+
+        /* Signature section */
+        .signature-section {
+            margin-top: 50px !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            page-break-inside: avoid !important;
+        }
+        
+        .signature-box {
+            flex: 1 !important;
+            text-align: center !important;
+            padding: 0 20px !important;
+        }
+        
+        .signature-title {
+            font-weight: bold !important;
+            margin-bottom: 60px !important;
+        }
+        
+        .signature-name {
+            font-weight: 500 !important;
+        }
+    }
+</style>
+
+<!-- Add signature section before the last div -->
+<div class="signature-section" style="display: none;">
+    <div class="signature-box">
+        <div class="signature-title">Người đề xuất</div>
+        <div class="signature-name">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : '' }}</div>
+    </div>
+    <div class="signature-box">
+        <div class="signature-title">Người thực hiện</div>
+        <div class="signature-name">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : '' }}</div>
+    </div>
+</div>
+
+@section('scripts')
+<script>
+    function exportToExcel() {
+        // Trong thực tế, sẽ cần một thư viện như SheetJS để xuất Excel đúng định dạng
+        alert('Đang tải xuống file Excel...');
+        // window.location.href = '/api/requests/maintenance/{{ $maintenanceRequest->id }}/export-excel';
+    }
+</script>
+@endsection
+@endsection 

@@ -9,12 +9,12 @@
             <h1 class="text-2xl font-bold text-gray-800">Tạo mới phiếu đề xuất triển khai dự án</h1>
             <div class="mt-1">
                 <span class="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">Mẫu REQ-PRJ</span>
+                </div>
             </div>
-        </div>
-        <div class="flex space-x-2">
+            <div class="flex space-x-2">
             <a href="{{ route('requests.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                <i class="fas fa-times mr-2"></i> Hủy
-            </a>
+                    <i class="fas fa-times mr-2"></i> Hủy
+                </a>
         </div>
     </div>
 
@@ -33,15 +33,15 @@
             </div>
         </div>
     @endif
-
-    <form action="{{ route('requests.project.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
-        @csrf
         
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin đề xuất</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="request_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày đề xuất</label>
+    <form action="{{ route('requests.project.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
+                @csrf
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin đề xuất</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="request_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày đề xuất</label>
                     <input type="date" name="request_date" id="request_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('request_date', date('Y-m-d')) }}">
                 </div>
                 <div>
@@ -54,8 +54,8 @@
                             </option>
                         @endforeach
                     </select>
-                </div>
-                <div>
+                        </div>
+                        <div>
                     <label for="implementer_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
                     <select name="implementer_id" id="implementer_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn nhân viên --</option>
@@ -65,18 +65,18 @@
                             </option>
                         @endforeach
                     </select>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
                     <input type="text" name="project_name" id="project_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_name') }}">
-                </div>
-                <div>
+                        </div>
+                        <div>
                     <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
                     <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn đối tác --</option>
@@ -86,31 +86,31 @@
                             </option>
                         @endforeach
                     </select>
-                </div>
-                <div class="md:col-span-2">
-                    <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
                     <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_address') }}">
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Phương thức xử lý khi duyệt</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center">
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Phương thức xử lý khi duyệt</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center">
                         <input type="radio" name="approval_method" id="production" value="production" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('approval_method', 'production') == 'production' ? 'checked' : '' }}>
-                        <label for="production" class="ml-2 block text-sm font-medium text-gray-700">Sản xuất lắp ráp</label>
-                    </div>
-                    <div class="flex items-center">
+                                <label for="production" class="ml-2 block text-sm font-medium text-gray-700">Sản xuất lắp ráp</label>
+                            </div>
+                            <div class="flex items-center">
                         <input type="radio" name="approval_method" id="warehouse" value="warehouse" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('approval_method') == 'warehouse' ? 'checked' : '' }}>
-                        <label for="warehouse" class="ml-2 block text-sm font-medium text-gray-700">Xuất kho</label>
+                                <label for="warehouse" class="ml-2 block text-sm font-medium text-gray-700">Xuất kho</label>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="mb-6 border-b border-gray-200 pb-4">
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-3">Danh mục đề xuất</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div class="flex items-center">
@@ -128,16 +128,16 @@
             </div>
             
             <div id="equipment_section" class="item-section">
-                <div class="flex justify-between items-center mb-3">
+                    <div class="flex justify-between items-center mb-3">
                     <h3 class="text-md font-medium text-gray-800">Thiết bị đề xuất</h3>
-                    <button type="button" id="add_equipment" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                        <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị
-                    </button>
-                </div>
-                
-                <div id="equipment_container">
-                    <div class="equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
-                        <div class="md:col-span-3">
+                        <button type="button" id="add_equipment" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                            <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị
+                        </button>
+                    </div>
+                    
+                    <div id="equipment_container">
+                        <div class="equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                            <div class="md:col-span-3">
                             <label for="equipment_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Thiết bị</label>
                             <select name="equipment[0][id]" id="equipment_id_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
                                 <option value="">-- Chọn thiết bị --</option>
@@ -147,31 +147,31 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </div>
-                        <div class="md:col-span-1">
-                            <label for="equipment_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="equipment_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
                             <input type="number" name="equipment[0][quantity]" id="equipment_quantity_0" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ old('equipment.0.quantity', 1) }}">
-                        </div>
-                        <div class="md:col-span-1 flex items-end">
-                            <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
-                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                            </button>
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div id="material_section" class="item-section hidden">
-                <div class="flex justify-between items-center mb-3">
-                    <h3 class="text-md font-medium text-gray-800">Vật tư đề xuất</h3>
-                    <button type="button" id="add_material" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                        <i class="fas fa-plus-circle mr-1"></i> Thêm vật tư
-                    </button>
-                </div>
                 
-                <div id="material_container">
-                    <div class="material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
-                        <div class="md:col-span-3">
+            <div id="material_section" class="item-section hidden">
+                    <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-md font-medium text-gray-800">Vật tư đề xuất</h3>
+                        <button type="button" id="add_material" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                            <i class="fas fa-plus-circle mr-1"></i> Thêm vật tư
+                        </button>
+                    </div>
+                    
+                    <div id="material_container">
+                        <div class="material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                            <div class="md:col-span-3">
                             <label for="material_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Vật tư</label>
                             <select name="material[0][id]" id="material_id_0" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
                                 <option value="">-- Chọn vật tư --</option>
@@ -181,15 +181,15 @@
                                     </option>
                                 @endforeach
                             </select>
-                        </div>
-                        <div class="md:col-span-1">
-                            <label for="material_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="material_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
                             <input type="number" name="material[0][quantity]" id="material_quantity_0" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ old('material.0.quantity', 1) }}">
-                        </div>
-                        <div class="md:col-span-1 flex items-end">
-                            <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
-                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                            </button>
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
                         </div>
                     </div>
                 </div>
@@ -225,45 +225,45 @@
                                 <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                             </button>
                         </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin liên hệ khách hàng</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên khách hàng</label>
+                
+                <div class="mb-6 border-b border-gray-200 pb-4">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin liên hệ khách hàng</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên khách hàng</label>
                     <input type="text" name="customer_name" id="customer_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_name') }}">
-                </div>
-                <div>
-                    <label for="customer_phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
+                        </div>
+                        <div>
+                            <label for="customer_phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
                     <input type="text" name="customer_phone" id="customer_phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_phone') }}">
-                </div>
-                <div>
-                    <label for="customer_email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        </div>
+                        <div>
+                            <label for="customer_email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input type="email" name="customer_email" id="customer_email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_email') }}">
-                </div>
-                <div class="md:col-span-3">
-                    <label for="customer_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ</label>
+                        </div>
+                        <div class="md:col-span-3">
+                            <label for="customer_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ</label>
                     <input type="text" name="customer_address" id="customer_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_address') }}">
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="mb-6">
-            <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                
+                <div class="mb-6">
+                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
             <textarea name="notes" id="notes" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('notes') }}</textarea>
-        </div>
-        
-        <div class="flex justify-end space-x-3">
-            <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
-                <i class="fas fa-save mr-2"></i> Tạo phiếu
-            </button>
-        </div>
-    </form>
-</div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
+                        <i class="fas fa-save mr-2"></i> Tạo phiếu
+                    </button>
+                </div>
+            </form>
+    </div>
 
 <style>
     .required:after {
@@ -273,7 +273,7 @@
 </style>
 
 @section('scripts')
-<script>
+    <script>
     // Xử lý hiển thị section theo loại item được chọn
     document.querySelectorAll('input[name="item_type"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -356,12 +356,12 @@
         }
     });
     
-    // Thêm thiết bị
-    let equipmentCount = 1;
-    document.getElementById('add_equipment').addEventListener('click', function() {
-        const container = document.getElementById('equipment_container');
-        const newRow = document.createElement('div');
-        newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
+        // Thêm thiết bị
+        let equipmentCount = 1;
+        document.getElementById('add_equipment').addEventListener('click', function() {
+            const container = document.getElementById('equipment_container');
+            const newRow = document.createElement('div');
+            newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
         
         // Lấy danh sách thiết bị từ select đầu tiên
         const firstSelect = document.getElementById('equipment_id_0');
@@ -371,25 +371,25 @@
             optionsHtml += `<option value="${option.value}">${option.text}</option>`;
         });
         
-        newRow.innerHTML = `
-            <div class="md:col-span-3">
+            newRow.innerHTML = `
+                <div class="md:col-span-3">
                 <label for="equipment_id_${equipmentCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Thiết bị</label>
                 <select name="equipment[${equipmentCount}][id]" id="equipment_id_${equipmentCount}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
                     ${optionsHtml}
                 </select>
-            </div>
-            <div class="md:col-span-1">
-                <label for="equipment_quantity_${equipmentCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                </div>
+                <div class="md:col-span-1">
+                    <label for="equipment_quantity_${equipmentCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
                 <input type="number" name="equipment[${equipmentCount}][quantity]" id="equipment_quantity_${equipmentCount}" min="1" value="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
-            </div>
-            <div class="md:col-span-1 flex items-end">
-                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
-                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(newRow);
-        equipmentCount++;
+                </div>
+                <div class="md:col-span-1 flex items-end">
+                    <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
+                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+            equipmentCount++;
         
         // Nếu section này đang hiển thị, thêm required cho các trường mới
         if (!document.getElementById('equipment_section').classList.contains('hidden')) {
@@ -397,16 +397,16 @@
                 field.setAttribute('required', 'required');
             });
         }
+            
+            addRemoveRowEventListeners();
+        });
         
-        addRemoveRowEventListeners();
-    });
-    
-    // Thêm vật tư
-    let materialCount = 1;
-    document.getElementById('add_material').addEventListener('click', function() {
-        const container = document.getElementById('material_container');
-        const newRow = document.createElement('div');
-        newRow.className = 'material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
+        // Thêm vật tư
+        let materialCount = 1;
+        document.getElementById('add_material').addEventListener('click', function() {
+            const container = document.getElementById('material_container');
+            const newRow = document.createElement('div');
+            newRow.className = 'material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
         
         // Lấy danh sách vật tư từ select đầu tiên
         const firstSelect = document.getElementById('material_id_0');
@@ -416,25 +416,25 @@
             optionsHtml += `<option value="${option.value}">${option.text}</option>`;
         });
         
-        newRow.innerHTML = `
-            <div class="md:col-span-3">
+            newRow.innerHTML = `
+                <div class="md:col-span-3">
                 <label for="material_id_${materialCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Vật tư</label>
                 <select name="material[${materialCount}][id]" id="material_id_${materialCount}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
                     ${optionsHtml}
                 </select>
-            </div>
-            <div class="md:col-span-1">
-                <label for="material_quantity_${materialCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                </div>
+                <div class="md:col-span-1">
+                    <label for="material_quantity_${materialCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
                 <input type="number" name="material[${materialCount}][quantity]" id="material_quantity_${materialCount}" min="1" value="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
-            </div>
-            <div class="md:col-span-1 flex items-end">
-                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
-                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(newRow);
-        materialCount++;
+                </div>
+                <div class="md:col-span-1 flex items-end">
+                    <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
+                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(newRow);
+            materialCount++;
         
         // Nếu section này đang hiển thị, thêm required cho các trường mới
         if (!document.getElementById('material_section').classList.contains('hidden')) {
@@ -442,10 +442,10 @@
                 field.setAttribute('required', 'required');
             });
         }
+            
+            addRemoveRowEventListeners();
+        });
         
-        addRemoveRowEventListeners();
-    });
-    
     // Thêm hàng hóa
     let goodCount = 1;
     document.getElementById('add_good').addEventListener('click', function() {
@@ -492,13 +492,13 @@
     });
     
     // Xóa hàng
-    function addRemoveRowEventListeners() {
-        document.querySelectorAll('.remove-row').forEach(button => {
-            button.addEventListener('click', function() {
+        function addRemoveRowEventListeners() {
+            document.querySelectorAll('.remove-row').forEach(button => {
+                button.addEventListener('click', function() {
                 this.closest('.equipment-row, .material-row, .good-row').remove();
+                });
             });
-        });
-    }
-</script>
+        }
+    </script>
 @endsection
 @endsection 

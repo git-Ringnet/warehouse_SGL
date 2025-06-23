@@ -23,9 +23,11 @@ use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProjectRequestController;
+use App\Http\Controllers\MaintenanceRequestController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EquipmentServiceController;
+use App\Http\Controllers\Api\RequestExportController;
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -334,92 +336,37 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::post('/rentals/{rental}/extend', [RentalController::class, 'extend'])->name('rentals.extend');
 
     // Phiếu đề xuất triển khai dự án
-    Route::get('/requests', [ProjectRequestController::class, 'index'])->name('requests.index');
-    
-    Route::prefix('requests/project')->name('requests.project.')->group(function () {
-        Route::get('/create', [ProjectRequestController::class, 'create'])->name('create');
-        Route::post('/', [ProjectRequestController::class, 'store'])->name('store');
-        Route::get('/{id}', [ProjectRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
-        Route::get('/{id}/edit', [ProjectRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
-        Route::patch('/{id}', [ProjectRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
-        Route::delete('/{id}', [ProjectRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
-        Route::post('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
-        Route::post('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
-        Route::post('/{id}/status', [ProjectRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
-        Route::get('/{id}/preview', [ProjectRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+    Route::prefix('requests')->name('requests.')->group(function () {
+        Route::get('/', [ProjectRequestController::class, 'index'])->name('index');
+        
+        // Project Request routes
+        Route::prefix('project')->name('project.')->group(function () {
+            Route::get('/create', [ProjectRequestController::class, 'create'])->name('create');
+            Route::post('/', [ProjectRequestController::class, 'store'])->name('store');
+            Route::get('/{id}', [ProjectRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+            Route::get('/{id}/edit', [ProjectRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+            Route::patch('/{id}', [ProjectRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
+            Route::delete('/{id}', [ProjectRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+            Route::post('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
+            Route::post('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
+            Route::post('/{id}/status', [ProjectRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
+            Route::get('/{id}/preview', [ProjectRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+        });
+        
+        // Maintenance Request routes
+        Route::prefix('maintenance')->name('maintenance.')->group(function () {
+            Route::get('/create', [MaintenanceRequestController::class, 'create'])->name('create');
+            Route::post('/', [MaintenanceRequestController::class, 'store'])->name('store');
+            Route::get('/{id}', [MaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+            Route::get('/{id}/edit', [MaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+            Route::patch('/{id}', [MaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
+            Route::delete('/{id}', [MaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+            Route::post('/{id}/approve', [MaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
+            Route::post('/{id}/reject', [MaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
+            Route::post('/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
+            Route::get('/{id}/preview', [MaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+        });
     });
-
-    // Phiếu bảo trì dự án
-    Route::get('/requests/maintenance/create', function () {
-        return view('requests.maintenance.create');
-    });
-
-    Route::post('/requests/maintenance', function () {
-        // Xử lý tạo phiếu bảo trì dự án
-        return redirect('/requests');
-    });
-
-    Route::get('/requests/maintenance/{id}', function ($id) {
-        return view('requests.maintenance.show', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/maintenance/{id}/edit', function ($id) {
-        return view('requests.maintenance.edit', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/maintenance/{id}/preview', function ($id) {
-        return view('requests.maintenance.preview', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/maintenance/{id}/copy', function ($id) {
-        return view('requests.maintenance.copy', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::patch('/requests/maintenance/{id}', function ($id) {
-        // Xử lý cập nhật phiếu bảo trì dự án
-        return redirect('/requests/maintenance/' . $id);
-    })->where('id', '[0-9]+');
-
-    Route::delete('/requests/maintenance/{id}', function ($id) {
-        // Xử lý xóa phiếu bảo trì dự án
-        return redirect('/requests');
-    })->where('id', '[0-9]+');
-
-    // Phiếu khách yêu cầu bảo trì
-    Route::get('/requests/customer-maintenance/create', function () {
-        return view('requests.customer-maintenance.create');
-    });
-
-    Route::post('/requests/customer-maintenance', function () {
-        // Xử lý tạo phiếu khách yêu cầu bảo trì
-        return redirect('/requests');
-    });
-
-    Route::get('/requests/customer-maintenance/{id}', function ($id) {
-        return view('requests.customer-maintenance.show', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/customer-maintenance/{id}/edit', function ($id) {
-        return view('requests.customer-maintenance.edit', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/customer-maintenance/{id}/preview', function ($id) {
-        return view('requests.customer-maintenance.preview', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::get('/requests/customer-maintenance/{id}/copy', function ($id) {
-        return view('requests.customer-maintenance.copy', ['id' => $id]);
-    })->where('id', '[0-9]+');
-
-    Route::patch('/requests/customer-maintenance/{id}', function ($id) {
-        // Xử lý cập nhật phiếu khách yêu cầu bảo trì
-        return redirect('/requests/customer-maintenance/' . $id);
-    })->where('id', '[0-9]+');
-
-    Route::delete('/requests/customer-maintenance/{id}', function ($id) {
-        // Xử lý xóa phiếu khách yêu cầu bảo trì
-        return redirect('/requests');
-    })->where('id', '[0-9]+');
 
     // Assembly routes
     Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code');
@@ -529,5 +476,13 @@ Route::prefix('equipment-service')->name('equipment.')->group(function () {
     Route::get('/history/{id}', [EquipmentServiceController::class, 'getEquipmentHistory'])->name('history');
     Route::get('/backup-items/project/{projectId}', [EquipmentServiceController::class, 'getBackupItemsForProject'])->name('backup-items.project');
     Route::get('/backup-items/rental/{rentalId}', [EquipmentServiceController::class, 'getBackupItemsForRental'])->name('backup-items.rental');
+});
+
+// Export routes
+Route::middleware('auth')->group(function () {
+    Route::get('/requests/{type}/{id}/export-excel', [RequestExportController::class, 'exportExcel'])
+        ->name('requests.export-excel');
+    Route::get('/requests/{type}/{id}/export-pdf', [RequestExportController::class, 'exportPDF'])
+        ->name('requests.export-pdf');
 });
 });
