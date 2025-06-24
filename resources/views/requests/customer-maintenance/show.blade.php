@@ -1,311 +1,244 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chi tiết phiếu khách yêu cầu bảo trì - SGL</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('css/main.css') }}">
-    <script src="{{ asset('js/delete-modal.js') }}"></script>
-    <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-        }
-        .sidebar {
-            background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);
-            transition: all 0.3s ease;
-        }
-        .content-area {
-            margin-left: 256px;
-            min-height: 100vh;
-            background: #f8fafc;
-            transition: margin-left 0.3s ease;
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                z-index: 1000;
-                height: 100vh;
-                width: 70px;
-            }
-            .content-area {
-                margin-left: 0 !important;
-            }
-        }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .modal-overlay.show {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .modal {
-            background-color: white;
-            border-radius: 0.5rem;
-            max-width: 500px;
-            width: 90%;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
-        }
-        
-        .modal-overlay.show .modal {
-            transform: scale(1);
-        }
-    </style>
-</head>
-<body>
-    <x-sidebar-component />
-    
-    <!-- Main Content -->
-    <div class="content-area">
-        <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
-            <div class="flex items-center">
-                <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu khách yêu cầu bảo trì</h1>
-                <div class="ml-4 px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
-                    Mẫu REQ-CUST-MAINT
-                </div>
-                <div class="ml-2 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    ID: {{ $id }}
-                </div>
-                <div class="ml-2 px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
-                    Đang xử lý
-                </div>
+@extends('layouts.app')
+
+@section('title', 'Chi tiết phiếu yêu cầu bảo trì - SGL')
+
+@section('content')
+<div class="container-fluid px-6 py-4">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Chi tiết phiếu yêu cầu bảo trì</h1>
+            <div class="mt-1 flex items-center">
+                <span class="text-sm text-gray-500">Mã phiếu: {{ $request->request_code }}</span>
+                <span class="mx-2 text-gray-400">|</span>
+                <span class="text-sm text-gray-500">Ngày tạo: {{ $request->request_date->format('d/m/Y') }}</span>
+                <span class="mx-2 text-gray-400">|</span>
+                <span class="text-sm">
+                    @switch($request->status)
+                        @case('pending')
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Chờ duyệt</span>
+                            @break
+                        @case('approved')
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Đã duyệt</span>
+                            @break
+                        @case('rejected')
+                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Từ chối</span>
+                            @break
+                        @case('in_progress')
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đang thực hiện</span>
+                            @break
+                        @case('completed')
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Hoàn thành</span>
+                            @break
+                        @case('canceled')
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Đã hủy</span>
+                            @break
+                        @default
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Không xác định</span>
+                    @endswitch
+                </span>
             </div>
-            <div class="flex space-x-2">
-                <a href="{{ url('/requests/customer-maintenance/'.$id.'/edit') }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-edit mr-2"></i> Chỉnh sửa
-                </a>
-                <button id="deleteButton" 
-                    data-id="{{ $id }}" 
-                    data-name="phiếu yêu cầu bảo trì"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i> Xóa
-                </button>
-                <a href="{{ url('/requests') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-arrow-left mr-2"></i> Quay lại
-                </a>
-            </div>
-        </header>
-        
-        <main class="p-6">
-            <div class="bg-white rounded-xl shadow-md p-6 mb-6">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-800">Thông tin chung</h2>
-                        <p class="text-sm text-gray-600">Mã phiếu: CUST-MAINT-{{ str_pad($id, 4, '0', STR_PAD_LEFT) }}</p>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button onclick="printRequest()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-print mr-2"></i> In phiếu
-                        </button>
-                        <a href="{{ url('/requests/customer-maintenance/'.$id.'/copy') }}" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-copy mr-2"></i> Sao chép
-                        </a>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Cột 1 -->
-                    <div class="space-y-6">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin tiếp nhận</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Ngày tiếp nhận</p>
-                                    <p class="text-base text-gray-800">25/06/2024</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Người tiếp nhận</p>
-                                    <p class="text-base text-gray-800">Nguyễn Văn A</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin khách hàng</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Tên khách hàng/Đơn vị</p>
-                                    <p class="text-base text-gray-800">Công ty TNHH Phát triển Công nghệ XYZ</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Số điện thoại</p>
-                                    <p class="text-base text-gray-800">0901234567</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Email</p>
-                                    <p class="text-base text-gray-800">contact@xyztech.com</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Địa chỉ</p>
-                                    <p class="text-base text-gray-800">123 Đường Nguyễn Văn Linh, Quận 7, TP. HCM</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin thiết bị</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Tên thiết bị</p>
-                                    <p class="text-base text-gray-800">Máy chủ Dell PowerEdge R740</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Model/Serial</p>
-                                    <p class="text-base text-gray-800">SN: ABC12345XYZ</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Mô tả sự cố</p>
-                                    <p class="text-base text-gray-800 whitespace-pre-line">Máy chủ gặp lỗi không thể khởi động, đèn báo hiệu lỗi ổ cứng sáng liên tục. Cần kiểm tra và thay thế các linh kiện bị hỏng.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Cột 2 -->
-                    <div class="space-y-6">
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Thông tin xử lý</h3>
-                            <div class="grid grid-cols-2 gap-4 mb-3">
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Ngày dự kiến xử lý</p>
-                                    <p class="text-base text-gray-800">15/07/2024</p>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500 font-medium mb-1">Thời gian dự kiến</p>
-                                    <p class="text-base text-gray-800">4 giờ</p>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <p class="text-sm text-gray-500 font-medium mb-1">Mức độ ưu tiên</p>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                    <i class="fas fa-circle text-xs mr-1"></i> Cao
-                                </span>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500 font-medium mb-1">Trạng thái</p>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    <i class="fas fa-circle text-xs mr-1"></i> Đang xử lý
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Vật tư yêu cầu</h3>
-                            @if(true)
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead>
-                                    <tr>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên vật tư</th>
-                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">1</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">Ổ cứng SSD 1TB</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">2</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">2</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">Cáp SATA</td>
-                                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">4</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            @else
-                            <p class="text-gray-500 italic">Không có vật tư nào được yêu cầu</p>
-                            @endif
-                        </div>
-
-                        <div class="bg-gray-50 p-4 rounded-lg">
-                            <h3 class="text-md font-semibold text-gray-800 mb-3">Ghi chú</h3>
-                            <p class="text-base text-gray-800 whitespace-pre-line">Khách hàng yêu cầu xử lý nhanh chóng vì đây là máy chủ quan trọng phục vụ hệ thống của họ.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-6 pt-6 border-t border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <div class="text-sm text-gray-500">
-                            <p>Ngày tạo: 25/06/2024 14:30:00</p>
-                            <p>Cập nhật lần cuối: 26/06/2024 09:15:23</p>
-                        </div>
-                        <div class="flex space-x-2">
-                            <button type="button" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
-                                <i class="fas fa-check-circle mr-2"></i> Đánh dấu hoàn thành
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        </div>
+        <div class="flex space-x-2">
+            <a href="{{ route('requests.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i> Quay lại
+            </a>
             
-        </main>
+            <a href="{{ route('requests.customer-maintenance.preview', $request->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-eye mr-2"></i> Xem trước
+            </a>
+            
+            <a href="#" onclick="window.print(); return false;" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                <i class="fas fa-print mr-2"></i> In PDF
+            </a>
+            
+            @if(Auth::guard('customer')->check() && $request->status === 'pending')
+                <!-- <a href="{{ route('requests.customer-maintenance.edit', $request->id) }}" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                </a> -->
+                
+                <form action="{{ route('requests.customer-maintenance.destroy', $request->id) }}" method="POST" class="inline-block">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu yêu cầu này?')">
+                        <i class="fas fa-trash mr-2"></i> Xóa
+                    </button>
+                </form>
+            @endif
+        </div>
     </div>
 
-    <script>
-        // Delete functionality setup
-        document.addEventListener('DOMContentLoaded', function() {
-            initDeleteModal();
-            
-            // Attach click event to delete button
-            document.getElementById('deleteButton').addEventListener('click', function() {
-                const requestName = this.getAttribute('data-name');
-                const requestId = this.getAttribute('data-id');
-                openDeleteModal(requestId, requestName);
-            });
-        });
+    @if(session('success'))
+        <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded">
+            <div class="flex">
+                <div class="py-1"><i class="fas fa-check-circle text-green-500"></i></div>
+                <div class="ml-3">
+                    <p class="text-sm">{{ session('success') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
 
-        // Override deleteCustomer function from delete-modal.js
-        function deleteCustomer(id) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = "{{ url('/requests/customer-maintenance') }}/" + id;
-            
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = "{{ csrf_token() }}";
-            
-            const method = document.createElement('input');
-            method.type = 'hidden';
-            method.name = '_method';
-            method.value = 'DELETE';
-            
-            form.appendChild(csrfToken);
-            form.appendChild(method);
-            document.body.appendChild(form);
-            form.submit();
-        }
-        
-        // Existing function for printing request
-        function printRequest() {
-            window.print();
-        }
+    @if(session('error'))
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+            <div class="flex">
+                <div class="py-1"><i class="fas fa-exclamation-circle text-red-500"></i></div>
+                <div class="ml-3">
+                    <p class="text-sm">{{ session('error') }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
 
-        // Existing function for request status update
-        function updateRequestStatus(status) {
-            document.getElementById('status_update').value = status;
-            document.getElementById('statusUpdateForm').submit();
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Thông tin yêu cầu -->
+        <div class="bg-white rounded-xl shadow-md p-6 md:col-span-2">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin yêu cầu</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">Tên dự án/thiết bị</p>
+                    <p class="font-medium">{{ $request->project_name }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Ngày yêu cầu</p>
+                    <p class="font-medium">{{ $request->request_date->format('d/m/Y') }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Ngày hoàn thành dự kiến</p>
+                    <p class="font-medium">{{ $request->expected_completion_date ? $request->expected_completion_date->format('d/m/Y') : 'Không có' }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">Mức độ ưu tiên</p>
+                    <p class="font-medium">
+                        @switch($request->priority)
+                            @case('low')
+                                <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Thấp</span>
+                                @break
+                            @case('medium')
+                                <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Trung bình</span>
+                                @break
+                            @case('high')
+                                <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">Cao</span>
+                                @break
+                            @case('urgent')
+                                <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Khẩn cấp</span>
+                                @break
+                        @endswitch
+                    </p>
+                </div>
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-500">Lý do yêu cầu bảo trì</p>
+                    <p class="font-medium whitespace-pre-line">{{ $request->maintenance_reason }}</p>
+                </div>
+                <div class="md:col-span-2">
+                    <p class="text-sm text-gray-500">Chi tiết bảo trì</p>
+                    <p class="font-medium whitespace-pre-line">{{ $request->maintenance_details ?: 'Không có' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thông tin khách hàng -->
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin khách hàng</h2>
+            <div>
+                <p class="text-sm text-gray-500">Tên khách hàng</p>
+                <p class="font-medium">{{ $request->customer ? $request->customer->company_name : $request->customer_name }}</p>
+            </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Số điện thoại</p>
+                <p class="font-medium">{{ $request->customer_phone ?: 'Không có' }}</p>
+            </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Email</p>
+                <p class="font-medium">{{ $request->customer_email ?: 'Không có' }}</p>
+            </div>
+            <div class="mt-3">
+                <p class="text-sm text-gray-500">Địa chỉ</p>
+                <p class="font-medium">{{ $request->customer_address ?: 'Không có' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thông tin kiểm duyệt -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin kiểm duyệt</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm text-gray-500">Người kiểm duyệt</p>
+                <p class="font-medium">{{ $request->approvedByUser ? $request->approvedByUser->name : 'Chưa được duyệt' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Thời gian duyệt</p>
+                <p class="font-medium">{{ $request->approved_at ? $request->approved_at->format('d/m/Y H:i:s') : 'Chưa được duyệt' }}</p>
+            </div>
+            @if($request->status === 'rejected')
+            <div class="md:col-span-2">
+                <p class="text-sm text-gray-500">Lý do từ chối</p>
+                <p class="font-medium text-red-600">{{ $request->rejection_reason }}</p>
+            </div>
+            @endif
+        </div>
+    </div>
+
+    <!-- Ghi chú -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Ghi chú</h2>
+        <div class="bg-gray-50 p-4 rounded-lg whitespace-pre-line">
+            {{ $request->notes ?: 'Không có ghi chú' }}
+        </div>
+    </div>
+
+    <!-- Phần xử lý phiếu yêu cầu (chỉ hiển thị cho admin) -->
+    @if(Auth::guard('web')->check() && $request->status === 'pending')
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Xử lý phiếu yêu cầu</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Duyệt phiếu -->
+            <div>
+                <h3 class="text-md font-medium text-gray-700 mb-3">Duyệt phiếu yêu cầu</h3>
+                <form action="{{ route('requests.customer-maintenance.approve', $request->id) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-check mr-2"></i> Duyệt phiếu
+                    </button>
+                </form>
+            </div>
+
+            <!-- Từ chối phiếu -->
+            <div>
+                <h3 class="text-md font-medium text-gray-700 mb-3">Từ chối phiếu yêu cầu</h3>
+                <form action="{{ route('requests.customer-maintenance.reject', $request->id) }}" method="POST">
+                    @csrf
+                    <div class="mb-4">
+                        <label for="rejection_reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối</label>
+                        <textarea name="rejection_reason" id="rejection_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-times mr-2"></i> Từ chối phiếu
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+</div>
+
+<style>
+    @media print {
+        body * {
+            visibility: hidden;
         }
-    </script>
-</body>
-</html> 
+        .container-fluid, .container-fluid * {
+            visibility: visible;
+        }
+        .container-fluid {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+        .flex.space-x-2, .bg-white.rounded-xl.shadow-md.p-6.mt-6:last-child {
+            display: none !important;
+        }
+    }
+</style>
+@endsection 

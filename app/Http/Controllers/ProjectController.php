@@ -243,4 +243,46 @@ class ProjectController extends Controller
                 ->with('error', 'Có lỗi xảy ra khi xóa dự án: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Lấy danh sách các thiết bị trong dự án
+     */
+    public function getProjectItems($projectId)
+    {
+        $project = \App\Models\Project::find($projectId);
+        
+        if (!$project) {
+            return response()->json(['error' => 'Không tìm thấy dự án'], 404);
+        }
+        
+        // Lấy danh sách thiết bị từ các phiếu xuất kho của dự án
+        $dispatches = \App\Models\Dispatch::where('project_id', $projectId)
+            ->whereIn('status', ['approved', 'completed'])
+            ->get();
+            
+        $allItems = collect();
+        
+        foreach ($dispatches as $dispatch) {
+            $items = $dispatch->items()
+                ->with(['product'])
+                ->where('category', 'contract')
+                ->where('item_type', 'product') // Chỉ lấy products
+                ->get()
+                ->map(function ($item) use ($dispatch) {
+                    return [
+                        'id' => $item->id,
+                        'type' => 'product',
+                        'name' => $item->product->name,
+                        'serial_number' => $item->serial_number,
+                        'description' => $item->product->description,
+                        'project_name' => $dispatch->project_name,
+                        'dispatch_code' => $dispatch->dispatch_code
+                    ];
+                });
+                
+            $allItems = $allItems->concat($items);
+        }
+        
+        return response()->json($allItems);
+    }
 } 
