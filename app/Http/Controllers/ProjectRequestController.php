@@ -32,6 +32,9 @@ class ProjectRequestController extends Controller
         // Query cho phiếu bảo trì dự án
         $maintenanceQuery = \App\Models\MaintenanceRequest::with(['proposer', 'customer']);
         
+        // Query cho phiếu khách yêu cầu bảo trì
+        $customerMaintenanceQuery = \App\Models\CustomerMaintenanceRequest::with(['customer']);
+        
         // Xử lý tìm kiếm cho phiếu đề xuất triển khai dự án
         if ($search) {
             if ($filter) {
@@ -40,10 +43,12 @@ class ProjectRequestController extends Controller
                     case 'request_code':
                         $projectQuery->where('request_code', 'like', "%{$search}%");
                         $maintenanceQuery->where('request_code', 'like', "%{$search}%");
+                        $customerMaintenanceQuery->where('request_code', 'like', "%{$search}%");
                         break;
                     case 'project_name':
                         $projectQuery->where('project_name', 'like', "%{$search}%");
                         $maintenanceQuery->where('project_name', 'like', "%{$search}%");
+                        $customerMaintenanceQuery->where('project_name', 'like', "%{$search}%");
                         break;
                     case 'customer':
                         $projectQuery->where('customer_name', 'like', "%{$search}%")
@@ -55,6 +60,10 @@ class ProjectRequestController extends Controller
                               ->orWhereHas('customer', function($q) use ($search) {
                                   $q->where('name', 'like', "%{$search}%")
                                     ->orWhere('company_name', 'like', "%{$search}%");
+                              });
+                        $customerMaintenanceQuery->where('customer_name', 'like', "%{$search}%")
+                              ->orWhereHas('customer', function($q) use ($search) {
+                                  $q->where('company_name', 'like', "%{$search}%");
                               });
                         break;
                 }
@@ -78,6 +87,14 @@ class ProjectRequestController extends Controller
                                ->orWhere('company_name', 'like', "%{$search}%");
                       });
                 });
+                $customerMaintenanceQuery->where(function ($q) use ($search) {
+                    $q->where('request_code', 'like', "%{$search}%")
+                      ->orWhere('project_name', 'like', "%{$search}%")
+                      ->orWhere('customer_name', 'like', "%{$search}%")
+                      ->orWhereHas('customer', function($subq) use ($search) {
+                          $subq->where('company_name', 'like', "%{$search}%");
+                      });
+                });
             }
         }
         
@@ -85,6 +102,7 @@ class ProjectRequestController extends Controller
         if ($status) {
             $projectQuery->where('status', $status);
             $maintenanceQuery->where('status', $status);
+            $customerMaintenanceQuery->where('status', $status);
         }
         
         // Lấy dữ liệu phiếu đề xuất triển khai dự án
@@ -92,6 +110,9 @@ class ProjectRequestController extends Controller
         
         // Lấy dữ liệu phiếu bảo trì dự án
         $maintenanceRequests = $maintenanceQuery->latest()->get();
+        
+        // Lấy dữ liệu phiếu khách yêu cầu bảo trì
+        $customerMaintenanceRequests = $customerMaintenanceQuery->latest()->get();
         
         // Kết hợp hai loại phiếu và thêm trường type để phân biệt
         $projectRequests = $projectRequests->map(function ($item) {
@@ -104,8 +125,15 @@ class ProjectRequestController extends Controller
             return $item;
         });
         
-        // Gộp hai collection và sắp xếp theo ngày tạo mới nhất
-        $allRequests = $projectRequests->concat($maintenanceRequests)->sortByDesc('created_at');
+        $customerMaintenanceRequests = $customerMaintenanceRequests->map(function ($item) {
+            $item->type = 'customer_maintenance';
+            return $item;
+        });
+        
+        // Gộp tất cả loại phiếu và sắp xếp theo ngày tạo mới nhất
+        $allRequests = $projectRequests->concat($maintenanceRequests)
+                                      ->concat($customerMaintenanceRequests)
+                                      ->sortByDesc('created_at');
         
         // Phân trang thủ công
         $perPage = 10;

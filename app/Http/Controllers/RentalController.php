@@ -289,4 +289,49 @@ class RentalController extends Controller
             return back()->with('error', 'Có lỗi xảy ra khi gia hạn phiếu cho thuê: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Lấy danh sách các thiết bị trong đơn thuê
+     */
+    public function getRentalItems($rentalId)
+    {
+        $rental = \App\Models\Rental::find($rentalId);
+        
+        if (!$rental) {
+            return response()->json(['error' => 'Không tìm thấy đơn thuê'], 404);
+        }
+        
+        // Lấy danh sách thiết bị từ các phiếu xuất kho của đơn thuê
+        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+            ->whereIn('status', ['approved', 'completed'])
+            ->where(function($query) use ($rental) {
+                $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                    ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+            })
+            ->get();
+            
+        $allItems = collect();
+        
+        foreach ($dispatches as $dispatch) {
+            $items = $dispatch->items()
+                ->with(['product'])
+                ->where('category', 'contract')
+                ->where('item_type', 'product') // Chỉ lấy products
+                ->get()
+                ->map(function ($item) use ($rental) {
+                    return [
+                        'id' => $item->id,
+                        'type' => 'product',
+                        'name' => $item->product->name,
+                        'serial_number' => $item->serial_number,
+                        'description' => $item->product->description,
+                        'rental_code' => $rental->rental_code
+                    ];
+                });
+                
+            $allItems = $allItems->concat($items);
+        }
+        
+        return response()->json($allItems);
+    }
 } 

@@ -24,6 +24,7 @@ use App\Http\Controllers\TestingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ProjectRequestController;
 use App\Http\Controllers\MaintenanceRequestController;
+use App\Http\Controllers\CustomerMaintenanceRequestController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EquipmentServiceController;
@@ -366,6 +367,20 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
             Route::post('/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
             Route::get('/{id}/preview', [MaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
         });
+        
+        // Customer Maintenance Request routes
+        Route::prefix('customer-maintenance')->name('customer-maintenance.')->middleware(\App\Http\Middleware\CustomerOrAdminMiddleware::class)->group(function () {
+            Route::get('/create', [CustomerMaintenanceRequestController::class, 'create'])->name('create');
+            Route::post('/', [CustomerMaintenanceRequestController::class, 'store'])->name('store');
+            Route::get('/{id}', [CustomerMaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+            Route::get('/{id}/edit', [CustomerMaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
+            Route::patch('/{id}', [CustomerMaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
+            Route::delete('/{id}', [CustomerMaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
+            Route::post('/{id}/approve', [CustomerMaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
+            Route::post('/{id}/reject', [CustomerMaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
+            Route::post('/{id}/status', [CustomerMaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
+            Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+        });
     });
 
     // Assembly routes
@@ -485,4 +500,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/requests/{type}/{id}/export-pdf', [RequestExportController::class, 'exportPDF'])
         ->name('requests.export-pdf');
 });
+
+// API routes cho thiết bị của dự án và đơn thuê
+Route::get('/api/projects/{projectId}/items', [ProjectController::class, 'getProjectItems'])->name('api.projects.items');
+Route::get('/api/rentals/{rentalId}/items', [RentalController::class, 'getRentalItems'])->name('api.rentals.items');
 });

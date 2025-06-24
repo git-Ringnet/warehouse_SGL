@@ -104,6 +104,10 @@
                                         <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
                                             Bảo trì dự án
                                         </span>
+                                    @elseif($request->type == 'customer_maintenance')
+                                        <span class="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs">
+                                            Khách yêu cầu bảo trì
+                                        </span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -224,6 +228,40 @@
                                         @endif
                                         
                                         <form action="{{ route('requests.maintenance.store') }}" method="POST" class="inline-block">
+                                            @csrf
+                                            <input type="hidden" name="copy_from" value="{{ $request->id }}">
+                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group" title="Sao chép">
+                                                <i class="fas fa-copy text-teal-500 group-hover:text-white"></i>
+                                            </button>
+                                        </form>
+                                    @elseif($request->type == 'customer_maintenance')
+                                        <a href="{{ route('requests.customer-maintenance.show', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem chi tiết">
+                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        <a href="{{ route('requests.customer-maintenance.preview', $request->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Xem trước">
+                                            <i class="fas fa-file-alt text-purple-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        <a href="#" onclick="exportToExcel('customer-maintenance', '{{ $request->id }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Xuất Excel">
+                                            <i class="fas fa-file-excel text-green-500 group-hover:text-white"></i>
+                                        </a>
+
+                                        <a href="#" onclick="exportToPDF('customer-maintenance', '{{ $request->id }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xuất PDF">
+                                            <i class="fas fa-file-pdf text-red-500 group-hover:text-white"></i>
+                                        </a>
+                                        
+                                        @if($request->status === 'pending')
+                                            <form action="{{ route('requests.customer-maintenance.destroy', $request->id) }}" method="POST" class="inline-block">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa" onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu yêu cầu bảo trì này?')">
+                                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                        
+                                        <form action="{{ route('requests.customer-maintenance.store') }}" method="POST" class="inline-block">
                                             @csrf
                                             <input type="hidden" name="copy_from" value="{{ $request->id }}">
                                             <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group" title="Sao chép">
