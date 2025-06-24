@@ -22,6 +22,7 @@ use App\Http\Controllers\RentalController;
 use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RepairController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EquipmentServiceController;
@@ -268,6 +269,15 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
     Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
     Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
+
+    // Repair API routes
+    Route::prefix('api/repairs')->group(function () {
+        Route::get('/search-warranty', [RepairController::class, 'searchWarranty'])->name('api.repairs.search-warranty');
+        Route::get('/device-materials', [RepairController::class, 'getDeviceMaterials'])->name('api.repairs.device-materials');
+        Route::get('/available-serials', [RepairController::class, 'getAvailableSerials'])->name('api.repairs.available-serials');
+        Route::post('/replace-material', [RepairController::class, 'replaceMaterial'])->name('api.repairs.replace-material');
+        Route::post('/update-device-status', [RepairController::class, 'updateDeviceStatus'])->name('api.repairs.update-device-status');
+    });
 
 
 

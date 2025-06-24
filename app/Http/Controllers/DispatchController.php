@@ -1382,7 +1382,7 @@ class DispatchController extends Controller
     public function getItemSerials(Request $request)
     {
         $itemType = $request->get('item_type');
-        $itemId = $request->get('item_id');
+        $itemId = $request->get('item_id');  
         $warehouseId = $request->get('warehouse_id');
         $currentDispatchId = $request->get('current_dispatch_id'); // For edit mode
 
@@ -1394,6 +1394,14 @@ class DispatchController extends Controller
         }
 
         try {
+            // Debug: Log query parameters
+            Log::info('getItemSerials called with params:', [
+                'item_type' => $itemType,
+                'item_id' => $itemId,
+                'warehouse_id' => $warehouseId,
+                'current_dispatch_id' => $currentDispatchId
+            ]);
+
             // Get serials based on item type and warehouse
             $serials = \App\Models\Serial::where('type', $itemType)
                 ->where('product_id', $itemId)
@@ -1401,6 +1409,12 @@ class DispatchController extends Controller
                 ->where('status', 'active')
                 ->pluck('serial_number')
                 ->toArray();
+
+            // Debug: Log raw serials found
+            Log::info('Raw serials found in database:', [
+                'count' => count($serials),
+                'serials' => $serials
+            ]);
 
             // Get serial numbers that are already used in approved dispatches
             $usedSerials = \App\Models\DispatchItem::whereHas('dispatch', function($query) use ($currentDispatchId) {
@@ -1419,8 +1433,22 @@ class DispatchController extends Controller
                 ->filter()
                 ->toArray();
 
+            // Debug: Log used serials
+            Log::info('Used serials found:', [
+                'count' => count($usedSerials),
+                'used_serials' => $usedSerials
+            ]);
+
             // Filter out used serials
             $availableSerials = array_diff($serials, $usedSerials);
+
+            // Debug: Log final result
+            Log::info('Final serial calculation:', [
+                'total_serials' => count($serials),
+                'used_serials' => count($usedSerials), 
+                'available_serials' => count($availableSerials),
+                'available_serial_list' => array_values($availableSerials)
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -1430,6 +1458,11 @@ class DispatchController extends Controller
                 'available_serials' => count($availableSerials)
             ]);
         } catch (\Exception $e) {
+            Log::error('Error in getItemSerials:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error fetching serials: ' . $e->getMessage()

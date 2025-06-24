@@ -221,8 +221,8 @@
             // Generate QR code with full URL
             const warrantyUrl = `${window.location.origin}/warranty/check/${warrantyCode}`;
             const qrUrl =
-                `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(warrantyUrl)}`;
-            container.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="mx-auto border rounded">`;
+                `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(warrantyUrl)}`;
+            container.innerHTML = `<img src="${qrUrl}" alt="QR Code" class="mx-auto border rounded" style="max-width: 250px;">`;
             codeText.textContent = `Mã bảo hành: ${warrantyCode}`;
 
             modal.classList.remove('hidden');
@@ -234,13 +234,32 @@
         }
 
         // Download QR Code
-        function downloadQR() {
+        async function downloadQR() {
             const img = document.querySelector('#qr-code-container img');
-            if (img) {
-                const link = document.createElement('a');
-                link.href = img.src;
-                link.download = `warranty-qr-${Date.now()}.png`;
-                link.click();
+            const warrantyCodeElement = document.getElementById('warranty-code-text');
+            
+            if (img && warrantyCodeElement) {
+                try {
+                    // Get warranty code from text
+                    const warrantyCode = warrantyCodeElement.textContent.replace('Mã bảo hành: ', '');
+                    
+                    // Fetch QR image directly from API
+                    const response = await fetch(img.src);
+                    const blob = await response.blob();
+                    
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `QR_Code_${warrantyCode}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Lỗi khi tải QR code:', error);
+                    alert('Có lỗi xảy ra khi tải QR code. Vui lòng thử lại.');
+                }
             }
         }
 
@@ -250,30 +269,58 @@
             const warrantyCode = document.getElementById('warranty-code-text').textContent;
 
             if (img) {
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(`
-                    <html>
-                        <head>
-                            <title>In QR Code Bảo hành</title>
-                            <style>
-                                body { text-align: center; font-family: Arial, sans-serif; margin: 50px; }
-                                .qr-container { margin: 20px 0; }
-                                h1 { color: #333; }
-                                p { color: #666; margin: 10px 0; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>QR Code Bảo hành</h1>
-                            <div class="qr-container">
-                                <img src="${img.src}" alt="QR Code" style="max-width: 200px;">
-                            </div>
-                            <p>${warrantyCode}</p>
-                            <p>Quét mã QR để kiểm tra thông tin bảo hành</p>
-                        </body>
-                    </html>
-                `);
-                printWindow.document.close();
-                printWindow.print();
+                try {
+                    const printWindow = window.open('', '_blank');
+                    printWindow.document.write(`
+                        <html>
+                            <head>
+                                <title>In QR Code Bảo hành</title>
+                                <style>
+                                    body { 
+                                        text-align: center; 
+                                        font-family: Arial, sans-serif; 
+                                        margin: 50px;
+                                        padding: 20px;
+                                    }
+                                    .qr-container { 
+                                        margin: 30px 0; 
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                    }
+                                    h1 { 
+                                        color: #333; 
+                                        margin-bottom: 20px;
+                                        font-size: 24px;
+                                    }
+                                    p { 
+                                        color: #666; 
+                                        margin: 10px 0;
+                                        font-size: 14px;
+                                    }
+                                    img {
+                                        max-width: 300px;
+                                        height: auto;
+                                        border: 2px solid #ddd;
+                                        border-radius: 8px;
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                <h1>QR Code Bảo hành</h1>
+                                <div class="qr-container">
+                                    <img src="${img.src}" alt="QR Code" onload="window.print();">
+                                </div>
+                                <p><strong>${warrantyCode}</strong></p>
+                                <p>Quét mã QR để kiểm tra thông tin bảo hành</p>
+                            </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                } catch (error) {
+                    console.error('Lỗi khi in QR code:', error);
+                    alert('Có lỗi xảy ra khi in QR code. Vui lòng thử lại.');
+                }
             }
         }
 

@@ -427,11 +427,13 @@
                 for (let i = 0; i < quantity; i++) {
                     inputs +=
                         `<select name="${category}_serials[${productId}][${i}]" 
-                                class="w-32 border ${borderColor} rounded px-2 py-1 text-xs focus:outline-none focus:ring-1"
+                                class="w-32 border ${borderColor} rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 serial-select"
                                 data-item-type="${product?.type || 'product'}" 
                                 data-item-id="${productId}" 
                                 data-warehouse-id="${product?.selected_warehouse_id || ''}"
-                                data-serial-index="${i}">
+                                data-serial-index="${i}"
+                                data-product-index="${index}"
+                                data-category="${category}">
                             <option value="">-- Chọn Serial ${i + 1} --</option>
                         </select>`;
                 }
@@ -506,9 +508,27 @@
                 updateSerialOptionsAvailability();
             }, 1000);
 
+            // Hàm cập nhật warehouse_id cho serial selects
+            function updateSerialWarehouseIds(category, productIndex, warehouseId) {
+                const serialSelects = document.querySelectorAll(`select[data-category="${category}"][data-product-index="${productIndex}"]`);
+                serialSelects.forEach(select => {
+                    select.setAttribute('data-warehouse-id', warehouseId);
+                    // Clear existing options except default
+                    while (select.children.length > 1) {
+                        select.removeChild(select.lastChild);
+                    }
+                    // Reset value
+                    select.value = '';
+                });
+                
+                // Load serials for updated selects
+                loadAvailableSerials();
+            }
+
             // Hàm load available serial numbers cho tất cả serial selects
             async function loadAvailableSerials() {
                 const serialSelects = document.querySelectorAll('select[name*="serials"]');
+                console.log(`Loading serials for ${serialSelects.length} select elements`);
 
                 for (const select of serialSelects) {
                     if (select.disabled) continue; // Skip disabled selects
@@ -518,83 +538,100 @@
                     const warehouseId = select.dataset.warehouseId;
                     const selectedSerial = select.dataset.selectedSerial;
 
-                    if (!itemType || !itemId || !warehouseId) continue;
+                    console.log(`Checking select: itemType=${itemType}, itemId=${itemId}, warehouseId=${warehouseId}`);
+
+                    if (!itemType || !itemId || !warehouseId) {
+                        console.log(`Skipping select due to missing data: itemType=${itemType}, itemId=${itemId}, warehouseId=${warehouseId}`);
+                        continue;
+                    }
 
                     try {
-                        const response = await fetch(
-                            `/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}`
-                        );
-                        const data = await response.json();
-
-                        if (data.success) {
-                            // Log serial availability info for debugging
-                            if (data.total_serials && data.used_serials) {
-                                console.log(
-                                    `Serials for ${itemType} ${itemId}: ${data.available_serials}/${data.total_serials} available (${data.used_serials} used)`
-                                );
-
-                                // Show warning if low availability
-                                if (data.available_serials < data.total_serials * 0.2 && data
-                                    .available_serials > 0) {
-                                    console.warn(
-                                        `Low serial availability for ${itemType} ${itemId}: Only ${data.available_serials} out of ${data.total_serials} serials available`
-                                    );
-                                } else if (data.available_serials === 0 && data.total_serials > 0) {
-                                    console.error(
-                                        `No serial available for ${itemType} ${itemId}: All ${data.total_serials} serials are already used in approved dispatches`
-                                    );
-                                }
-                            }
-
-                            if (data.serials.length > 0) {
-                                // Save currently selected value if any
-                                const currentlySelected = select.value;
-
-                                // Clear existing options except default and currently selected
-                                const optionsToRemove = [];
-                                for (let i = 1; i < select.children.length; i++) {
-                                    const option = select.children[i];
-                                    if (option.value !== currentlySelected) {
-                                        optionsToRemove.push(option);
+                        console.log(`Fetching serials for ${itemType} ${itemId} in warehouse ${warehouseId}`);
+                        fetch(`/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}`)
+                            .then(response => {
+                                console.log('API Response status:', response.status);
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('API Request params:', {
+                                    item_type: itemType,
+                                    item_id: itemId,
+                                    warehouse_id: warehouseId
+                                });
+                                console.log('API Response data:', data);
+                                
+                                if (data.success) {
+                                    const availableSerials = data.serials || [];
+                                    console.log('Available serials:', availableSerials);
+                                    
+                                    if (availableSerials.length === 0) {
+                                        console.warn('Không có serial khả dụng. Chi tiết:', {
+                                            total_serials: data.total_serials,
+                                            used_serials: data.used_serials,
+                                            available_serials: data.available_serials
+                                        });
                                     }
-                                }
-                                optionsToRemove.forEach(option => option.remove());
 
-                                // Add serial options that are not already added
-                                data.serials.forEach(serial => {
-                                    // Check if this serial already exists in the select
-                                    const existingOption = Array.from(select.options).find(opt => opt
-                                        .value === serial);
-                                    if (!existingOption) {
+                                    // Populate ONLY the current select (not all selects)
+                                    // Clear previous options
+                                    select.innerHTML = '<option value="">Chọn serial...</option>';
+                                    
+                                    // Add available serials
+                                    availableSerials.forEach(serial => {
                                         const option = document.createElement('option');
                                         option.value = serial;
                                         option.textContent = serial;
-
-                                        // Select this option if it matches the previously selected serial
-                                        if (serial === selectedSerial || serial === currentlySelected) {
-                                            option.selected = true;
-                                        }
-
+                                        select.appendChild(option);
+                                    });
+                                    
+                                    // Show "No serials available" if empty
+                                    if (availableSerials.length === 0) {
+                                        const option = document.createElement('option');
+                                        option.value = '';
+                                        option.textContent = 'Không có serial khả dụng';
+                                        option.disabled = true;
                                         select.appendChild(option);
                                     }
-                                });
 
-                                // Ensure the correct value is selected
-                                if (currentlySelected) {
-                                    select.value = currentlySelected;
-                                } else if (selectedSerial) {
-                                    select.value = selectedSerial;
-                                }
+                                    // Log serial availability info for debugging
+                                    if (data.total_serials !== undefined && data.used_serials !== undefined) {
+                                        console.log(
+                                            `Serials for ${itemType} ${itemId}: ${data.available_serials}/${data.total_serials} available (${data.used_serials} used)`
+                                        );
 
-                                // Add change event listener for validation
-                                if (!select.hasAttribute('data-validation-listener')) {
-                                    select.addEventListener('change', validateSerialOnChange);
-                                    select.setAttribute('data-validation-listener', 'true');
+                                        // Show warning if low availability
+                                        if (data.available_serials < data.total_serials * 0.2 && data
+                                            .available_serials > 0) {
+                                            console.warn(
+                                                `Low serial availability for ${itemType} ${itemId}: Only ${data.available_serials} out of ${data.total_serials} serials available`
+                                            );
+                                        } else if (data.available_serials === 0 && data.total_serials > 0) {
+                                            console.error(
+                                                `No serial available for ${itemType} ${itemId}: All ${data.total_serials} serials are already used in approved dispatches`
+                                            );
+                                        }
+                                    }
+
+                                    // Set selected value if available
+                                    const selectedSerial = select.dataset.selectedSerial;
+                                    if (selectedSerial && availableSerials.includes(selectedSerial)) {
+                                        select.value = selectedSerial;
+                                    }
+
+                                    // Add change event listener for validation
+                                    if (!select.hasAttribute('data-validation-listener')) {
+                                        select.addEventListener('change', validateSerialOnChange);
+                                        select.setAttribute('data-validation-listener', 'true');
+                                    }
+                                } else {
+                                    console.error(`API error for ${itemType} ${itemId}:`, data.message);
+                                    
+                                    // Show error ONLY in the current select
+                                    select.innerHTML = '<option value="">Lỗi tải serial</option>';
                                 }
-                            }
-                        }
+                            });
                     } catch (error) {
-                        console.error('Error loading serials:', error);
+                        console.error(`Error loading serials for ${itemType} ${itemId}:`, error);
                     }
                 }
             }
@@ -1061,6 +1098,9 @@
                             }
                         }
 
+                        // Cập nhật warehouse_id cho tất cả serial selects của product này
+                        updateSerialWarehouseIds('contract', index, newWarehouseId);
+
                         // Kiểm tra tồn kho ngay khi thay đổi kho
                         showStockWarnings();
                     });
@@ -1078,6 +1118,10 @@
                             // Cập nhật serial inputs
                             updateSerialInputsCreate(newQuantity, 'contract',
                                 selectedContractProducts[index].id, index);
+                            // Load serials for new inputs
+                            setTimeout(() => {
+                                loadAvailableSerials();
+                            }, 100);
                         }
                         // Kiểm tra tồn kho ngay khi thay đổi
                         showStockWarnings();
@@ -1096,8 +1140,10 @@
                     });
                 });
 
-                // Load available serials cho contract products
-                loadAvailableSerials();
+                // Load available serials cho contract products sau một chút để đảm bảo DOM đã được cập nhật
+                setTimeout(() => {
+                    loadAvailableSerials();
+                }, 100);
             }
 
             // Hàm hiển thị bảng thiết bị dự phòng
@@ -1199,6 +1245,9 @@
                             }
                         }
 
+                        // Cập nhật warehouse_id cho tất cả serial selects của product này
+                        updateSerialWarehouseIds('backup', index, newWarehouseId);
+
                         // Kiểm tra tồn kho ngay khi thay đổi kho
                         showStockWarnings();
                     });
@@ -1216,6 +1265,10 @@
                             updateSerialInputsCreate(newQuantity, 'backup',
                                 selectedBackupProducts[
                                     index].id, index);
+                            // Load serials for new inputs
+                            setTimeout(() => {
+                                loadAvailableSerials();
+                            }, 100);
                         }
                         // Kiểm tra tồn kho ngay khi thay đổi
                         showStockWarnings();
@@ -1233,8 +1286,10 @@
                     });
                 });
 
-                // Load available serials cho backup products
-                loadAvailableSerials();
+                // Load available serials cho backup products sau một chút để đảm bảo DOM đã được cập nhật
+                setTimeout(() => {
+                    loadAvailableSerials();
+                }, 100);
             }
 
             // Xử lý modal cập nhật mã thiết bị

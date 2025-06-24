@@ -82,6 +82,16 @@ class Repair extends Model
         return $this->belongsTo(Warehouse::class);
     }
 
+    public function materialReplacements()
+    {
+        return $this->hasMany(MaterialReplacementHistory::class);
+    }
+
+    public function damagedMaterials()
+    {
+        return $this->hasMany(DamagedMaterial::class);
+    }
+
     /**
      * Get repair type label
      */
@@ -104,8 +114,10 @@ class Repair extends Model
     public function getStatusLabelAttribute()
     {
         $labels = [
+            'pending' => 'Chờ xử lý',
             'in_progress' => 'Đang xử lý',
             'completed' => 'Đã xử lý',
+            'cancelled' => 'Đã hủy',
         ];
 
         return $labels[$this->status] ?? 'Không xác định';
@@ -117,8 +129,10 @@ class Repair extends Model
     public function getStatusColorAttribute()
     {
         $colors = [
+            'pending' => 'yellow',
             'in_progress' => 'blue',
             'completed' => 'green',
+            'cancelled' => 'red',
         ];
 
         return $colors[$this->status] ?? 'gray';
@@ -138,5 +152,13 @@ class Repair extends Model
         ];
 
         return $colors[$this->repair_type] ?? 'gray';
+    }
+
+    /**
+     * Get customer name from warranty
+     */
+    public function getCustomerNameAttribute()
+    {
+        return $this->warranty ? $this->warranty->customer_name : null;
     }
 }

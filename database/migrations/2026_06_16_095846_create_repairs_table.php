@@ -19,11 +19,11 @@ return new class extends Migration
             $table->enum('repair_type', ['maintenance', 'repair', 'replacement', 'upgrade', 'other'])->comment('Loại sửa chữa');
             $table->date('repair_date')->comment('Ngày sửa chữa');
             $table->unsignedBigInteger('technician_id')->comment('Kỹ thuật viên');
-            $table->unsignedBigInteger('warehouse_id')->comment('Kho linh kiện');
+            $table->unsignedBigInteger('warehouse_id')->nullable()->comment('Kho linh kiện');
             $table->text('repair_description')->comment('Mô tả sửa chữa');
             $table->text('repair_notes')->nullable()->comment('Ghi chú');
             $table->json('repair_photos')->nullable()->comment('Hình ảnh sửa chữa');
-            $table->enum('status', ['in_progress', 'completed'])->default('in_progress')->comment('Trạng thái');
+            $table->enum('status', ['pending', 'in_progress', 'completed', 'cancelled'])->default('in_progress')->comment('Trạng thái');
             $table->unsignedBigInteger('created_by')->comment('Người tạo');
             $table->timestamps();
 

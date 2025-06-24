@@ -153,10 +153,12 @@
                                         <div>
                                             <p class="text-sm text-gray-500">Thời gian còn lại</p>
                                             <p class="text-gray-900">
-                                                @if($warranty->is_active && $warranty->remaining_days > 0)
-                                                    {{ $warranty->remaining_days }} ngày
-                                                @elseif($warranty->is_active && $warranty->remaining_days <= 0)
-                                                    Hết hạn
+                                                @if($warranty->remaining_time === null)
+                                                    <span class="text-orange-600">Chưa kích hoạt</span>
+                                                @elseif($warranty->is_active && $warranty->remaining_time !== 0)
+                                                    <span class="text-green-600">{{ $warranty->remaining_time }}</span>
+                                                @elseif($warranty->is_active && $warranty->remaining_time === 0)
+                                                    <span class="text-red-600">Hết hạn</span>
                                                 @else
                                                     Không áp dụng
                                                 @endif

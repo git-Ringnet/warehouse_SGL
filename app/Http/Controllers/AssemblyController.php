@@ -279,7 +279,7 @@ class AssemblyController extends Controller
                 ]);
 
                 // Create serial records for each product serial
-                $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id);
+                $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $request->warehouse_id);
 
                 // Update product inventory in target warehouse
                 if ($assembly->target_warehouse_id) {
@@ -550,7 +550,7 @@ class AssemblyController extends Controller
                         $assemblyProduct->update(['serials' => $productSerialsStr]);
 
                         // Create new serial records
-                        $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id);
+                        $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $request->warehouse_id);
                     }
                 }
             }
@@ -787,7 +787,7 @@ class AssemblyController extends Controller
     /**
      * Create serial records for each product serial
      */
-    private function createSerialRecords(array $serials, int $productId, int $assemblyId)
+    private function createSerialRecords(array $serials, int $productId, int $assemblyId, int $warehouseId)
     {
         if (empty($serials)) return;
 
@@ -798,7 +798,9 @@ class AssemblyController extends Controller
                 'serial_number' => $serial,
                 'product_id' => $productId,
                 'status' => 'active',
-                'notes' => 'Assembly ID: ' . $assemblyId
+                'notes' => 'Assembly ID: ' . $assemblyId,
+                'type' => 'product',
+                'warehouse_id' => $warehouseId
             ]);
         }
     }
@@ -806,13 +808,13 @@ class AssemblyController extends Controller
     /**
      * Update serial records for a particular assembly
      */
-    private function updateSerialRecords(array $newSerials, int $productId, int $assemblyId)
+    private function updateSerialRecords(array $newSerials, int $productId, int $assemblyId, int $warehouseId)
     {
         // Delete existing serials for this assembly
         $this->deleteSerialRecords($assemblyId);
 
         // Create new serials
-        $this->createSerialRecords($newSerials, $productId, $assemblyId);
+        $this->createSerialRecords($newSerials, $productId, $assemblyId, $warehouseId);
     }
 
     /**

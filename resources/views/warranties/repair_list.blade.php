@@ -109,9 +109,6 @@
                                     Trạng thái
                                 </th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Chi phí
-                                </th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Thao tác
                                 </th>
                             </tr>
@@ -133,7 +130,7 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $repair->customer_name }}
+                                        {{ $repair->warranty && $repair->warranty->customer_name ? $repair->warranty->customer_name : 'N/A' }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                                         <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -155,13 +152,6 @@
                                             @else bg-gray-100 text-gray-800 @endif">
                                             {{ $repair->status_label }}
                                         </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        @if($repair->repair_cost > 0)
-                                            {{ number_format($repair->repair_cost, 0, ',', '.') }} VNĐ
-                                        @else
-                                            <span class="text-gray-400">Chưa có</span>
-                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex space-x-2">

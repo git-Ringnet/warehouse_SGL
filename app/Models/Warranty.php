@@ -205,11 +205,73 @@ class Warranty extends Model
      */
     public function getRemainingDaysAttribute()
     {
-        if ($this->warranty_end_date < now()->toDateString()) {
+        // Nếu chưa kích hoạt
+        if (!$this->activated_at) {
+            return null; // Sẽ hiển thị "Chưa kích hoạt"
+        }
+
+        // Tính ngày hết hạn từ ngày kích hoạt (sử dụng copy để không thay đổi giá trị gốc)
+        $actualEndDate = $this->activated_at->copy()->addMonths($this->warranty_period_months ?? 12);
+        
+        // Nếu đã hết hạn (ngày hiện tại > ngày hết hạn)
+        if (now() > $actualEndDate) {
             return 0;
         }
 
-        return now()->diffInDays($this->warranty_end_date);
+        // Tính số ngày còn lại (từ hôm nay đến ngày hết hạn)
+        $remainingDays = now()->diffInDays($actualEndDate, false);
+        
+        // Làm tròn thành số nguyên
+        return (int) ceil($remainingDays);
+    }
+
+    /**
+     * Get remaining time with days, hours and minutes
+     */
+    public function getRemainingTimeAttribute()
+    {
+        // Nếu chưa kích hoạt
+        if (!$this->activated_at) {
+            return null; // Sẽ hiển thị "Chưa kích hoạt"
+        }
+
+        // Tính ngày hết hạn từ ngày kích hoạt
+        $actualEndDate = $this->activated_at->copy()->addMonths($this->warranty_period_months ?? 12);
+        
+        // Nếu đã hết hạn
+        if (now() > $actualEndDate) {
+            return 0;
+        }
+
+        // Tính tổng số phút còn lại
+        $totalMinutes = now()->diffInMinutes($actualEndDate, false);
+        
+        // Tính ngày, giờ và phút
+        $days = floor($totalMinutes / (24 * 60));
+        $hours = floor(($totalMinutes % (24 * 60)) / 60);
+        $minutes = $totalMinutes % 60;
+        
+        // Format hiển thị
+        $parts = [];
+        
+        if ($days > 0) {
+            $parts[] = "{$days} ngày";
+        }
+        
+        if ($hours > 0) {
+            $parts[] = "{$hours} giờ";
+        }
+        
+        if ($minutes > 0) {
+            $parts[] = "{$minutes} phút";
+        }
+        
+        // Nếu không có gì thì hiển thị "Dưới 1 phút"
+        if (empty($parts)) {
+            return "Dưới 1 phút";
+        }
+        
+        return implode(' ', $parts);
     }
 
     /**
@@ -273,12 +335,37 @@ class Warranty extends Model
                                 $materials = [];
                                 foreach ($assemblyMaterial as $am) {
                                     if ($am->material) {
+                                        // Get latest material serial from replacement history
+                                        $originalSerial = $am->serial ?? 'N/A';
+                                        
+                                        // Handle comma-separated serials
+                                        if (strpos($originalSerial, ',') !== false) {
+                                            $serialParts = array_map('trim', explode(',', $originalSerial));
+                                            $updatedParts = [];
+                                            
+                                            foreach ($serialParts as $part) {
+                                                $updatedParts[] = $this->getLatestMaterialSerial(
+                                                    $product->code,
+                                                    $am->material->code,
+                                                    $part
+                                                );
+                                            }
+                                            
+                                            $latestSerial = implode(',', $updatedParts);
+                                        } else {
+                                            $latestSerial = $this->getLatestMaterialSerial(
+                                                $product->code,
+                                                $am->material->code,
+                                                $originalSerial
+                                            );
+                                        }
+                                        
                                         $materials[] = [
                                             'code' => $am->material->code,
                                             'name' => $am->material->name,
                                             'quantity' => $am->quantity,
                                             'assembly_code' => $am->assembly->code ?? 'N/A',
-                                            'serial' => $am->serial ?? 'N/A'
+                                            'serial' => $latestSerial
                                         ];
                                     }
                                 }
@@ -335,7 +422,6 @@ class Warranty extends Model
     {
         if ($this->item_type === 'project' && $this->item_id) {
             $products = [];
-            $processedProducts = []; // Track processed products by code
 
             // Get ALL dispatches for this project
             $projectDispatches = Dispatch::where('project_id', $this->item_id)->get();
@@ -347,32 +433,27 @@ class Warranty extends Model
                 foreach ($contractItems as $dispatchItem) {
                     $product = Product::find($dispatchItem->item_id);
                     if ($product) {
-                        $productCode = $product->code;
+                        $serialNumbers = $dispatchItem->serial_numbers ?: [];
                         
-                        // Check if this product was already processed
-                        if (isset($processedProducts[$productCode])) {
-                            // Merge quantities and serial numbers
-                            $existingIndex = $processedProducts[$productCode];
-                            $products[$existingIndex]['quantity'] += $dispatchItem->quantity;
-                            
-                            // Merge serial numbers
-                            $existingSerials = $products[$existingIndex]['serial_numbers'] ?: [];
-                            $newSerials = $dispatchItem->serial_numbers ?: [];
-                            $mergedSerials = array_unique(array_merge($existingSerials, $newSerials));
-                            
-                            $products[$existingIndex]['serial_numbers'] = $mergedSerials;
-                            $products[$existingIndex]['serial_numbers_text'] = !empty($mergedSerials) ? implode(', ', $mergedSerials) : '';
+                        // Nếu có serial numbers, tạo một entry riêng cho mỗi serial
+                        if (!empty($serialNumbers)) {
+                            foreach ($serialNumbers as $serial) {
+                                $products[] = [
+                                    'product_code' => $product->code,
+                                    'product_name' => $product->name,
+                                    'quantity' => 1, // Mỗi serial = 1 thiết bị
+                                    'serial_numbers' => [$serial], // Chỉ chứa 1 serial
+                                    'serial_numbers_text' => $serial,
+                                ];
+                            }
                         } else {
-                            // New product, add to array
-                            $newIndex = count($products);
-                            $processedProducts[$productCode] = $newIndex;
-                            
+                            // Nếu không có serial, tạo entry với số lượng
                             $products[] = [
                                 'product_code' => $product->code,
                                 'product_name' => $product->name,
                                 'quantity' => $dispatchItem->quantity,
-                                'serial_numbers' => $dispatchItem->serial_numbers ?: [],
-                                'serial_numbers_text' => !empty($dispatchItem->serial_numbers) ? implode(', ', $dispatchItem->serial_numbers) : '',
+                                'serial_numbers' => [],
+                                'serial_numbers_text' => 'Chưa có',
                             ];
                         }
                     }
@@ -397,6 +478,38 @@ class Warranty extends Model
         }
 
         return [];
+    }
+
+    /**
+     * Get latest material serial from replacement history
+     */
+    private function getLatestMaterialSerial($deviceCode, $materialCode, $originalSerial)
+    {
+        // Find material replacement history for this warranty and material
+        $latestReplacement = \App\Models\MaterialReplacementHistory::whereHas('repair', function ($query) {
+            $query->where('warranty_code', $this->warranty_code);
+        })
+        ->where('device_code', $deviceCode)
+        ->where('material_code', $materialCode)
+        ->where(function ($query) use ($originalSerial) {
+            $query->whereJsonContains('old_serials', $originalSerial)
+                  ->orWhereRaw('JSON_SEARCH(old_serials, "one", ?) IS NOT NULL', [$originalSerial]);
+        })
+        ->orderBy('replaced_at', 'desc')
+        ->first();
+
+        if ($latestReplacement && !empty($latestReplacement->new_serials)) {
+            // Find which new serial corresponds to the original serial
+            $oldSerials = $latestReplacement->old_serials;
+            $newSerials = $latestReplacement->new_serials;
+            
+            $index = array_search($originalSerial, $oldSerials);
+            if ($index !== false && isset($newSerials[$index])) {
+                return $newSerials[$index];
+            }
+        }
+
+        return $originalSerial;
     }
 
     /**

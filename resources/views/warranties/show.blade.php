@@ -79,10 +79,20 @@
                                         {{ $warranty->warranty_start_date->format('d/m/Y') }} - {{ $warranty->warranty_end_date->format('d/m/Y') }}
                                     </span>
                                 </div>
-                                @if($warranty->is_active)
+                                @if($warranty->remaining_time === null)
+                                <div class="flex items-center mt-1">
+                                    <i class="fas fa-exclamation-circle text-orange-500 mr-2"></i>
+                                    <span class="text-orange-600 text-sm">Chưa kích hoạt</span>
+                                </div>
+                                @elseif($warranty->is_active && $warranty->remaining_time !== 0)
                                 <div class="flex items-center mt-1">
                                     <i class="fas fa-clock text-green-500 mr-2"></i>
-                                    <span class="text-green-600 text-sm">Còn {{ $warranty->remaining_days }} ngày</span>
+                                    <span class="text-green-600 text-sm">Còn {{ $warranty->remaining_time }}</span>
+                                </div>
+                                @elseif($warranty->is_active && $warranty->remaining_time === 0)
+                                <div class="flex items-center mt-1">
+                                    <i class="fas fa-times-circle text-red-500 mr-2"></i>
+                                    <span class="text-red-600 text-sm">Hết hạn</span>
                                 </div>
                                 @endif
                             </div>
@@ -400,12 +410,18 @@
                                 <p class="text-sm text-gray-500">Dự án</p>
                                 <p class="text-gray-900">{{ $warranty->project_name }}</p>
                             </div>
-                            @if($warranty->is_active)
                             <div>
                                 <p class="text-sm text-gray-500">Thời gian còn lại</p>
-                                <p class="text-green-600 font-medium">{{ $warranty->remaining_days }} ngày</p>
+                                @if($warranty->remaining_time === null)
+                                    <p class="text-orange-600 font-medium">Chưa kích hoạt</p>
+                                @elseif($warranty->is_active && $warranty->remaining_time !== 0)
+                                    <p class="text-green-600 font-medium">{{ $warranty->remaining_time }}</p>
+                                @elseif($warranty->is_active && $warranty->remaining_time === 0)
+                                    <p class="text-red-600 font-medium">Hết hạn</p>
+                                @else
+                                    <p class="text-gray-600 font-medium">Không hoạt động</p>
+                                @endif
                             </div>
-                            @endif
                         </div>
 
                         <div class="mt-6 text-center">
@@ -430,16 +446,16 @@
                 </button>
             </div>
             <div class="text-center mb-4">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode(url('/warranty/check/' . $warranty->warranty_code)) }}" alt="QR Code" class="mx-auto border rounded">
+                <img id="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode(url('/warranty/check/' . $warranty->warranty_code)) }}" alt="QR Code" class="mx-auto border rounded">
                 <p class="text-sm font-medium text-gray-800 mt-2">{{ $warranty->warranty_code }}</p>
                 <p class="text-sm text-gray-600">Quét mã QR này để kiểm tra thông tin bảo hành thiết bị</p>
             </div>
             <div class="flex justify-between space-x-3">
-                <button type="button"
+                <button type="button" id="download-qr-btn"
                     class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex-1">
                     <i class="fas fa-download mr-2"></i> Tải xuống
                 </button>
-                <button type="button"
+                <button type="button" id="print-qr-btn"
                     class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex-1">
                     <i class="fas fa-print mr-2"></i> In mã QR
                 </button>
@@ -456,8 +472,94 @@
             document.getElementById('qr-modal').classList.add('hidden');
         }
 
+        // Download QR Code
+        function downloadQR() {
+            const warrantyCode = '{{ $warranty->warranty_code }}';
+            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ urlencode(url('/warranty/check/' . $warranty->warranty_code)) }}';
+            
+            // Fetch the QR image as blob and download
+            fetch(qrUrl)
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'QR_Code_' + warrantyCode + '.png';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error('Error downloading QR code:', error);
+                    alert('Không thể tải xuống QR code. Vui lòng thử lại.');
+                });
+        }
+
+        // Print QR Code
+        function printQR() {
+            const warrantyCode = '{{ $warranty->warranty_code }}';
+            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ urlencode(url('/warranty/check/' . $warranty->warranty_code)) }}';
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>QR Code - ${warrantyCode}</title>
+                    <style>
+                        body {
+                            margin: 0;
+                            padding: 20px;
+                            font-family: Arial, sans-serif;
+                            text-align: center;
+                        }
+                        .qr-container {
+                            max-width: 350px;
+                            margin: 0 auto;
+                        }
+                        .qr-image {
+                            width: 250px;
+                            height: 250px;
+                            border: 1px solid #ccc;
+                            margin-bottom: 15px;
+                        }
+                        .warranty-code {
+                            font-size: 18px;
+                            font-weight: bold;
+                            margin-bottom: 8px;
+                        }
+                        .description {
+                            font-size: 14px;
+                            color: #666;
+                        }
+                        @media print {
+                            body { margin: 0; padding: 10px; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="qr-container">
+                        <img src="${qrUrl}" alt="QR Code" class="qr-image" onload="window.print(); window.close();">
+                        <div class="warranty-code">${warrantyCode}</div>
+                        <div class="description">Quét mã QR này để kiểm tra thông tin bảo hành thiết bị</div>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+
         document.getElementById('warranty-qr-btn').addEventListener('click', function() {
             generateQR();
+        });
+
+        document.getElementById('download-qr-btn').addEventListener('click', function() {
+            downloadQR();
+        });
+
+        document.getElementById('print-qr-btn').addEventListener('click', function() {
+            printQR();
         });
 
         // Toggle materials section

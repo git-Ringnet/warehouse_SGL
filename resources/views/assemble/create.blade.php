@@ -1919,7 +1919,7 @@
                             '<!-- Serial inputs will be added here -->' +
                             '</td>' +
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
-                            '<input type="text" name="components[' + index + '][note]" value="' + (component
+                            '<input type="text" name="components[${index}][note]" value="' + (component
                                 .note ||
                                 '') + '"' +
                             ' class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 note-input"' +
@@ -2162,6 +2162,9 @@
                 cell.innerHTML = '';
 
                 const quantity = parseInt(component.quantity) || 1;
+                
+                // Generate unique identifier for this component instance
+                const componentInstanceId = 'comp_' + component.id + '_' + component.productId + '_' + index + '_' + Date.now();
 
                 // If quantity is 1, show single serial dropdown
                 if (quantity === 1) {
@@ -2174,6 +2177,8 @@
                     selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
                     selectElement.setAttribute('data-material-id', component.id);
                     selectElement.setAttribute('data-component-index', index);
+                    selectElement.setAttribute('data-instance-id', componentInstanceId);
+                    selectElement.id = componentInstanceId + '_select';
 
                     // Add default option
                     const defaultOption = document.createElement('option');
@@ -2229,6 +2234,8 @@
                         selectElement.setAttribute('data-material-id', component.id);
                         selectElement.setAttribute('data-component-index', index);
                         selectElement.setAttribute('data-serial-index', i);
+                        selectElement.setAttribute('data-instance-id', componentInstanceId);
+                        selectElement.id = componentInstanceId + '_select_' + i;
 
                         // Add default option
                         const defaultOption = document.createElement('option');
@@ -2523,6 +2530,9 @@
 
             // Thêm event listener cho cả hai dropdown kho
             warehouseSelect.addEventListener('change', function() {
+                // Clear material serials cache when warehouse changes
+                materialSerialsCache = {};
+                
                 fetchWarehouseMaterials(this.value);
 
                 // Fetch stock data when warehouse changes
@@ -2640,9 +2650,62 @@
                 return selectedSerials;
             }
 
+            // Cache for material serials to avoid repeated API calls
+            let materialSerialsCache = {};
+            
+            // Debug function (can be removed in production)
+            function debugSerialState() {
+                console.group('Serial Dropdowns Debug');
+                const dropdowns = document.querySelectorAll('select[data-material-id]');
+                const materialGroups = {};
+                
+                dropdowns.forEach((dropdown, index) => {
+                    const materialId = dropdown.getAttribute('data-material-id');
+                    const instanceId = dropdown.getAttribute('data-instance-id');
+                    const value = dropdown.value;
+                    
+                    if (!materialGroups[materialId]) {
+                        materialGroups[materialId] = [];
+                    }
+                    
+                    materialGroups[materialId].push({
+                        index,
+                        instanceId,
+                        value,
+                        optionCount: dropdown.options.length - 1, // Exclude default option
+                        dropdown
+                    });
+                });
+                
+                Object.keys(materialGroups).forEach(materialId => {
+                    console.group(`Material ID: ${materialId}`);
+                    materialGroups[materialId].forEach(info => {
+                        console.log(`Instance ${info.instanceId}: Value="${info.value}", Options=${info.optionCount}`);
+                    });
+                    console.groupEnd();
+                });
+                
+                console.log('Cache:', materialSerialsCache);
+                console.groupEnd();
+            }
+            
+            // Add debug button in development (can be removed in production)
+            if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    const debugBtn = document.createElement('button');
+                    debugBtn.textContent = 'Debug Serials';
+                    debugBtn.type = 'button';
+                    debugBtn.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-3 py-2 rounded text-xs z-50';
+                    debugBtn.onclick = debugSerialState;
+                    document.body.appendChild(debugBtn);
+                });
+            }
+            
             // Function to reload serials for all components (excluding specific element)
             function reloadAllComponentSerials(excludeElement = null) {
-                // Find all serial select elements and reload their options
+                // Group selects by material ID to process them together
+                const selectsByMaterial = {};
+                
                 document.querySelectorAll('select[data-material-id]').forEach(selectElement => {
                     // Skip if this is the element we want to exclude
                     if (excludeElement && selectElement === excludeElement) {
@@ -2650,23 +2713,108 @@
                     }
                     
                     const materialId = selectElement.getAttribute('data-material-id');
-                    const componentIndex = selectElement.getAttribute('data-component-index');
-                    const serialIndex = selectElement.getAttribute('data-serial-index');
+                    if (!selectsByMaterial[materialId]) {
+                        selectsByMaterial[materialId] = [];
+                    }
+                    selectsByMaterial[materialId].push(selectElement);
+                });
+                
+                // Process each material group
+                Object.keys(selectsByMaterial).forEach(materialId => {
+                    const selects = selectsByMaterial[materialId];
+                    reloadSerialsForMaterialGroup(materialId, selects);
+                });
+            }
+            
+            // Function to reload serials for a group of selects with the same material
+            async function reloadSerialsForMaterialGroup(materialId, selectElements) {
+                const warehouseId = document.getElementById('warehouse_id').value;
+                if (!warehouseId) {
+                    return;
+                }
+                
+                const cacheKey = `${materialId}_${warehouseId}`;
+                
+                try {
+                    let serials;
                     
-                    // Find the component and its serial input
-                    const component = selectedComponents[componentIndex];
-                    const serialIdInput = selectElement.parentNode.querySelector('input[type="hidden"]');
-                    
-                    if (component && serialIdInput) {
-                        if (serialIndex !== null) {
-                            // Multiple serials case
-                            loadSerialsForMultipleSelect(selectElement, serialIdInput, component, componentIndex, parseInt(serialIndex));
+                    // Check cache first
+                    if (materialSerialsCache[cacheKey]) {
+                        serials = materialSerialsCache[cacheKey];
+                    } else {
+                        // Fetch from API
+                        const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                            new URLSearchParams({
+                                material_id: materialId,
+                                warehouse_id: warehouseId
+                            }));
+                        
+                        const data = await response.json();
+                        
+                        if (data.success && data.serials) {
+                            serials = data.serials;
+                            // Cache the result for 30 seconds
+                            materialSerialsCache[cacheKey] = serials;
+                            setTimeout(() => {
+                                delete materialSerialsCache[cacheKey];
+                            }, 30000);
                         } else {
-                            // Single serial case
-                            loadSerialsForSelect(selectElement, serialIdInput, component, componentIndex);
+                            serials = [];
                         }
                     }
-                });
+                    
+                    // Get all currently selected serials for this material
+                    const selectedSerials = new Set();
+                    selectElements.forEach(select => {
+                        if (select.value && select.value !== '') {
+                            selectedSerials.add(select.value);
+                        }
+                    });
+                    
+                    // Update each select element
+                    selectElements.forEach(selectElement => {
+                        const currentValue = selectElement.value;
+                        const componentIndex = selectElement.getAttribute('data-component-index');
+                        const serialIndex = selectElement.getAttribute('data-serial-index');
+                        
+                        // Clear existing options except the first default one
+                        while (selectElement.children.length > 1) {
+                            selectElement.removeChild(selectElement.lastChild);
+                        }
+                        
+                        // Add serial options
+                        serials.forEach(serial => {
+                            // Skip this serial if it's already selected in another dropdown of the same material
+                            // BUT allow it if it's the current value of this dropdown
+                            if (selectedSerials.has(serial.serial_number) && serial.serial_number !== currentValue) {
+                                return;
+                            }
+                            
+                            const option = document.createElement('option');
+                            option.value = serial.serial_number;
+                            option.textContent = serial.serial_number;
+                            option.dataset.serialId = serial.id;
+                            
+                            // Restore selected value if it matches
+                            if (currentValue === serial.serial_number) {
+                                option.selected = true;
+                            }
+                            
+                            selectElement.appendChild(option);
+                        });
+                        
+                        // If no serials available, show message
+                        if (serials.length === 0) {
+                            const noSerialOption = document.createElement('option');
+                            noSerialOption.textContent = 'Không có serial khả dụng';
+                            noSerialOption.disabled = true;
+                            selectElement.appendChild(noSerialOption);
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error('Error reloading serials for material', materialId, ':', error);
+                }
             }
 
             // Function to load serials for multiple select (quantity > 1)
@@ -2675,6 +2823,17 @@
                 if (!warehouseId) {
                     return; // Don't load if no warehouse selected
                 }
+
+                // Add loading indicator
+                const loadingOption = document.createElement('option');
+                loadingOption.textContent = 'Đang tải...';
+                loadingOption.disabled = true;
+                
+                // Clear and add loading option
+                while (selectElement.children.length > 1) {
+                    selectElement.removeChild(selectElement.lastChild);
+                }
+                selectElement.appendChild(loadingOption);
 
                 try {
                     const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
@@ -2685,18 +2844,21 @@
                     
                     const data = await response.json();
                     
+                    // Remove loading option
+                    selectElement.removeChild(loadingOption);
+                    
                     if (data.success && data.serials.length > 0) {
-                        // Get currently selected serials from all dropdowns (excluding this one)
-                        const allSelectedSerials = getAllSelectedSerials(selectElement);
+                        // Get currently selected serials from all dropdowns for this material (excluding this one)
+                        const allSelectedSerials = new Set();
+                        document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(otherSelect => {
+                            if (otherSelect !== selectElement && otherSelect.value && otherSelect.value !== '') {
+                                allSelectedSerials.add(otherSelect.value);
+                            }
+                        });
                         
-                        // Clear existing options except the first default one
-                        while (selectElement.children.length > 1) {
-                            selectElement.removeChild(selectElement.lastChild);
-                        }
-
                         // Add serial options
                         data.serials.forEach(serial => {
-                            // Skip this serial if it's already selected in another dropdown
+                            // Skip this serial if it's already selected in another dropdown of the same material
                             if (allSelectedSerials.has(serial.serial_number)) {
                                 return; // Skip this serial
                             }
@@ -2720,9 +2882,23 @@
                             
                             selectElement.appendChild(option);
                         });
+                    } else {
+                        // No serials available
+                        const noSerialOption = document.createElement('option');
+                        noSerialOption.textContent = 'Không có serial khả dụng';
+                        noSerialOption.disabled = true;
+                        selectElement.appendChild(noSerialOption);
                     }
                 } catch (error) {
                     console.error('Error loading serials:', error);
+                    // Remove loading option and show error
+                    if (selectElement.contains(loadingOption)) {
+                        selectElement.removeChild(loadingOption);
+                    }
+                    const errorOption = document.createElement('option');
+                    errorOption.textContent = 'Lỗi tải serial';
+                    errorOption.disabled = true;
+                    selectElement.appendChild(errorOption);
                 }
             }
 
@@ -2733,6 +2909,17 @@
                     return; // Don't load if no warehouse selected
                 }
 
+                // Add loading indicator
+                const loadingOption = document.createElement('option');
+                loadingOption.textContent = 'Đang tải...';
+                loadingOption.disabled = true;
+                
+                // Clear and add loading option
+                while (selectElement.children.length > 1) {
+                    selectElement.removeChild(selectElement.lastChild);
+                }
+                selectElement.appendChild(loadingOption);
+
                 try {
                     const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
                         new URLSearchParams({
@@ -2742,18 +2929,21 @@
                     
                     const data = await response.json();
                     
+                    // Remove loading option
+                    selectElement.removeChild(loadingOption);
+                    
                     if (data.success && data.serials.length > 0) {
-                        // Get currently selected serials from all dropdowns (excluding this one)
-                        const allSelectedSerials = getAllSelectedSerials(selectElement);
-                        
-                        // Clear existing options except the first default one
-                        while (selectElement.children.length > 1) {
-                            selectElement.removeChild(selectElement.lastChild);
-                        }
+                        // Get currently selected serials from all dropdowns for this material (excluding this one)
+                        const allSelectedSerials = new Set();
+                        document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(otherSelect => {
+                            if (otherSelect !== selectElement && otherSelect.value && otherSelect.value !== '') {
+                                allSelectedSerials.add(otherSelect.value);
+                            }
+                        });
 
                         // Add serial options
                         data.serials.forEach(serial => {
-                            // Skip this serial if it's already selected in another dropdown
+                            // Skip this serial if it's already selected in another dropdown of the same material
                             if (allSelectedSerials.has(serial.serial_number)) {
                                 return; // Skip this serial
                             }
@@ -2774,9 +2964,23 @@
                             
                             selectElement.appendChild(option);
                         });
+                    } else {
+                        // No serials available
+                        const noSerialOption = document.createElement('option');
+                        noSerialOption.textContent = 'Không có serial khả dụng';
+                        noSerialOption.disabled = true;
+                        selectElement.appendChild(noSerialOption);
                     }
                 } catch (error) {
                     console.error('Error loading serials:', error);
+                    // Remove loading option and show error
+                    if (selectElement.contains(loadingOption)) {
+                        selectElement.removeChild(loadingOption);
+                    }
+                    const errorOption = document.createElement('option');
+                    errorOption.textContent = 'Lỗi tải serial';
+                    errorOption.disabled = true;
+                    selectElement.appendChild(errorOption);
                 }
             }
 

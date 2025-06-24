@@ -14,12 +14,14 @@ class RepairItem extends Model
         'device_code',
         'device_name',
         'device_serial',
+        'device_quantity',
         'device_status',
         'device_notes',
         'device_images',
         'device_parts',
-        'reject_reason',
-        'reject_warehouse_id',
+        'rejected_reason',
+        'rejected_warehouse_id',
+        'rejected_at',
     ];
 
     protected $casts = [
@@ -35,12 +37,18 @@ class RepairItem extends Model
         return $this->belongsTo(Repair::class);
     }
 
+    public function rejectedWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'rejected_warehouse_id');
+    }
+
     /**
      * Get device status label
      */
     public function getDeviceStatusLabelAttribute()
     {
         $labels = [
+            'processing' => 'Đang xử lý',
             'selected' => 'Đã chọn',
             'rejected' => 'Đã từ chối',
         ];
@@ -54,6 +62,7 @@ class RepairItem extends Model
     public function getDeviceStatusColorAttribute()
     {
         $colors = [
+            'processing' => 'yellow',
             'selected' => 'green',
             'rejected' => 'red',
         ];
