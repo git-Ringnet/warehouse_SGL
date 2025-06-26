@@ -27,6 +27,7 @@ class RepairItem extends Model
     protected $casts = [
         'device_images' => 'array',
         'device_parts' => 'array',
+        'rejected_at' => 'datetime',
     ];
 
     /**

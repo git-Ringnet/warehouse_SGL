@@ -154,7 +154,7 @@
             </li>
             <li>
                 <div class="dropdown">
-                    <a href="{{ asset('change_log') }}">
+                    <a href="{{ route('change-logs.index') }}">
                         <button onclick="toggleDropdown('changeLog')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">

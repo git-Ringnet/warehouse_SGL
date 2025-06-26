@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Helpers\ChangeLogHelper;
 
 class AssemblyController extends Controller
 {
@@ -360,6 +361,43 @@ class AssemblyController extends Controller
                     ->where('material_id', $component['id'])
                     ->where('item_type', 'material')
                     ->decrement('quantity', $totalRequiredQty);
+
+                // Lưu nhật ký sử dụng vật tư trong lắp ráp
+                try {
+                    $material = Material::find($component['id']);
+                    if ($material) {
+                        ChangeLogHelper::lapRap(
+                            $material->code,
+                            $material->name,
+                            $totalRequiredQty,
+                            $assembly->code,
+                            "Sử dụng vật tư trong lắp ráp",
+                            [
+                                'assembly_id' => $assembly->id,
+                                'material_id' => $component['id'],
+                                'warehouse_id' => $request->warehouse_id,
+                                'target_warehouse_id' => $assembly->target_warehouse_id,
+                                'target_product_id' => $componentProductId,
+                                'component_quantity' => $componentQty,
+                                'product_quantity' => $productQty,
+                                'total_quantity_used' => $totalRequiredQty,
+                                'serial_numbers' => $serial,
+                                'serial_ids' => $serialIds,
+                                'assigned_employee_id' => $assembly->assigned_employee_id,
+                                'created_by' => Auth::id(),
+                                'created_at' => now()->toDateTimeString()
+                            ],
+                            $component['note'] ?? null
+                        );
+                    }
+                } catch (\Exception $logException) {
+                    Log::error("Error creating assembly change log for material {$component['id']}:", [
+                        'assembly_code' => $assembly->code,
+                        'material_id' => $component['id'],
+                        'error' => $logException->getMessage()
+                    ]);
+                    // Continue processing even if change log creation fails
+                }
             }
 
             // Create single testing record for this assembly

@@ -24,7 +24,7 @@ return new class extends Migration
             $table->enum('status', ['pending', 'approved', 'completed', 'cancelled'])->default('pending');
             $table->unsignedBigInteger('created_by');
             $table->unsignedBigInteger('approved_by')->nullable();
-            $table->unsignedBigInteger('project_id')->nullable();
+            $table->integer('project_id')->nullable();
             $table->timestamp('approved_at')->nullable();
             $table->timestamps();
 
@@ -32,7 +32,6 @@ return new class extends Migration
             $table->foreign('company_representative_id')->references('id')->on('employees');
             $table->foreign('created_by')->references('id')->on('users');
             $table->foreign('approved_by')->references('id')->on('users');
-            $table->foreign('project_id')->references('id')->on('projects');
 
             // Indexes
             $table->index(['dispatch_date', 'status']);

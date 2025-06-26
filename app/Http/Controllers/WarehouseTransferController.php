@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ChangeLogHelper;
 use App\Models\Employee;
 use App\Models\Material;
 use App\Models\Product;
@@ -36,7 +37,7 @@ class WarehouseTransferController extends Controller
                 case 'material':
                     $query->whereHas('material', function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('code', 'like', "%{$search}%");
+                            ->orWhere('code', 'like', "%{$search}%");
                     });
                     break;
                 case 'source':
@@ -60,18 +61,18 @@ class WarehouseTransferController extends Controller
                     $query->where('status', 'like', "%{$status}%");
                     break;
                 default:
-                    $query->where(function($q) use ($search) {
+                    $query->where(function ($q) use ($search) {
                         $q->where('transfer_code', 'like', "%{$search}%")
-                          ->orWhere('serial', 'like', "%{$search}%")
-                          ->orWhereHas('material', function ($q) use ($search) {
-                              $q->where('name', 'like', "%{$search}%");
-                          });
+                            ->orWhere('serial', 'like', "%{$search}%")
+                            ->orWhereHas('material', function ($q) use ($search) {
+                                $q->where('name', 'like', "%{$search}%");
+                            });
                     });
             }
         }
 
         $warehouseTransfers = $query->orderBy('created_at', 'desc')->paginate(10);
-        
+
         return view('warehouse-transfers.index', compact('warehouseTransfers'));
     }
 
@@ -85,10 +86,10 @@ class WarehouseTransferController extends Controller
         $materials = Material::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
         $products = Product::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
         $goods = Good::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
-        
+
         return view('warehouse-transfers.create', compact(
-            'warehouses', 
-            'employees', 
+            'warehouses',
+            'employees',
             'materials',
             'products',
             'goods'
@@ -164,7 +165,7 @@ class WarehouseTransferController extends Controller
                     $serialArray = array_filter($serialArray);
                     $serialNumbers = !empty($serialArray) ? $serialArray : null;
                 }
-                
+
                 WarehouseTransferMaterial::create([
                     'warehouse_transfer_id' => $warehouseTransfer->id,
                     'material_id' => $material['id'],
@@ -173,30 +174,58 @@ class WarehouseTransferController extends Controller
                     'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
                 ]);
-                
+
                 // Nếu trạng thái là 'completed', cập nhật tồn kho
                 if ($isCompleted) {
                     $materialId = $material['id'];
                     $itemType = $material['type'] ?? 'material';
                     $quantity = $material['quantity'];
-                    
+
+                    // Lấy thông tin vật tư để tạo nhật ký
+                    $itemModel = null;
+                    if ($itemType == 'material') {
+                        $itemModel = Material::find($materialId);
+                    } elseif ($itemType == 'product') {
+                        $itemModel = Product::find($materialId);
+                    } elseif ($itemType == 'good') {
+                        $itemModel = Good::find($materialId);
+                    }
+
                     // Giảm số lượng tồn kho ở kho nguồn
                     $this->updateWarehouseStock(
-                        $request->source_warehouse_id, 
-                        $materialId, 
-                        $itemType, 
-                        -$quantity, 
+                        $request->source_warehouse_id,
+                        $materialId,
+                        $itemType,
+                        -$quantity,
                         "Giảm tồn kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
                     );
-                    
+
                     // Tăng số lượng tồn kho ở kho đích
                     $this->updateWarehouseStock(
-                        $request->destination_warehouse_id, 
-                        $materialId, 
-                        $itemType, 
-                        $quantity, 
+                        $request->destination_warehouse_id,
+                        $materialId,
+                        $itemType,
+                        $quantity,
                         "Tăng tồn kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
                     );
+
+                    // Tạo nhật ký chuyển kho
+                    if ($itemModel) {
+                        ChangeLogHelper::chuyenKho(
+                            $itemModel->code,
+                            $itemModel->name,
+                            $quantity,
+                            $warehouseTransfer->transfer_code,
+                            "Chuyển từ {$request->source_warehouse_id} sang {$request->destination_warehouse_id}",
+                            [
+                                'source_warehouse_id' => $request->source_warehouse_id,
+                                'source_warehouse_name' => $request->source_warehouse_id,
+                                'destination_warehouse_id' => $request->destination_warehouse_id,
+                                'destination_warehouse_name' => $request->destination_warehouse_id,
+                            ],
+                            $warehouseTransfer->notes
+                        );
+                    }
                 }
             }
 
@@ -215,7 +244,7 @@ class WarehouseTransferController extends Controller
     public function show(WarehouseTransfer $warehouseTransfer)
     {
         $warehouseTransfer->load(['source_warehouse', 'destination_warehouse', 'material', 'employee', 'materials.material']);
-        $selectedMaterials = $warehouseTransfer->materials->map(function($item) {
+        $selectedMaterials = $warehouseTransfer->materials->map(function ($item) {
             return [
                 'id' => $item->material_id,
                 'name' => $item->material->code . ' - ' . $item->material->name,
@@ -225,7 +254,7 @@ class WarehouseTransferController extends Controller
                 'notes' => $item->notes
             ];
         })->toArray();
-        
+
         return view('warehouse-transfers.show', compact('warehouseTransfer', 'selectedMaterials'));
     }
 
@@ -239,9 +268,9 @@ class WarehouseTransferController extends Controller
         $materials = Material::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
         $products = Product::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
         $goods = Good::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
-        
+
         $warehouseTransfer->load(['materials.material']);
-        $selectedMaterials = $warehouseTransfer->materials->map(function($item) {
+        $selectedMaterials = $warehouseTransfer->materials->map(function ($item) {
             return [
                 'id' => $item->material_id,
                 'name' => $item->material->code . ' - ' . $item->material->name,
@@ -251,12 +280,12 @@ class WarehouseTransferController extends Controller
                 'notes' => $item->notes
             ];
         })->toArray();
-        
+
         return view('warehouse-transfers.edit', compact(
-            'warehouseTransfer', 
-            'warehouses', 
-            'employees', 
-            'materials', 
+            'warehouseTransfer',
+            'warehouses',
+            'employees',
+            'materials',
             'products',
             'goods',
             'selectedMaterials'
@@ -269,7 +298,7 @@ class WarehouseTransferController extends Controller
     public function update(Request $request, WarehouseTransfer $warehouseTransfer)
     {
         $request->validate([
-            'transfer_code' => 'required|string|max:50|unique:warehouse_transfers,transfer_code,'.$warehouseTransfer->id,
+            'transfer_code' => 'required|string|max:50|unique:warehouse_transfers,transfer_code,' . $warehouseTransfer->id,
             'source_warehouse_id' => 'required|exists:warehouses,id',
             'destination_warehouse_id' => 'required|exists:warehouses,id|different:source_warehouse_id',
             'quantity' => 'required|integer|min:1',
@@ -305,7 +334,7 @@ class WarehouseTransferController extends Controller
 
             // Kiểm tra nếu trạng thái chuyển thành 'completed'
             $isCompletingTransfer = $request->status === 'completed' && $warehouseTransfer->status !== 'completed';
-            
+
             // Cập nhật phiếu chuyển kho
             $warehouseTransfer->update([
                 'transfer_code' => $request->transfer_code,
@@ -337,7 +366,7 @@ class WarehouseTransferController extends Controller
                     $serialArray = array_filter($serialArray);
                     $serialNumbers = !empty($serialArray) ? $serialArray : null;
                 }
-                
+
                 WarehouseTransferMaterial::create([
                     'warehouse_transfer_id' => $warehouseTransfer->id,
                     'material_id' => $material['id'],
@@ -346,30 +375,58 @@ class WarehouseTransferController extends Controller
                     'serial_numbers' => $serialNumbers,
                     'notes' => $material['notes'] ?? null,
                 ]);
-                
+
                 // Nếu trạng thái chuyển thành 'completed', cập nhật tồn kho
                 if ($isCompletingTransfer) {
                     $materialId = $material['id'];
                     $itemType = $material['type'] ?? 'material';
                     $quantity = $material['quantity'];
-                    
+
+                    // Lấy thông tin vật tư để tạo nhật ký
+                    $itemModel = null;
+                    if ($itemType == 'material') {
+                        $itemModel = Material::find($materialId);
+                    } elseif ($itemType == 'product') {
+                        $itemModel = Product::find($materialId);
+                    } elseif ($itemType == 'good') {
+                        $itemModel = Good::find($materialId);
+                    }
+
                     // Giảm số lượng tồn kho ở kho nguồn
                     $this->updateWarehouseStock(
-                        $request->source_warehouse_id, 
-                        $materialId, 
-                        $itemType, 
-                        -$quantity, 
+                        $request->source_warehouse_id,
+                        $materialId,
+                        $itemType,
+                        -$quantity,
                         "Giảm tồn kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
                     );
-                    
+
                     // Tăng số lượng tồn kho ở kho đích
                     $this->updateWarehouseStock(
-                        $request->destination_warehouse_id, 
-                        $materialId, 
-                        $itemType, 
-                        $quantity, 
+                        $request->destination_warehouse_id,
+                        $materialId,
+                        $itemType,
+                        $quantity,
                         "Tăng tồn kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
                     );
+
+                    // Tạo nhật ký chuyển kho
+                    if ($itemModel) {
+                        ChangeLogHelper::chuyenKho(
+                            $itemModel->code,
+                            $itemModel->name,
+                            $quantity,
+                            $warehouseTransfer->transfer_code,
+                            "Chuyển từ {$request->source_warehouse_id} sang {$request->destination_warehouse_id}",
+                            [
+                                'source_warehouse_id' => $request->source_warehouse_id,
+                                'source_warehouse_name' => $request->source_warehouse_id,
+                                'destination_warehouse_id' => $request->destination_warehouse_id,
+                                'destination_warehouse_name' => $request->destination_warehouse_id,
+                            ],
+                            $warehouseTransfer->notes
+                        );
+                    }
                 }
             }
 
@@ -400,11 +457,11 @@ class WarehouseTransferController extends Controller
                 ->where('material_id', $materialId)
                 ->where('item_type', $itemType)
                 ->first();
-            
+
             if ($warehouseMaterial) {
                 // Cập nhật số lượng tồn kho hiện có
                 $newQuantity = $warehouseMaterial->quantity + $quantityChange;
-                
+
                 if ($newQuantity <= 0) {
                     // Nếu số lượng mới <= 0, xóa bản ghi tồn kho
                     $warehouseMaterial->delete();
@@ -424,13 +481,13 @@ class WarehouseTransferController extends Controller
                         'item_type' => $itemType,
                         'quantity' => $quantityChange,
                     ]);
-                    
+
                     Log::info("Tạo mới tồn kho: warehouseId={$warehouseId}, materialId={$materialId}, itemType={$itemType}, số lượng={$quantityChange}, ghi chú={$note}");
                 } else {
                     Log::warning("Không thể giảm tồn kho không tồn tại: warehouseId={$warehouseId}, materialId={$materialId}, itemType={$itemType}, thay đổi={$quantityChange}");
                 }
             }
-            
+
             return true;
         } catch (\Exception $e) {
             Log::error("Lỗi khi cập nhật tồn kho: " . $e->getMessage());
@@ -451,7 +508,7 @@ class WarehouseTransferController extends Controller
             return back()->with('error', 'Đã xảy ra lỗi khi xóa phiếu chuyển kho');
         }
     }
-    
+
     /**
      * Kiểm tra số lượng tồn kho của sản phẩm trong kho nguồn
      */
@@ -461,35 +518,35 @@ class WarehouseTransferController extends Controller
             $materialId = $request->input('material_id');
             $warehouseId = $request->input('warehouse_id');
             $itemType = $request->input('item_type', 'material');
-            
+
             Log::info("API checkInventory được gọi với: materialId={$materialId}, warehouseId={$warehouseId}, itemType={$itemType}");
-            
+
             if (!$materialId || !$warehouseId) {
                 Log::warning("Thiếu thông tin sản phẩm hoặc kho: materialId={$materialId}, warehouseId={$warehouseId}");
                 return response()->json(['error' => 'Thiếu thông tin sản phẩm hoặc kho'], 400);
             }
-            
+
             // Kiểm tra xem bảng warehouse_materials có cột item_type không
             $hasItemTypeColumn = Schema::hasColumn('warehouse_materials', 'item_type');
             Log::info("Bảng warehouse_materials có cột item_type: " . ($hasItemTypeColumn ? 'Có' : 'Không'));
-            
+
             // Truy vấn trực tiếp từ DB để debug
             $rawResults = DB::select("SELECT * FROM warehouse_materials WHERE warehouse_id = ? AND material_id = ?", [$warehouseId, $materialId]);
             Log::info("Raw query results: " . json_encode($rawResults));
-            
+
             // Khởi tạo query
             $query = WarehouseMaterial::where('warehouse_id', $warehouseId)
-                                      ->where('material_id', $materialId);
-            
+                ->where('material_id', $materialId);
+
             Log::info("Query ban đầu: warehouse_id={$warehouseId}, material_id={$materialId}");
-            
+
             // Chỉ áp dụng điều kiện item_type nếu cột tồn tại
             if ($hasItemTypeColumn) {
                 // Nếu loại là material, có thể trong DB là null hoặc material
                 if ($itemType == 'material') {
-                    $query->where(function($q) {
+                    $query->where(function ($q) {
                         $q->where('item_type', 'material')
-                          ->orWhereNull('item_type');
+                            ->orWhereNull('item_type');
                     });
                     Log::info("Áp dụng điều kiện: item_type='material' HOẶC item_type IS NULL");
                 } else {
@@ -497,29 +554,29 @@ class WarehouseTransferController extends Controller
                     Log::info("Áp dụng điều kiện: item_type='{$itemType}'");
                 }
             }
-            
+
             // Lấy SQL query để debug
             $querySql = $query->toSql();
             $queryBindings = $query->getBindings();
             Log::info("SQL Query: {$querySql}, Bindings: " . json_encode($queryBindings));
-            
+
             // Lấy tổng số lượng
             $quantity = $query->sum('quantity');
-            
+
             // Lấy danh sách các bản ghi tìm thấy để debug
             $records = $query->get();
             Log::info("Tìm thấy " . count($records) . " bản ghi tồn kho");
             foreach ($records as $index => $record) {
                 Log::info("Bản ghi #{$index}: id={$record->id}, warehouse_id={$record->warehouse_id}, material_id={$record->material_id}, item_type={$record->item_type}, quantity={$record->quantity}");
             }
-            
+
             // Lấy thông tin kho
             $warehouse = Warehouse::find($warehouseId);
             $warehouseName = $warehouse ? $warehouse->name : 'Không xác định';
-            
+
             // Log để debug
             Log::info("Kết quả kiểm tra tồn kho: materialId={$materialId}, warehouseId={$warehouseId}, itemType={$itemType}, quantity={$quantity}, warehouseName={$warehouseName}");
-            
+
             return response()->json([
                 'quantity' => $quantity,
                 'warehouse_name' => $warehouseName,
