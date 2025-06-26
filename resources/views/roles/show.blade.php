@@ -20,7 +20,9 @@
                 <a href="{{ route('roles.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <h1 class="text-xl font-bold text-gray-800">Chi tiết nhóm quyền</h1>
+                <h1 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-eye mr-2"></i>Chi tiết nhóm quyền
+                </h1>
                 <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
                     {{ $role->name }}
                 </div>

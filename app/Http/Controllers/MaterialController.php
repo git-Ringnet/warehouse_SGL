@@ -879,4 +879,85 @@ class MaterialController extends Controller
             'count' => $materials->count()
         ]);
     }
+
+    /**
+     * API: Lấy lịch sử xuất nhập vật tư (dùng cho modal)
+     */
+    public function historyAjax(Request $request, $id)
+    {
+        // Lấy bộ lọc từ request
+        $fromDate = $request->get('from_date');
+        $toDate = $request->get('to_date');
+
+        // Query lịch sử nhập kho
+        $importsQuery = \App\Models\InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->leftJoin('warehouses', 'inventory_import_materials.warehouse_id', '=', 'warehouses.id')
+            ->where('inventory_import_materials.material_id', $id)
+            ->select([
+                'inventory_imports.import_date as date',
+                'inventory_import_materials.quantity',
+                'inventory_import_materials.warehouse_id',
+                'warehouses.name as warehouse_name',
+                DB::raw("'Hệ thống' as user_name"),
+                DB::raw("'Nhập' as type"),
+                DB::raw("CASE WHEN inventory_import_materials.quantity > 0 THEN CONCAT('+', inventory_import_materials.quantity) ELSE inventory_import_materials.quantity END as formatted_quantity")
+            ]);
+
+        // Áp dụng bộ lọc thời gian cho nhập kho
+        if ($fromDate) {
+            $importsQuery->where('inventory_imports.import_date', '>=', $fromDate);
+        }
+        if ($toDate) {
+            $importsQuery->where('inventory_imports.import_date', '<=', $toDate);
+        }
+
+        $imports = $importsQuery->get();
+
+        // Query lịch sử xuất kho
+        $exportsQuery = \App\Models\DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->leftJoin('warehouses', 'dispatch_items.warehouse_id', '=', 'warehouses.id')
+            ->leftJoin('users', 'dispatches.created_by', '=', 'users.id')
+            ->where('dispatch_items.item_id', $id)
+            ->where('dispatch_items.item_type', 'material')
+            ->where('dispatches.status', '!=', 'cancelled')
+            ->select([
+                'dispatches.dispatch_date as date',
+                'dispatch_items.quantity',
+                'dispatch_items.warehouse_id',
+                'warehouses.name as warehouse_name',
+                'users.name as user_name',
+                DB::raw("'Xuất' as type"),
+                DB::raw("CASE WHEN dispatch_items.quantity > 0 THEN CONCAT('-', dispatch_items.quantity) ELSE dispatch_items.quantity END as formatted_quantity")
+            ]);
+
+        // Áp dụng bộ lọc thời gian cho xuất kho
+        if ($fromDate) {
+            $exportsQuery->where('dispatches.dispatch_date', '>=', $fromDate);
+        }
+        if ($toDate) {
+            $exportsQuery->where('dispatches.dispatch_date', '<=', $toDate);
+        }
+
+        $exports = $exportsQuery->get();
+
+        // Gộp và sắp xếp theo ngày (mới nhất trước)
+        $history = $imports->concat($exports)->sortByDesc('date')->values();
+
+        // Format lại dữ liệu
+        $formattedHistory = $history->map(function ($item) {
+            return [
+                'date' => \Carbon\Carbon::parse($item->date)->format('H:i:s d/m/Y'),
+                'type' => $item->type,
+                'quantity' => $item->formatted_quantity,
+                'warehouse_name' => $item->warehouse_name ?: 'N/A',
+                'user_name' => $item->user_name ?: 'N/A'
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $formattedHistory,
+            'total' => $formattedHistory->count()
+        ]);
+    }
 }

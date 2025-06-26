@@ -22,6 +22,8 @@ class MaterialSeeder extends Seeder
                 'notes' => 'Ốc vít thông dụng',
                 'created_at' => now(),
                 'updated_at' => now(),
+                'status' => 'active',
+                'is_hidden' => false,
             ],
             [
                 'code' => 'VT002',
@@ -31,6 +33,8 @@ class MaterialSeeder extends Seeder
                 'notes' => 'Ống nhựa chất lượng cao',
                 'created_at' => now(),
                 'updated_at' => now(),
+                'status' => 'active',
+                'is_hidden' => false,
             ],
             [
                 'code' => 'VT003',
@@ -40,6 +44,8 @@ class MaterialSeeder extends Seeder
                 'notes' => 'Dây điện chất lượng cao',
                 'created_at' => now(),
                 'updated_at' => now(),
+                'status' => 'active',
+                'is_hidden' => false,
             ],
             [
                 'code' => 'VT004',
@@ -49,6 +55,8 @@ class MaterialSeeder extends Seeder
                 'notes' => 'Tiết kiệm năng lượng',
                 'created_at' => now(),
                 'updated_at' => now(),
+                'status' => 'active',
+                'is_hidden' => false,
             ],
             [
                 'code' => 'VT005',
@@ -58,6 +66,8 @@ class MaterialSeeder extends Seeder
                 'notes' => 'Keo dán đa năng',
                 'created_at' => now(),
                 'updated_at' => now(),
+                'status' => 'active',
+                'is_hidden' => false,
             ],
         ];
 

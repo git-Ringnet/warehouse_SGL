@@ -11,6 +11,14 @@ use Illuminate\Support\Facades\Auth;
 class RoleController extends Controller
 {
     /**
+     * Khởi tạo controller - middleware được áp dụng trong routes
+     */
+    public function __construct()
+    {
+        // Middleware admin-only đã được áp dụng trong routes
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)

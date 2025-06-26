@@ -18,7 +18,9 @@
                 <a href="{{ route('roles.show', $role->id) }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <h1 class="text-xl font-bold text-gray-800">Chỉnh sửa nhóm quyền: {{ $role->name }}</h1>
+                <h1 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-edit mr-2"></i>Chỉnh sửa nhóm quyền: {{ $role->name }}
+                </h1>
             </div>
         </header>
         
@@ -27,7 +29,7 @@
                 <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
                     <div class="flex items-start">
                         <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-circle text-red-500"></i>
+                            <i class="fas fa-exclamation-triangle text-red-500"></i>
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm leading-5 font-medium text-red-800">
@@ -49,7 +51,9 @@
                 
                 <!-- Thông tin cơ bản -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Thông tin cơ bản</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-info-circle mr-2"></i>Thông tin cơ bản
+                    </h2>
                     
                     <div class="grid grid-cols-1 gap-6">
                         <div>
@@ -69,7 +73,9 @@
                 
                 <!-- Phân quyền -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Phân quyền</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-key mr-2"></i>Phân quyền
+                    </h2>
                     
                     <div class="mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                         <div class="flex items-center">
@@ -123,7 +129,9 @@
                 
                 <!-- Thêm nhân viên vào nhóm quyền -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Nhân viên trong nhóm quyền này</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-users mr-2"></i>Nhân viên trong nhóm quyền này
+                    </h2>
                     
                     <div class="space-y-4">
                         <p class="text-sm text-gray-600">Nhân viên thuộc nhóm quyền này sẽ được phép thực hiện các quyền đã chọn ở trên</p>
@@ -311,11 +319,13 @@
                 
                 <!-- Cài đặt -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Cài đặt</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-cog mr-2"></i>Cài đặt
+                    </h2>
                     
                     <div class="flex justify-end space-x-4">
                         <a href="{{ route('roles.show', $role->id) }}" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                            Hủy
+                            <i class="fas fa-times mr-2"></i>Hủy
                         </a>
                         <button type="submit" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
                             <i class="fas fa-save mr-2"></i> Lưu thay đổi

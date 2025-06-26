@@ -67,6 +67,72 @@ class ReportController extends Controller
     }
 
     /**
+     * Ajax: Lấy dữ liệu báo cáo theo bộ lọc
+     */
+    public function filterAjax(Request $request)
+    {
+        try {
+            // Lấy tham số lọc
+            $dateFrom = $request->get('from_date');
+            $dateTo = $request->get('to_date');
+            $search = $request->get('search');
+            $category = $request->get('category_filter');
+
+            // Debug log
+            \Illuminate\Support\Facades\Log::info('Filter request:', [
+                'from_date' => $dateFrom,
+                'to_date' => $dateTo,
+                'search' => $search,
+                'category_filter' => $category
+            ]);
+
+            // Nếu không có ngày, mặc định là tháng hiện tại
+            if (!$dateFrom) {
+                $dateFrom = Carbon::now()->startOfMonth()->format('Y-m-d');
+            }
+            if (!$dateTo) {
+                $dateTo = Carbon::now()->format('Y-m-d');
+            }
+
+            // Lấy dữ liệu báo cáo
+            $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
+
+            // Lấy thống kê tổng quan theo filter
+            $stats = $this->getFilteredInventoryStats($dateFrom, $dateTo, $search, $category);
+
+            // Lấy dữ liệu biểu đồ theo filter
+            $chartData = $this->getFilteredChartData($dateFrom, $dateTo, $search, $category);
+
+            // Render HTML table
+            $tableHtml = view('reports.partials.report-table', compact('reportData', 'dateFrom', 'dateTo'))->render();
+
+            return response()->json([
+                'success' => true,
+                'html' => $tableHtml,
+                'count' => $reportData->count(),
+                'total_opening' => $reportData->sum('opening_stock'),
+                'total_imports' => $reportData->sum('imports'),
+                'total_exports' => $reportData->sum('exports'),
+                'total_closing' => $reportData->sum('closing_stock'),
+                'total_current' => $reportData->sum('current_stock'),
+                'stats' => $stats,
+                'chartData' => $chartData,
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Filter Ajax Error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lọc dữ liệu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Hiển thị báo cáo tổng hợp xuất nhập tồn kho (chi tiết)
      */
     public function inventoryReport(Request $request)
@@ -150,7 +216,10 @@ class ReportController extends Controller
                 // Xuất trong kỳ
                 $exports = $this->getExportsInPeriod($material->id, 'material', $warehouse->id, $dateFrom, $dateTo);
                 
-                // Tồn cuối kỳ
+                // Tồn cuối kỳ (tính theo công thức: Tồn đầu + Nhập - Xuất)
+                $calculatedClosingStock = $openingStock + $imports - $exports;
+                
+                // Tồn kho hiện tại thực tế
                 $currentStock = $this->getCurrentStock($material->id, 'material', $warehouse->id);
 
                 $totalOpeningStock += $openingStock;
@@ -159,8 +228,41 @@ class ReportController extends Controller
                 $totalCurrentStock += $currentStock;
             }
 
-            // Chỉ hiển thị nếu có giao dịch hoặc tồn kho
-            if ($totalOpeningStock > 0 || $totalImports > 0 || $totalExports > 0 || $totalCurrentStock > 0) {
+            // Tính tồn cuối kỳ theo công thức
+            $calculatedClosingStock = $totalOpeningStock + $totalImports - $totalExports;
+
+            // Kiểm tra xem vật tư có hoạt động thực sự liên quan đến kỳ được chọn không
+            $hasActivityBeforeOrInPeriod = false;
+            
+            // Có nhập/xuất trong kỳ được chọn
+            if ($totalImports > 0 || $totalExports > 0) {
+                $hasActivityBeforeOrInPeriod = true;
+            }
+            // Hoặc có nhập/xuất trước kỳ được chọn (tạo ra tồn đầu kỳ thực sự)
+            elseif ($totalOpeningStock > 0) {
+                // Kiểm tra có giao dịch nào trước ngày bắt đầu không
+                foreach ($warehouses as $warehouse) {
+                    $importsBeforeDate = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+                        ->where('inventory_import_materials.material_id', $material->id)
+                        ->where('inventory_import_materials.warehouse_id', $warehouse->id)
+                        ->whereDate('inventory_imports.import_date', '<', $dateFrom)
+                        ->exists();
+                        
+                    $exportsBeforeDate = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                        ->where('dispatch_items.item_id', $material->id)
+                        ->where('dispatch_items.warehouse_id', $warehouse->id)
+                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereDate('dispatches.dispatch_date', '<', $dateFrom)
+                        ->exists();
+                        
+                    if ($importsBeforeDate || $exportsBeforeDate) {
+                        $hasActivityBeforeOrInPeriod = true;
+                        break;
+                    }
+                }
+            }
+            
+            if ($hasActivityBeforeOrInPeriod) {
                 $reportData[] = [
                     'item_type' => 'material',
                     'item_type_label' => 'Vật tư',
@@ -172,8 +274,8 @@ class ReportController extends Controller
                     'opening_stock' => $totalOpeningStock,
                     'imports' => $totalImports,
                     'exports' => $totalExports,
-                    'closing_stock' => $totalCurrentStock,
-                    'calculated_closing' => $totalOpeningStock + $totalImports - $totalExports,
+                    'closing_stock' => $calculatedClosingStock, // Sử dụng tồn cuối kỳ tính theo công thức
+                    'current_stock' => $totalCurrentStock, // Tồn kho hiện tại thực tế
                 ];
             }
         }
@@ -386,15 +488,174 @@ class ReportController extends Controller
     }
 
     /**
+     * Lấy thống kê tổng quan theo filter
+     */
+    private function getFilteredInventoryStats($dateFrom, $dateTo, $search = null, $category = null)
+    {
+        // Tạo query base cho materials
+        $materialsQuery = Material::where('status', 'active')
+            ->where('is_hidden', false);
+
+        // Áp dụng tìm kiếm
+        if ($search) {
+            $materialsQuery->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('code', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Áp dụng lọc theo category
+        if ($category) {
+            $materialsQuery->where('category', $category);
+        }
+
+        // Tổng số vật tư có tồn kho hoặc có giao dịch trong kỳ (đã filter)
+        $materialIds = $materialsQuery->pluck('id')->toArray();
+        
+        $materialsWithActivity = Material::whereIn('id', $materialIds)
+            ->where(function($query) use ($dateFrom, $dateTo) {
+                // Có nhập trong kỳ
+                $query->whereExists(function($subQuery) use ($dateFrom, $dateTo) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('inventory_import_materials')
+                        ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+                        ->whereRaw('inventory_import_materials.material_id = materials.id')
+                        ->where('inventory_import_materials.item_type', 'material')
+                        ->whereDate('inventory_imports.import_date', '>=', $dateFrom)
+                        ->whereDate('inventory_imports.import_date', '<=', $dateTo);
+                })
+                // Hoặc có xuất trong kỳ
+                ->orWhereExists(function($subQuery) use ($dateFrom, $dateTo) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('dispatch_items')
+                        ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                        ->whereRaw('dispatch_items.item_id = materials.id')
+                        ->where('dispatch_items.item_type', 'material')
+                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+                        ->whereDate('dispatches.dispatch_date', '<=', $dateTo);
+                })
+                // Hoặc có giao dịch trước kỳ này (tạo ra tồn đầu kỳ)
+                ->orWhereExists(function($subQuery) use ($dateFrom) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('inventory_import_materials')
+                        ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+                        ->whereRaw('inventory_import_materials.material_id = materials.id')
+                        ->where('inventory_import_materials.item_type', 'material')
+                        ->whereDate('inventory_imports.import_date', '<', $dateFrom);
+                })
+                ->orWhereExists(function($subQuery) use ($dateFrom) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('dispatch_items')
+                        ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                        ->whereRaw('dispatch_items.item_id = materials.id')
+                        ->where('dispatch_items.item_type', 'material')
+                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereDate('dispatches.dispatch_date', '<', $dateFrom);
+                });
+            })
+            ->count();
+
+        // Số lượng danh mục vật tư (categories) - áp dụng filter
+        $totalCategories = $materialsQuery->whereNotNull('category')
+            ->distinct()
+            ->count('category');
+
+        // Nhập vật tư trong kỳ (chỉ materials đã filter)
+        $imports = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->whereIn('inventory_import_materials.material_id', $materialIds)
+            ->whereDate('inventory_imports.import_date', '>=', $dateFrom)
+            ->whereDate('inventory_imports.import_date', '<=', $dateTo)
+            ->sum('inventory_import_materials.quantity');
+
+        // Xuất vật tư trong kỳ (chỉ materials đã filter)
+        $exports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatches.status', '!=', 'cancelled')
+            ->where('dispatch_items.item_type', 'material')
+            ->whereIn('dispatch_items.item_id', $materialIds)
+            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+            ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
+            ->sum('dispatch_items.quantity');
+
+        // Tính phần trăm thay đổi so với kỳ trước (30 ngày trước)
+        $previousFromDate = Carbon::parse($dateFrom)->subDays(30)->format('Y-m-d');
+        $previousToDate = Carbon::parse($dateTo)->subDays(30)->format('Y-m-d');
+
+        $previousImports = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->whereIn('inventory_import_materials.material_id', $materialIds)
+            ->whereDate('inventory_imports.import_date', '>=', $previousFromDate)
+            ->whereDate('inventory_imports.import_date', '<=', $previousToDate)
+            ->sum('inventory_import_materials.quantity');
+
+        $previousExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatches.status', '!=', 'cancelled')
+            ->where('dispatch_items.item_type', 'material')
+            ->whereIn('dispatch_items.item_id', $materialIds)
+            ->whereDate('dispatches.dispatch_date', '>=', $previousFromDate)
+            ->whereDate('dispatches.dispatch_date', '<=', $previousToDate)
+            ->sum('dispatch_items.quantity');
+
+        $importsChange = $previousImports > 0 ? (($imports - $previousImports) / $previousImports) * 100 : 0;
+        $exportsChange = $previousExports > 0 ? (($exports - $previousExports) / $previousExports) * 100 : 0;
+
+        return [
+            'total_items' => $materialsWithActivity,
+            'total_categories' => $totalCategories,
+            'imports' => $imports,
+            'exports' => $exports,
+            'imports_change' => round($importsChange, 1),
+            'exports_change' => round($exportsChange, 1),
+        ];
+    }
+
+    /**
      * Lấy thống kê tổng quan
      */
     private function getInventoryStats($dateFrom, $dateTo)
     {
-        // Tổng số vật tư (chỉ materials)
-        $totalItems = Material::where('status', 'active')->where('is_hidden', false)->count();
+        // Tổng số vật tư có tồn kho hoặc có giao dịch trong kỳ
+        $materialsWithActivity = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->where(function($query) use ($dateFrom, $dateTo) {
+                // Có tồn kho hiện tại
+                $query->whereExists(function($subQuery) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('warehouse_materials')
+                        ->whereRaw('warehouse_materials.material_id = materials.id')
+                        ->where('warehouse_materials.item_type', 'material')
+                        ->where('warehouse_materials.quantity', '>', 0);
+                })
+                // Hoặc có nhập trong kỳ
+                ->orWhereExists(function($subQuery) use ($dateFrom, $dateTo) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('inventory_import_materials')
+                        ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+                        ->whereRaw('inventory_import_materials.material_id = materials.id')
+                        ->where('inventory_import_materials.item_type', 'material')
+                        ->whereDate('inventory_imports.import_date', '>=', $dateFrom)
+                        ->whereDate('inventory_imports.import_date', '<=', $dateTo);
+                })
+                // Hoặc có xuất trong kỳ
+                ->orWhereExists(function($subQuery) use ($dateFrom, $dateTo) {
+                    $subQuery->select(DB::raw(1))
+                        ->from('dispatch_items')
+                        ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                        ->whereRaw('dispatch_items.item_id = materials.id')
+                        ->where('dispatch_items.item_type', 'material')
+                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+                        ->whereDate('dispatches.dispatch_date', '<=', $dateTo);
+                });
+            })
+            ->count();
 
-        // Số lượng danh mục (warehouses)
-        $totalCategories = Warehouse::where('status', 'active')->where('is_hidden', false)->count();
+        // Số lượng danh mục vật tư (categories)
+        $totalCategories = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->whereNotNull('category')
+            ->distinct()
+            ->count('category');
 
         // Nhập vật tư trong kỳ (chỉ materials)
         $imports = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
@@ -430,12 +691,96 @@ class ReportController extends Controller
         $exportsChange = $previousExports > 0 ? (($exports - $previousExports) / $previousExports) * 100 : 0;
 
         return [
-            'total_items' => $totalItems,
+            'total_items' => $materialsWithActivity,
             'total_categories' => $totalCategories,
             'imports' => $imports,
             'exports' => $exports,
             'imports_change' => round($importsChange, 1),
             'exports_change' => round($exportsChange, 1),
+        ];
+    }
+
+    /**
+     * Lấy dữ liệu cho biểu đồ theo filter
+     */
+    private function getFilteredChartData($dateFrom, $dateTo, $search = null, $category = null)
+    {
+        // Tạo query base cho materials
+        $materialsQuery = Material::where('status', 'active')
+            ->where('is_hidden', false);
+
+        // Áp dụng tìm kiếm
+        if ($search) {
+            $materialsQuery->where(function($q) use ($search) {
+                $q->where('name', 'LIKE', "%{$search}%")
+                  ->orWhere('code', 'LIKE', "%{$search}%")
+                  ->orWhere('description', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Áp dụng lọc theo category
+        if ($category) {
+            $materialsQuery->where('category', $category);
+        }
+
+        $materialIds = $materialsQuery->pluck('id')->toArray();
+
+        // Lấy dữ liệu 12 tháng gần nhất (áp dụng filter)
+        $months = [];
+        $importsData = [];
+        $exportsData = [];
+
+        for ($i = 11; $i >= 0; $i--) {
+            $monthStart = Carbon::now()->subMonths($i)->startOfMonth();
+            $monthEnd = Carbon::now()->subMonths($i)->endOfMonth();
+            
+            $months[] = $monthStart->format('M');
+            
+            // Nhập theo tháng (áp dụng filter)
+            $monthImports = InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+                ->whereIn('inventory_import_materials.material_id', $materialIds)
+                ->whereDate('inventory_imports.import_date', '>=', $monthStart)
+                ->whereDate('inventory_imports.import_date', '<=', $monthEnd)
+                ->sum('inventory_import_materials.quantity');
+            
+            // Xuất theo tháng (áp dụng filter)
+            $monthExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatches.status', '!=', 'cancelled')
+                ->where('dispatch_items.item_type', 'material')
+                ->whereIn('dispatch_items.item_id', $materialIds)
+                ->whereDate('dispatches.dispatch_date', '>=', $monthStart)
+                ->whereDate('dispatches.dispatch_date', '<=', $monthEnd)
+                ->sum('dispatch_items.quantity');
+            
+            $importsData[] = $monthImports;
+            $exportsData[] = $monthExports;
+        }
+
+        // Top 5 vật tư có tồn kho cao nhất (áp dụng filter)
+        $topItems = WarehouseMaterial::select('material_id', DB::raw('SUM(quantity) as total_stock'))
+            ->whereIn('material_id', $materialIds)
+            ->groupBy('material_id')
+            ->orderBy('total_stock', 'desc')
+            ->limit(5)
+            ->get();
+
+        $topItemsData = [];
+        $topItemsLabels = [];
+
+        foreach ($topItems as $item) {
+            $material = Material::find($item->material_id);
+            if ($material) {
+                $topItemsLabels[] = $material->name ?? 'N/A';
+                $topItemsData[] = $item->total_stock;
+            }
+        }
+
+        return [
+            'months' => $months,
+            'imports_data' => $importsData,
+            'exports_data' => $exportsData,
+            'top_items_labels' => $topItemsLabels,
+            'top_items_data' => $topItemsData,
         ];
     }
 

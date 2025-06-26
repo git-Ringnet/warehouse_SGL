@@ -18,16 +18,33 @@
                 <a href="{{ route('roles.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
-                <h1 class="text-xl font-bold text-gray-800">Tạo nhóm quyền mới</h1>
+                <h1 class="text-xl font-bold text-gray-800">
+                    <i class="fas fa-user-tag mr-2"></i>Tạo nhóm quyền mới
+                </h1>
             </div>
         </header>
         
         <main class="p-6">
+            <!-- Thông báo quyền admin -->
+            <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-shield-check text-green-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-green-700">
+                            <strong>Xác nhận quyền:</strong> Bạn đang truy cập với quyền admin và có thể tạo nhóm phân quyền mới. 
+                            Vui lòng cấu hình quyền một cách cẩn thận để đảm bảo an toàn hệ thống.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
             @if ($errors->any())
                 <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
                     <div class="flex items-start">
                         <div class="flex-shrink-0">
-                            <i class="fas fa-exclamation-circle text-red-500"></i>
+                            <i class="fas fa-exclamation-triangle text-red-500"></i>
                         </div>
                         <div class="ml-3">
                             <h3 class="text-sm leading-5 font-medium text-red-800">
@@ -48,7 +65,9 @@
                 
                 <!-- Thông tin cơ bản -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Thông tin cơ bản</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-info-circle mr-2"></i>Thông tin cơ bản
+                    </h2>
                     
                     <div class="grid grid-cols-1 gap-6">
                         <div>
@@ -68,14 +87,54 @@
                 
                 <!-- Phân quyền -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Phân quyền</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-key mr-2"></i>Phân quyền
+                    </h2>
+                    
+                    <!-- Template quyền nhanh -->
+                    <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h3 class="text-sm font-medium text-blue-800 mb-3">
+                            <i class="fas fa-magic mr-2"></i>Template quyền nhanh
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <button type="button" class="template-btn bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-template="warehouse">
+                                <i class="fas fa-warehouse mr-2"></i>Quản lý kho
+                            </button>
+                            <button type="button" class="template-btn bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-template="production">
+                                <i class="fas fa-industry mr-2"></i>Sản xuất
+                            </button>
+                            <button type="button" class="template-btn bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-template="maintenance">
+                                <i class="fas fa-wrench mr-2"></i>Bảo trì
+                            </button>
+                            <button type="button" class="template-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-template="project">
+                                <i class="fas fa-tasks mr-2"></i>Dự án
+                            </button>
+                            <button type="button" class="template-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-template="viewer">
+                                <i class="fas fa-eye mr-2"></i>Chỉ xem
+                            </button>
+                            <button type="button" class="template-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors" data-template="clear">
+                                <i class="fas fa-broom mr-2"></i>Xóa tất cả
+                            </button>
+                        </div>
+                        <p class="text-xs text-blue-600 mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>Click vào template để áp dụng nhanh các quyền phổ biến
+                        </p>
+                    </div>
                     
                     <div class="mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="select-all-permissions" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                            <label for="select-all-permissions" class="ml-2 block text-sm font-medium text-gray-700">
-                                Chọn tất cả
-                            </label>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="select-all-permissions" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                <label for="select-all-permissions" class="ml-2 block text-sm font-medium text-gray-700">
+                                    Chọn tất cả
+                                </label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="select-view-only" class="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                                <label for="select-view-only" class="ml-2 block text-sm font-medium text-gray-700">
+                                    Chỉ quyền xem
+                                </label>
+                            </div>
                         </div>
                         
                         <div class="relative">
@@ -89,27 +148,79 @@
                     
                     <div class="space-y-6">
                         @foreach($permissions as $group => $groupPermissions)
+                            @php
+                                $groupColors = [
+                                    'Quản lý hệ thống' => ['bg' => 'bg-gray-50', 'text' => 'text-gray-700', 'icon' => 'fas fa-server'],
+                                    'Quản lý tài sản' => ['bg' => 'bg-blue-50', 'text' => 'text-blue-700', 'icon' => 'fas fa-box-open'],
+                                    'Vận hành kho' => ['bg' => 'bg-green-50', 'text' => 'text-green-700', 'icon' => 'fas fa-warehouse'],
+                                    'Sản xuất & Kiểm thử' => ['bg' => 'bg-purple-50', 'text' => 'text-purple-700', 'icon' => 'fas fa-microchip'],
+                                    'Bảo trì & Sửa chữa' => ['bg' => 'bg-orange-50', 'text' => 'text-orange-700', 'icon' => 'fas fa-tools'],
+                                    'Quản lý dự án' => ['bg' => 'bg-indigo-50', 'text' => 'text-indigo-700', 'icon' => 'fas fa-project-diagram'],
+                                    'Phiếu yêu cầu' => ['bg' => 'bg-pink-50', 'text' => 'text-pink-700', 'icon' => 'fas fa-clipboard-list'],
+                                    'Phần mềm & License' => ['bg' => 'bg-teal-50', 'text' => 'text-teal-700', 'icon' => 'fas fa-laptop-code'],
+                                    'Báo cáo' => ['bg' => 'bg-yellow-50', 'text' => 'text-yellow-700', 'icon' => 'fas fa-chart-line'],
+                                    'Phân quyền' => ['bg' => 'bg-red-50', 'text' => 'text-red-700', 'icon' => 'fas fa-shield-alt'],
+                                    'Phạm vi quyền' => ['bg' => 'bg-cyan-50', 'text' => 'text-cyan-700', 'icon' => 'fas fa-map-marked-alt'],
+                                ];
+                                $colors = $groupColors[$group] ?? ['bg' => 'bg-gray-50', 'text' => 'text-gray-700', 'icon' => 'fas fa-cog'];
+                            @endphp
+                            
                             <div class="permission-group border border-gray-200 rounded-lg overflow-hidden">
-                                <div class="bg-gray-50 px-4 py-3 flex justify-between items-center cursor-pointer group-header">
-                                    <h3 class="font-medium text-gray-700">{{ $group }}</h3>
+                                <div class="{{ $colors['bg'] }} px-4 py-3 flex justify-between items-center cursor-pointer group-header">
+                                    <div class="flex items-center">
+                                        <i class="{{ $colors['icon'] }} {{ $colors['text'] }} mr-2"></i>
+                                        <h3 class="font-medium {{ $colors['text'] }}">{{ $group }}</h3>
+                                        <span class="ml-2 px-2 py-1 text-xs font-medium bg-white rounded-full {{ $colors['text'] }}">
+                                            {{ $groupPermissions->count() }} quyền
+                                        </span>
+                                    </div>
                                     <div class="flex items-center space-x-3">
                                         <label class="inline-flex items-center">
                                             <input type="checkbox" class="select-group h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                            <span class="ml-2 text-sm text-gray-700">Chọn nhóm</span>
+                                            <span class="ml-2 text-sm {{ $colors['text'] }}">Chọn nhóm</span>
                                         </label>
-                                        <i class="fas fa-chevron-down text-gray-500 group-toggle-icon"></i>
+                                        <i class="fas fa-chevron-down {{ $colors['text'] }} group-toggle-icon"></i>
                                     </div>
                                 </div>
                                 
                                 <div class="px-4 py-3 group-permissions">
                                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         @foreach($groupPermissions as $permission)
-                                            <div class="permission-item flex items-center">
+                                            @php
+                                                $permissionType = '';
+                                                if (str_contains($permission->name, '.view')) {
+                                                    $permissionType = 'view';
+                                                    $typeColor = 'text-green-600';
+                                                    $typeIcon = 'fas fa-eye';
+                                                } elseif (str_contains($permission->name, '.create')) {
+                                                    $permissionType = 'create';
+                                                    $typeColor = 'text-blue-600';
+                                                    $typeIcon = 'fas fa-plus-circle';
+                                                } elseif (str_contains($permission->name, '.edit')) {
+                                                    $permissionType = 'edit';
+                                                    $typeColor = 'text-yellow-600';
+                                                    $typeIcon = 'fas fa-edit';
+                                                } elseif (str_contains($permission->name, '.delete')) {
+                                                    $permissionType = 'delete';
+                                                    $typeColor = 'text-red-600';
+                                                    $typeIcon = 'fas fa-trash-alt';
+                                                } else {
+                                                    $permissionType = 'other';
+                                                    $typeColor = 'text-gray-600';
+                                                    $typeIcon = 'fas fa-cog';
+                                                }
+                                            @endphp
+                                            
+                                            <div class="permission-item flex items-center p-2 rounded-lg hover:bg-gray-50 transition-colors">
                                                 <input type="checkbox" id="permission-{{ $permission->id }}" name="permissions[]" value="{{ $permission->id }}"
                                                     {{ in_array($permission->id, old('permissions', [])) ? 'checked' : '' }}
                                                     class="permission-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                                <label for="permission-{{ $permission->id }}" class="ml-2 block text-sm text-gray-700">
-                                                    {{ $permission->display_name }}
+                                                <label for="permission-{{ $permission->id }}" class="ml-2 block text-sm text-gray-700 flex-1">
+                                                    <div class="flex items-center">
+                                                        <i class="{{ $typeIcon }} {{ $typeColor }} mr-2 text-xs"></i>
+                                                        <span>{{ $permission->display_name }}</span>
+                                                    </div>
+                                                    <div class="text-xs text-gray-500 mt-1">{{ $permission->description }}</div>
                                                 </label>
                                             </div>
                                         @endforeach
@@ -122,7 +233,9 @@
                 
                 <!-- Gán nhân viên vào nhóm quyền -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">Gán nhân viên</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
+                        <i class="fas fa-users mr-2"></i>Gán nhân viên
+                    </h2>
                     
                     <div class="mb-4">
                         <p class="text-sm text-gray-600 mb-4">Chọn nhân viên sẽ thuộc nhóm quyền này:</p>
@@ -313,7 +426,7 @@
                 
                 <div class="flex justify-end space-x-4">
                     <a href="{{ route('roles.index') }}" class="px-6 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
-                        Hủy
+                        <i class="fas fa-times mr-2"></i>Hủy
                     </a>
                     <button type="submit" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
                         <i class="fas fa-save mr-2"></i> Lưu nhóm quyền
@@ -325,51 +438,65 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Template quyền nhanh
+            const templateButtons = document.querySelectorAll('.template-btn');
+            templateButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const template = this.dataset.template;
+                    applyPermissionTemplate(template);
+                });
+            });
+
+            // Xử lý chọn chỉ quyền xem
+            const selectViewOnly = document.getElementById('select-view-only');
+            if (selectViewOnly) {
+                selectViewOnly.addEventListener('change', function() {
+                    const allPermissions = document.querySelectorAll('.permission-checkbox');
+                    allPermissions.forEach(permission => {
+                        if (permission.id.includes('.view')) {
+                            permission.checked = this.checked;
+                        } else {
+                            permission.checked = false;
+                        }
+                    });
+                    updateSelectAllStatus();
+                });
+            }
+
             // Xử lý tìm kiếm quyền
-            const searchInput = document.getElementById('permission-search');
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const permissionItems = document.querySelectorAll('.permission-item');
-                
-                permissionItems.forEach(item => {
-                    const label = item.querySelector('label').textContent.toLowerCase();
+            const permissionSearch = document.getElementById('permission-search');
+            if (permissionSearch) {
+                permissionSearch.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase().trim();
+                    const permissionItems = document.querySelectorAll('.permission-item');
                     
-                    if (label.includes(searchTerm)) {
-                        item.style.display = '';
-                        // Hiển thị group chứa item khớp với kết quả tìm kiếm
-                        const group = item.closest('.permission-group');
-                        group.style.display = '';
-                        group.querySelector('.group-permissions').style.display = '';
-                        group.querySelector('.group-toggle-icon').classList.remove('fa-chevron-down');
-                        group.querySelector('.group-toggle-icon').classList.add('fa-chevron-up');
-                    } else {
-                        item.style.display = 'none';
-                    }
+                    permissionItems.forEach(item => {
+                        const label = item.querySelector('label').textContent.toLowerCase();
+                        if (label.includes(searchTerm)) {
+                            item.style.display = '';
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
                 });
-                
-                // Ẩn group không có kết quả nào khớp
-                document.querySelectorAll('.permission-group').forEach(group => {
-                    const visibleItems = group.querySelectorAll('.permission-item[style=""]');
-                    if (visibleItems.length === 0 && searchTerm) {
-                        group.style.display = 'none';
-                    }
+            }
+
+            // Xử lý chọn tất cả quyền
+            const selectAllPermissions = document.getElementById('select-all-permissions');
+            if (selectAllPermissions) {
+                selectAllPermissions.addEventListener('change', function() {
+                    const allPermissions = document.querySelectorAll('.permission-checkbox');
+                    allPermissions.forEach(permission => {
+                        permission.checked = this.checked;
+                    });
+                    
+                    // Cập nhật trạng thái các checkbox nhóm
+                    document.querySelectorAll('.select-group').forEach(groupCheckbox => {
+                        groupCheckbox.checked = this.checked;
+                    });
                 });
-            });
-            
-            // Xử lý chọn tất cả các quyền
-            const selectAllCheckbox = document.getElementById('select-all-permissions');
-            selectAllCheckbox.addEventListener('change', function() {
-                const permissionCheckboxes = document.querySelectorAll('.permission-checkbox');
-                permissionCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                });
-                
-                // Cập nhật trạng thái checkbox nhóm
-                document.querySelectorAll('.select-group').forEach(groupCheckbox => {
-                    groupCheckbox.checked = this.checked;
-                });
-            });
-            
+            }
+
             // Xử lý chọn nhóm quyền
             document.querySelectorAll('.select-group').forEach(groupCheckbox => {
                 groupCheckbox.addEventListener('change', function() {
@@ -380,11 +507,10 @@
                         checkbox.checked = this.checked;
                     });
                     
-                    // Cập nhật trạng thái "Chọn tất cả" khi tất cả nhóm được chọn
                     updateSelectAllStatus();
                 });
             });
-            
+
             // Cập nhật trạng thái checkbox nhóm khi checkbox con thay đổi
             document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
                 checkbox.addEventListener('change', function() {
@@ -392,23 +518,19 @@
                     const groupCheckbox = group.querySelector('.select-group');
                     const checkboxes = group.querySelectorAll('.permission-checkbox');
                     
-                    // Kiểm tra xem tất cả checkbox con đã được chọn chưa
                     let allChecked = true;
                     checkboxes.forEach(cb => {
                         if (!cb.checked) allChecked = false;
                     });
                     
                     groupCheckbox.checked = allChecked;
-                    
-                    // Cập nhật trạng thái "Chọn tất cả"
                     updateSelectAllStatus();
                 });
             });
-            
+
             // Xử lý đóng/mở nhóm quyền
             document.querySelectorAll('.group-header').forEach(header => {
                 header.addEventListener('click', function(e) {
-                    // Bỏ qua sự kiện khi click vào checkbox
                     if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL' || e.target.tagName === 'SPAN') {
                         return;
                     }
@@ -428,7 +550,7 @@
                     }
                 });
             });
-            
+
             function updateSelectAllStatus() {
                 const allCheckboxes = document.querySelectorAll('.permission-checkbox');
                 const selectAllCheckbox = document.getElementById('select-all-permissions');
@@ -440,7 +562,104 @@
                 
                 selectAllCheckbox.checked = allChecked;
             }
-            
+
+            function applyPermissionTemplate(template) {
+                const allPermissions = document.querySelectorAll('.permission-checkbox');
+                
+                // Xóa tất cả trước
+                allPermissions.forEach(permission => {
+                    permission.checked = false;
+                });
+
+                switch(template) {
+                    case 'warehouse':
+                        // Quản lý kho: Vận hành kho + Quản lý tài sản + Báo cáo
+                        allPermissions.forEach(permission => {
+                            const name = permission.id;
+                            if (name.includes('warehouses.') || 
+                                name.includes('materials.') || 
+                                name.includes('products.') || 
+                                name.includes('goods.') ||
+                                name.includes('imports.') || 
+                                name.includes('exports.') || 
+                                name.includes('transfers.') ||
+                                name.includes('reports.')) {
+                                permission.checked = true;
+                            }
+                        });
+                        break;
+                        
+                    case 'production':
+                        // Sản xuất: Sản xuất & Kiểm thử + Quản lý tài sản
+                        allPermissions.forEach(permission => {
+                            const name = permission.id;
+                            if (name.includes('assembly.') || 
+                                name.includes('testing.') || 
+                                name.includes('materials.') || 
+                                name.includes('products.') ||
+                                name.includes('reports.operations')) {
+                                permission.checked = true;
+                            }
+                        });
+                        break;
+                        
+                    case 'maintenance':
+                        // Bảo trì: Bảo trì & Sửa chữa + Phần mềm
+                        allPermissions.forEach(permission => {
+                            const name = permission.id;
+                            if (name.includes('repairs.') || 
+                                name.includes('warranties.') || 
+                                name.includes('software.') ||
+                                name.includes('requests.')) {
+                                permission.checked = true;
+                            }
+                        });
+                        break;
+                        
+                    case 'project':
+                        // Dự án: Quản lý dự án + Phiếu yêu cầu
+                        allPermissions.forEach(permission => {
+                            const name = permission.id;
+                            if (name.includes('projects.') || 
+                                name.includes('rentals.') || 
+                                name.includes('requests.') ||
+                                name.includes('reports.projects')) {
+                                permission.checked = true;
+                            }
+                        });
+                        break;
+                        
+                    case 'viewer':
+                        // Chỉ xem: Tất cả quyền .view
+                        allPermissions.forEach(permission => {
+                            const name = permission.id;
+                            if (name.includes('.view')) {
+                                permission.checked = true;
+                            }
+                        });
+                        break;
+                        
+                    case 'clear':
+                        // Xóa tất cả
+                        allPermissions.forEach(permission => {
+                            permission.checked = false;
+                        });
+                        break;
+                }
+                
+                // Cập nhật trạng thái các checkbox
+                updateSelectAllStatus();
+                document.querySelectorAll('.select-group').forEach(groupCheckbox => {
+                    const group = groupCheckbox.closest('.permission-group');
+                    const checkboxes = group.querySelectorAll('.permission-checkbox');
+                    let allChecked = true;
+                    checkboxes.forEach(cb => {
+                        if (!cb.checked) allChecked = false;
+                    });
+                    groupCheckbox.checked = allChecked;
+                });
+            }
+
             // Xử lý tìm kiếm nhân viên
             const employeeSearch = document.getElementById('employeeSearch');
             const employeeRows = document.querySelectorAll('.employee-row');
@@ -474,13 +693,11 @@
             const employeeCheckboxes = document.querySelectorAll('.employee-checkbox');
             
             if (selectAllEmployeesCheckbox) {
-                // Kiểm tra trạng thái ban đầu
                 function updateSelectAllEmployeesStatus() {
                     let allChecked = true;
                     let visibleCount = 0;
                     
                     employeeCheckboxes.forEach(checkbox => {
-                        // Chỉ xét các checkbox đang hiển thị
                         if (checkbox.closest('tr').style.display !== 'none') {
                             visibleCount++;
                             if (!checkbox.checked) {
@@ -495,7 +712,6 @@
                 
                 selectAllEmployeesCheckbox.addEventListener('change', function() {
                     employeeCheckboxes.forEach(checkbox => {
-                        // Chỉ thay đổi trạng thái của các checkbox đang hiển thị
                         if (checkbox.closest('tr').style.display !== 'none') {
                             checkbox.checked = this.checked;
                         }
@@ -504,66 +720,12 @@
                     updateSelectAllEmployeesStatus();
                 });
                 
-                // Khi checkbox nhân viên thay đổi
                 employeeCheckboxes.forEach(checkbox => {
                     checkbox.addEventListener('change', updateSelectAllEmployeesStatus);
                 });
                 
-                // Khởi tạo trạng thái ban đầu
                 updateSelectAllEmployeesStatus();
             }
-            
-            // Hàm để chọn/bỏ chọn tất cả quyền
-            document.getElementById('select-all-permissions').addEventListener('click', function() {
-                document.querySelectorAll('input[name="permissions[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-            });
-            
-            document.getElementById('deselect-all-permissions').addEventListener('click', function() {
-                document.querySelectorAll('input[name="permissions[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
-            
-            // Hàm để chọn/bỏ chọn tất cả nhân viên
-            document.getElementById('select-all-employees').addEventListener('click', function() {
-                document.querySelectorAll('input[name="employees[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-            });
-            
-            document.getElementById('deselect-all-employees').addEventListener('click', function() {
-                document.querySelectorAll('input[name="employees[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
-            
-            // Hàm để chọn/bỏ chọn tất cả dự án
-            document.getElementById('select-all-projects').addEventListener('click', function() {
-                document.querySelectorAll('input[name="projects[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-            });
-            
-            document.getElementById('deselect-all-projects').addEventListener('click', function() {
-                document.querySelectorAll('input[name="projects[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
-            
-            // Hàm để chọn/bỏ chọn tất cả hợp đồng cho thuê
-            document.getElementById('select-all-rentals').addEventListener('click', function() {
-                document.querySelectorAll('input[name="rentals[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-            });
-            
-            document.getElementById('deselect-all-rentals').addEventListener('click', function() {
-                document.querySelectorAll('input[name="rentals[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
         });
     </script>
 </body>

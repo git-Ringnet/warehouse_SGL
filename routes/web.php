@@ -74,6 +74,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('materials/import/results', [MaterialController::class, 'importResults'])->name('materials.import.results');
     Route::get('materials/export/excel', [MaterialController::class, 'exportExcel'])->name('materials.export.excel');
     Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->name('materials.export.fdf');
+    Route::get('materials/{id}/history-ajax', [MaterialController::class, 'historyAjax'])->name('materials.historyAjax');
 
     //Products
     Route::resource('products', ProductController::class);
@@ -420,12 +421,14 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/api/products/{id}/components', [ProductController::class, 'getComponents'])->name('api.products.components');
 
     // Thêm phần routes phân quyền
-    // Routes cho nhóm quyền (roles)
-    Route::resource('roles', RoleController::class);
-    Route::patch('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggleStatus');
-
-    // Routes cho danh sách quyền (permissions)
-    Route::resource('permissions', PermissionController::class);
+    // Routes cho nhóm quyền (roles) - chỉ admin mới có quyền
+    Route::middleware('admin-only')->group(function () {
+        Route::resource('roles', RoleController::class);
+        Route::patch('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggleStatus');
+        
+        // Routes cho danh sách quyền (permissions)
+        Route::resource('permissions', PermissionController::class);
+    });
 
     // Routes cho nhật ký người dùng (user logs)
     Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
@@ -495,6 +498,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // Routes for Reports
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::post('/filter-ajax', [ReportController::class, 'filterAjax'])->name('filter.ajax');
         Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
         Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export.pdf');
     });

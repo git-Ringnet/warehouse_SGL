@@ -15,7 +15,9 @@
     <!-- Main Content -->
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
-            <h1 class="text-xl font-bold text-gray-800">Quản lý nhóm quyền</h1>
+            <h1 class="text-xl font-bold text-gray-800">
+                <i class="fas fa-user-shield mr-2"></i>Quản lý nhóm quyền
+            </h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <form action="{{ route('roles.index') }}" method="GET" class="flex flex-col md:flex-row gap-2 w-full">
                     <div class="flex gap-2 w-full md:w-auto">
@@ -43,6 +45,21 @@
             @if(session('error'))
                 <x-alert type="error" :message="session('error')" />
             @endif
+            
+            <!-- Thông báo quyền admin -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-shield-alt text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            <strong>Lưu ý:</strong> Chỉ tài khoản admin mới có quyền tạo, chỉnh sửa và xóa nhóm phân quyền. 
+                            Tính năng này đảm bảo an toàn hệ thống và tránh việc cấp quyền không phù hợp.
+                        </p>
+                    </div>
+                </div>
+            </div>
         <main class="p-6">
           
             
@@ -116,7 +133,7 @@
                                         <button onclick="openDeleteModal('{{ $role->id }}', '{{ $role->name }}')" 
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" 
                                                 title="Xóa">
-                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            <i class="fas fa-trash-alt text-red-500 group-hover:text-white"></i>
                                         </button>
                                         
                                         <form id="delete-form-{{ $role->id }}" action="{{ route('roles.destroy', $role->id) }}" method="POST" class="hidden">
@@ -128,7 +145,7 @@
                                             @csrf
                                             @method('PATCH')
                                             <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full {{ $role->is_active ? 'bg-orange-100 hover:bg-orange-500' : 'bg-green-100 hover:bg-green-500' }} transition-colors group" title="{{ $role->is_active ? 'Vô hiệu hóa' : 'Kích hoạt' }}">
-                                                <i class="fas {{ $role->is_active ? 'fa-ban' : 'fa-check' }} {{ $role->is_active ? 'text-orange-500' : 'text-green-500' }} group-hover:text-white"></i>
+                                                <i class="fas {{ $role->is_active ? 'fa-ban' : 'fa-check-circle' }} {{ $role->is_active ? 'text-orange-500' : 'text-green-500' }} group-hover:text-white"></i>
                                             </button>
                                         </form>
                                     @endunless

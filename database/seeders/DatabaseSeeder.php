@@ -25,11 +25,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CustomerSeeder::class,
             SupplierSeeder::class,
-            EmployeeSeeder::class,
-            WarehouseSeeder::class,
-            MaterialSeeder::class,
             PermissionSeeder::class,
             RoleSeeder::class,
+            EmployeeSeeder::class,
+            AdminSeeder::class, // Tạo admin sau khi có role
+            WarehouseSeeder::class,
+            MaterialSeeder::class,
             SoftwareSeeder::class,
             WarehouseMaterialSeeder::class,
             ProductSeeder::class,

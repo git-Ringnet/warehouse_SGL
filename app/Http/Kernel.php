@@ -58,5 +58,6 @@ class Kernel extends HttpKernel
         'password.confirm' => \Illuminate\Auth\Middleware\RequirePassword::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'customer-or-admin' => \App\Http\Middleware\CustomerOrAdminMiddleware::class,
+        'admin-only' => \App\Http\Middleware\AdminOnlyMiddleware::class,
     ];
 } 
