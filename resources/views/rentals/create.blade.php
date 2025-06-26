@@ -19,7 +19,7 @@
         .content-area {
             margin-left: 256px;
             min-height: 100vh;
-            background: #f8fafc;
+          
             transition: margin-left 0.3s ease;
         }
         @media (max-width: 768px) {

@@ -17,6 +17,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Employee;
+use App\Models\Warehouse;
+use App\Models\Dispatch;
+use App\Models\Serial;
+use App\Models\Assembly;
+use App\Models\User;
+use App\Helpers\ChangeLogHelper;
 
 class RepairController extends Controller
 {
@@ -122,12 +129,13 @@ class RepairController extends Controller
             $warrantyProducts = $warranty->warrantyProducts ?? [];
 
             foreach ($warrantyProducts as $product) {
-                // Với logic mới, mỗi product đã có serial riêng biệt
+                // Với logic mới, product đã được gom nhóm theo mã
                 $mainSerial = '';
                 if (!empty($product['serial_numbers']) && is_array($product['serial_numbers'])) {
-                    $mainSerial = $product['serial_numbers'][0]; // Chỉ có 1 serial trong mỗi entry
+                    $mainSerial = $product['serial_numbers'][0]; // Lấy serial đầu tiên để tạo ID
                 } elseif (!empty($product['serial_numbers_text']) && $product['serial_numbers_text'] !== 'Chưa có') {
-                    $mainSerial = trim($product['serial_numbers_text']);
+                    $parts = explode(',', $product['serial_numbers_text']);
+                    $mainSerial = trim($parts[0]); // Lấy serial đầu tiên
                 }
 
                 $devices[] = [
@@ -135,7 +143,7 @@ class RepairController extends Controller
                     'code' => $product['product_code'],
                     'name' => $product['product_name'],
                     'quantity' => $product['quantity'],
-                    'serial' => $mainSerial, // Serial cụ thể của thiết bị này
+                    'serial' => $mainSerial, // Serial đầu tiên để tương thích ngược
                     'serial_numbers' => $product['serial_numbers'] ?? [],
                     'serial_numbers_text' => $product['serial_numbers_text'] ?? 'Chưa có',
                     'status' => 'active'
@@ -569,8 +577,15 @@ class RepairController extends Controller
             'repair_description' => 'required|string',
             'repair_notes' => 'nullable|string',
             'repair_photos.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'selected_devices' => 'required|array|min:1',
+            'selected_devices' => 'nullable|array',
         ]);
+
+        // Custom validation: phải có ít nhất một thiết bị được chọn hoặc từ chối
+        if (empty($request->selected_devices) && empty($request->rejected_devices)) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['selected_devices' => 'Vui lòng chọn hoặc từ chối ít nhất một thiết bị.']);
+        }
 
         try {
             DB::beginTransaction();
@@ -595,6 +610,11 @@ class RepairController extends Controller
                 }
             }
 
+            // Determine initial status based on whether there are rejections or replacements
+            $hasRejections = $request->has('rejected_devices') && !empty($request->rejected_devices);
+            $hasReplacements = $request->has('material_replacements') && !empty($request->material_replacements);
+            $initialStatus = ($hasRejections || $hasReplacements) ? 'completed' : 'in_progress';
+
             // Create repair record
             $repair = Repair::create([
                 'repair_code' => Repair::generateRepairCode(),
@@ -607,12 +627,12 @@ class RepairController extends Controller
                 'repair_description' => $request->repair_description,
                 'repair_notes' => $request->repair_notes,
                 'repair_photos' => $repairPhotos,
-                'status' => 'in_progress',
+                'status' => $initialStatus,
                 'created_by' => Auth::id() ?? 1,
             ]);
 
             // Process selected devices
-            if ($request->selected_devices) {
+            if ($request->selected_devices && !empty($request->selected_devices)) {
                 Log::info('🔍 Raw selected_devices from request:', $request->selected_devices);
                 Log::info('🔍 Unique selected_devices:', array_unique($request->selected_devices));
 
@@ -749,18 +769,43 @@ class RepairController extends Controller
                 $rejectedDevices = json_decode($request->rejected_devices, true);
                 if (is_array($rejectedDevices)) {
                     foreach ($rejectedDevices as $rejectedDevice) {
-                        RepairItem::create([
+                        $repairItem = RepairItem::create([
                             'repair_id' => $repair->id,
                             'device_code' => $rejectedDevice['code'] ?? '',
                             'device_name' => $rejectedDevice['name'] ?? '',
                             'device_serial' => '',
-                            'device_quantity' => 1,
+                            'device_quantity' => $rejectedDevice['quantity'] ?? 1,
                             'device_status' => 'rejected',
                             'device_notes' => $rejectedDevice['reason'] ?? '',
                             'rejected_reason' => $rejectedDevice['reason'] ?? '',
                             'rejected_warehouse_id' => $rejectedDevice['warehouse_id'] ?? null,
                             'rejected_at' => $rejectedDevice['rejected_at'] ?? now(),
                         ]);
+
+                        // Lưu nhật ký thay đổi cho thành phẩm bị từ chối
+                        try {
+                            ChangeLogHelper::suaChua(
+                                $rejectedDevice['code'] ?? '',
+                                $rejectedDevice['name'] ?? '',
+                                $rejectedDevice['quantity'] ?? 1,
+                                $repair->repair_code,
+                                'Thu hồi', // Mô tả cố định theo yêu cầu
+                                [
+                                    'repair_id' => $repair->id,
+                                    'rejected_quantity' => $rejectedDevice['quantity'] ?? 1,
+                                    'total_quantity' => $rejectedDevice['total_quantity'] ?? 1,
+                                    'rejected_reason' => $rejectedDevice['reason'] ?? '',
+                                    'rejected_warehouse_id' => $rejectedDevice['warehouse_id'] ?? null,
+                                    'warranty_code' => $repair->warranty_code,
+                                    'action_type' => 'product_rejection_on_create'
+                                ],
+                                $rejectedDevice['reason'] ?? ''
+                            );
+
+                            Log::info("Created change log for rejected product: {$rejectedDevice['code']} in repair {$repair->repair_code}");
+                        } catch (\Exception $e) {
+                            Log::error("Failed to create change log for rejected product: " . $e->getMessage());
+                        }
                     }
                 }
             }
@@ -807,6 +852,32 @@ class RepairController extends Controller
                                 $replacement['target_warehouse_id'],
                                 'remove'
                             );
+                        }
+
+                        // Lưu nhật ký thay đổi cho thay thế vật tư
+                        try {
+                            ChangeLogHelper::suaChua(
+                                $replacement['material_code'],
+                                $replacement['material_name'],
+                                $replacement['quantity'],
+                                $repair->repair_code,
+                                'Thay thế', // Mô tả cố định theo yêu cầu
+                                [
+                                    'repair_id' => $repair->id,
+                                    'device_code' => $replacement['device_code'],
+                                    'old_serials' => $replacement['old_serials'],
+                                    'new_serials' => $replacement['new_serials'],
+                                    'source_warehouse_id' => $replacement['source_warehouse_id'],
+                                    'target_warehouse_id' => $replacement['target_warehouse_id'],
+                                    'warranty_code' => $repair->warranty_code,
+                                    'action_type' => 'material_replacement_on_create'
+                                ],
+                                $replacement['notes'] ?? ''
+                            );
+
+                            Log::info("Created change log for material replacement: {$replacement['material_code']} in repair {$repair->repair_code}");
+                        } catch (\Exception $e) {
+                            Log::error("Failed to create change log for material replacement: " . $e->getMessage());
                         }
                     }
                 }
@@ -954,10 +1025,10 @@ class RepairController extends Controller
                 if ($photosToDelete && is_array($photosToDelete)) {
                     foreach ($photosToDelete as $photoPath) {
                         // Remove from array
-                        $repairPhotos = array_filter($repairPhotos, function($photo) use ($photoPath) {
+                        $repairPhotos = array_filter($repairPhotos, function ($photo) use ($photoPath) {
                             return $photo !== $photoPath;
                         });
-                        
+
                         // Delete physical file
                         if (Storage::disk('public')->exists($photoPath)) {
                             Storage::disk('public')->delete($photoPath);
@@ -1143,6 +1214,32 @@ class RepairController extends Controller
                     'remove'
                 );
             }
+
+            // Lưu nhật ký thay đổi cho thay thế vật tư
+            try {
+                ChangeLogHelper::suaChua(
+                    $replacement['material_code'],
+                    $replacement['material_name'],
+                    $replacement['quantity'],
+                    $repair->repair_code,
+                    'Thay thế', // Mô tả cố định theo yêu cầu
+                    [
+                        'repair_id' => $repair->id,
+                        'device_code' => $replacement['device_code'],
+                        'old_serials' => $replacement['old_serials'],
+                        'new_serials' => $replacement['new_serials'],
+                        'source_warehouse_id' => $replacement['source_warehouse_id'],
+                        'target_warehouse_id' => $replacement['target_warehouse_id'],
+                        'warranty_code' => $repair->warranty_code,
+                        'action_type' => 'material_replacement'
+                    ],
+                    $replacement['notes'] ?? ''
+                );
+
+                Log::info("Created change log for material replacement: {$replacement['material_code']} in repair {$repair->repair_code}");
+            } catch (\Exception $e) {
+                Log::error("Failed to create change log for material replacement: " . $e->getMessage());
+            }
         }
     }
 
@@ -1271,6 +1368,7 @@ class RepairController extends Controller
             'notes' => 'nullable|string',
             'rejected_reason' => 'nullable|string',
             'rejected_warehouse_id' => 'nullable|integer|exists:warehouses,id',
+            'rejected_quantity' => 'nullable|integer|min:1',
         ]);
 
         try {
@@ -1291,13 +1389,52 @@ class RepairController extends Controller
             }
 
             // Update device status
-            $repairItem->update([
+            $updateData = [
                 'device_status' => $request->status,
                 'device_notes' => $request->notes,
-                'rejected_reason' => $request->status === 'rejected' ? $request->rejected_reason : null,
-                'rejected_warehouse_id' => $request->status === 'rejected' ? $request->rejected_warehouse_id : null,
-                'rejected_at' => $request->status === 'rejected' ? now() : null,
-            ]);
+            ];
+
+            if ($request->status === 'rejected') {
+                $updateData['rejected_reason'] = $request->rejected_reason;
+                $updateData['rejected_warehouse_id'] = $request->rejected_warehouse_id;
+                $updateData['rejected_at'] = now();
+
+                // Cập nhật số lượng từ chối nếu có
+                if ($request->has('rejected_quantity')) {
+                    $updateData['device_quantity'] = $request->rejected_quantity;
+                }
+            }
+
+            $repairItem->update($updateData);
+
+            // Lưu nhật ký thay đổi khi từ chối thành phẩm
+            if ($request->status === 'rejected') {
+                try {
+                    $rejectedQuantity = $request->rejected_quantity ?? $repairItem->device_quantity;
+
+                    ChangeLogHelper::suaChua(
+                        $repairItem->device_code,
+                        $repairItem->device_name,
+                        $rejectedQuantity,
+                        $repair->repair_code,
+                        'Thu hồi', // Mô tả cố định theo yêu cầu
+                        [
+                            'repair_id' => $repair->id,
+                            'device_serial' => $repairItem->device_serial,
+                            'rejected_quantity' => $rejectedQuantity,
+                            'rejected_reason' => $request->rejected_reason,
+                            'rejected_warehouse_id' => $request->rejected_warehouse_id,
+                            'warranty_code' => $repair->warranty_code,
+                            'action_type' => 'product_rejection'
+                        ],
+                        $request->notes ?? $request->rejected_reason
+                    );
+
+                    Log::info("Created change log for product rejection: {$repairItem->device_code} in repair {$repair->repair_code}");
+                } catch (\Exception $e) {
+                    Log::error("Failed to create change log for product rejection: " . $e->getMessage());
+                }
+            }
 
             // Auto-update repair status based on device actions
             $this->autoUpdateRepairStatus($repair);

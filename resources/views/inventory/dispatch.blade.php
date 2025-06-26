@@ -897,6 +897,9 @@
                         // Hiển thị phần cho thuê, ẩn phần dự án
                         rentalSection.classList.remove('hidden');
                         rentalReceiverInput.setAttribute('required', 'required');
+                        
+                        // Load danh sách hợp đồng cho thuê
+                        loadRentals();
 
                         // Tắt required cho project_receiver vì đang dùng rental
                         projectReceiverInput.removeAttribute('required');
@@ -904,9 +907,18 @@
                         // Ẩn project section để tránh confusion
                         projectSection.classList.add('hidden');
 
-                        // Set project_receiver = rental_receiver để tương thích với backend
+                        // Set project_receiver = rental_receiver và project_id = rental_id để tương thích với backend
                         const syncRentalToProject = function() {
                             projectReceiverInput.value = rentalReceiverInput.value;
+                            
+                            // Lấy rental_id từ selected option và gán vào project_id
+                            const selectedOption = rentalReceiverInput.options[rentalReceiverInput.selectedIndex];
+                            const projectIdInput = document.getElementById('project_id');
+                            if (selectedOption && selectedOption.dataset.rentalId) {
+                                projectIdInput.value = selectedOption.dataset.rentalId;
+                            } else {
+                                projectIdInput.value = '';
+                            }
                         };
 
                         // Xóa event listener cũ nếu có để tránh duplicate

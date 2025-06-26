@@ -130,8 +130,20 @@ class Warranty extends Model
         if ($this->item_type === 'project' && $this->item_id) {
             $items = [];
 
-            // Get ALL dispatches for this project, not just the current one
-            $projectDispatches = Dispatch::where('project_id', $this->item_id)->get();
+            // Determine dispatch type from the warranty's original dispatch
+            $originalDispatch = $this->dispatch;
+            $dispatchType = $originalDispatch ? $originalDispatch->dispatch_type : null;
+
+            // Get ONLY APPROVED dispatches for this project with the same dispatch_type
+            $projectDispatches = Dispatch::where('project_id', $this->item_id)
+                ->whereIn('status', ['approved', 'completed']);
+            
+            // Only filter by dispatch_type if we can determine it from the original dispatch
+            if ($dispatchType) {
+                $projectDispatches = $projectDispatches->where('dispatch_type', $dispatchType);
+            }
+            
+            $projectDispatches = $projectDispatches->get();
 
             foreach ($projectDispatches as $dispatch) {
                 // Only include contract items, not backup items
@@ -312,8 +324,20 @@ class Warranty extends Model
         if ($this->item_type === 'project' && $this->item_id) {
             $productMaterials = [];
 
-            // Get ALL dispatches for this project
-            $projectDispatches = Dispatch::where('project_id', $this->item_id)->get();
+            // Determine dispatch type from the warranty's original dispatch
+            $originalDispatch = $this->dispatch;
+            $dispatchType = $originalDispatch ? $originalDispatch->dispatch_type : null;
+
+            // Get ONLY APPROVED dispatches for this project with the same dispatch_type
+            $projectDispatches = Dispatch::where('project_id', $this->item_id)
+                ->whereIn('status', ['approved', 'completed']);
+            
+            // Only filter by dispatch_type if we can determine it from the original dispatch
+            if ($dispatchType) {
+                $projectDispatches = $projectDispatches->where('dispatch_type', $dispatchType);
+            }
+            
+            $projectDispatches = $projectDispatches->get();
 
             foreach ($projectDispatches as $dispatch) {
                 // Only include contract items
@@ -422,9 +446,22 @@ class Warranty extends Model
     {
         if ($this->item_type === 'project' && $this->item_id) {
             $products = [];
+            $groupedProducts = []; // Array để gom nhóm sản phẩm theo mã
 
-            // Get ALL dispatches for this project
-            $projectDispatches = Dispatch::where('project_id', $this->item_id)->get();
+            // Determine dispatch type from the warranty's original dispatch
+            $originalDispatch = $this->dispatch;
+            $dispatchType = $originalDispatch ? $originalDispatch->dispatch_type : null;
+
+            // Get ONLY APPROVED dispatches for this project with the same dispatch_type
+            $projectDispatches = Dispatch::where('project_id', $this->item_id)
+                ->whereIn('status', ['approved', 'completed']);
+            
+            // Only filter by dispatch_type if we can determine it from the original dispatch
+            if ($dispatchType) {
+                $projectDispatches = $projectDispatches->where('dispatch_type', $dispatchType);
+            }
+            
+            $projectDispatches = $projectDispatches->get();
 
             foreach ($projectDispatches as $dispatch) {
                 // Only include contract items
@@ -435,29 +472,46 @@ class Warranty extends Model
                     if ($product) {
                         $serialNumbers = $dispatchItem->serial_numbers ?: [];
                         
-                        // Nếu có serial numbers, tạo một entry riêng cho mỗi serial
-                        if (!empty($serialNumbers)) {
-                            foreach ($serialNumbers as $serial) {
-                                $products[] = [
-                                    'product_code' => $product->code,
-                                    'product_name' => $product->name,
-                                    'quantity' => 1, // Mỗi serial = 1 thiết bị
-                                    'serial_numbers' => [$serial], // Chỉ chứa 1 serial
-                                    'serial_numbers_text' => $serial,
-                                ];
-                            }
-                        } else {
-                            // Nếu không có serial, tạo entry với số lượng
-                            $products[] = [
+                        // Khởi tạo nhóm sản phẩm nếu chưa có
+                        if (!isset($groupedProducts[$product->code])) {
+                            $groupedProducts[$product->code] = [
                                 'product_code' => $product->code,
                                 'product_name' => $product->name,
-                                'quantity' => $dispatchItem->quantity,
+                                'quantity' => 0,
                                 'serial_numbers' => [],
-                                'serial_numbers_text' => 'Chưa có',
+                                'serial_numbers_text' => '',
                             ];
+                        }
+
+                        // Nếu có serial numbers, thêm vào danh sách
+                        if (!empty($serialNumbers)) {
+                            $groupedProducts[$product->code]['quantity'] += count($serialNumbers);
+                            $groupedProducts[$product->code]['serial_numbers'] = array_merge(
+                                $groupedProducts[$product->code]['serial_numbers'],
+                                $serialNumbers
+                            );
+                        } else {
+                            // Nếu không có serial, cộng số lượng
+                            $groupedProducts[$product->code]['quantity'] += $dispatchItem->quantity;
                         }
                     }
                 }
+            }
+
+            // Chuyển đổi grouped products thành array và tạo serial_numbers_text
+            foreach ($groupedProducts as $productCode => $productData) {
+                // Loại bỏ serial trùng lặp và sắp xếp
+                $productData['serial_numbers'] = array_unique($productData['serial_numbers']);
+                sort($productData['serial_numbers']);
+                
+                // Tạo text hiển thị serial numbers
+                if (!empty($productData['serial_numbers'])) {
+                    $productData['serial_numbers_text'] = implode(', ', $productData['serial_numbers']);
+                } else {
+                    $productData['serial_numbers_text'] = 'Chưa có';
+                }
+
+                $products[] = $productData;
             }
 
             return $products;
@@ -580,3 +634,4 @@ class Warranty extends Model
         }
     }
 }
+

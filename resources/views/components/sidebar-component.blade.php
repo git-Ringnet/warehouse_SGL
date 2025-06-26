@@ -154,7 +154,7 @@
             </li>
             <li>
                 <div class="dropdown">
-                    <a href="{{ asset('change_log') }}">
+                    <a href="{{ route('change-logs.index') }}">
                         <button onclick="toggleDropdown('changeLog')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">
@@ -302,7 +302,6 @@
                         </div>
                         <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
                     </a>
-
                     <!-- Warning notification -->
                     <a href="#"
                         class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
@@ -319,7 +318,6 @@
                         </div>
                         <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
                     </a>
-
                     <!-- Update notification -->
                     <a href="#"
                         class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
@@ -335,7 +333,6 @@
                         </div>
                         <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
                     </a>
-
                     <!-- Read notification -->
                     <a href="#"
                         class="flex px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
@@ -402,6 +399,7 @@
         </div>
     </div>
 </header>
+
 <!-- JavaScript to fix sidebar height -->
 <script>
     // document.addEventListener('DOMContentLoaded', function() {
@@ -551,7 +549,6 @@
                 pageTitleElement.textContent = title;
             }
         }
-
         // Call the function when the page loads
         updatePageTitle();
     });
@@ -612,11 +609,10 @@
         position: absolute;
         transition: all 0.3s ease;
     }
-
     /* Style for content area to accommodate the fixed header and sidebar */
     .content-area {
         margin-left: 256px;
         padding-top: 72px;
-        /* Adjust based on your header height */
+        /* Adjust based on your header height */ 26/6
     }
 </style>

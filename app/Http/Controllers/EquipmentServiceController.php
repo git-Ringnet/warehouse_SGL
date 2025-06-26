@@ -11,6 +11,7 @@ use App\Models\Warehouse;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Good;
+use App\Helpers\ChangeLogHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -87,6 +88,73 @@ class EquipmentServiceController extends Controller
                     default => 'Không xác định'
                 };
             $dispatchItem->save();
+
+            // Lưu nhật ký thu hồi thành phẩm
+            try {
+                // Xác định loại thu hồi (dự án hoặc cho thuê)
+                $description = '';
+                $detailedInfo = [
+                    'dispatch_return_id' => $dispatchReturn->id,
+                    'dispatch_item_id' => $dispatchItem->id,
+                    'dispatch_id' => $dispatchItem->dispatch->id,
+                    'dispatch_code' => $dispatchItem->dispatch->dispatch_code,
+                    'dispatch_type' => $dispatchItem->dispatch->dispatch_type,
+                    'warehouse_id' => $warehouse->id,
+                    'warehouse_name' => $warehouse->name,
+                    'reason' => $validatedData['reason'],
+                    'condition' => $validatedData['condition'],
+                    'condition_text' => match($validatedData['condition']) {
+                        'good' => 'Hoạt động tốt',
+                        'damaged' => 'Hư hỏng nhẹ',
+                        'broken' => 'Hư hỏng nặng',
+                        default => 'Không xác định'
+                    },
+                    'return_date' => $dispatchReturn->return_date->toDateTimeString(),
+                    'returned_by' => Auth::id(),
+                ];
+
+                if ($dispatchItem->dispatch->dispatch_type === 'project') {
+                    // Thu hồi từ dự án
+                    $project = \App\Models\Project::find($dispatchItem->dispatch->project_id);
+                    $description = 'Thu hồi từ dự án: ' . ($project ? $project->project_name : 'Không xác định');
+                    $detailedInfo['project_id'] = $dispatchItem->dispatch->project_id;
+                    $detailedInfo['project_name'] = $project ? $project->project_name : null;
+                    $detailedInfo['project_code'] = $project ? $project->project_code : null;
+                } elseif ($dispatchItem->dispatch->dispatch_type === 'rental') {
+                    // Thu hồi từ cho thuê
+                    $description = 'Thu hồi từ cho thuê: ' . $dispatchItem->dispatch->project_receiver;
+                    $detailedInfo['rental_info'] = $dispatchItem->dispatch->project_receiver;
+                }
+
+                // Lấy thông tin serial numbers nếu có
+                if ($dispatchItem->serial_numbers && is_array($dispatchItem->serial_numbers)) {
+                    $detailedInfo['serial_numbers'] = $dispatchItem->serial_numbers;
+                }
+
+                ChangeLogHelper::thuHoi(
+                    $item->code,
+                    $item->name,
+                    $dispatchItem->quantity,
+                    $dispatchReturn->return_code,
+                    $description,
+                    $detailedInfo,
+                    'Thu hồi thành phẩm - Lý do: ' . $validatedData['reason']
+                );
+
+                Log::info('Thu hồi thành phẩm - Đã lưu nhật ký', [
+                    'return_code' => $dispatchReturn->return_code,
+                    'item_code' => $item->code,
+                    'dispatch_type' => $dispatchItem->dispatch->dispatch_type
+                ]);
+
+            } catch (\Exception $logException) {
+                Log::error('Lỗi khi lưu nhật ký thu hồi thành phẩm', [
+                    'return_code' => $dispatchReturn->return_code,
+                    'error' => $logException->getMessage(),
+                    'trace' => $logException->getTraceAsString()
+                ]);
+                // Không throw exception để không ảnh hưởng đến quá trình thu hồi chính
+            }
 
             DB::commit();
 
