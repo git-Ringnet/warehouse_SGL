@@ -47,13 +47,16 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
 
     // Redirect root to dashboard
     Route::get('/', function () {
-        return view('dashboard');
+        return redirect()->route('dashboard');
     });
 
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    });
-
+    // Dashboard routes
+    Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/statistics', [App\Http\Controllers\DashboardController::class, 'getStatistics'])->name('dashboard.statistics');
+    Route::get('/dashboard/inventory-overview-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryOverviewChart'])->name('dashboard.inventory-overview-chart');
+    Route::get('/dashboard/inventory-categories-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryCategoriesChart'])->name('dashboard.inventory-categories-chart');
+    Route::get('/dashboard/warehouse-distribution-chart', [App\Http\Controllers\DashboardController::class, 'getWarehouseDistributionChart'])->name('dashboard.warehouse-distribution-chart');
+    Route::get('/dashboard/project-growth-chart', [App\Http\Controllers\DashboardController::class, 'getProjectGrowthChart'])->name('dashboard.project-growth-chart');
 
     // Thay thế routes customers cũ bằng resource controller
     Route::resource('customers', CustomerController::class);

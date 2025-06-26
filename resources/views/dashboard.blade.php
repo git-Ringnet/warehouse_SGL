@@ -465,15 +465,15 @@
                     <div class="grid grid-cols-3 gap-2 mt-2">
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng nhập kho</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">1,248</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="materials-import">0</p>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng xuất kho</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">987</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="materials-export">0</p>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng hư hỏng</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">125</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="materials-damaged">0</p>
                         </div>
                     </div>
                 </div>
@@ -491,15 +491,15 @@
                     <div class="grid grid-cols-3 gap-2 mt-2">
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng nhập kho</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">854</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="products-import">0</p>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng xuất kho</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">750</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="products-export">0</p>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng hư hỏng</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">95</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="products-damaged">0</p>
                         </div>
                     </div>
                 </div>
@@ -517,15 +517,15 @@
                     <div class="grid grid-cols-3 gap-2 mt-2">
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng nhập kho</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">1,146</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="goods-import">0</p>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng xuất kho</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">850</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="goods-export">0</p>
                         </div>
                         <div class="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                             <p class="text-xs text-gray-500 dark:text-gray-400">Tổng hư hỏng</p>
-                            <p class="text-lg font-bold text-gray-800 dark:text-white">125</p>
+                            <p class="text-lg font-bold text-gray-800 dark:text-white" id="goods-damaged">0</p>
                         </div>
                     </div>
                 </div>
@@ -544,7 +544,7 @@
                                 <button data-category="materials" class="category-filter px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800 active">Vật tư</button>
                             </div>
                             <div class="flex items-center">
-                                <button data-category="finished" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Thành phẩm</button>
+                                <button data-category="products" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Thành phẩm</button>
                             </div>
                             <div class="flex items-center">
                                 <button data-category="goods" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Hàng hóa</button>
@@ -592,39 +592,20 @@
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
                             Phân bố theo kho
                         </h3>
+                        <div class="flex items-center space-x-2">
+                            <select id="warehouseChartItemType" class="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                <option value="">Tất cả loại</option>
+                                <option value="material">Vật tư</option>
+                                <option value="product">Thành phẩm</option>
+                                <option value="good">Hàng hóa</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="chart-container">
                         <canvas id="warehouseDistributionChart"></canvas>
                     </div>
-                    <div class="mt-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                                <span class="text-sm text-gray-600 dark:text-gray-300">Kho chính</span>
-                            </div>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">35%</span>
-                        </div>
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                                <span class="text-sm text-gray-600 dark:text-gray-300">Kho phụ</span>
-                            </div>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">25%</span>
-                        </div>
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                                <span class="text-sm text-gray-600 dark:text-gray-300">Kho linh kiện</span>
-                            </div>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">20%</span>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full bg-purple-500 mr-2"></div>
-                                <span class="text-sm text-gray-600 dark:text-gray-300">Kho thành phẩm</span>
-                            </div>
-                            <span class="text-sm font-medium text-gray-800 dark:text-white">20%</span>
-                        </div>
+                    <div class="mt-4" id="warehouse-distribution-legend">
+                        <!-- Legend items will be dynamically inserted here -->
                     </div>
                 </div>
             </div>
@@ -727,12 +708,26 @@
             }, 3000);
         }, 2000);
 
-        // Initialize Charts
+        // Initialize all charts and store references
+        let charts;
+        
         const initCharts = () => {
+            // Nếu đã có charts thì không khởi tạo lại
+            if (window.chartInstances) {
+                return window.chartInstances;
+            }
+            
             const textColor = "#000000";
             const gridColor = "rgba(255, 255, 255, 0.1)";
             const borderColor = "rgba(255, 255, 255, 0.2)";
 
+            // Destroy existing charts if they exist
+            if (window.chartInstances) {
+                Object.values(window.chartInstances).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+            }
+            
             // Inventory Overview Chart
             const inventoryOverviewCtx = document
                 .getElementById("inventoryOverviewChart")
@@ -750,19 +745,19 @@
                     ],
                     datasets: [{
                             label: "Nhập kho",
-                            data: [450, 500, 550, 600, 650, 700],
+                            data: [0, 0, 0, 0, 0, 0],
                             backgroundColor: "#10b981",
                             borderRadius: 4,
                         },
                         {
                             label: "Xuất kho",
-                            data: [300, 350, 400, 450, 500, 550],
+                            data: [0, 0, 0, 0, 0, 0],
                             backgroundColor: "#ef4444",
                             borderRadius: 4,
                         },
                         {
                             label: "Hư hỏng",
-                            data: [50, 45, 60, 55, 65, 70],
+                            data: [0, 0, 0, 0, 0, 0],
                             backgroundColor: "#f59e0b",
                             borderRadius: 4,
                         }
@@ -907,10 +902,10 @@
             const warehouseDistributionChart = new Chart(warehouseDistributionCtx, {
                 type: "doughnut",
                 data: {
-                    labels: ["Kho chính", "Kho phụ", "Kho linh kiện", "Kho thành phẩm"],
+                    labels: ["Đang tải dữ liệu..."],
                     datasets: [{
-                        data: [35, 25, 20, 20],
-                        backgroundColor: ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6"],
+                        data: [100],
+                        backgroundColor: ["#3b82f6"],
                         borderWidth: 0,
                     }, ],
                 },
@@ -952,17 +947,16 @@
                 type: "polarArea",
                 data: {
                     labels: [
-                        "Linh kiện",
+                        "Vật tư",
                         "Thành phẩm",
+                        "Hàng hóa",
                     ],
                     datasets: [{
-                        data: [45, 25],
+                        data: [0, 0, 0],
                         backgroundColor: [
                             "rgba(59, 130, 246, 0.8)",
                             "rgba(16, 185, 129, 0.8)",
                             "rgba(245, 158, 11, 0.8)",
-                            "rgba(139, 92, 246, 0.8)",
-                            "rgba(239, 68, 68, 0.8)",
                         ],
                         borderWidth: 0,
                     }, ],
@@ -1016,6 +1010,14 @@
                 },
             });
 
+            // Save chart instances for later access/destruction
+            window.chartInstances = {
+                inventoryOverviewChart,
+                warehouseDistributionChart,
+                inventoryCategoriesChart,
+                projectGrowthChart
+            };
+
             return {
                 inventoryOverviewChart,
                 warehouseDistributionChart,
@@ -1025,7 +1027,7 @@
         };
 
         // Update charts for dark mode
-        const updateChartsForDarkMode = () => {
+        const updateChartsForDarkMode = (charts) => {
             const textColor = "#000000";
             const gridColor = "rgba(255, 255, 255, 0.1)";
             const borderColor = "rgba(255, 255, 255, 0.2)";
@@ -1059,7 +1061,7 @@
         };
 
         // Update charts for light mode
-        const updateChartsForLightMode = () => {
+        const updateChartsForLightMode = (charts) => {
             const textColor = "#000000";
             const gridColor = "rgba(0, 0, 0, 0.1)";
             const borderColor = "rgba(0, 0, 0, 0.1)";
@@ -1093,11 +1095,11 @@
         };
 
         // Initialize all charts and store references
-        const charts = initCharts();
+        charts = initCharts();
 
         // Initialize with correct theme
         if (localStorage.getItem("theme") === "dark") {
-            updateChartsForDarkMode();
+            updateChartsForDarkMode(charts);
         }
 
         // Time range selector
@@ -1188,6 +1190,8 @@
         // Category filter for Inventory Overview Chart
         document.querySelectorAll('.category-filter').forEach(button => {
             button.addEventListener('click', function() {
+                console.log('Category filter clicked:', this.dataset.category);
+                
                 // Remove active class from all buttons
                 document.querySelectorAll('.category-filter').forEach(btn => {
                     btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
@@ -1200,66 +1204,8 @@
                 
                 const category = this.dataset.category;
                 
-                // Update chart title
-                let title = '';
-                switch (category) {
-                    case 'materials':
-                        title = 'Vật Tư';
-                        break;
-                    case 'finished':
-                        title = 'Thành Phẩm';
-                        break;
-                    case 'goods':
-                        title = 'Hàng Hóa';
-                        break;
-                }
-                
-                charts.inventoryOverviewChart.options.plugins.title.text = title;
-                charts.inventoryOverviewChart.options.plugins.title.color = "#000000";
-                charts.inventoryOverviewChart.options.plugins.title.font = {
-                    size: 16,
-                    weight: 'bold'
-                };
-                
-                // Show loading state
-                const toast = document.getElementById("toast");
-                toast.innerHTML =
-                    '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu...</span></div>';
-                toast.classList.remove("hidden");
-                
-                // Simulate data update (in production, you would fetch data from the server)
-                setTimeout(() => {
-                    // Update chart data with random values for demonstration
-                    const newData = {
-                        materials: {
-                            input: [450, 500, 550, 600, 650, 700],
-                            output: [300, 350, 400, 450, 500, 550],
-                            damaged: [50, 45, 60, 55, 65, 70]
-                        },
-                        finished: {
-                            input: [200, 220, 240, 260, 280, 300],
-                            output: [180, 200, 220, 240, 260, 280],
-                            damaged: [20, 25, 30, 35, 40, 45]
-                        },
-                        goods: {
-                            input: [350, 370, 390, 410, 430, 450],
-                            output: [320, 340, 360, 380, 400, 420],
-                            damaged: [30, 35, 40, 45, 50, 55]
-                        }
-                    };
-                    
-                    charts.inventoryOverviewChart.data.datasets[0].data = newData[category].input;
-                    charts.inventoryOverviewChart.data.datasets[1].data = newData[category].output;
-                    charts.inventoryOverviewChart.data.datasets[2].data = newData[category].damaged;
-                    charts.inventoryOverviewChart.update();
-                    
-                    toast.innerHTML =
-                        '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu thành công!</span></div>';
-                    
-                    setTimeout(() => {
-                        toast.classList.add("hidden");
-                    }, 2000);
-                }, 1000);
+                // Call the updateInventoryOverviewChart function directly
+                updateInventoryOverviewChart(category, charts);
             });
         });
 
@@ -1661,6 +1607,388 @@
                 const formattedWeek = currentWeek < 10 ? `0${currentWeek}` : currentWeek;
                 input.value = `${currentYear}-W${formattedWeek}`;
             });
+        });
+
+        // Add this function to update statistics
+        function updateStatistics() {
+            fetch('/dashboard/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    // Update materials stats
+                    document.querySelector('#materials-import').textContent = data.materials.total_import;
+                    document.querySelector('#materials-export').textContent = data.materials.total_export;
+                    document.querySelector('#materials-damaged').textContent = data.materials.total_damaged;
+
+                    // Update products stats  
+                    document.querySelector('#products-import').textContent = data.products.total_import;
+                    document.querySelector('#products-export').textContent = data.products.total_export;
+                    document.querySelector('#products-damaged').textContent = data.products.total_damaged;
+
+                    // Update goods stats
+                    document.querySelector('#goods-import').textContent = data.goods.total_import;
+                    document.querySelector('#goods-export').textContent = data.goods.total_export;
+                    document.querySelector('#goods-damaged').textContent = data.goods.total_damaged;
+                })
+                .catch(error => {
+                    console.error('Error fetching statistics:', error);
+                });
+        }
+
+        // Call updateStatistics initially and every 5 minutes
+        updateStatistics();
+        setInterval(updateStatistics, 300000);
+
+        // Thêm hàm cập nhật biểu đồ tổng quan
+        function updateInventoryOverviewChart(category = 'materials', charts) {
+            console.log('updateInventoryOverviewChart called with category:', category);
+            
+            // Nếu charts không được truyền vào, sử dụng window.chartInstances
+            if (!charts && window.chartInstances) {
+                charts = window.chartInstances;
+            }
+            
+            // Nếu không có charts, không làm gì cả
+            if (!charts) {
+                console.error('Charts not initialized');
+                return;
+            }
+            
+            // Hiển thị trạng thái loading
+            const toast = document.getElementById("toast");
+            toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ...</span></div>';
+            toast.classList.remove("hidden");
+            
+            // Gọi API để lấy dữ liệu
+            fetch(`/dashboard/inventory-overview-chart?category=${category}`)
+                .then(response => {
+                    console.log('API response received:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API data received:', data);
+                    
+                    // Cập nhật biểu đồ
+                    charts.inventoryOverviewChart.data.labels = data.labels;
+                    charts.inventoryOverviewChart.data.datasets = data.datasets;
+                    
+                    // Cập nhật tiêu đề
+                    let title = '';
+                    switch (category) {
+                        case 'materials':
+                            title = 'Vật Tư';
+                            break;
+                        case 'products':
+                            title = 'Thành Phẩm';
+                            break;
+                        case 'goods':
+                            title = 'Hàng Hóa';
+                            break;
+                    }
+                    
+                    charts.inventoryOverviewChart.options.plugins.title.text = title;
+                    charts.inventoryOverviewChart.update();
+                    console.log('Chart updated successfully');
+                    
+                    // Hiển thị thông báo thành công
+                    toast.innerHTML = '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error('Error fetching chart data:', error);
+                    toast.innerHTML = '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                });
+        }
+
+        // Thêm hàm cập nhật biểu đồ phân loại kho
+        function updateInventoryCategoriesChart(charts) {
+            // Nếu charts không được truyền vào, sử dụng window.chartInstances
+            if (!charts && window.chartInstances) {
+                charts = window.chartInstances;
+            }
+            
+            // Nếu không có charts, không làm gì cả
+            if (!charts) {
+                console.error('Charts not initialized');
+                return;
+            }
+            
+            fetch('/dashboard/inventory-categories-chart')
+                .then(response => response.json())
+                .then(data => {
+                    // Cập nhật biểu đồ
+                    charts.inventoryCategoriesChart.data.labels = data.labels;
+                    charts.inventoryCategoriesChart.data.datasets[0].data = data.data;
+                    charts.inventoryCategoriesChart.update();
+                })
+                .catch(error => {
+                    console.error('Error fetching inventory categories data:', error);
+                });
+        }
+
+        // Thêm hàm cập nhật biểu đồ phân bố theo kho
+        function updateWarehouseDistributionChart(charts, filters = {}) {
+            // Nếu charts không được truyền vào, sử dụng window.chartInstances
+            if (!charts && window.chartInstances) {
+                charts = window.chartInstances;
+            }
+            
+            // Nếu không có charts, không làm gì cả
+            if (!charts) {
+                console.error('Charts not initialized');
+                return;
+            }
+            
+            // Xử lý các tham số lọc
+            const itemType = filters.itemType || document.getElementById('warehouseChartItemType')?.value || '';
+            
+            // Hiển thị trạng thái loading
+            const toast = document.getElementById("toast");
+            toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu phân bố kho...</span></div>';
+            toast.classList.remove("hidden");
+            
+            // Xây dựng query string từ các tham số lọc
+            let queryParams = new URLSearchParams();
+            if (itemType) {
+                queryParams.append('item_type', itemType);
+            }
+            
+            const url = `/dashboard/warehouse-distribution-chart?${queryParams.toString()}`;
+            console.log('Fetching warehouse distribution data from:', url);
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Warehouse distribution data received:', data);
+                    
+                    // Cập nhật biểu đồ
+                    charts.warehouseDistributionChart.data.labels = data.labels;
+                    charts.warehouseDistributionChart.data.datasets[0].data = data.data;
+                    charts.warehouseDistributionChart.data.datasets[0].backgroundColor = data.colors;
+                    charts.warehouseDistributionChart.update();
+                    
+                    // Cập nhật legend bên dưới biểu đồ
+                    const legendContainer = document.getElementById('warehouse-distribution-legend');
+                    if (legendContainer) {
+                        legendContainer.innerHTML = '';
+                        
+                        // Thêm tiêu đề
+                        const titleElement = document.createElement('h4');
+                        titleElement.className = 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-2';
+                        
+                        let titleText = 'Phân bố theo kho';
+                        if (itemType === 'material') {
+                            titleText += ' - Vật tư';
+                        } else if (itemType === 'product') {
+                            titleText += ' - Thành phẩm';
+                        } else if (itemType === 'good') {
+                            titleText += ' - Hàng hóa';
+                        }
+                        
+                        titleElement.textContent = titleText;
+                        legendContainer.appendChild(titleElement);
+                        
+                        // Thêm thông tin tổng
+                        if (data.total_quantity) {
+                            const totalElement = document.createElement('div');
+                            totalElement.className = 'text-sm text-gray-600 dark:text-gray-400 mb-3';
+                            totalElement.textContent = `Tổng số lượng: ${data.total_quantity.toLocaleString()} đơn vị`;
+                            legendContainer.appendChild(totalElement);
+                        }
+                        
+                        // Thêm các mục trong legend
+                        if (data.details && data.details.length > 0) {
+                            data.details.forEach((detail, index) => {
+                                const percent = data.data[index];
+                                const color = data.colors[index];
+                                const label = data.labels[index];
+                                
+                                const legendItem = document.createElement('div');
+                                legendItem.className = 'flex items-center justify-between mb-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded';
+                                
+                                let detailsHtml = '';
+                                if (detail.material_count > 0) {
+                                    detailsHtml += `<span class="text-xs text-blue-500">Vật tư: ${detail.material_count}</span> `;
+                                }
+                                if (detail.product_count > 0) {
+                                    detailsHtml += `<span class="text-xs text-green-500">Thành phẩm: ${detail.product_count}</span> `;
+                                }
+                                if (detail.good_count > 0) {
+                                    detailsHtml += `<span class="text-xs text-orange-500">Hàng hóa: ${detail.good_count}</span>`;
+                                }
+                                
+                                legendItem.innerHTML = `
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></div>
+                                        <div>
+                                            <span class="text-sm font-medium text-gray-800 dark:text-white">${label}</span>
+                                            <div class="mt-1">${detailsHtml}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col items-end">
+                                        <span class="text-sm font-medium text-gray-800 dark:text-white">${percent}%</span>
+                                        <span class="text-xs text-gray-500">${detail.total.toLocaleString()} đơn vị</span>
+                                    </div>
+                                `;
+                                
+                                legendContainer.appendChild(legendItem);
+                            });
+                        } else {
+                            // Hiển thị mặc định nếu không có chi tiết
+                            data.labels.forEach((label, index) => {
+                                const percent = data.data[index];
+                                const color = data.colors[index];
+                                
+                                const legendItem = document.createElement('div');
+                                legendItem.className = 'flex items-center justify-between mb-2';
+                                legendItem.innerHTML = `
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></div>
+                                        <span class="text-sm text-gray-600 dark:text-gray-300">${label}</span>
+                                    </div>
+                                    <span class="text-sm font-medium text-gray-800 dark:text-white">${percent}%</span>
+                                `;
+                                
+                                legendContainer.appendChild(legendItem);
+                            });
+                        }
+                    }
+                    
+                    // Hiển thị thông báo thành công
+                    toast.innerHTML = '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu phân bố kho!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error('Error fetching warehouse distribution data:', error);
+                    toast.innerHTML = '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu phân bố kho!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                });
+        }
+
+        // Thêm hàm cập nhật biểu đồ mức độ gia tăng dự án
+        function updateProjectGrowthChart(charts) {
+            // Nếu charts không được truyền vào, sử dụng window.chartInstances
+            if (!charts && window.chartInstances) {
+                charts = window.chartInstances;
+            }
+            
+            // Nếu không có charts, không làm gì cả
+            if (!charts) {
+                console.error('Charts not initialized');
+                return;
+            }
+            
+            // Hiển thị trạng thái loading
+            const toast = document.getElementById("toast");
+            toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ dự án...</span></div>';
+            toast.classList.remove("hidden");
+            
+            fetch('/dashboard/project-growth-chart')
+                .then(response => {
+                    console.log('Project growth API response received:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Project growth data received:', data);
+                    
+                    // Cập nhật biểu đồ
+                    charts.projectGrowthChart.data.labels = data.labels;
+                    charts.projectGrowthChart.data.datasets[0].data = data.data;
+                    charts.projectGrowthChart.update();
+                    console.log('Project growth chart updated successfully');
+                    
+                    // Hiển thị thông báo thành công
+                    toast.innerHTML = '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ dự án!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                })
+                .catch(error => {
+                    console.error('Error fetching project growth data:', error);
+                    toast.innerHTML = '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ dự án!</span></div>';
+                    
+                    setTimeout(() => {
+                        toast.classList.add("hidden");
+                    }, 2000);
+                });
+        }
+
+        // Sửa lại cách đăng ký event listener
+        let chartsInitialized = false;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Nếu biểu đồ đã được khởi tạo và cập nhật, thì không làm gì cả
+            if (chartsInitialized) {
+                return;
+            }
+            
+            // Chỉ khởi tạo biểu đồ một lần khi trang tải xong
+            let charts = window.chartInstances;
+            
+            if (!charts) {
+                charts = initCharts();
+                
+                // Initialize with correct theme
+                if (localStorage.getItem("theme") === "dark") {
+                    updateChartsForDarkMode(charts);
+                }
+    
+                // Đăng ký event listener cho các nút category filter
+                document.querySelectorAll('.category-filter').forEach(button => {
+                    button.addEventListener('click', function() {
+                        console.log('Category filter clicked:', this.dataset.category);
+                        
+                        // Remove active class from all buttons
+                        document.querySelectorAll('.category-filter').forEach(btn => {
+                            btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
+                            btn.classList.add('bg-gray-100', 'text-gray-800');
+                        });
+                        
+                        // Add active class to clicked button
+                        this.classList.add('active', 'bg-blue-100', 'text-blue-800');
+                        this.classList.remove('bg-gray-100', 'text-gray-800');
+                        
+                        const category = this.dataset.category;
+                        updateInventoryOverviewChart(category, charts);
+                    });
+                });
+                
+                // Đăng ký event listener cho bộ lọc biểu đồ phân bố kho
+                const warehouseChartItemType = document.getElementById('warehouseChartItemType');
+                if (warehouseChartItemType) {
+                    warehouseChartItemType.addEventListener('change', function() {
+                        const itemType = this.value;
+                        console.log('Warehouse chart filter changed:', itemType);
+                        updateWarehouseDistributionChart(charts, { itemType });
+                    });
+                }
+            }
+    
+            // Cập nhật tất cả biểu đồ khi trang tải xong
+            updateStatistics();
+            updateInventoryOverviewChart('materials', charts);
+            updateInventoryCategoriesChart(charts);
+            updateWarehouseDistributionChart(charts);
+            updateProjectGrowthChart(charts);
+            
+            // Call updateStatistics every 5 minutes
+            setInterval(updateStatistics, 300000);
+            
+            // Đánh dấu biểu đồ đã được khởi tạo và cập nhật
+            chartsInitialized = true;
         });
     </script>
 </body>
