@@ -7,12 +7,12 @@
     <div class="flex justify-between items-center mb-4">
         <h1 class="text-2xl font-bold text-gray-800">Quản lý phiếu yêu cầu</h1>
         <div class="flex space-x-2">
-            <div class="dropdown">
-                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center dropdown-toggle">
+            <div class="req-dropdown">
+                <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center req-dropdown-toggle">
                     <i class="fas fa-plus mr-2"></i> Tạo mới
                     <i class="fas fa-chevron-down ml-2"></i>
                 </button>
-                <div class="dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
+                <div class="req-dropdown-menu hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                     <a href="{{ route('requests.project.create') }}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                         <i class="fas fa-project-diagram mr-2"></i> Đề xuất triển khai dự án
                     </a>
@@ -293,10 +293,11 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-        const dropdownToggle = document.querySelector('.dropdown-toggle');
-        const dropdownMenu = document.querySelector('.dropdown-menu');
+        const dropdownToggle = document.querySelector('.req-dropdown-toggle');
+        const dropdownMenu = document.querySelector('.req-dropdown-menu');
             
-        dropdownToggle.addEventListener('click', function() {
+        dropdownToggle.addEventListener('click', function(e) {
+                e.stopPropagation(); // Ngăn sự kiện lan truyền lên document
                 dropdownMenu.classList.toggle('hidden');
             });
             
