@@ -432,6 +432,20 @@
                     <h4 class="text-sm font-medium text-gray-700 mb-2">Thiết bị:
                         <span id="reject-device-name" class="font-semibold"></span>
                     </h4>
+                    <p class="text-sm text-gray-600">
+                        Tổng số lượng: <span id="reject-total-quantity" class="font-medium">0</span>
+                    </p>
+                </div>
+
+                <!-- Số lượng từ chối -->
+                <div>
+                    <label for="reject-quantity" class="block text-sm font-medium text-gray-700 mb-1">
+                        Số lượng từ chối <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" id="reject-quantity" min="1" value="1" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Nhập số lượng từ chối">
+                    <p class="text-xs text-gray-500 mt-1">Nhập số lượng thành phẩm muốn từ chối</p>
                 </div>
 
                 <!-- Lý do từ chối -->
@@ -577,7 +591,7 @@
                     row.innerHTML = `
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.code}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.name}</td>
-                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.serial || ''}</td>
+                        <td class="px-3 py-2 text-sm text-gray-700" style="max-width: 200px; word-wrap: break-word;">${device.serial_numbers_text || device.serial || ''}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
                             <input type="number" min="1" max="${device.quantity || 1}" value="1" 
                                    class="w-16 border border-gray-300 rounded px-2 py-1 text-center device-quantity" 
@@ -754,6 +768,14 @@
                         // Hiển thị thông tin thiết bị trong modal
                         document.getElementById('reject-device-name').textContent =
                             `${device.code} - ${device.name}`;
+                        
+                        // Hiển thị tổng số lượng và cập nhật số lượng từ chối
+                        const totalQuantity = device.quantity || 1;
+                        document.getElementById('reject-total-quantity').textContent = totalQuantity;
+                        
+                        const rejectQuantityInput = document.getElementById('reject-quantity');
+                        rejectQuantityInput.max = totalQuantity;
+                        rejectQuantityInput.value = totalQuantity; // Mặc định từ chối toàn bộ
 
                         // Reset form
                         document.getElementById('reject-reason').value = '';
@@ -1757,6 +1779,8 @@
             confirmRejectBtn.addEventListener('click', function() {
                 const reason = document.getElementById('reject-reason').value.trim();
                 const warehouseId = document.getElementById('reject-warehouse').value;
+                const rejectQuantity = parseInt(document.getElementById('reject-quantity').value);
+                const totalQuantity = parseInt(document.getElementById('reject-total-quantity').textContent);
 
                 if (!reason) {
                     alert('Vui lòng nhập lý do từ chối thiết bị');
@@ -1770,8 +1794,20 @@
                     return;
                 }
 
+                if (!rejectQuantity || rejectQuantity < 1) {
+                    alert('Vui lòng nhập số lượng từ chối hợp lệ (≥ 1)');
+                    document.getElementById('reject-quantity').focus();
+                    return;
+                }
+
+                if (rejectQuantity > totalQuantity) {
+                    alert(`Số lượng từ chối không thể lớn hơn tổng số lượng (${totalQuantity})`);
+                    document.getElementById('reject-quantity').focus();
+                    return;
+                }
+
                 // Thực hiện từ chối thiết bị
-                processRejectDevice(reason, warehouseId);
+                processRejectDevice(reason, warehouseId, rejectQuantity);
             });
 
             function closeRejectModalFunction() {
@@ -1779,22 +1815,27 @@
                 currentRejectingDevice = null;
             }
 
-            function processRejectDevice(reason, warehouseId) {
+            function processRejectDevice(reason, warehouseId, rejectQuantity) {
                 const device = currentRejectingDevice.device;
                 const row = currentRejectingDevice.row;
                 const element = currentRejectingDevice.element;
+                const totalQuantity = device.quantity || 1;
 
                 // Thêm vào danh sách đã từ chối
                 rejectedDevices.push({
                     id: device.id,
                     code: device.code,
                     name: device.name,
+                    quantity: rejectQuantity,
+                    total_quantity: totalQuantity,
                     reason: reason,
                     warehouse_id: warehouseId,
                     rejected_at: new Date().toISOString()
                 });
 
-                // Cập nhật giao diện
+                // Cập nhật giao diện dựa trên số lượng từ chối
+                if (rejectQuantity >= totalQuantity) {
+                    // Từ chối toàn bộ - đánh dấu đỏ và vô hiệu hóa
                 row.style.backgroundColor = '#fee2e2';
                 element.innerHTML = '<i class="fas fa-times-circle mr-1"></i> Đã từ chối';
                 element.disabled = true;
@@ -1805,20 +1846,37 @@
                 const selectBtn = row.querySelector('.select-device-btn');
                 selectBtn.disabled = true;
                 selectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                } else {
+                    // Từ chối một phần - đánh dấu vàng và hiển thị thông tin
+                    row.style.backgroundColor = '#fef3c7';
+                    element.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Từ chối ${rejectQuantity}/${totalQuantity}`;
+                    element.disabled = true;
+                    element.className =
+                        'reject-device-btn bg-yellow-200 text-yellow-800 px-2 py-1 rounded transition-colors text-xs cursor-not-allowed';
+                    
+                    // Cập nhật số lượng hiển thị trong bảng
+                    const quantityCell = row.querySelector('.device-quantity');
+                    if (quantityCell) {
+                        quantityCell.max = totalQuantity - rejectQuantity;
+                        quantityCell.value = Math.min(quantityCell.value, totalQuantity - rejectQuantity);
+                    }
+                }
 
                 // Đóng modal
                 closeRejectModalFunction();
 
                 // Hiển thị thông báo thành công
-                alert(`✅ Đã từ chối thiết bị: ${device.code} - ${device.name}\n📝 Lý do: ${reason}`);
+                const quantityText = rejectQuantity >= totalQuantity ? 'toàn bộ' : `${rejectQuantity}/${totalQuantity}`;
+                alert(`✅ Đã từ chối ${quantityText} thiết bị: ${device.code} - ${device.name}\n📝 Lý do: ${reason}`);
             }
 
             // Validate form before submit
             document.querySelector('form').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
                 
-                if (selectedDevices.length === 0) {
-                    alert('Vui lòng thêm ít nhất một thiết bị');
+                // Kiểm tra phải có ít nhất một thiết bị được chọn HOẶC từ chối
+                if (selectedDevices.length === 0 && rejectedDevices.length === 0) {
+                    alert('Vui lòng chọn hoặc từ chối ít nhất một thiết bị');
                     return false;
                 }
 

@@ -76,10 +76,6 @@
                                 class="text-sm text-gray-700">{{ $repair->technician->name ?? 'Chưa xác định' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kho sửa chữa:</span>
-                            <span class="text-sm text-gray-700">{{ $repair->warehouse->name ?? 'Chưa xác định' }}</span>
-                        </div>
-                        <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Loại sửa chữa:</span>
                             <span
                                 class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -404,10 +400,6 @@
                                         <div>
                                             <span class="font-medium text-gray-700">Kỹ thuật viên:</span>
                                             <span class="ml-1">{{ $repair->technician->name ?? 'Không xác định' }}</span>
-                                        </div>
-                                        <div>
-                                            <span class="font-medium text-gray-700">Kho sửa chữa:</span>
-                                            <span class="ml-1">{{ $repair->warehouse->name ?? 'Không xác định' }}</span>
                                         </div>
                                     </div>
                                     <div class="mt-2">

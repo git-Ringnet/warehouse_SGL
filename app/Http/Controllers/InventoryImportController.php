@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\ChangeLogHelper;
 use App\Models\InventoryImport;
 use App\Models\InventoryImportMaterial;
 use App\Models\Material;
@@ -231,6 +232,28 @@ class InventoryImportController extends Controller
                     'item_type' => $itemType,
                 ]);
 
+                //Lưu nhật ký thay đổi
+                if ($itemType == 'material') {
+                    $materialLS = Material::find($itemId);
+                } else if ($itemType == 'product') {
+                    $materialLS = Product::find($itemId);
+                } else if ($itemType == 'good') {
+                    $materialLS = Good::find($itemId);
+                }
+
+                // Lấy thông tin nhà cung cấp để đưa vào description
+                $supplier = \App\Models\Supplier::find($inventoryImport->supplier_id);
+                $supplierName = $supplier ? $supplier->name : 'Không xác định';
+
+                ChangeLogHelper::nhapKho(
+                    $materialLS->code,
+                    $materialLS->name,
+                    $material['quantity'],
+                    $inventoryImport->import_code,
+                    $supplierName,
+                    $material['notes']
+                );
+
                 // Cập nhật số lượng vật tư/thành phẩm/hàng hóa trong kho
                 $warehouseMaterial = WarehouseMaterial::firstOrNew([
                     'warehouse_id' => $warehouseId,
@@ -444,6 +467,10 @@ class InventoryImportController extends Controller
                 }
             }
 
+            // Lưu thông tin cũ để so sánh
+            $oldSupplierId = $inventoryImport->supplier_id;
+            $oldImportCode = $inventoryImport->import_code;
+
             // Cập nhật phiếu nhập kho - không còn cần warehouse_id
             $inventoryImport->update([
                 'supplier_id' => $request->supplier_id,
@@ -452,6 +479,28 @@ class InventoryImportController extends Controller
                 'order_code' => $request->order_code,
                 'notes' => $request->notes,
             ]);
+
+            // Cập nhật nhật ký thay đổi nếu có thay đổi nhà cung cấp hoặc mã phiếu
+            if ($oldSupplierId != $request->supplier_id || $oldImportCode != $request->import_code) {
+                // Lấy thông tin nhà cung cấp mới
+                $newSupplier = \App\Models\Supplier::find($request->supplier_id);
+                $newSupplierName = $newSupplier ? $newSupplier->name : 'Không xác định';
+
+                // Cập nhật tất cả các nhật ký thay đổi có document_code trùng với mã phiếu cũ
+                \App\Models\ChangeLog::where('document_code', $oldImportCode)
+                    ->where('change_type', 'nhap_kho')
+                    ->update([
+                        'document_code' => $request->import_code,
+                        'description' => $newSupplierName,
+                        'detailed_info' => DB::raw("JSON_SET(
+                            COALESCE(detailed_info, '{}'),
+                            '$.supplier_id', " . $request->supplier_id . ",
+                            '$.supplier_name', '" . addslashes($newSupplierName) . "',
+                            '$.order_code', '" . addslashes($request->order_code ?? '') . "',
+                            '$.import_date', '" . $request->import_date . "'
+                        )")
+                    ]);
+            }
 
             // Xóa tất cả các vật tư cũ của phiếu nhập kho
             $inventoryImport->materials()->delete();
@@ -504,6 +553,7 @@ class InventoryImportController extends Controller
                             'type' => $itemType,
                             'status' => 'active',
                             'notes' => $material['notes'] ?? null,
+                            'warehouse_id' => $warehouseId,
                         ]);
                     }
                 }

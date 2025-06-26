@@ -355,7 +355,7 @@
                             ${dispatch.total_items}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ${dispatch.dispatch_type === 'project' || dispatch.dispatch_type === 'warranty' ? dispatch.project_receiver : '-'}
+                            ${dispatch.project_receiver}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             ${dispatch.company_representative}
