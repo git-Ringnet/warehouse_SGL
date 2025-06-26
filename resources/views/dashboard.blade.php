@@ -147,7 +147,7 @@
         </header>
 
         <!-- Main Content -->
-        <main class="pt-20 pb-16 px-6">
+        <main class=" pb-16 px-6">
             <!-- Page Header -->
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div>
@@ -639,49 +639,6 @@
 
         setInterval(updateCurrentTime, 1000);
         updateCurrentTime();
-
-        // Dropdown Menus
-        const dropdownToggles = document.querySelectorAll('[id$="Toggle"]');
-
-        dropdownToggles.forEach((toggle) => {
-            toggle.addEventListener("click", (e) => {
-                e.stopPropagation();
-                const menu = toggle.nextElementSibling;
-                menu.classList.toggle("hidden");
-            });
-        });
-        
-        // Mark notifications as read
-        document.querySelector('.dropdown-menu button').addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Remove all blue dots
-            const unreadIndicators = document.querySelectorAll('.dropdown-menu .bg-blue-500.rounded-full');
-            unreadIndicators.forEach(dot => {
-                dot.remove();
-            });
-            
-            // Update notification counter
-            document.querySelector('#notificationToggle span').textContent = '0';
-            
-            // Show toast notification
-            showToast('success', 'Đã đánh dấu tất cả là đã đọc');
-        });
-        
-        // Close dropdowns when clicking outside
-        document.addEventListener("click", () => {
-            document.querySelectorAll(".dropdown-menu").forEach((menu) => {
-                menu.classList.add("hidden");
-            });
-        });
-
-        // Prevent dropdown from closing when clicking inside
-        document.querySelectorAll(".dropdown-menu").forEach((menu) => {
-            menu.addEventListener("click", (e) => {
-                e.stopPropagation();
-            });
-        });
 
         // Chart tabs
         const chartTabs = document.querySelectorAll(".chart-tab");

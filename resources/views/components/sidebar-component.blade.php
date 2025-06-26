@@ -238,6 +238,135 @@
     </div>
 </div>
 
+<!-- Top Header Bar -->
+<header class="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center fixed top-0 right-0 left-0 z-40"
+    style="left: 256px">
+    <div class="flex items-center">
+        <h1 class="text-xl font-bold text-gray-800 dark:text-white" id="page-title">
+            <!-- Tiêu đề trang sẽ được điều chỉnh bằng JavaScript -->
+            @yield('page-title', 'Tổng quan')
+        </h1>
+    </div>
+
+    <div class="flex items-center space-x-4">
+        <!-- Notification Bell -->
+        <div class="relative">
+            <button id="notificationToggle" class="flex items-center focus:outline-none relative">
+                <i class="fas fa-bell text-gray-700 dark:text-gray-300 text-xl"></i>
+                <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+            </button>
+            <div class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-0 hidden z-50 border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
+                    <h3 class="text-sm font-semibold text-gray-800 dark:text-white">Thông báo</h3>
+                    <div class="flex space-x-2">
+                        <button class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã đọc</button>
+                    </div>
+                </div>
+                <div class="max-h-80 overflow-y-auto py-1">
+                    <!-- New notification -->
+                    <a href="#" class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex-shrink-0 mr-3">
+                            <div class="h-8 w-8 rounded-full bg-green-500 text-white flex items-center justify-center">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1 font-medium">Xác nhận phiếu nhập #NV-2023-42 thành công</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">30 phút trước</p>
+                        </div>
+                        <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
+                    </a>
+                    
+                    <!-- Warning notification -->
+                    <a href="#" class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex-shrink-0 mr-3">
+                            <div class="h-8 w-8 rounded-full bg-yellow-500 text-white flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1 font-medium">Thời gian bảo hành sản phẩm #TH500-230815-042 sắp kết thúc</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">2 giờ trước</p>
+                        </div>
+                        <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
+                    </a>
+                    
+                    <!-- Update notification -->
+                    <a href="#" class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex-shrink-0 mr-3">
+                            <div class="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1 font-medium">Nguyễn Văn A đã cập nhật thông tin phiếu xuất #PX-2023-78</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Hôm qua lúc 15:45</p>
+                        </div>
+                        <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
+                    </a>
+                    
+                    <!-- Read notification -->
+                    <a href="#" class="flex px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex-shrink-0 mr-3">
+                            <div class="h-8 w-8 rounded-full bg-gray-500 text-white flex items-center justify-center">
+                                <i class="fas fa-box"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow">
+                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1">Vật tư #VT001 đã được nhập kho thành công</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">21/08/2023</p>
+                        </div>
+                    </a>
+                </div>
+                <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
+                    <a href="/notifications" class="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline">Xem tất cả thông báo</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative">
+            <button id="userMenuToggle" class="flex items-center focus:outline-none">
+                @if(session('user_type') === 'customer')
+                    <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
+                        class="w-8 h-8 rounded-full mr-2" />
+                    <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
+                        @if(Auth::guard('customer')->check())
+                            {{ Auth::guard('customer')->user()->name }} (Khách hàng)
+                        @else
+                            Khách hàng
+                        @endif
+                    </span>
+                @else
+                    <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
+                        class="w-8 h-8 rounded-full mr-2" />
+                    <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
+                        @if(Auth::guard('web')->check())
+                            {{ Auth::guard('web')->user()->name }} (Nhân viên)
+                        @else
+                            Nhân viên
+                        @endif
+                    </span>
+                @endif
+            </button>
+            <div
+                class="dropdown-menu absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-2 hidden z-50 border border-gray-200 dark:border-gray-700">
+                <a href="{{ route('profile') }}"
+                    class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Hồ
+                    sơ</a>
+                <a href="#"
+                    class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Cài
+                    đặt</a>
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit"
+                        class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng xuất</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</header>
+
 <!-- JavaScript to fix sidebar height -->
 <script>
     // document.addEventListener('DOMContentLoaded', function() {
@@ -292,6 +421,13 @@
                 dropdown.classList.remove("show");
             });
         }
+        
+        // Đóng dropdown menu cho header (notification và user menu)
+        if (!e.target.closest("#notificationToggle") && !e.target.closest("#userMenuToggle")) {
+            document.querySelectorAll(".dropdown-menu").forEach((menu) => {
+                menu.classList.add("hidden");
+            });
+        }
     });
 
     // Prevent dropdown from closing when clicking inside
@@ -299,6 +435,90 @@
         dropdown.addEventListener("click", (e) => {
             e.stopPropagation();
         });
+    });
+    
+    // Header dropdown menus
+    const dropdownToggles = document.querySelectorAll('[id$="Toggle"]');
+
+    dropdownToggles.forEach((toggle) => {
+        toggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const menuId = toggle.id.replace('Toggle', '');
+            const menu = toggle.nextElementSibling;
+            
+            // Hide all other dropdown menus
+            document.querySelectorAll(".dropdown-menu").forEach((otherMenu) => {
+                if (otherMenu !== menu) {
+                    otherMenu.classList.add("hidden");
+                }
+            });
+            
+            // Toggle current dropdown menu
+            menu.classList.toggle("hidden");
+        });
+    });
+    
+    // Prevent header dropdown from closing when clicking inside
+    document.querySelectorAll(".dropdown-menu").forEach((menu) => {
+        menu.addEventListener("click", (e) => {
+            e.stopPropagation();
+        });
+    });
+    
+    // Mark notifications as read
+    document.querySelector('.dropdown-menu button').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Remove all blue dots
+        const unreadIndicators = document.querySelectorAll('.dropdown-menu .bg-blue-500.rounded-full');
+        unreadIndicators.forEach(dot => {
+            dot.remove();
+        });
+        
+        // Update notification counter
+        document.querySelector('#notificationToggle span').textContent = '0';
+        
+        // Show toast notification if available
+        if (typeof showToast === 'function') {
+            showToast('success', 'Đã đánh dấu tất cả là đã đọc');
+        }
+    });
+    
+    // Update page title based on current route if needed
+    document.addEventListener('DOMContentLoaded', function() {
+        // You can customize this function based on your needs
+        function updatePageTitle() {
+            const currentPath = window.location.pathname;
+            let title = 'Tổng quan';
+            
+            // Map paths to titles
+            const pageTitles = {
+                '/dashboard': 'Tổng quan',
+                '/customers': 'Quản lý khách hàng',
+                '/suppliers': 'Quản lý nhà cung cấp',
+                '/employees': 'Quản lý nhân viên',
+                '/materials': 'Quản lý vật tư',
+                '/goods': 'Quản lý hàng hóa',
+                '/products': 'Quản lý thành phẩm',
+                '/warehouses': 'Quản lý kho hàng',
+                // Add more mappings as needed
+            };
+            
+            // Set the title based on the path or use a default
+            if (pageTitles[currentPath]) {
+                title = pageTitles[currentPath];
+            }
+            
+            // Update the page title element if it exists
+            const pageTitleElement = document.getElementById('page-title');
+            if (pageTitleElement) {
+                pageTitleElement.textContent = title;
+            }
+        }
+        
+        // Call the function when the page loads
+        updatePageTitle();
     });
 </script>
 <script src="{{ asset('js/sidebar-active.js') }}"></script>
@@ -350,5 +570,17 @@
     .dropdown-content a.active {
         background-color: rgba(255, 255, 255, 0.1);
         color: #fff;
+    }
+    
+    /* Dropdown menu styles for header */
+    .dropdown-menu {
+        position: absolute;
+        transition: all 0.3s ease;
+    }
+    
+    /* Style for content area to accommodate the fixed header and sidebar */
+    .content-area {
+        margin-left: 256px;
+        padding-top: 72px; /* Adjust based on your header height */
     }
 </style>
