@@ -633,5 +633,26 @@ class Warranty extends Model
                 return null;
         }
     }
+
+    public function getStatusAttribute($value)
+    {
+        // Nếu warranty thuộc về một dự án, kiểm tra trạng thái bảo hành của dự án
+        if ($this->item_type === 'project' && $this->dispatch && $this->dispatch->project) {
+            $project = $this->dispatch->project;
+            if (!$project->has_valid_warranty) {
+                return 'expired';
+            }
+        }
+        
+        // Kiểm tra ngày hết hạn bảo hành
+        if ($value === 'active' && $this->warranty_end_date) {
+            if (Carbon::parse($this->warranty_end_date)->isPast()) {
+                $this->update(['status' => 'expired']);
+                return 'expired';
+            }
+        }
+        
+        return $value;
+    }
 }
 

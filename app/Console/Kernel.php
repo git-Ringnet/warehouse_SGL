@@ -18,7 +18,8 @@ class Kernel extends ConsoleKernel
         $schedule->command('project:notify-warranty-expiration 7')->daily(); // Thông báo dự án sắp hết hạn trong 7 ngày
         $schedule->command('project:notify-warranty-expiration 1')->daily(); // Thông báo dự án sắp hết hạn trong 1 ngày
         
-        // Thêm các lệnh khác vào đây nếu cần
+        // Kiểm tra trạng thái bảo hành hàng ngày
+        $schedule->command('warranty:check-status')->daily();
     }
 
     /**

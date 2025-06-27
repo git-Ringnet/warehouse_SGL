@@ -65,6 +65,19 @@ class ProjectObserver
         // Lấy ngày hiện tại
         $today = Carbon::today();
         
+        // Kiểm tra trạng thái bảo hành của dự án
+        if (!$project->has_valid_warranty) {
+            // Cập nhật tất cả các warranty liên quan thành expired
+            $projectDispatches = $project->dispatches()->pluck('id')->toArray();
+            if (!empty($projectDispatches)) {
+                \App\Models\Warranty::whereIn('dispatch_id', $projectDispatches)
+                    ->where('status', 'active')
+                    ->update(['status' => 'expired']);
+                
+                Log::info('Updated warranties to expired for project: ' . $project->project_code);
+            }
+        }
+        
         // Lấy ngày bắt đầu dự án
         $startDate = Carbon::parse($project->start_date);
         
