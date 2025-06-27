@@ -13,6 +13,7 @@ use App\Models\Assembly;
 use App\Models\Supplier;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -239,6 +240,48 @@ class TestingController extends Controller
                     'test_item_name' => $testItem,
                     'result' => 'pending',
                 ]);
+            }
+            
+            // Tạo thông báo khi tạo phiếu kiểm thử mới
+            if ($testing->assigned_to) {
+                Notification::createNotification(
+                    'Phiếu kiểm thử mới',
+                    "Phiếu kiểm thử #{$testing->test_code} đã được tạo và chờ duyệt.",
+                    'info',
+                    $testing->assigned_to,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
+            // Thông báo cho người tiếp nhận kiểm thử
+            if ($testing->receiver_id && $testing->receiver_id != $testing->assigned_to) {
+                Notification::createNotification(
+                    'Phiếu kiểm thử mới',
+                    "Phiếu kiểm thử #{$testing->test_code} đã được tạo và chờ duyệt.",
+                    'info',
+                    $testing->receiver_id,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
+            // Thông báo cho người lắp ráp nếu có phiếu lắp ráp liên quan
+            if ($request->assembly_id) {
+                $assembly = Assembly::find($request->assembly_id);
+                if ($assembly) {
+                    Notification::createNotification(
+                        'Phiếu kiểm thử được tạo',
+                        "Phiếu kiểm thử #{$testing->test_code} đã được tạo từ phiếu lắp ráp #{$assembly->code}.",
+                        'info',
+                        $assembly->assigned_employee_id,
+                        'assembly',
+                        $assembly->id,
+                        route('assemblies.show', $assembly->id)
+                    );
+                }
             }
 
             DB::commit();
@@ -560,6 +603,32 @@ class TestingController extends Controller
                 }
             }
             
+            // Tạo thông báo khi duyệt phiếu kiểm thử
+            if ($testing->assigned_to) {
+                Notification::createNotification(
+                    'Phiếu kiểm thử được duyệt',
+                    "Phiếu kiểm thử #{$testing->test_code} đã được duyệt và sẵn sàng thực hiện.",
+                    'info',
+                    $testing->assigned_to,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
+            // Thông báo cho người tiếp nhận kiểm thử
+            if ($testing->receiver_id && $testing->receiver_id != $testing->assigned_to) {
+                Notification::createNotification(
+                    'Phiếu kiểm thử được duyệt',
+                    "Phiếu kiểm thử #{$testing->test_code} đã được duyệt và sẵn sàng thực hiện.",
+                    'info',
+                    $testing->receiver_id,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
             DB::commit();
 
         return redirect()->back()
@@ -603,6 +672,32 @@ class TestingController extends Controller
                         'new_status' => 'cancelled'
                     ]);
                 }
+            }
+            
+            // Tạo thông báo khi từ chối phiếu kiểm thử
+            if ($testing->assigned_to) {
+                Notification::createNotification(
+                    'Phiếu kiểm thử bị từ chối',
+                    "Phiếu kiểm thử #{$testing->test_code} đã bị từ chối.",
+                    'error',
+                    $testing->assigned_to,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
+            // Thông báo cho người tiếp nhận kiểm thử
+            if ($testing->receiver_id && $testing->receiver_id != $testing->assigned_to) {
+                Notification::createNotification(
+                    'Phiếu kiểm thử bị từ chối',
+                    "Phiếu kiểm thử #{$testing->test_code} đã bị từ chối.",
+                    'error',
+                    $testing->receiver_id,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
             }
             
             DB::commit();
@@ -751,6 +846,50 @@ class TestingController extends Controller
                         'new_status' => 'completed'
                     ]);
                 }
+            }
+            
+            // Tạo thông báo khi hoàn thành phiếu kiểm thử
+            $notificationType = $passRate == 100 ? 'success' : ($passRate >= 80 ? 'info' : 'warning');
+            $notificationTitle = 'Phiếu kiểm thử hoàn thành';
+            $notificationMessage = "Phiếu kiểm thử #{$testing->test_code} đã hoàn thành với tỉ lệ đạt {$passRate}% ({$passCount}/{$totalCount}).";
+            
+            // Thông báo cho người phụ trách kiểm thử
+            if ($testing->assigned_to) {
+                Notification::createNotification(
+                    $notificationTitle,
+                    $notificationMessage,
+                    $notificationType,
+                    $testing->assigned_to,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
+            // Thông báo cho người tiếp nhận kiểm thử
+            if ($testing->receiver_id && $testing->receiver_id != $testing->assigned_to) {
+                Notification::createNotification(
+                    $notificationTitle,
+                    $notificationMessage,
+                    $notificationType,
+                    $testing->receiver_id,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
+            
+            // Thông báo cho người lắp ráp nếu có phiếu lắp ráp liên quan
+            if ($testing->assembly_id && $assembly) {
+                Notification::createNotification(
+                    'Phiếu lắp ráp hoàn thành',
+                    "Phiếu lắp ráp #{$assembly->code} đã hoàn thành kiểm thử với tỉ lệ đạt {$passRate}%.",
+                    $notificationType,
+                    $assembly->assigned_employee_id,
+                    'assembly',
+                    $assembly->id,
+                    route('assemblies.show', $assembly->id)
+                );
             }
             
             DB::commit();
