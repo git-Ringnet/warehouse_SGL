@@ -271,8 +271,8 @@
         <div class="relative">
             <button id="notificationToggle" class="flex items-center focus:outline-none relative">
                 <i class="fas fa-bell text-gray-700 dark:text-gray-300 text-xl"></i>
-                <span
-                    class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                <span id="notificationCount"
+                    class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
             </button>
             <div
                 class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-0 hidden z-50 border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -280,74 +280,18 @@
                     class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-white">Thông báo</h3>
                     <div class="flex space-x-2">
-                        <button class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã
+                        <button id="markAllReadBtn" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã
                             đọc</button>
                     </div>
                 </div>
-                <div class="max-h-80 overflow-y-auto py-1">
-                    <!-- New notification -->
-                    <a href="#"
-                        class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
-                        <div class="flex-shrink-0 mr-3">
-                            <div class="h-8 w-8 rounded-full bg-green-500 text-white flex items-center justify-center">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow">
-                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1 font-medium">Xác nhận phiếu nhập
-                                #NV-2023-42 thành công</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">30 phút trước</p>
-                        </div>
-                        <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
-                    </a>
-                    <!-- Warning notification -->
-                    <a href="#"
-                        class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
-                        <div class="flex-shrink-0 mr-3">
-                            <div
-                                class="h-8 w-8 rounded-full bg-yellow-500 text-white flex items-center justify-center">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow">
-                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1 font-medium">Thời gian bảo hành sản
-                                phẩm #TH500-230815-042 sắp kết thúc</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">2 giờ trước</p>
-                        </div>
-                        <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
-                    </a>
-                    <!-- Update notification -->
-                    <a href="#"
-                        class="flex px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
-                        <div class="flex-shrink-0 mr-3">
-                            <div class="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-                                <i class="fas fa-edit"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow">
-                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1 font-medium">Nguyễn Văn A đã cập
-                                nhật thông tin phiếu xuất #PX-2023-78</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Hôm qua lúc 15:45</p>
-                        </div>
-                        <span class="h-2 w-2 bg-blue-500 rounded-full"></span>
-                    </a>
-                    <!-- Read notification -->
-                    <a href="#"
-                        class="flex px-4 py-3 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors">
-                        <div class="flex-shrink-0 mr-3">
-                            <div class="h-8 w-8 rounded-full bg-gray-500 text-white flex items-center justify-center">
-                                <i class="fas fa-box"></i>
-                            </div>
-                        </div>
-                        <div class="flex-grow">
-                            <p class="text-sm text-gray-800 dark:text-gray-200 mb-1">Vật tư #VT001 đã được nhập kho
-                                thành công</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">21/08/2023</p>
-                        </div>
-                    </a>
+                <div id="notificationList" class="max-h-80 overflow-y-auto py-1">
+                    <!-- Notifications will be loaded here dynamically -->
+                    <div class="px-4 py-3 text-center text-gray-500">
+                        <i class="fas fa-spinner fa-spin mr-2"></i>Đang tải thông báo...
+                    </div>
                 </div>
                 <div class="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700">
-                    <a href="/notifications"
+                    <a href="{{ route('notifications.index') }}"
                         class="block text-center text-sm text-blue-600 dark:text-blue-400 hover:underline">Xem tất cả
                         thông báo</a>
                 </div>
@@ -395,37 +339,14 @@
     </div>
 </header>
 
+<!-- Include SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Include notifications.js -->
+<script src="{{ asset('js/notifications.js') }}"></script>
+
 <!-- JavaScript to fix sidebar height -->
 <script>
-    // document.addEventListener('DOMContentLoaded', function() {
-    //     function adjustSidebar() {
-    //         const sidebar = document.querySelector('.sidebar');
-    //         const body = document.body;
-    //         const html = document.documentElement;
-
-    //         // Get the maximum height of the page content
-    //         const height = Math.max(
-    //             body.scrollHeight,
-    //             body.offsetHeight,
-    //             html.clientHeight,
-    //             html.scrollHeight,
-    //             html.offsetHeight
-    //         );
-
-    //         // Set the sidebar height
-    //         sidebar.style.height = height + 'px';
-    //     }
-
-    //     // Run on page load
-    //     adjustSidebar();
-
-    //     // Also run when window is resized
-    //     window.addEventListener('resize', adjustSidebar);
-
-    //     // Run again after a short delay to ensure all content is loaded
-    //     setTimeout(adjustSidebar, 500);
-    // });
-
     // Dropdown Menus
     function toggleDropdown(id) {
         const dropdown = document.getElementById(id);
@@ -493,42 +414,35 @@
         });
     });
 
-    // Mark notifications as read
-    document.querySelector('.dropdown-menu button').addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Remove all blue dots
-        const unreadIndicators = document.querySelectorAll('.dropdown-menu .bg-blue-500.rounded-full');
-        unreadIndicators.forEach(dot => {
-            dot.remove();
-        });
-
-        // Update notification counter
-        document.querySelector('#notificationToggle span').textContent = '0';
-
-        // Show toast notification if available
-        if (typeof showToast === 'function') {
-            showToast('success', 'Đã đánh dấu tất cả là đã đọc');
-        }
-    });
-
     // Handle logout with AJAX
     function handleLogout() {
-        // Show confirmation dialog
-        if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-            // Show loading state
-            const logoutButton = document.querySelector('button[onclick="handleLogout()"]');
-            const originalText = logoutButton.innerHTML;
-            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang đăng xuất...';
-            logoutButton.disabled = true;
+        // Show confirmation dialog with SweetAlert2
+        Swal.fire({
+            title: 'Xác nhận đăng xuất',
+            text: 'Bạn có chắc chắn muốn đăng xuất?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Đăng xuất',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show loading state
+                Swal.fire({
+                    title: 'Đang đăng xuất...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
 
-            // Get CSRF token
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                document.querySelector('input[name="_token"]')?.value;
+                // Get CSRF token
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                    document.querySelector('input[name="_token"]')?.value;
 
-            // Make AJAX request
-            fetch('{{ route('logout') }}', {
+                // Make AJAX request
+                fetch('{{ route('logout') }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -539,32 +453,28 @@
                 })
                 .then(response => {
                     if (response.ok) {
-                        // Show success message if toast function is available
-                        if (typeof showToast === 'function') {
-                            showToast('success', 'Đã đăng xuất thành công!');
-                        }
-                        // Redirect to login page after a short delay
-                        setTimeout(() => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Đăng xuất thành công!',
+                            timer: 1000,
+                            showConfirmButton: false
+                        }).then(() => {
                             window.location.href = '{{ route('login') }}';
-                        }, 1000);
+                        });
                     } else {
                         throw new Error('Logout failed');
                     }
                 })
                 .catch(error => {
                     console.error('Logout error:', error);
-                    // Restore button state
-                    logoutButton.innerHTML = originalText;
-                    logoutButton.disabled = false;
-
-                    // Show error message
-                    if (typeof showToast === 'function') {
-                        showToast('error', 'Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!');
-                    } else {
-                        alert('Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!');
-                    }
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Lỗi!',
+                        text: 'Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!'
+                    });
                 });
-        }
+            }
+        });
     }
 
     // Update page title based on current route if needed

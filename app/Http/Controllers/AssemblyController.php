@@ -9,6 +9,7 @@ use App\Models\Dispatch;
 use App\Models\DispatchItem;
 use App\Models\Employee;
 use App\Models\Material;
+use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Serial;
@@ -446,13 +447,48 @@ class AssemblyController extends Controller
             if ($testing) {
                 $testingUrl = route('testing.show', $testing->id);
                 $successMessage .= ' <a href="' . $testingUrl . '" class="text-blue-600 hover:underline">Phiếu kiểm thử</a> đã được tạo tự động.';
+                
+                // Tạo thông báo cho người kiểm thử
+                Notification::createNotification(
+                    'Phiếu kiểm thử mới',
+                    'Phiếu kiểm thử #' . $testing->test_code . ' đã được tạo từ phiếu lắp ráp #' . $assembly->code,
+                    'info',
+                    $testing->receiver_id,
+                    'testing',
+                    $testing->id,
+                    $testingUrl
+                );
             }
 
             // Nếu có phiếu xuất kho được tạo, thêm thông báo và link
             if ($dispatch) {
                 $dispatchUrl = route('inventory.dispatch.show', $dispatch->id);
                 $successMessage .= ' <a href="' . $dispatchUrl . '" class="text-blue-600 hover:underline">Phiếu xuất kho</a> đã được tạo tự động.';
+                
+                // Tạo thông báo cho người phụ trách xuất kho
+                if ($dispatch->company_representative_id) {
+                    Notification::createNotification(
+                        'Phiếu xuất kho mới',
+                        'Phiếu xuất kho #' . $dispatch->dispatch_code . ' đã được tạo từ phiếu lắp ráp #' . $assembly->code,
+                        'info',
+                        $dispatch->company_representative_id,
+                        'dispatch',
+                        $dispatch->id,
+                        $dispatchUrl
+                    );
+                }
             }
+            
+            // Tạo thông báo cho người được phân công lắp ráp
+            Notification::createNotification(
+                'Phiếu lắp ráp mới',
+                'Bạn đã được phân công lắp ráp phiếu #' . $assembly->code,
+                'info',
+                $assembly->assigned_employee_id,
+                'assembly',
+                $assembly->id,
+                route('assemblies.show', $assembly->id)
+            );
 
             return redirect()->route('assemblies.index')->with('success', $successMessage);
         } catch (\Exception $e) {

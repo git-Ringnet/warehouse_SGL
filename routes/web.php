@@ -23,6 +23,7 @@ use App\Http\Controllers\GoodController;
 use App\Http\Controllers\TestingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RepairController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EquipmentServiceController;
@@ -124,6 +125,22 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
 
     // API route for material images
     Route::get('/api/materials/{id}/images', [MaterialController::class, 'getMaterialImages'])->name('materials.images.api');
+
+    // Notification routes
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::get('/latest', [NotificationController::class, 'getLatest'])->name('latest');
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::post('/{notification}/mark-read', [NotificationController::class, 'markAsRead'])->name('mark-read');
+        Route::delete('/{notification}', [NotificationController::class, 'destroy'])->name('destroy');
+        
+        // Test routes
+        Route::get('/test', [NotificationController::class, 'showTestPage'])->name('test');
+        Route::post('/create-test', [NotificationController::class, 'createTestNotification'])->name('create-test');
+        Route::post('/create-assembly-test', [NotificationController::class, 'createAssemblyTestNotification'])->name('create-assembly-test');
+        Route::post('/create-testing-test', [NotificationController::class, 'createTestingTestNotification'])->name('create-testing-test');
+        Route::post('/create-dispatch-test', [NotificationController::class, 'createDispatchTestNotification'])->name('create-dispatch-test');
+    });
 
     //Warranties
     Route::get('/warranties', function () {
