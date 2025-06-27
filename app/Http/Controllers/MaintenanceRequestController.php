@@ -7,6 +7,7 @@ use App\Models\MaintenanceRequestProduct;
 use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Product;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -147,6 +148,30 @@ class MaintenanceRequestController extends Controller
             // Lưu danh sách nhân sự
             $staffIds = collect($request->staff)->pluck('id')->toArray();
             $maintenanceRequest->staff()->attach($staffIds);
+            
+            // Gửi thông báo cho người đề xuất
+            Notification::createNotification(
+                'Phiếu bảo trì dự án mới',
+                'Bạn đã tạo phiếu bảo trì dự án ' . $maintenanceRequest->project_name,
+                'info',
+                $request->proposer_id,
+                'maintenance_request',
+                $maintenanceRequest->id,
+                route('requests.maintenance.show', $maintenanceRequest->id)
+            );
+
+            // Gửi thông báo cho các nhân viên được phân công
+            foreach ($staffIds as $staffId) {
+                Notification::createNotification(
+                    'Được phân công bảo trì dự án mới',
+                    'Bạn được phân công thực hiện bảo trì dự án ' . $maintenanceRequest->project_name,
+                    'info',
+                    $staffId,
+                    'maintenance_request',
+                    $maintenanceRequest->id,
+                    route('requests.maintenance.show', $maintenanceRequest->id)
+                );
+            }
             
             DB::commit();
             

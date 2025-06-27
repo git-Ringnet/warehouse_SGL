@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\Product;
 use App\Models\Material;
 use App\Models\Good;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -358,6 +359,35 @@ class ProjectRequestController extends Controller
                 }
                 
                 ProjectRequestItem::create($itemData);
+            }
+            
+            // Gửi thông báo cho người đề xuất và người thực hiện
+            $proposer = Employee::find($request->proposer_id);
+            if ($proposer) {
+                Notification::createNotification(
+                    'Phiếu đề xuất triển khai dự án mới',
+                    'Bạn đã tạo phiếu đề xuất triển khai dự án ' . $projectRequest->project_name,
+                    'info',
+                    $proposer->id,
+                    'project_request',
+                    $projectRequest->id,
+                    route('requests.project.show', $projectRequest->id)
+                );
+            }
+
+            if ($request->implementer_id) {
+                $implementer = Employee::find($request->implementer_id);
+                if ($implementer) {
+                    Notification::createNotification(
+                        'Được phân công thực hiện dự án mới',
+                        'Bạn được phân công thực hiện dự án ' . $projectRequest->project_name,
+                        'info',
+                        $implementer->id,
+                        'project_request',
+                        $projectRequest->id,
+                        route('requests.project.show', $projectRequest->id)
+                    );
+                }
             }
             
             DB::commit();

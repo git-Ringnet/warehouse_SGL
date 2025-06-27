@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Models\Notification;
+use App\Models\User;
+use App\Models\Employee;
 
 class CustomerMaintenanceRequestController extends Controller
 {
@@ -167,6 +170,20 @@ class CustomerMaintenanceRequestController extends Controller
 
         // Lưu phiếu yêu cầu
         $maintenanceRequest = CustomerMaintenanceRequest::create($validatedData);
+
+        // Gửi thông báo cho tất cả admin (nhân viên có role là admin)
+        $admins = Employee::where('role', 'admin')->where('is_active', true)->get();
+        foreach ($admins as $admin) {
+            Notification::createNotification(
+                'Phiếu khách yêu cầu bảo trì mới',
+                'Khách hàng ' . $maintenanceRequest->customer_name . ' đã tạo phiếu yêu cầu bảo trì ' . $maintenanceRequest->project_name,
+                'info',
+                $admin->id,
+                'customer_maintenance_request',
+                $maintenanceRequest->id,
+                route('requests.customer-maintenance.show', $maintenanceRequest->id)
+            );
+        }
 
         return redirect()->route('requests.customer-maintenance.show', $maintenanceRequest->id)
             ->with('success', 'Đã tạo phiếu yêu cầu bảo trì thành công.');
