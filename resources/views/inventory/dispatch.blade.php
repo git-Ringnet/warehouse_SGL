@@ -751,10 +751,12 @@
                     const contractOption = document.createElement('option');
                     contractOption.value = item.id;
                     contractOption.textContent = item.display_name;
+                    contractOption.dataset.type = item.type; // Thêm type
 
                     const backupOption = document.createElement('option');
                     backupOption.value = item.id;
                     backupOption.textContent = item.display_name;
+                    backupOption.dataset.type = item.type; // Thêm type
 
                     if (contractProductSelect) contractProductSelect.appendChild(contractOption);
                     if (backupProductSelect) backupProductSelect.appendChild(backupOption);
@@ -778,74 +780,64 @@
 
             // Hàm thêm sản phẩm hợp đồng
             function addContractProduct(productId) {
-                const foundProduct = availableItems.find(p => p.id == productId);
+                const contractProductSelect = document.getElementById('contract_product_select');
+                const selectedOption = contractProductSelect.options[contractProductSelect.selectedIndex];
+                const selectedType = selectedOption ? selectedOption.dataset.type : 'product';
+
+                const foundProduct = availableItems.find(p => p.id == productId && p.type === selectedType);
 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
                     return;
                 }
 
-                // Kiểm tra xem sản phẩm đã được thêm chưa
-                const existingProduct = selectedContractProducts.find(p => p.id === foundProduct.id);
-
+                // Kiểm tra đã thêm chưa (so sánh cả id và type)
+                const existingProduct = selectedContractProducts.find(p => p.id === foundProduct.id && p.type === foundProduct.type);
                 if (existingProduct) {
                     alert('Sản phẩm này đã được thêm vào danh sách hợp đồng!');
                     return;
-                } else {
-                    // Thêm sản phẩm mới
-                    selectedContractProducts.push({
-                        ...foundProduct,
-                        quantity: 1,
-                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct
-                            .warehouses[
-                                0].warehouse_id : null,
-                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
-                                0]
-                            .quantity : 0
-                    });
-
-                    // Cập nhật giao diện
-                    renderContractProductTable();
-
-                    // Kiểm tra tồn kho sau khi thêm sản phẩm
-                    showStockWarnings();
                 }
+
+                selectedContractProducts.push({
+                    ...foundProduct,
+                    quantity: 1,
+                    selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0].warehouse_id : null,
+                    current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0].quantity : 0
+                });
+
+                renderContractProductTable();
+                showStockWarnings();
             }
 
             // Hàm thêm thiết bị dự phòng
             function addBackupProduct(productId) {
-                const foundProduct = availableItems.find(p => p.id == productId);
+                const backupProductSelect = document.getElementById('backup_product_select');
+                const selectedOption = backupProductSelect.options[backupProductSelect.selectedIndex];
+                const selectedType = selectedOption ? selectedOption.dataset.type : 'product';
+
+                const foundProduct = availableItems.find(p => p.id == productId && p.type === selectedType);
 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
                     return;
                 }
 
-                // Kiểm tra xem sản phẩm đã được thêm chưa
-                const existingProduct = selectedBackupProducts.find(p => p.id === foundProduct.id);
-
+                // Kiểm tra đã thêm chưa (so sánh cả id và type)
+                const existingProduct = selectedBackupProducts.find(p => p.id === foundProduct.id && p.type === foundProduct.type);
                 if (existingProduct) {
                     alert('Thiết bị này đã được thêm vào danh sách dự phòng!');
                     return;
-                } else {
-                    // Thêm sản phẩm mới
-                    selectedBackupProducts.push({
-                        ...foundProduct,
-                        quantity: 1,
-                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct
-                            .warehouses[
-                                0].warehouse_id : null,
-                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
-                                0]
-                            .quantity : 0
-                    });
-
-                    // Cập nhật giao diện
-                    renderBackupProductTable();
-
-                    // Kiểm tra tồn kho sau khi thêm sản phẩm
-                    showStockWarnings();
                 }
+
+                selectedBackupProducts.push({
+                    ...foundProduct,
+                    quantity: 1,
+                    selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0].warehouse_id : null,
+                    current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0].quantity : 0
+                });
+
+                renderBackupProductTable();
+                showStockWarnings();
             }
 
             // Xử lý thay đổi chi tiết xuất kho

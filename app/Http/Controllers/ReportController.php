@@ -11,9 +11,13 @@ use App\Models\InventoryImport;
 use App\Models\InventoryImportMaterial;
 use App\Models\Dispatch;
 use App\Models\DispatchItem;
+use App\Models\Assembly;
+use App\Models\AssemblyMaterial;
+use App\Models\AssemblyProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReportController extends Controller
 {
@@ -396,14 +400,57 @@ class ReportController extends Controller
      */
     private function getExportsInPeriod($itemId, $itemType, $warehouseId, $dateFrom, $dateTo)
     {
-        return DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->where('dispatch_items.item_id', $itemId)
-            ->where('dispatch_items.item_type', $itemType)
-            ->where('dispatch_items.warehouse_id', $warehouseId)
-            ->whereIn('dispatches.status', ['approved', 'completed'])
-            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
-            ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
-            ->sum('dispatch_items.quantity');
+        $directExports = 0;
+        $indirectExports = 0;
+        
+        if ($itemType === 'material') {
+            // 1. Xuất trực tiếp vật tư
+            $directExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatch_items.item_id', $itemId)
+                ->where('dispatch_items.item_type', 'material')
+                ->where('dispatch_items.warehouse_id', $warehouseId)
+                ->whereIn('dispatches.status', ['approved', 'completed'])
+                ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+                ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
+                ->sum('dispatch_items.quantity');
+            
+            // 2. Xuất gián tiếp qua việc xuất thành phẩm (assembly)
+            // Lấy tất cả phiếu xuất thành phẩm trong kỳ
+            $productExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatch_items.item_type', 'product')
+                ->where('dispatch_items.warehouse_id', $warehouseId)
+                ->whereIn('dispatches.status', ['approved', 'completed'])
+                ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+                ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
+                ->get();
+            
+            // Tính toán vật tư đã sử dụng từ việc xuất thành phẩm
+            foreach ($productExports as $productExport) {
+                // Tìm TẤT CẢ assembly materials cho thành phẩm này (không chỉ first())
+                $materialUsagesInAssembly = AssemblyMaterial::join('assembly_products', 'assembly_materials.assembly_id', '=', 'assembly_products.assembly_id')
+                    ->where('assembly_products.product_id', $productExport->item_id)
+                    ->where('assembly_materials.material_id', $itemId)
+                    ->get(); // Đổi từ first() thành get()
+                
+                foreach ($materialUsagesInAssembly as $materialUsage) {
+                    // Tính tỷ lệ vật tư sử dụng cho 1 thành phẩm và nhân với số lượng xuất
+                    $materialPerProduct = $materialUsage->quantity;
+                    $indirectExports += $materialPerProduct * $productExport->quantity;
+                }
+            }
+        } else {
+            // Với product, good thì chỉ tính xuất trực tiếp
+            $directExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatch_items.item_id', $itemId)
+                ->where('dispatch_items.item_type', $itemType)
+                ->where('dispatch_items.warehouse_id', $warehouseId)
+                ->whereIn('dispatches.status', ['approved', 'completed'])
+                ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
+                ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
+                ->sum('dispatch_items.quantity');
+        }
+        
+        return $directExports + $indirectExports;
     }
 
     /**
@@ -424,13 +471,49 @@ class ReportController extends Controller
      */
     private function getExportsAfterDate($itemId, $itemType, $warehouseId, $date)
     {
-        return DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->where('dispatch_items.item_id', $itemId)
-            ->where('dispatch_items.item_type', $itemType)
-            ->where('dispatch_items.warehouse_id', $warehouseId)
-            ->whereIn('dispatches.status', ['approved', 'completed'])
-            ->whereDate('dispatches.dispatch_date', '>=', $date)
-            ->sum('dispatch_items.quantity');
+        $directExports = 0;
+        $indirectExports = 0;
+        
+        if ($itemType === 'material') {
+            // 1. Xuất trực tiếp vật tư
+            $directExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatch_items.item_id', $itemId)
+                ->where('dispatch_items.item_type', 'material')
+                ->where('dispatch_items.warehouse_id', $warehouseId)
+                ->whereIn('dispatches.status', ['approved', 'completed'])
+                ->whereDate('dispatches.dispatch_date', '>=', $date)
+                ->sum('dispatch_items.quantity');
+            
+            // 2. Xuất gián tiếp qua việc xuất thành phẩm (assembly)
+            $productExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatch_items.item_type', 'product')
+                ->where('dispatch_items.warehouse_id', $warehouseId)
+                ->whereIn('dispatches.status', ['approved', 'completed'])
+                ->whereDate('dispatches.dispatch_date', '>=', $date)
+                ->get();
+            
+            foreach ($productExports as $productExport) {
+                $materialUsagesInAssembly = AssemblyMaterial::join('assembly_products', 'assembly_materials.assembly_id', '=', 'assembly_products.assembly_id')
+                    ->where('assembly_products.product_id', $productExport->item_id)
+                    ->where('assembly_materials.material_id', $itemId)
+                    ->get();
+                
+                foreach ($materialUsagesInAssembly as $materialUsage) {
+                    $materialPerProduct = $materialUsage->quantity;
+                    $indirectExports += $materialPerProduct * $productExport->quantity;
+                }
+            }
+        } else {
+            $directExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+                ->where('dispatch_items.item_id', $itemId)
+                ->where('dispatch_items.item_type', $itemType)
+                ->where('dispatch_items.warehouse_id', $warehouseId)
+                ->whereIn('dispatches.status', ['approved', 'completed'])
+                ->whereDate('dispatches.dispatch_date', '>=', $date)
+                ->sum('dispatch_items.quantity');
+        }
+        
+        return $directExports + $indirectExports;
     }
 
     /**
@@ -569,14 +652,15 @@ class ReportController extends Controller
             ->whereDate('inventory_imports.import_date', '<=', $dateTo)
             ->sum('inventory_import_materials.quantity');
 
-        // Xuất vật tư trong kỳ (chỉ materials đã filter)
-        $exports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->whereIn('dispatches.status', ['approved', 'completed'])
-            ->where('dispatch_items.item_type', 'material')
-            ->whereIn('dispatch_items.item_id', $materialIds)
-            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
-            ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
-            ->sum('dispatch_items.quantity');
+        // Xuất vật tư trong kỳ (bao gồm cả xuất gián tiếp qua assembly)
+        $exports = 0;
+        foreach ($materialIds as $materialId) {
+            // Gộp tất cả warehouse để tính tổng
+            $warehouses = Warehouse::where('status', 'active')->where('is_hidden', false)->get();
+            foreach ($warehouses as $warehouse) {
+                $exports += $this->getExportsInPeriod($materialId, 'material', $warehouse->id, $dateFrom, $dateTo);
+            }
+        }
 
         // Tính phần trăm thay đổi so với kỳ trước (30 ngày trước)
         $previousFromDate = Carbon::parse($dateFrom)->subDays(30)->format('Y-m-d');
@@ -588,13 +672,14 @@ class ReportController extends Controller
             ->whereDate('inventory_imports.import_date', '<=', $previousToDate)
             ->sum('inventory_import_materials.quantity');
 
-        $previousExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->whereIn('dispatches.status', ['approved', 'completed'])
-            ->where('dispatch_items.item_type', 'material')
-            ->whereIn('dispatch_items.item_id', $materialIds)
-            ->whereDate('dispatches.dispatch_date', '>=', $previousFromDate)
-            ->whereDate('dispatches.dispatch_date', '<=', $previousToDate)
-            ->sum('dispatch_items.quantity');
+        // Tính xuất kỳ trước cũng bao gồm assembly
+        $previousExports = 0;
+        foreach ($materialIds as $materialId) {
+            $warehouses = Warehouse::where('status', 'active')->where('is_hidden', false)->get();
+            foreach ($warehouses as $warehouse) {
+                $previousExports += $this->getExportsInPeriod($materialId, 'material', $warehouse->id, $previousFromDate, $previousToDate);
+            }
+        }
 
         $importsChange = $previousImports > 0 ? (($imports - $previousImports) / $previousImports) * 100 : 0;
         $exportsChange = $previousExports > 0 ? (($exports - $previousExports) / $previousExports) * 100 : 0;
@@ -663,13 +748,15 @@ class ReportController extends Controller
             ->whereDate('inventory_imports.import_date', '<=', $dateTo)
             ->sum('inventory_import_materials.quantity');
 
-        // Xuất vật tư trong kỳ (chỉ materials)
-        $exports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->whereIn('dispatches.status', ['approved', 'completed'])
-            ->where('dispatch_items.item_type', 'material')
-            ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
-            ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
-            ->sum('dispatch_items.quantity');
+        // Xuất vật tư trong kỳ (bao gồm cả xuất gián tiếp qua assembly)
+        $exports = 0;
+        $materials = Material::where('status', 'active')->where('is_hidden', false)->get();
+        foreach ($materials as $material) {
+            $warehouses = Warehouse::where('status', 'active')->where('is_hidden', false)->get();
+            foreach ($warehouses as $warehouse) {
+                $exports += $this->getExportsInPeriod($material->id, 'material', $warehouse->id, $dateFrom, $dateTo);
+            }
+        }
 
         // Tính phần trăm thay đổi so với kỳ trước (30 ngày trước)
         $previousFromDate = Carbon::parse($dateFrom)->subDays(30)->format('Y-m-d');
@@ -680,12 +767,13 @@ class ReportController extends Controller
             ->whereDate('inventory_imports.import_date', '<=', $previousToDate)
             ->sum('inventory_import_materials.quantity');
 
-        $previousExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->whereIn('dispatches.status', ['approved', 'completed'])
-            ->where('dispatch_items.item_type', 'material')
-            ->whereDate('dispatches.dispatch_date', '>=', $previousFromDate)
-            ->whereDate('dispatches.dispatch_date', '<=', $previousToDate)
-            ->sum('dispatch_items.quantity');
+        $previousExports = 0;
+        foreach ($materials as $material) {
+            $warehouses = Warehouse::where('status', 'active')->where('is_hidden', false)->get();
+            foreach ($warehouses as $warehouse) {
+                $previousExports += $this->getExportsInPeriod($material->id, 'material', $warehouse->id, $previousFromDate, $previousToDate);
+            }
+        }
 
         $importsChange = $previousImports > 0 ? (($imports - $previousImports) / $previousImports) * 100 : 0;
         $exportsChange = $previousExports > 0 ? (($exports - $previousExports) / $previousExports) * 100 : 0;
@@ -993,37 +1081,66 @@ class ReportController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        $dateFrom = $request->get('from_date');
-        $dateTo = $request->get('to_date');
-        $search = $request->get('search');
-        $category = $request->get('category_filter');
+        try {
+            $dateFrom = $request->get('from_date');
+            $dateTo = $request->get('to_date');
+            $search = $request->get('search');
+            $category = $request->get('category_filter');
 
-        if (!$dateFrom) {
-            $dateFrom = Carbon::now()->startOfMonth()->format('Y-m-d');
+            if (!$dateFrom) {
+                $dateFrom = Carbon::now()->startOfMonth()->format('Y-m-d');
+            }
+            if (!$dateTo) {
+                $dateTo = Carbon::now()->format('Y-m-d');
+            }
+
+            $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
+            $stats = $this->getFilteredInventoryStats($dateFrom, $dateTo, $search, $category);
+
+            // Generate PDF using DomPDF
+            $pdf = Pdf::loadView('reports.pdf-template', compact(
+                'reportData',
+                'stats', 
+                'dateFrom',
+                'dateTo',
+                'search',
+                'category'
+            ));
+
+            // Set paper size and orientation
+            $pdf->setPaper('A4', 'landscape');
+            
+            // Set PDF options
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
+                'debugKeepTemp' => false,
+                'debugCss' => false,
+                'debugLayout' => false,
+                'debugLayoutLines' => false,
+                'debugLayoutBlocks' => false,
+                'debugLayoutInline' => false,
+                'debugLayoutPaddingBox' => false,
+            ]);
+
+            $filename = 'bao_cao_vat_tu_' . date('Y_m_d_H_i_s') . '.pdf';
+            
+            return $pdf->download($filename);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('PDF Export Error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage(),
+                'suggestion' => 'Vui lòng thử lại hoặc sử dụng tính năng xuất Excel.'
+            ], 500);
         }
-        if (!$dateTo) {
-            $dateTo = Carbon::now()->format('Y-m-d');
-        }
-
-        $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
-        $stats = $this->getInventoryStats($dateFrom, $dateTo);
-
-        // Generate HTML content for PDF
-        $html = view('reports.pdf-template', compact(
-            'reportData',
-            'stats', 
-            'dateFrom',
-            'dateTo',
-            'search',
-            'category'
-        ))->render();
-
-        // For now, return JSON response (can implement actual PDF generation later)
-        return response()->json([
-            'success' => true,
-            'message' => 'PDF sẽ được tạo tự động. Tính năng này đang được phát triển.',
-            'data_count' => $reportData->count(),
-            'filename' => 'bao_cao_vat_tu_' . date('Y_m_d_H_i_s') . '.pdf'
-        ]);
     }
+
+
 } 

@@ -58,7 +58,7 @@
                     <div class="flex items-center">
                         <i class="fas fa-info-circle mr-2"></i>
                         <div>
-                            <strong>Trạng thái phiếu:</strong>
+                            <strong>Trạng thái phiếu:</strong> 
                             <span class="font-semibold">
                                 @if ($dispatch->status === 'pending')
                                     Chờ xử lý
@@ -176,7 +176,7 @@
                             <input type="hidden" id="project_id" name="project_id"
                                 value="{{ $dispatch->project_id }}">
                         </div>
-
+                        
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
                             <label for="rental_receiver"
@@ -633,7 +633,7 @@
                             <i class="fas fa-file-contract text-blue-500 mr-2"></i>
                             Danh sách thành phẩm theo hợp đồng
                         </h2>
-
+                        
                         @if ($dispatch->status === 'pending')
                             <!-- Chọn thành phẩm hợp đồng -->
                             <div class="mb-4">
@@ -642,15 +642,15 @@
                                         <select id="contract_product_select"
                                             class="w-full border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
                                             <option value="">-- Chọn thành phẩm theo hợp đồng --</option>
-                                        </select>
-                                    </div>
+                                </select>
+                            </div>
                                     <button type="button" id="add_contract_product_btn"
                                         class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                                         <i class="fas fa-plus mr-1"></i> Thêm
-                                    </button>
-                                </div>
-                            </div>
-                        @endif
+                                </button>
+                        </div>
+                    </div>
+                    @endif
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200" id="contract-product-table">
                                 <thead class="bg-blue-50">
@@ -759,7 +759,7 @@
                     @if ($dispatch->status !== 'cancelled' && $dispatch->status !== 'completed')
                         <button type="submit" id="submit-btn"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors">
-                            <i class="fas fa-save mr-2"></i>
+                            <i class="fas fa-save mr-2"></i> 
                             @if ($dispatch->status === 'pending')
                                 Cập nhật phiếu xuất
                             @else
@@ -787,10 +787,10 @@
 
             // Always load existing items, only load available items if pending
             loadExistingItemsOnly();
-
+            
             // Show appropriate tables based on dispatch_detail
             handleDispatchDetailDisplay();
-
+            
             // Force render after a delay to ensure everything is loaded
             setTimeout(function() {
                 renderContractProductTable();
@@ -815,7 +815,7 @@
                 try {
                     const response = await fetch('/api/dispatch/items/all');
                     const data = await response.json();
-
+                    
                     if (data.success) {
                         availableItems = data.items;
                         // Load existing items into selected arrays
@@ -834,31 +834,31 @@
             function loadExistingItemsOnly() {
                 @foreach ($dispatch->items as $item)
                     {
-                        const existingItem = {
-                            id: {{ $item->item_id }},
-                            code: '{{ $item->item_code }}',
-                            name: '{{ $item->item_name }}',
-                            type: '{{ $item->item_type }}',
-                            unit: '{{ $item->item_unit }}',
-                            quantity: {{ $item->quantity }},
-                            selected_warehouse_id: {{ $item->warehouse_id }},
-                            current_stock: 0, // No API data for non-pending
-                            category: '{{ $item->category }}',
-                            serial_numbers: @json($item->serial_numbers ?? []),
-                            warehouses: [{
-                                warehouse_id: {{ $item->warehouse_id }},
+                    const existingItem = {
+                        id: {{ $item->item_id }},
+                        code: '{{ $item->item_code }}',
+                        name: '{{ $item->item_name }}',
+                        type: '{{ $item->item_type }}',
+                        unit: '{{ $item->item_unit }}',
+                        quantity: {{ $item->quantity }},
+                        selected_warehouse_id: {{ $item->warehouse_id }},
+                        current_stock: 0, // No API data for non-pending
+                        category: '{{ $item->category }}',
+                        serial_numbers: @json($item->serial_numbers ?? []),
+                        warehouses: [{
+                            warehouse_id: {{ $item->warehouse_id }},
                                 warehouse_name: '{{ $item->warehouse->name ?? 'N/A' }}',
-                                quantity: 0 // No stock info for non-pending
-                            }],
-                            existing_item_id: {{ $item->id }}, // Track original dispatch item ID
-                            is_existing: true // Mark as existing item
-                        };
+                            quantity: 0 // No stock info for non-pending
+                        }],
+                        existing_item_id: {{ $item->id }}, // Track original dispatch item ID
+                        is_existing: true // Mark as existing item
+                    };
 
                         @if ($item->category === 'contract')
-                            selectedContractProducts.push(existingItem);
+                        selectedContractProducts.push(existingItem);
                         @elseif ($item->category === 'backup')
-                            selectedBackupProducts.push(existingItem);
-                        @endif
+                        selectedBackupProducts.push(existingItem);
+                    @endif
                     }
                 @endforeach
 
@@ -874,41 +874,41 @@
                 selectedBackupProducts = [];
                 @foreach ($dispatch->items as $item)
                     {
-                        const existingItem = {
-                            id: {{ $item->item_id }},
-                            code: '{{ $item->item_code }}',
-                            name: '{{ $item->item_name }}',
-                            type: '{{ $item->item_type }}',
-                            unit: '{{ $item->item_unit }}',
-                            quantity: {{ $item->quantity }},
-                            selected_warehouse_id: {{ $item->warehouse_id }},
-                            current_stock: 0, // Will be updated from API
-                            category: '{{ $item->category }}',
-                            serial_numbers: @json($item->serial_numbers ?? []),
-                            warehouses: [], // Will be populated from availableItems
-                            existing_item_id: {{ $item->id }}, // Track original dispatch item ID
-                            is_existing: true // Mark as existing item
-                        };
+                    const existingItem = {
+                        id: {{ $item->item_id }},
+                        code: '{{ $item->item_code }}',
+                        name: '{{ $item->item_name }}',
+                        type: '{{ $item->item_type }}',
+                        unit: '{{ $item->item_unit }}',
+                        quantity: {{ $item->quantity }},
+                        selected_warehouse_id: {{ $item->warehouse_id }},
+                        current_stock: 0, // Will be updated from API
+                        category: '{{ $item->category }}',
+                        serial_numbers: @json($item->serial_numbers ?? []),
+                        warehouses: [], // Will be populated from availableItems
+                        existing_item_id: {{ $item->id }}, // Track original dispatch item ID
+                        is_existing: true // Mark as existing item
+                    };
 
-                        // Find the corresponding item in availableItems to get warehouse info
-                        const foundItem = availableItems.find(item =>
-                            item.id == {{ $item->item_id }} && item.type == '{{ $item->item_type }}'
-                        );
-
-                        if (foundItem) {
-                            existingItem.warehouses = foundItem.warehouses;
+                    // Find the corresponding item in availableItems to get warehouse info
+                    const foundItem = availableItems.find(item => 
+                        item.id == {{ $item->item_id }} && item.type == '{{ $item->item_type }}'
+                    );
+                    
+                    if (foundItem) {
+                        existingItem.warehouses = foundItem.warehouses;
                             const warehouse = foundItem.warehouses.find(w => w.warehouse_id ==
                                 {{ $item->warehouse_id }});
-                            if (warehouse) {
-                                existingItem.current_stock = warehouse.quantity;
-                            }
+                        if (warehouse) {
+                            existingItem.current_stock = warehouse.quantity;
                         }
+                    }
 
                         @if ($item->category === 'contract')
-                            selectedContractProducts.push(existingItem);
+                        selectedContractProducts.push(existingItem);
                         @elseif ($item->category === 'backup')
-                            selectedBackupProducts.push(existingItem);
-                        @endif
+                        selectedBackupProducts.push(existingItem);
+                    @endif
                     }
                 @endforeach
 
@@ -960,11 +960,11 @@
             const dispatchTypeSelect = document.getElementById('dispatch_type');
             const dispatchDetailSelect = document.getElementById('dispatch_detail');
             const projectReceiverSelect = document.getElementById('project_receiver');
-
+            
             if (dispatchTypeSelect) {
                 dispatchTypeSelect.addEventListener('change', function() {
                     const selectedType = this.value;
-
+                    
                     const projectSection = document.getElementById('project_section');
                     const rentalSection = document.getElementById('rental_section');
                     const projectReceiverInput = document.getElementById('project_receiver');
@@ -983,7 +983,7 @@
 
                         // Load danh sách hợp đồng cho thuê
                         loadRentals();
-
+                        
                         // Set project_receiver = rental_receiver để tương thích với backend
                         rentalReceiverInput.addEventListener('input', function() {
                             projectReceiverInput.value = this.value;
@@ -997,12 +997,12 @@
                                 projectIdInput.value = '';
                             }
                         });
-
+                        
                         // Reset dispatch detail về mặc định cho rental
                         if (dispatchDetailSelect) {
                             dispatchDetailSelect.disabled = false;
                         }
-
+                        
                         // Xóa hidden input nếu có
                         let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                         if (hiddenDispatchDetail) {
@@ -1012,12 +1012,12 @@
                         // Hiển thị phần dự án, ẩn phần cho thuê
                         projectSection.classList.remove('hidden');
                         projectReceiverInput.setAttribute('required', 'required');
-
+                        
                         // Reset dispatch detail về mặc định cho project
                         if (dispatchDetailSelect) {
                             dispatchDetailSelect.disabled = false;
                         }
-
+                        
                         // Xóa hidden input nếu có
                         hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                         if (hiddenDispatchDetail) {
@@ -1027,12 +1027,12 @@
                         // Hiển thị phần dự án, ẩn phần cho thuê
                         projectSection.classList.remove('hidden');
                         projectReceiverInput.setAttribute('required', 'required');
-
+                        
                         // Tự động chọn "backup" và disable dropdown cho warranty
                         if (dispatchDetailSelect) {
                             dispatchDetailSelect.value = 'backup';
                             dispatchDetailSelect.disabled = true;
-
+                            
                             // Tạo hidden input để đảm bảo giá trị được gửi đi
                             let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                             if (!hiddenDispatchDetail) {
@@ -1046,7 +1046,7 @@
                         }
                     }
                 });
-
+                
                 // Trigger change event để setup ban đầu
                 dispatchTypeSelect.dispatchEvent(new Event('change'));
             }
@@ -1061,7 +1061,7 @@
             if (currentDispatchType === 'warranty' && dispatchDetailSelect) {
                 dispatchDetailSelect.value = 'backup';
                 dispatchDetailSelect.disabled = true;
-
+                
                 // Tạo hidden input để đảm bảo giá trị được gửi đi
                 let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                 if (!hiddenDispatchDetail) {
@@ -1118,7 +1118,7 @@
                             `/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}&current_dispatch_id={{ $dispatch->id }}`
                         );
                         const data = await response.json();
-
+                        
                         if (data.success) {
                             // Log serial availability info for debugging
                             if (data.total_serials && data.used_serials) {
@@ -1154,13 +1154,13 @@
                                 optionsToRemove.forEach(option => option.remove());
 
                                 // Add serial options that are not already added
-                                data.serials.forEach(serial => {
+                            data.serials.forEach(serial => {
                                     // Check if this serial already exists in the select
                                     const existingOption = Array.from(select.options).find(opt => opt
                                         .value === serial);
                                     if (!existingOption) {
-                                        const option = document.createElement('option');
-                                        option.value = serial;
+                                const option = document.createElement('option');
+                                option.value = serial;
                                         option.textContent = serial;
                                         select.appendChild(option);
                                     }
@@ -1284,73 +1284,85 @@
             }
 
             // Hàm thêm sản phẩm hợp đồng
-            function addContractProduct(productId) {
-                const foundProduct = availableItems.find(p => p.id == productId);
+            function addContractProduct() {
+                const select = document.getElementById('contract_product_select');
+                if (!select || !select.value) return;
 
-                if (!foundProduct) {
-                    alert('Không tìm thấy thông tin sản phẩm!');
-                    return;
-                }
+                const selectedId = parseInt(select.value);
+                const selectedOption = select.options[select.selectedIndex];
+                const selectedType = selectedOption.dataset.type;
 
-                // Kiểm tra xem sản phẩm đã được thêm chưa
-                const existingProduct = selectedContractProducts.find(p => p.id === foundProduct.id);
-
+                // Kiểm tra sản phẩm đã được thêm chưa
+                const existingProduct = selectedContractProducts.find(p => p.id === selectedId && p.type === selectedType);
                 if (existingProduct) {
                     alert('Sản phẩm này đã được thêm vào danh sách hợp đồng!');
                     return;
-                } else {
-                    // Thêm sản phẩm mới
-                    selectedContractProducts.push({
-                        ...foundProduct,
-                        quantity: 1,
-                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
-                            0].warehouse_id : null,
-                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0]
-                            .quantity : 0,
-                        is_existing: false
-                    });
-
-                    // Cập nhật giao diện
-                    renderContractProductTable();
-
-                    // Kiểm tra tồn kho sau khi thêm sản phẩm
-                    showStockWarnings();
                 }
-            }
 
-            // Hàm thêm thiết bị dự phòng
-            function addBackupProduct(productId) {
-                const foundProduct = availableItems.find(p => p.id == productId);
-
-                if (!foundProduct) {
+                // Tìm sản phẩm trong availableItems
+                const product = availableItems.find(p => p.id === selectedId && p.type === selectedType);
+                if (!product) {
                     alert('Không tìm thấy thông tin sản phẩm!');
                     return;
                 }
 
-                // Kiểm tra xem sản phẩm đã được thêm chưa
-                const existingProduct = selectedBackupProducts.find(p => p.id === foundProduct.id);
+                // Thêm vào mảng selectedContractProducts
+                selectedContractProducts.push({
+                    id: product.id,
+                    type: product.type,
+                    code: product.code,
+                    name: product.name,
+                    unit: product.unit,
+                    current_stock: product.current_stock,
+                    quantity: 1,
+                    selected_warehouse_id: product.warehouses?.[0]?.warehouse_id || null,
+                    warehouses: product.warehouses || []
+                });
 
+                // Render lại bảng
+                renderContractProductTable();
+                showEditStockWarnings();
+            }
+
+            // Hàm thêm sản phẩm dự phòng
+            function addBackupProduct() {
+                const select = document.getElementById('backup_product_select');
+                if (!select || !select.value) return;
+
+                const selectedId = parseInt(select.value);
+                const selectedOption = select.options[select.selectedIndex];
+                const selectedType = selectedOption.dataset.type;
+
+                // Kiểm tra sản phẩm đã được thêm chưa
+                const existingProduct = selectedBackupProducts.find(p => p.id === selectedId && p.type === selectedType);
                 if (existingProduct) {
-                    alert('Thiết bị này đã được thêm vào danh sách dự phòng!');
+                    alert('Sản phẩm này đã được thêm vào danh sách dự phòng!');
                     return;
-                } else {
-                    // Thêm sản phẩm mới
-                    selectedBackupProducts.push({
-                        ...foundProduct,
-                        quantity: 1,
-                        selected_warehouse_id: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[
-                            0].warehouse_id : null,
-                        current_stock: foundProduct.warehouses.length > 0 ? foundProduct.warehouses[0]
-                            .quantity : 0,
-                        is_existing: false
-                    });
-
-                    // Cập nhật giao diện
-                    renderBackupProductTable();
-
-                    // Kiểm tra tồn kho sau khi thêm sản phẩm
-                    showStockWarnings();
                 }
+
+                // Tìm sản phẩm trong availableItems
+                const product = availableItems.find(p => p.id === selectedId && p.type === selectedType);
+                if (!product) {
+                    alert('Không tìm thấy thông tin sản phẩm!');
+                    return;
+                }
+
+                // Thêm vào mảng selectedBackupProducts
+                selectedBackupProducts.push({
+                    id: product.id,
+                    type: product.type,
+                    code: product.code,
+                    name: product.name,
+                    unit: product.unit,
+                    current_stock: product.current_stock,
+                    quantity: 1,
+                    selected_warehouse_id: product.warehouses?.[0]?.warehouse_id || null,
+                    warehouses: product.warehouses || []
+                });
+
+                // Render lại bảng
+                renderBackupProductTable();
+                showEditStockWarnings();
             }
 
             // Handle dispatch detail display
@@ -1358,11 +1370,11 @@
                 const dispatchDetail = '{{ $dispatch->dispatch_detail }}';
                 const contractTable = document.getElementById('selected-contract-products');
                 const backupTable = document.getElementById('selected-backup-products');
-
+                
                 // Hide all tables first
                 if (contractTable) contractTable.classList.add('hidden');
                 if (backupTable) backupTable.classList.add('hidden');
-
+                
                 // Show tables based on dispatch_detail
                 if (dispatchDetail === 'all') {
                     if (contractTable) contractTable.classList.remove('hidden');
@@ -1607,7 +1619,7 @@
             // Hàm hiển thị bảng sản phẩm hợp đồng giống trang create
             function renderContractProductTable() {
                 const contractProductList = document.querySelector('#contract-product-table tbody');
-
+                
                 if (!contractProductList) return;
 
                 // Xóa tất cả hàng hiện tại
@@ -1618,7 +1630,7 @@
                         '<tr><td colspan="8" class="px-6 py-4 text-sm text-blue-500 text-center">Chưa có thành phẩm hợp đồng nào được thêm</td></tr>';
                     return;
                 }
-
+                
                 selectedContractProducts.forEach((product, index) => {
                     // Tạo dropdown kho xuất cho sản phẩm hợp đồng
                     let warehouseOptions = '';
@@ -1689,8 +1701,8 @@
                             ${isReadonly ? 
                                 `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
                                 `<button type="button" class="text-red-600 hover:text-red-900 remove-contract-product" data-index="${index}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>`}
+                                    <i class="fas fa-trash"></i>
+                                </button>`}
                         </td>
                         ${hiddenInputsHtml}
                     `;
@@ -1801,7 +1813,7 @@
             // Hàm hiển thị bảng thiết bị dự phòng giống trang create
             function renderBackupProductTable() {
                 const backupProductList = document.querySelector('#backup-product-table tbody');
-
+                
                 if (!backupProductList) return;
 
                 // Xóa tất cả hàng hiện tại
@@ -1812,7 +1824,7 @@
                         '<tr><td colspan="8" class="px-6 py-4 text-sm text-orange-500 text-center">Chưa có thiết bị dự phòng nào được thêm</td></tr>';
                     return;
                 }
-
+                
                 selectedBackupProducts.forEach((product, index) => {
                     // Tạo dropdown kho xuất cho thiết bị dự phòng
                     let warehouseOptions = '';
@@ -1883,8 +1895,8 @@
                             ${isReadonly ? 
                                 `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
                                 `<button type="button" class="text-red-600 hover:text-red-900 remove-backup-product" data-index="${index}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>`}
+                                    <i class="fas fa-trash"></i>
+                                </button>`}
                         </td>
                         ${hiddenInputsHtml}
                     `;
@@ -1948,7 +1960,7 @@
                         loadAvailableSerials();
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
-                        showStockWarnings();
+                showStockWarnings();
                     });
                 });
 
@@ -1976,7 +1988,7 @@
                         }
 
                         // Kiểm tra tồn kho ngay khi thay đổi
-                        showStockWarnings();
+                showStockWarnings();
                     });
                 });
 
@@ -1984,10 +1996,10 @@
                 removeBackupButtons.forEach(button => {
                     button.addEventListener('click', function() {
                         const index = parseInt(this.dataset.index);
-                        selectedBackupProducts.splice(index, 1);
-                        renderBackupProductTable();
+                selectedBackupProducts.splice(index, 1);
+                renderBackupProductTable();
                         // Kiểm tra lại tồn kho sau khi xóa sản phẩm
-                        showStockWarnings();
+                showStockWarnings();
                     });
                 });
             }
@@ -2002,7 +2014,7 @@
             if (dispatchDetailSelect) {
                 dispatchDetailSelect.addEventListener('change', function() {
                     const selectedDetail = this.value;
-
+                    
                     // Update table visibility
                     handleDispatchDetailDisplayOnChange(selectedDetail);
 
@@ -2011,7 +2023,7 @@
                     if (hiddenDispatchDetail) {
                         hiddenDispatchDetail.value = selectedDetail;
                     }
-
+                    
                     // For pending status, dropdown remains visible but category logic changes
                 });
 
@@ -2025,11 +2037,11 @@
             function handleDispatchDetailDisplayOnChange(selectedDetail) {
                 const contractTable = document.getElementById('selected-contract-products');
                 const backupTable = document.getElementById('selected-backup-products');
-
+                
                 // Hide all tables first
                 if (contractTable) contractTable.classList.add('hidden');
                 if (backupTable) backupTable.classList.add('hidden');
-
+                
                 // Show tables based on selected detail
                 if (selectedDetail === 'all') {
                     if (contractTable) contractTable.classList.remove('hidden');
@@ -2372,7 +2384,7 @@
                         'input[name*="backup_items"][name*="[item_id]"]:not([disabled])');
                     const activeGeneralItems = form.querySelectorAll(
                         'input[name*="general_items"][name*="[item_id]"]:not([disabled])');
-
+                    
                     // Count newly added items from pending dispatch
                     let newlyAddedItems = 0;
                     @if ($dispatch->status === 'pending')
@@ -2512,7 +2524,7 @@
                                     `${itemCode} - Serial ${parseInt(serialIndex) + 1}`);
                             }
                         });
-
+                        
                         if (emptySerials.length > 0) {
                             e.preventDefault();
                             if (confirm(
@@ -2527,6 +2539,41 @@
 
                     // Serial numbers đã được xử lý trực tiếp qua các input riêng biệt
                     // Không cần xử lý thêm gì
+                });
+            }
+
+            // Hàm cập nhật dropdown sản phẩm
+            function updateProductSelects() {
+                // Cập nhật dropdown hợp đồng
+                const contractProductSelect = document.getElementById('contract_product_select');
+                if (contractProductSelect) {
+                    contractProductSelect.innerHTML = '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                }
+
+                // Cập nhật dropdown dự phòng
+                const backupProductSelect = document.getElementById('backup_product_select');
+                if (backupProductSelect) {
+                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                }
+
+                // Thêm options từ availableItems
+                availableItems.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.textContent = `${item.code} - ${item.name} (${item.type === 'product' ? 'Thành phẩm' : 'Hàng hóa'})`;
+                    option.dataset.type = item.type;
+                    option.dataset.currentStock = item.current_stock;
+                    option.dataset.unit = item.unit;
+
+                    // Clone option cho dropdown dự phòng
+                    const backupOption = option.cloneNode(true);
+
+                    if (contractProductSelect) {
+                        contractProductSelect.appendChild(option);
+                    }
+                    if (backupProductSelect) {
+                        backupProductSelect.appendChild(backupOption);
+                    }
                 });
             }
         });

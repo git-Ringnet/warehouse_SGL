@@ -1030,6 +1030,33 @@ class DispatchController extends Controller
             }
         }
 
+        // Get goods
+        if (in_array($itemType, ['all', 'good'])) {
+            $goods = Good::whereHas('warehouseMaterials', function ($query) use ($warehouseId) {
+                $query->where('warehouse_id', $warehouseId)
+                    ->where('item_type', 'good')
+                    ->where('quantity', '>', 0);
+            })->with(['warehouseMaterials' => function ($query) use ($warehouseId) {
+                $query->where('warehouse_id', $warehouseId)
+                    ->where('item_type', 'good');
+            }])->get();
+
+            foreach ($goods as $good) {
+                $quantity = $good->warehouseMaterials->sum('quantity');
+                if ($quantity > 0) {
+                    $items->push([
+                        'id' => $good->id,
+                        'type' => 'good',
+                        'code' => $good->code,
+                        'name' => $good->name,
+                        'unit' => $good->unit ?? 'Cái',
+                        'available_quantity' => $quantity,
+                        'display_name' => "{$good->code} - {$good->name} (Tồn: {$quantity})"
+                    ]);
+                }
+            }
+        }
+
         return response()->json([
             'success' => true,
             'items' => $items->sortBy('name')->values()
@@ -1038,13 +1065,13 @@ class DispatchController extends Controller
 
     /**
      * Get all available items for dispatch from all warehouses.
-     * Returns thành phẩm (products) for dispatch from products table
+     * Returns thành phẩm (products) and hàng hóa (goods) for dispatch
      */
     public function getAllAvailableItems(Request $request)
     {
         $items = collect();
 
-        // Get products from products table (thành phẩm) - TEMPORARY: Show all products
+        // Get products from products table (thành phẩm)
         $products = Product::with(['warehouseMaterials' => function ($query) {
             $query->where('item_type', 'product')
                 ->with('warehouse');
@@ -1085,11 +1112,56 @@ class DispatchController extends Controller
             ]);
         }
 
-        // If no products found, return empty but with debug info
+        // Get goods from goods table (hàng hóa)
+        $goods = Good::with(['warehouseMaterials' => function ($query) {
+            $query->where('item_type', 'good')
+                ->with('warehouse');
+        }])->get();
+
+        foreach ($goods as $good) {
+            // Get all warehouses that have this good
+            $warehouses = [];
+            if ($good->warehouseMaterials && $good->warehouseMaterials->isNotEmpty()) {
+                foreach ($good->warehouseMaterials as $warehouseMaterial) {
+                    $warehouses[] = [
+                        'warehouse_id' => $warehouseMaterial->warehouse_id,
+                        'warehouse_name' => $warehouseMaterial->warehouse->name ?? 'N/A',
+                        'quantity' => $warehouseMaterial->quantity ?? 0
+                    ];
+                }
+            } else {
+                // If no warehouse materials, create default warehouses with 0 quantity
+                $allWarehouses = \App\Models\Warehouse::take(3)->get();
+                foreach ($allWarehouses as $warehouse) {
+                    $warehouses[] = [
+                        'warehouse_id' => $warehouse->id,
+                        'warehouse_name' => $warehouse->name,
+                        'quantity' => 0 // Show 0 quantity when no stock data
+                    ];
+                }
+            }
+
+            // Add item - always include goods
+            $items->push([
+                'id' => $good->id,
+                'type' => 'good',
+                'code' => $good->code,
+                'name' => $good->name,
+                'unit' => $good->unit ?? 'Cái', // Use good's unit or default to 'Cái'
+                'warehouses' => $warehouses,
+                'display_name' => "{$good->code} - {$good->name}"
+            ]);
+        }
+
+        // If no items found, return empty but with debug info
         if ($items->isEmpty()) {
             $totalProducts = Product::count();
+            $totalGoods = Good::count();
             $productsWithInventory = Product::whereHas('warehouseMaterials', function ($query) {
                 $query->where('item_type', 'product')->where('quantity', '>', 0);
+            })->count();
+            $goodsWithInventory = Good::whereHas('warehouseMaterials', function ($query) {
+                $query->where('item_type', 'good')->where('quantity', '>', 0);
             })->count();
 
             return response()->json([
@@ -1097,8 +1169,10 @@ class DispatchController extends Controller
                 'items' => [],
                 'debug' => [
                     'total_products' => $totalProducts,
+                    'total_goods' => $totalGoods,
                     'products_with_inventory' => $productsWithInventory,
-                    'message' => 'Không tìm thấy thành phẩm nào có tồn kho. Vui lòng kiểm tra dữ liệu trong bảng products và warehouse_materials.'
+                    'goods_with_inventory' => $goodsWithInventory,
+                    'message' => 'Không tìm thấy thành phẩm hoặc hàng hóa nào có tồn kho. Vui lòng kiểm tra dữ liệu trong bảng products, goods và warehouse_materials.'
                 ]
             ]);
         }

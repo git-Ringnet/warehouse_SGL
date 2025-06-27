@@ -533,18 +533,59 @@
             const formData = getFilterFormData();
             const params = new URLSearchParams(formData);
             
+            // Hiển thị loading
+            const pdfButton = document.querySelector('button[onclick="exportToPdf()"]');
+            const originalText = pdfButton.innerHTML;
+            pdfButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang tạo PDF...';
+            pdfButton.disabled = true;
+            
             fetch('{{ route("reports.export.pdf") }}?' + params.toString())
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message + ' Tìm thấy ' + data.data_count + ' kết quả.');
+                .then(response => {
+                    // Reset button
+                    pdfButton.innerHTML = originalText;
+                    pdfButton.disabled = false;
+                    
+                    if (!response.ok) {
+                        // Nếu có lỗi, parse JSON để lấy thông báo lỗi
+                        return response.json().then(errorData => {
+                            throw new Error(errorData.message || 'Server error: ' + response.status);
+                        });
+                    }
+                    
+                    // Kiểm tra content type
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/pdf')) {
+                        // PDF thành công - tạo blob và download
+                        return response.blob().then(blob => {
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                            a.download = 'bao_cao_vat_tu_' + new Date().toISOString().slice(0,19).replace(/[-:]/g, '_').replace('T', '_') + '.pdf';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                            
+                            // Hiển thị thông báo thành công
+                            alert('Xuất PDF thành công! File đã được tải xuống.');
+                        });
                     } else {
-                        alert('Có lỗi xảy ra khi xuất PDF');
+                        // Response không phải PDF, có thể là JSON error
+                        return response.json().then(data => {
+                            if (data.success === false) {
+                                throw new Error(data.message || 'Có lỗi xảy ra khi xuất PDF');
+                            }
+                        });
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi xuất PDF');
+                    // Reset button nếu chưa reset
+                    pdfButton.innerHTML = originalText;
+                    pdfButton.disabled = false;
+                    
+                    console.error('PDF Export Error:', error);
+                    alert('Có lỗi xảy ra khi xuất PDF: ' + error.message);
                 });
         }
 
