@@ -122,6 +122,56 @@
                             <p class="text-sm font-medium text-gray-500 mb-1">Thời gian bảo hành</p>
                             <p class="text-base text-gray-900">{{ $project->warranty_period }} tháng</p>
                         </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Thời gian bảo hành còn lại</p>
+                            @if($project->has_valid_warranty)
+                                @php
+                                    $daysLeft = $project->remaining_warranty_days;
+                                    $colorClass = 'text-green-600';
+                                    $icon = 'check-circle';
+                                    
+                                    if ($daysLeft <= 7) {
+                                        $colorClass = 'text-red-600';
+                                        $icon = 'exclamation-circle';
+                                    } elseif ($daysLeft <= 30) {
+                                        $colorClass = 'text-orange-500';
+                                        $icon = 'exclamation-triangle';
+                                    } elseif ($daysLeft <= 90) {
+                                        $colorClass = 'text-yellow-500';
+                                        $icon = 'info-circle';
+                                    }
+                                @endphp
+                                <p class="text-base font-medium flex items-center {{ $colorClass }}">
+                                    <i class="fas fa-{{ $icon }} mr-1"></i>
+                                    {{ $daysLeft }} ngày
+                                </p>
+                            @else
+                                <p class="text-base text-red-600 font-medium flex items-center">
+                                    <i class="fas fa-times-circle mr-1"></i>
+                                    Đã hết hạn bảo hành
+                                </p>
+                            @endif
+                        </div>
+                        <div class="mb-4">
+                            <p class="text-sm font-medium text-gray-500 mb-1">Ngày kết thúc bảo hành</p>
+                            @php
+                                $daysLeft = $project->remaining_warranty_days;
+                                $colorClass = 'text-gray-900';
+                                
+                                if (!$project->has_valid_warranty) {
+                                    $colorClass = 'text-red-600 font-medium';
+                                } elseif ($daysLeft <= 7) {
+                                    $colorClass = 'text-red-600 font-medium';
+                                } elseif ($daysLeft <= 30) {
+                                    $colorClass = 'text-orange-500 font-medium';
+                                } elseif ($daysLeft <= 90) {
+                                    $colorClass = 'text-yellow-500 font-medium';
+                                }
+                            @endphp
+                            <p class="text-base {{ $colorClass }}">
+                                {{ \Carbon\Carbon::parse($project->warranty_end_date)->format('d/m/Y') }}
+                            </p>
+                        </div>
                     </div>
                                 <div>
                         <div class="mb-4">

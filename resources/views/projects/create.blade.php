@@ -178,7 +178,30 @@
             if (selectedCustomerId) {
                 getCustomerInfo(selectedCustomerId);
             }
+            
+            // Tính ngày kết thúc dự kiến ban đầu
+            calculateEndDate();
         });
+
+        // Hàm tính ngày kết thúc dự kiến
+        function calculateEndDate() {
+            const startDate = document.getElementById('start_date').value;
+            const warrantyPeriod = document.getElementById('warranty_period').value;
+            
+            if (startDate && warrantyPeriod) {
+                const start = new Date(startDate);
+                const end = new Date(start);
+                end.setMonth(end.getMonth() + parseInt(warrantyPeriod));
+                
+                // Format date to YYYY-MM-DD
+                const endDateStr = end.toISOString().split('T')[0];
+                document.getElementById('end_date').value = endDateStr;
+            }
+        }
+
+        // Thêm event listeners để tự động tính ngày kết thúc
+        document.getElementById('start_date').addEventListener('change', calculateEndDate);
+        document.getElementById('warranty_period').addEventListener('input', calculateEndDate);
     </script>
 </body>
 </html> 

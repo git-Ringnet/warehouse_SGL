@@ -49,6 +49,19 @@
                 </div>
             </div>
 
+            <!-- Test dự án -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Test dự án</h2>
+                <div class="space-y-4">
+                    <button onclick="createProjectNotification()" class="w-full bg-orange-500 text-white py-2 px-4 rounded hover:bg-orange-600">
+                        <i class="fas fa-project-diagram mr-2"></i>Tạo thông báo dự án mới
+                    </button>
+                    <button onclick="createProjectExpiryNotification()" class="w-full bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">
+                        <i class="fas fa-clock mr-2"></i>Tạo thông báo hết hạn bảo hành
+                    </button>
+                </div>
+            </div>
+
             <!-- Xem thông báo -->
             <div class="bg-white p-6 rounded-lg shadow-md md:col-span-2">
                 <h2 class="text-xl font-semibold mb-4">Xem thông báo hiện tại</h2>
@@ -217,6 +230,72 @@
                         icon: 'success',
                         title: 'Thành công!',
                         text: 'Đã tạo thông báo phiếu xuất kho test',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    loadNotifications();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: 'Có lỗi xảy ra'
+                });
+            });
+        }
+
+        // Create project notification
+        function createProjectNotification() {
+            fetch('/notifications/create-project-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: 'Đã tạo thông báo dự án test',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    loadNotifications();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: 'Có lỗi xảy ra'
+                });
+            });
+        }
+
+        // Create project expiry notification
+        function createProjectExpiryNotification() {
+            fetch('/notifications/create-project-expiry-test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thành công!',
+                        text: 'Đã tạo thông báo hết hạn bảo hành test',
                         timer: 2000,
                         showConfirmButton: false
                     });

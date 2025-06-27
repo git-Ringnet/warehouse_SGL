@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Project;
 use App\Models\Customer;
 use App\Models\Employee;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -123,6 +124,28 @@ class ProjectController extends Controller
             'description' => $request->description,
         ]);
 
+        // Tạo thông báo khi tạo dự án mới
+        if ($project->employee_id) {
+            Notification::createNotification(
+                'Dự án mới được tạo',
+                "Dự án #{$project->project_code} - {$project->project_name} đã được tạo và phân công cho bạn.",
+                'info',
+                $project->employee_id,
+                'project',
+                $project->id,
+                route('projects.show', $project->id)
+            );
+            
+            // Kiểm tra và gửi thông báo về trạng thái bảo hành
+            $observer = new \App\Observers\ProjectObserver();
+            
+            // Gọi phương thức protected thông qua Reflection API
+            $reflection = new \ReflectionClass(get_class($observer));
+            $method = $reflection->getMethod('checkWarrantyStatus');
+            $method->setAccessible(true);
+            $method->invokeArgs($observer, [$project]);
+        }
+
         return redirect()->route('projects.index')
             ->with('success', 'Dự án đã được thêm thành công');
     }
@@ -202,6 +225,12 @@ class ProjectController extends Controller
 
         // Cập nhật dự án
         $project = Project::findOrFail($id);
+        
+        // Lưu thông tin cũ trước khi cập nhật
+        $oldEmployeeId = $project->employee_id;
+        $startDateChanged = $project->start_date != $request->start_date;
+        $warrantyPeriodChanged = $project->warranty_period != $request->warranty_period;
+        
         $project->update([
             'project_code' => $request->project_code,
             'project_name' => $request->project_name,
@@ -212,6 +241,44 @@ class ProjectController extends Controller
             'warranty_period' => $request->warranty_period,
             'description' => $request->description,
         ]);
+
+        // Tạo thông báo khi cập nhật dự án
+        if ($project->employee_id) {
+            // Nếu nhân viên phụ trách đã thay đổi, gửi thông báo cho nhân viên mới
+            if ($oldEmployeeId != $project->employee_id) {
+                Notification::createNotification(
+                    'Dự án được phân công cho bạn',
+                    "Dự án #{$project->project_code} - {$project->project_name} đã được phân công cho bạn.",
+                    'info',
+                    $project->employee_id,
+                    'project',
+                    $project->id,
+                    route('projects.show', $project->id)
+                );
+            } else {
+                Notification::createNotification(
+                    'Dự án được cập nhật',
+                    "Dự án #{$project->project_code} - {$project->project_name} đã được cập nhật thông tin.",
+                    'info',
+                    $project->employee_id,
+                    'project',
+                    $project->id,
+                    route('projects.show', $project->id)
+                );
+            }
+            
+            // Kiểm tra và gửi thông báo về bảo hành nếu thông tin bảo hành đã thay đổi
+            if ($startDateChanged || $warrantyPeriodChanged) {
+                // Sử dụng ProjectObserver để kiểm tra và gửi thông báo
+                $observer = new \App\Observers\ProjectObserver();
+                
+                // Gọi phương thức protected thông qua Reflection API
+                $reflection = new \ReflectionClass(get_class($observer));
+                $method = $reflection->getMethod('checkWarrantyStatus');
+                $method->setAccessible(true);
+                $method->invokeArgs($observer, [$project]);
+            }
+        }
 
         return redirect()->route('projects.show', $id)
             ->with('success', 'Thông tin dự án đã được cập nhật thành công');
@@ -235,6 +302,19 @@ class ProjectController extends Controller
             
             // Nếu không có phiếu xuất kho liên quan, tiến hành xóa dự án
         $project->delete();
+        
+        // Tạo thông báo khi xóa dự án
+        if ($project->employee_id) {
+            Notification::createNotification(
+                'Dự án đã bị xóa',
+                "Dự án #{$project->project_code} - {$project->project_name} đã bị xóa.",
+                'error',
+                $project->employee_id,
+                'project',
+                null,
+                route('projects.index')
+            );
+        }
         
         return redirect()->route('projects.index')
             ->with('success', 'Dự án đã được xóa thành công');

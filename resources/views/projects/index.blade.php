@@ -80,6 +80,7 @@
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Người đại diện</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày bắt đầu</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày kết thúc</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Bảo hành</th>
                             <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
@@ -92,6 +93,35 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $project->customer->name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ \Carbon\Carbon::parse($project->start_date)->format('d/m/Y') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ \Carbon\Carbon::parse($project->end_date)->format('d/m/Y') }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                @php
+                                    $daysLeft = $project->remaining_warranty_days;
+                                    $colorClass = 'text-green-600';
+                                    $icon = 'check-circle';
+                                    
+                                    if (!$project->has_valid_warranty) {
+                                        $colorClass = 'text-red-600';
+                                        $icon = 'times-circle';
+                                    } elseif ($daysLeft <= 7) {
+                                        $colorClass = 'text-red-600';
+                                        $icon = 'exclamation-circle';
+                                    } elseif ($daysLeft <= 30) {
+                                        $colorClass = 'text-orange-500';
+                                        $icon = 'exclamation-triangle';
+                                    } elseif ($daysLeft <= 90) {
+                                        $colorClass = 'text-yellow-500';
+                                        $icon = 'info-circle';
+                                    }
+                                @endphp
+                                <span class="font-medium flex items-center {{ $colorClass }}">
+                                    <i class="fas fa-{{ $icon }} mr-1"></i>
+                                    @if($project->has_valid_warranty)
+                                        {{ $daysLeft }} ngày
+                                    @else
+                                        Hết hạn
+                                    @endif
+                                </span>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                 <a href="{{ route('projects.show', $project->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
@@ -106,7 +136,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Không có dự án nào</td>
+                            <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có dự án nào</td>
                         </tr>
                         @endforelse
                     </tbody>

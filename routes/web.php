@@ -140,6 +140,8 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::post('/create-assembly-test', [NotificationController::class, 'createAssemblyTestNotification'])->name('create-assembly-test');
         Route::post('/create-testing-test', [NotificationController::class, 'createTestingTestNotification'])->name('create-testing-test');
         Route::post('/create-dispatch-test', [NotificationController::class, 'createDispatchTestNotification'])->name('create-dispatch-test');
+        Route::post('/create-project-test', [NotificationController::class, 'createProjectTestNotification'])->name('create-project-test');
+        Route::post('/create-project-expiry-test', [NotificationController::class, 'createProjectExpiryTestNotification'])->name('create-project-expiry-test');
     });
 
     //Warranties

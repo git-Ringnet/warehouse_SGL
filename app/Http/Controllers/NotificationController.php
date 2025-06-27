@@ -209,6 +209,52 @@ class NotificationController extends Controller
     }
 
     /**
+     * Tạo thông báo dự án test
+     */
+    public function createProjectTestNotification()
+    {
+        $user = Auth::guard('web')->user();
+        
+        $notification = Notification::createNotification(
+            'Dự án mới được tạo',
+            'Dự án #PRJ-TEST-001 - Dự án test đã được tạo và phân công cho bạn.',
+            'info',
+            $user->id,
+            'project',
+            null,
+            '#'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã tạo thông báo dự án test'
+        ]);
+    }
+
+    /**
+     * Tạo thông báo dự án hết hạn bảo hành test
+     */
+    public function createProjectExpiryTestNotification()
+    {
+        $user = Auth::guard('web')->user();
+        
+        $notification = Notification::createNotification(
+            'Dự án sắp hết hạn bảo hành',
+            'Dự án #PRJ-TEST-001 sẽ hết hạn bảo hành trong 7 ngày.',
+            'warning',
+            $user->id,
+            'project',
+            null,
+            '#'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Đã tạo thông báo dự án hết hạn bảo hành test'
+        ]);
+    }
+
+    /**
      * Hiển thị trang test thông báo
      */
     public function showTestPage()
