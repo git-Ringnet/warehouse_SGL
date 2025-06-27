@@ -93,10 +93,34 @@
                                     @forelse($inventoryImport->materials as $key => $item)
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $key + 1 }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->material->code }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->material->name }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            @if($item->item_type === 'material')
+                                                {{ $item->material->code }}
+                                            @elseif($item->item_type === 'product')
+                                                {{ $item->product->code }}
+                                            @elseif($item->item_type === 'good')
+                                                {{ $item->good->code }}
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if($item->item_type === 'material')
+                                                {{ $item->material->name }}
+                                            @elseif($item->item_type === 'product')
+                                                {{ $item->product->name }}
+                                            @elseif($item->item_type === 'good')
+                                                {{ $item->good->name }}
+                                            @endif
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->warehouse->name }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->material->unit }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            @if($item->item_type === 'material')
+                                                {{ $item->material->unit }}
+                                            @elseif($item->item_type === 'product')
+                                                {{ $item->product->unit }}
+                                            @elseif($item->item_type === 'good')
+                                                {{ $item->good->unit }}
+                                            @endif
+                                        </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->quantity }}</td>
                                         <td class="px-6 py-4 text-sm text-gray-700">
                                             @if($item->serial_numbers)

@@ -262,9 +262,7 @@
     class="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center fixed top-0 right-0 left-0 z-40"
     style="left: 256px; z-index: 9999 !important;">
     <div class="flex items-center">
-        <h1 class="text-xl font-bold text-gray-800 dark:text-white" id="page-title">
-            <!-- Tiêu đề trang sẽ được điều chỉnh bằng JavaScript -->
-            @yield('page-title', 'Tổng quan')
+        <h1 class="text-xl font-bold text-gray-800 dark:text-white opacity-0" id="page-title">
         </h1>
     </div>
 
@@ -389,12 +387,9 @@
                     class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Cài
                     đặt</a>
                 <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button type="submit"
-                        class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng
-                        xuất</button>
-                </form>
+                <button onclick="handleLogout()"
+                    class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng
+                    xuất</button>
             </div>
         </div>
     </div>
@@ -518,6 +513,60 @@
         }
     });
 
+    // Handle logout with AJAX
+    function handleLogout() {
+        // Show confirmation dialog
+        if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+            // Show loading state
+            const logoutButton = document.querySelector('button[onclick="handleLogout()"]');
+            const originalText = logoutButton.innerHTML;
+            logoutButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang đăng xuất...';
+            logoutButton.disabled = true;
+
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
+                document.querySelector('input[name="_token"]')?.value;
+
+            // Make AJAX request
+            fetch('{{ route('logout') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        // Show success message if toast function is available
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'Đã đăng xuất thành công!');
+                        }
+                        // Redirect to login page after a short delay
+                        setTimeout(() => {
+                            window.location.href = '{{ route('login') }}';
+                        }, 1000);
+                    } else {
+                        throw new Error('Logout failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('Logout error:', error);
+                    // Restore button state
+                    logoutButton.innerHTML = originalText;
+                    logoutButton.disabled = false;
+
+                    // Show error message
+                    if (typeof showToast === 'function') {
+                        showToast('error', 'Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!');
+                    } else {
+                        alert('Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!');
+                    }
+                });
+        }
+    }
+
     // Update page title based on current route if needed
     document.addEventListener('DOMContentLoaded', function() {
         // You can customize this function based on your needs
@@ -609,10 +658,11 @@
         position: absolute;
         transition: all 0.3s ease;
     }
+
     /* Style for content area to accommodate the fixed header and sidebar */
     .content-area {
         margin-left: 256px;
         padding-top: 72px;
-        /* Adjust based on your header height */ 26/6
+        /* Adjust based on your header height */
     }
 </style>

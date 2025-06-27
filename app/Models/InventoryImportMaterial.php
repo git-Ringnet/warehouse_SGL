@@ -48,21 +48,26 @@ class InventoryImportMaterial extends Model
 
     /**
      * Get the material for this inventory import material.
-     * Sẽ trả về model tương ứng với item_type.
      */
     public function material()
     {
-        $itemType = $this->item_type ?? 'material';
-        
-        switch ($itemType) {
-            case 'product':
-                return $this->belongsTo(Product::class, 'material_id');
-            case 'good':
-                return $this->belongsTo(Good::class, 'material_id');
-            case 'material':
-            default:
-                return $this->belongsTo(Material::class);
-        }
+        return $this->belongsTo(Material::class);
+    }
+
+    /**
+     * Get the product for this inventory import material.
+     */
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'material_id');
+    }
+
+    /**
+     * Get the good for this inventory import material.
+     */
+    public function good()
+    {
+        return $this->belongsTo(Good::class, 'material_id');
     }
     
     /**

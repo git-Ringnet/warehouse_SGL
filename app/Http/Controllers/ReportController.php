@@ -251,7 +251,7 @@ class ReportController extends Controller
                     $exportsBeforeDate = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
                         ->where('dispatch_items.item_id', $material->id)
                         ->where('dispatch_items.warehouse_id', $warehouse->id)
-                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereIn('dispatches.status', ['approved', 'completed'])
                         ->whereDate('dispatches.dispatch_date', '<', $dateFrom)
                         ->exists();
                         
@@ -400,7 +400,7 @@ class ReportController extends Controller
             ->where('dispatch_items.item_id', $itemId)
             ->where('dispatch_items.item_type', $itemType)
             ->where('dispatch_items.warehouse_id', $warehouseId)
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
             ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
             ->sum('dispatch_items.quantity');
@@ -428,7 +428,7 @@ class ReportController extends Controller
             ->where('dispatch_items.item_id', $itemId)
             ->where('dispatch_items.item_type', $itemType)
             ->where('dispatch_items.warehouse_id', $warehouseId)
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->whereDate('dispatches.dispatch_date', '>=', $date)
             ->sum('dispatch_items.quantity');
     }
@@ -532,7 +532,7 @@ class ReportController extends Controller
                         ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
                         ->whereRaw('dispatch_items.item_id = materials.id')
                         ->where('dispatch_items.item_type', 'material')
-                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereIn('dispatches.status', ['approved', 'completed'])
                         ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
                         ->whereDate('dispatches.dispatch_date', '<=', $dateTo);
                 })
@@ -551,7 +551,7 @@ class ReportController extends Controller
                         ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
                         ->whereRaw('dispatch_items.item_id = materials.id')
                         ->where('dispatch_items.item_type', 'material')
-                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereIn('dispatches.status', ['approved', 'completed'])
                         ->whereDate('dispatches.dispatch_date', '<', $dateFrom);
                 });
             })
@@ -571,7 +571,7 @@ class ReportController extends Controller
 
         // Xuất vật tư trong kỳ (chỉ materials đã filter)
         $exports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->where('dispatch_items.item_type', 'material')
             ->whereIn('dispatch_items.item_id', $materialIds)
             ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
@@ -589,7 +589,7 @@ class ReportController extends Controller
             ->sum('inventory_import_materials.quantity');
 
         $previousExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->where('dispatch_items.item_type', 'material')
             ->whereIn('dispatch_items.item_id', $materialIds)
             ->whereDate('dispatches.dispatch_date', '>=', $previousFromDate)
@@ -643,7 +643,7 @@ class ReportController extends Controller
                         ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
                         ->whereRaw('dispatch_items.item_id = materials.id')
                         ->where('dispatch_items.item_type', 'material')
-                        ->where('dispatches.status', '!=', 'cancelled')
+                        ->whereIn('dispatches.status', ['approved', 'completed'])
                         ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
                         ->whereDate('dispatches.dispatch_date', '<=', $dateTo);
                 });
@@ -665,7 +665,7 @@ class ReportController extends Controller
 
         // Xuất vật tư trong kỳ (chỉ materials)
         $exports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->where('dispatch_items.item_type', 'material')
             ->whereDate('dispatches.dispatch_date', '>=', $dateFrom)
             ->whereDate('dispatches.dispatch_date', '<=', $dateTo)
@@ -681,7 +681,7 @@ class ReportController extends Controller
             ->sum('inventory_import_materials.quantity');
 
         $previousExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->where('dispatch_items.item_type', 'material')
             ->whereDate('dispatches.dispatch_date', '>=', $previousFromDate)
             ->whereDate('dispatches.dispatch_date', '<=', $previousToDate)
@@ -745,7 +745,7 @@ class ReportController extends Controller
             
             // Xuất theo tháng (áp dụng filter)
             $monthExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-                ->where('dispatches.status', '!=', 'cancelled')
+                ->whereIn('dispatches.status', ['approved', 'completed'])
                 ->where('dispatch_items.item_type', 'material')
                 ->whereIn('dispatch_items.item_id', $materialIds)
                 ->whereDate('dispatches.dispatch_date', '>=', $monthStart)
@@ -808,7 +808,7 @@ class ReportController extends Controller
             
             // Xuất theo tháng (chỉ materials)
             $monthExports = DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
-                ->where('dispatches.status', '!=', 'cancelled')
+                ->whereIn('dispatches.status', ['approved', 'completed'])
                 ->where('dispatch_items.item_type', 'material')
                 ->whereDate('dispatches.dispatch_date', '>=', $monthStart)
                 ->whereDate('dispatches.dispatch_date', '<=', $monthEnd)

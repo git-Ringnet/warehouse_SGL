@@ -919,7 +919,7 @@ class MaterialController extends Controller
             ->leftJoin('users', 'dispatches.created_by', '=', 'users.id')
             ->where('dispatch_items.item_id', $id)
             ->where('dispatch_items.item_type', 'material')
-            ->where('dispatches.status', '!=', 'cancelled')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
             ->select([
                 'dispatches.dispatch_date as date',
                 'dispatch_items.quantity',

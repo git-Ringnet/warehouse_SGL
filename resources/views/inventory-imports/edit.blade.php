@@ -111,7 +111,15 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Tên vật tư/ thành phẩm/ hàng hoá</label>
                                         <div class="w-full h-10 border border-gray-200 rounded-lg px-3 py-2 bg-gray-100 flex items-center">
-                                            {{ $item->material ? ($item->material->code . ' - ' . $item->material->name) : 'Không xác định' }}
+                                            @if($item->item_type === 'material')
+                                                {{ $item->material ? ($item->material->code . ' - ' . $item->material->name) : 'Không xác định' }}
+                                            @elseif($item->item_type === 'product')
+                                                {{ $item->product ? ($item->product->code . ' - ' . $item->product->name) : 'Không xác định' }}
+                                            @elseif($item->item_type === 'good')
+                                                {{ $item->good ? ($item->good->code . ' - ' . $item->good->name) : 'Không xác định' }}
+                                            @else
+                                                Không xác định
+                                            @endif
                                             <input type="hidden" name="materials[{{ $key }}][material_id]" value="{{ $item->material_id }}">
                                         </div>
                                     </div>
@@ -188,9 +196,27 @@
                                                     Không xác định
                                                 @endif
                                             </td>
-                                            <td class="px-4 py-2 text-sm text-gray-900">{{ $item->material ? ($item->material->code . ' - ' . $item->material->name) : 'Không xác định' }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-900">
+                                                @if($item->item_type === 'material')
+                                                    {{ $item->material ? ($item->material->code . ' - ' . $item->material->name) : 'Không xác định' }}
+                                                @elseif($item->item_type === 'product')
+                                                    {{ $item->product ? ($item->product->code . ' - ' . $item->product->name) : 'Không xác định' }}
+                                                @elseif($item->item_type === 'good')
+                                                    {{ $item->good ? ($item->good->code . ' - ' . $item->good->name) : 'Không xác định' }}
+                                                @else
+                                                    Không xác định
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-2 text-sm text-gray-900">{{ $item->warehouse ? $item->warehouse->name : 'Không xác định' }}</td>
-                                            <td class="px-4 py-2 text-sm text-gray-900">{{ $item->material && isset($item->material->unit) ? $item->material->unit : '' }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-900">
+                                                @if($item->item_type === 'material')
+                                                    {{ $item->material && isset($item->material->unit) ? $item->material->unit : '' }}
+                                                @elseif($item->item_type === 'product')
+                                                    {{ $item->product && isset($item->product->unit) ? $item->product->unit : '' }}
+                                                @elseif($item->item_type === 'good')
+                                                    {{ $item->good && isset($item->good->unit) ? $item->good->unit : '' }}
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-2 text-sm text-gray-900">{{ $item->quantity }}</td>
                                             <td class="px-4 py-2 text-sm text-gray-900">{{ $item->notes }}</td>
                                         </tr>
