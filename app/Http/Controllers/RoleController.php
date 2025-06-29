@@ -97,11 +97,12 @@ class RoleController extends Controller
             'rentals.*' => 'exists:rentals,id',
         ]);
 
+        // Tạo role với is_active mặc định là true nếu không có trong request
         $role = Role::create([
             'name' => $request->name,
             'description' => $request->description,
             'scope' => $request->scope,
-            'is_active' => $request->has('is_active'),
+            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : true,
         ]);
 
         // Gán quyền
@@ -109,8 +110,30 @@ class RoleController extends Controller
             $role->permissions()->sync($request->permissions);
         }
         
-        // Gán nhân viên vào nhóm quyền
+        // Kiểm tra và gán nhân viên vào nhóm quyền
         if ($request->has('employees')) {
+            $duplicateWarnings = [];
+            foreach ($request->employees as $employeeId) {
+                $employee = \App\Models\Employee::find($employeeId);
+                if ($employee && $employee->role_id) {
+                    $duplicateCheck = $role->hasDuplicatePermissionsWith($employee->role_id);
+                    if ($duplicateCheck['has_duplicates']) {
+                        $duplicateWarnings[] = [
+                            'employee' => $employee,
+                            'current_role' => Role::find($employee->role_id),
+                            'duplicate_permissions' => $duplicateCheck['duplicate_permissions']
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($duplicateWarnings)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('duplicate_warnings', $duplicateWarnings)
+                    ->with('warning', 'Phát hiện quyền trùng lặp với một số nhân viên. Vui lòng kiểm tra lại.');
+            }
+
             \App\Models\Employee::whereIn('id', $request->employees)->update(['role_id' => $role->id]);
             
             // Ghi nhật ký cho việc gán nhân viên
@@ -277,12 +300,19 @@ class RoleController extends Controller
 
         $oldData = $role->toArray();
         
-        $role->update([
+        // Chỉ cập nhật is_active nếu có field này trong request
+        $updateData = [
             'name' => $request->name,
             'description' => $request->description,
             'scope' => $request->scope,
-            'is_active' => $request->has('is_active'),
-        ]);
+        ];
+        
+        // Chỉ cập nhật is_active nếu có trong request (tránh tự động vô hiệu hóa)
+        if ($request->has('is_active')) {
+            $updateData['is_active'] = $request->boolean('is_active');
+        }
+        
+        $role->update($updateData);
 
         // Gán quyền
         if ($request->has('permissions')) {
@@ -291,12 +321,34 @@ class RoleController extends Controller
             $role->permissions()->detach();
         }
         
-        // Cập nhật nhân viên trong nhóm quyền
+        // Kiểm tra và cập nhật nhân viên trong nhóm quyền
         // Đầu tiên, bỏ nhóm quyền cho tất cả nhân viên thuộc nhóm quyền này
         \App\Models\Employee::where('role_id', $role->id)->update(['role_id' => null]);
         
-        // Sau đó, gán lại nhóm quyền cho các nhân viên được chọn
+        // Sau đó, kiểm tra và gán lại nhóm quyền cho các nhân viên được chọn
         if ($request->has('employees')) {
+            $duplicateWarnings = [];
+            foreach ($request->employees as $employeeId) {
+                $employee = \App\Models\Employee::find($employeeId);
+                if ($employee && $employee->role_id && $employee->role_id != $role->id) {
+                    $duplicateCheck = $role->hasDuplicatePermissionsWith($employee->role_id);
+                    if ($duplicateCheck['has_duplicates']) {
+                        $duplicateWarnings[] = [
+                            'employee' => $employee,
+                            'current_role' => Role::find($employee->role_id),
+                            'duplicate_permissions' => $duplicateCheck['duplicate_permissions']
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($duplicateWarnings)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('duplicate_warnings', $duplicateWarnings)
+                    ->with('warning', 'Phát hiện quyền trùng lặp với một số nhân viên. Vui lòng kiểm tra lại.');
+            }
+
             \App\Models\Employee::whereIn('id', $request->employees)->update(['role_id' => $role->id]);
             
             // Ghi nhật ký cho việc cập nhật nhân viên
@@ -446,19 +498,36 @@ class RoleController extends Controller
         
         $statusText = $role->is_active ? 'kích hoạt' : 'vô hiệu hóa';
         
+        // Lấy danh sách nhân viên bị ảnh hưởng
+        $affectedEmployees = $role->employees()->get();
+        
+        // Tạo thông báo cho từng nhân viên bị ảnh hưởng
+        foreach ($affectedEmployees as $employee) {
+            \App\Models\Notification::createNotification(
+                'Thay đổi trạng thái nhóm quyền',
+                'Nhóm quyền ' . $role->name . ' đã được ' . $statusText . '. Điều này có thể ảnh hưởng đến quyền truy cập của bạn.',
+                'warning',
+                $employee->id,
+                'role',
+                $role->id,
+                route('roles.show', $role->id)
+            );
+        }
+        
         // Ghi nhật ký
         if (Auth::check()) {
             UserLog::logActivity(
                 Auth::id(),
                 'update',
                 'roles',
-                'Thay đổi trạng thái nhóm quyền: ' . $role->name . ' -> ' . $statusText,
+                'Thay đổi trạng thái nhóm quyền: ' . $role->name . ' -> ' . $statusText . ' (Ảnh hưởng ' . $affectedEmployees->count() . ' nhân viên)',
                 $oldData,
                 $role->toArray()
             );
         }
 
         return redirect()->route('roles.index')
-            ->with('success', 'Nhóm quyền đã được ' . $statusText . ' thành công.');
+            ->with('success', 'Nhóm quyền đã được ' . $statusText . ' thành công. ' . 
+                ($affectedEmployees->count() > 0 ? $affectedEmployees->count() . ' nhân viên bị ảnh hưởng.' : ''));
     }
 }

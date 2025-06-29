@@ -11,199 +11,360 @@
         </button>
     </div>
     <div class="p-4 flex flex-col">
+        @php
+            $user = Auth::guard('web')->user();
+            $hasAnySetupPermission = false;
+            $hasAnyOperationPermission = false;
+            $hasAnyProjectPermission = false;
+            $hasAnyReportPermission = false;
+
+            // Nếu là admin, có tất cả quyền
+            if ($user && $user->role === 'admin') {
+                $hasAnySetupPermission = true;
+                $hasAnyOperationPermission = true;
+                $hasAnyProjectPermission = true;
+                $hasAnyReportPermission = true;
+            } elseif ($user && $user->role_id && $user->roleGroup && $user->roleGroup->is_active) {
+                $role = $user->roleGroup;
+                $hasAnySetupPermission =
+                    $role->hasPermission('materials.view') ||
+                    $role->hasPermission('products.view') ||
+                    $role->hasPermission('warehouses.view') ||
+                    $role->hasPermission('customers.view') ||
+                    $role->hasPermission('suppliers.view') ||
+                    $role->hasPermission('employees.view') ||
+                    $role->hasPermission('goods.view');
+
+                $hasAnyOperationPermission =
+                    $role->hasPermission('inventory.view') ||
+                    $role->hasPermission('inventory_imports.view') ||
+                    $role->hasPermission('warehouse-transfers.view') ||
+                    $role->hasPermission('repairs.view') ||
+                    $role->hasPermission('warranties.view');
+
+                $hasAnyProjectPermission =
+                    $role->hasPermission('projects.view') || $role->hasPermission('rentals.view');
+
+                $hasAnyReportPermission =
+                    $role->hasPermission('reports.overview') ||
+                    $role->hasPermission('reports.inventory') ||
+                    $role->hasPermission('reports.export');
+            }
+        @endphp
+
         <ul class="space-y-2">
-            <li>
-                <a href="{{ asset('dashboard') }}" class="nav-item flex items-center px-4 py-3 rounded-lg">
-                    <i class="fas fa-tachometer-alt mr-3"></i>
-                    <span class="nav-text">Tổng Quan</span>
-                </a>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <button onclick="toggleDropdown('masterData')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-cog mr-3"></i>
-                            <span class="nav-text">Thiết lập</span>
-                        </div>
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <ul id="masterData" class="dropdown-content pl-4 mt-1 space-y-1">
-                        <li>
-                            <a href="{{ asset('customers') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Khách
-                                Hàng</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('suppliers') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhà
-                                Cung
-                                Cấp</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('employees') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhân
-                                Viên</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('materials') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Vật
-                                Tư</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('goods') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Hàng hóa
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('products') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Thành
-                                Phẩm</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('warehouses') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Kho
-                                Hàng</a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <a href="{{ route('assemblies.index') }}">
-                        <button onclick="toggleDropdown('assembly')"
+            @if (
+                ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('reports.overview')))
+                <li>
+                    <a href="{{ asset('dashboard') }}" class="nav-item flex items-center px-4 py-3 rounded-lg">
+                        <i class="fas fa-tachometer-alt mr-3"></i>
+                        <span class="nav-text">Tổng Quan</span>
+                    </a>
+                </li>
+            @endif
+
+            @if ($hasAnySetupPermission)
+                <li>
+                    <div class="dropdown">
+                        <button onclick="toggleDropdown('masterData')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">
-                                <i class="fas fa-tools mr-3"></i>
-                                <span class="nav-text">Lắp Ráp</span>
+                                <i class="fas fa-cog mr-3"></i>
+                                <span class="nav-text">Thiết lập</span>
                             </div>
+                            <i class="fas fa-chevron-down text-xs"></i>
                         </button>
-                    </a>
-                </div>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <a href="{{ asset('testing') }}">
-                        <button onclick="toggleDropdown('testing')"
+                        <ul id="masterData" class="dropdown-content pl-4 mt-1 space-y-1">
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('customers.view')))
+                                <li>
+                                    <a href="{{ asset('customers') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Khách
+                                        Hàng</a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('suppliers.view')))
+                                <li>
+                                    <a href="{{ asset('suppliers') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhà
+                                        Cung
+                                        Cấp</a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('employees.view')))
+                                <li>
+                                    <a href="{{ asset('employees') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhân
+                                        Viên</a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('materials.view')))
+                                <li>
+                                    <a href="{{ asset('materials') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Vật
+                                        Tư</a>
+                                </li>
+                            @endif
+
+                            @if (($user && $user->role === 'admin') || ($user && $user->roleGroup && $user->roleGroup->hasPermission('goods.view')))
+                                <li>
+                                    <a href="{{ asset('goods') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        Hàng hóa
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('products.view')))
+                                <li>
+                                    <a href="{{ asset('products') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Thành
+                                        Phẩm</a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('warehouses.view')))
+                                <li>
+                                    <a href="{{ asset('warehouses') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Kho
+                                        Hàng</a>
+                                </li>
+                            @endif
+                        </ul>
+                    </div>
+                </li>
+            @endif
+
+            @if (
+                ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('assembly.view')))
+                <li>
+                    <div class="dropdown">
+                        <a href="{{ route('assemblies.index') }}">
+                            <button onclick="toggleDropdown('assembly')"
+                                class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                                <div class="flex items-center">
+                                    <i class="fas fa-tools mr-3"></i>
+                                    <span class="nav-text">Lắp Ráp</span>
+                                </div>
+                            </button>
+                        </a>
+                    </div>
+                </li>
+            @endif
+
+            @if (
+                ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('testing.view')))
+                <li>
+                    <div class="dropdown">
+                        <a href="{{ asset('testing') }}">
+                            <button onclick="toggleDropdown('testing')"
+                                class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                                <div class="flex items-center">
+                                    <i class="fas fa-vial mr-3"></i>
+                                    <span class="nav-text">Kiểm Thử</span>
+                                </div>
+                            </button>
+                        </a>
+                    </div>
+                </li>
+            @endif
+
+            @if ($hasAnyOperationPermission)
+                <li>
+                    <div class="dropdown">
+                        <button onclick="toggleDropdown('operations')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">
-                                <i class="fas fa-vial mr-3"></i>
-                                <span class="nav-text">Kiểm Thử</span>
+                                <i class="fas fa-dolly mr-3"></i>
+                                <span class="nav-text">Vận Hành</span>
                             </div>
+                            <i class="fas fa-chevron-down text-xs"></i>
                         </button>
-                    </a>
-                </div>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <button onclick="toggleDropdown('operations')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-dolly mr-3"></i>
-                            <span class="nav-text">Vận Hành</span>
-                        </div>
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <ul id="operations" class="dropdown-content pl-4 mt-1 space-y-1">
-                        <li>
-                            <a href="{{ asset('inventory-imports') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Nhập Kho</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('inventory') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Xuất
-                                Kho</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('warehouse-transfers') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
-                        </li>
-                        <li>
-                            <a href="{{ route('repairs.index') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Sửa chữa - bảo trì
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('warranties') }}"
-                                class="block px-4 py-2 rounded-lg hover:bg-gray-700">Bảo
-                                hành điện
-                                tử</a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <button onclick="toggleDropdown('projects')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-tasks mr-3"></i>
-                            <span class="nav-text">Dự Án</span>
-                        </div>
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <ul id="projects" class="dropdown-content pl-4 mt-1 space-y-1">
-                        <li>
-                            <a href="{{ asset('projects') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản
-                                Lý Dự
-                                Án</a>
-                        </li>
-                        <li>
-                            <a href="{{ asset('rentals') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản
-                                Lý Cho
-                                Thuê</a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <a href="{{ route('change-logs.index') }}">
-                        <button onclick="toggleDropdown('changeLog')"
+                        <ul id="operations" class="dropdown-content pl-4 mt-1 space-y-1">
+                            @if (($user && $user->role === 'admin') || ($user && $user->roleGroup && $user->roleGroup->hasPermission('inventory_imports.view')))
+                                <li>
+                                    <a href="{{ asset('inventory-imports') }}"
+                                        class="nav-subitem flex items-center px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        <i class="fas fa-file-import mr-3"></i>
+                                        <span class="nav-text">Nhập kho</span>
+                                    </a>
+                                </li>
+                            @endif
+                            
+                            @if (($user && $user->role === 'admin') || ($user && $user->roleGroup && $user->roleGroup->hasPermission('inventory.view')))
+                                <li>
+                                    <a href="{{ asset('inventory') }}"
+                                        class="nav-subitem flex items-center px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        <i class="fas fa-file-export mr-3"></i>
+                                        <span class="nav-text">Xuất kho</span>
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('warehouse-transfers.view')))
+                                <li>
+                                    <a href="{{ asset('warehouse-transfers') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Chuyển Kho</a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('repairs.view')))
+                                <li>
+                                    <a href="{{ route('repairs.index') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        Sửa chữa - bảo trì
+                                    </a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('warranties.view')))
+                                <li>
+                                    <a href="{{ asset('warranties') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Bảo
+                                        hành điện
+                                        tử</a>
+                                </li>
+                            @endif
+                        </ul>
+                    </div>
+                </li>
+            @endif
+
+            @if ($hasAnyProjectPermission)
+                <li>
+                    <div class="dropdown">
+                        <button onclick="toggleDropdown('projects')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">
-                                <i class="fas fa-history mr-3"></i>
-                                <span class="nav-text">Nhật Ký Thay Đổi</span>
+                                <i class="fas fa-tasks mr-3"></i>
+                                <span class="nav-text">Dự Án</span>
                             </div>
+                            <i class="fas fa-chevron-down text-xs"></i>
                         </button>
+                        <ul id="projects" class="dropdown-content pl-4 mt-1 space-y-1">
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('projects.view')))
+                                <li>
+                                    <a href="{{ asset('projects') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản
+                                        Lý Dự
+                                        Án</a>
+                                </li>
+                            @endif
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('rentals.view')))
+                                <li>
+                                    <a href="{{ asset('rentals') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">Quản
+                                        Lý Cho
+                                        Thuê</a>
+                                </li>
+                            @endif
+                        </ul>
+                    </div>
+                </li>
+            @endif
+
+            @if (
+                ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('change-logs.view')))
+                <li>
+                    <div class="dropdown">
+                        <a href="{{ route('change-logs.index') }}">
+                            <button onclick="toggleDropdown('changeLog')"
+                                class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                                <div class="flex items-center">
+                                    <i class="fas fa-history mr-3"></i>
+                                    <span class="nav-text">Nhật Ký Thay Đổi</span>
+                                </div>
+                            </button>
+                        </a>
+                    </div>
+                </li>
+            @endif
+
+            @if (
+                ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('software.view')))
+                <li>
+                    <a href="{{ asset('software') }}"
+                        class="nav-item flex items-center px-4 py-3 rounded-lg hover:bg-gray-700">
+                        <i class="fas fa-laptop-code mr-3"></i>
+                        <span class="nav-text">Phần mềm</span>
                     </a>
-                </div>
-            </li>
-            <li>
-                <a href="{{ asset('software') }}"
-                    class="nav-item flex items-center px-4 py-3 rounded-lg hover:bg-gray-700">
-                    <i class="fas fa-laptop-code mr-3"></i>
-                    <span class="nav-text">Phần mềm</span>
-                </a>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <a href="{{ asset('requests') }}">
-                        <button onclick="toggleDropdown('requestForm')"
+                </li>
+            @endif
+
+            @if (
+                ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('requests.view')))
+                <li>
+                    <div class="dropdown">
+                        <a href="{{ asset('requests') }}">
+                            <button onclick="toggleDropdown('requestForm')"
+                                class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
+                                <div class="flex items-center">
+                                    <i class="fas fa-file-alt mr-3"></i>
+                                    <span class="nav-text">Gửi phiếu yêu cầu</span>
+                                </div>
+                            </button>
+                        </a>
+                    </div>
+                </li>
+            @endif
+
+            @if ($hasAnyReportPermission)
+                <li>
+                    <div class="dropdown">
+                        <button onclick="toggleDropdown('reports')"
                             class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
                             <div class="flex items-center">
-                                <i class="fas fa-file-alt mr-3"></i>
-                                <span class="nav-text">Gửi phiếu yêu cầu</span>
+                                <i class="fas fa-chart-bar mr-3"></i>
+                                <span class="nav-text">Báo Cáo</span>
                             </div>
+                            <i class="fas fa-chevron-down text-xs"></i>
                         </button>
-                    </a>
-                </div>
-            </li>
-            <li>
-                <div class="dropdown">
-                    <button onclick="toggleDropdown('reports')"
-                        class="nav-item flex items-center justify-between w-full px-4 py-3 rounded-lg hover:bg-gray-700">
-                        <div class="flex items-center">
-                            <i class="fas fa-chart-bar mr-3"></i>
-                            <span class="nav-text">Báo Cáo</span>
-                        </div>
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </button>
-                    <ul id="reports" class="dropdown-content reports-menu pl-4 mt-1 space-y-1">
-                        <li>
-                            <a href="{{ asset('reports') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                Báo cáo tổng hợp xuất nhập tồn
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
+                        <ul id="reports" class="dropdown-content reports-menu pl-4 mt-1 space-y-1">
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('reports.inventory')))
+                                <li>
+                                    <a href="{{ asset('reports') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        Báo cáo xuất nhập tồn chi tiết
+                                    </a>
+                                </li>
+                            @endif
+                        </ul>
+                    </div>
+                </li>
+            @endif
+
             @if (Auth::guard('web')->check() && Auth::guard('web')->user()->role === 'admin')
                 <li>
                     <div class="dropdown">
@@ -280,7 +441,8 @@
                     class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
                     <h3 class="text-sm font-semibold text-gray-800 dark:text-white">Thông báo</h3>
                     <div class="flex space-x-2">
-                        <button id="markAllReadBtn" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã
+                        <button id="markAllReadBtn"
+                            class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã
                             đọc</button>
                     </div>
                 </div>
@@ -414,7 +576,7 @@
         });
     });
 
-    // Handle logout with AJAX
+    // Handle logout with form submission (không dùng AJAX để tránh lỗi CSRF)
     function handleLogout() {
         // Show confirmation dialog with SweetAlert2
         Swal.fire({
@@ -437,42 +599,22 @@
                     }
                 });
 
-                // Get CSRF token
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ||
-                    document.querySelector('input[name="_token"]')?.value;
+                // Tạo form ẩn để submit logout
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '{{ route('logout') }}';
+                form.style.display = 'none';
 
-                // Make AJAX request
-                fetch('{{ route('logout') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    },
-                    credentials: 'same-origin'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Đăng xuất thành công!',
-                            timer: 1000,
-                            showConfirmButton: false
-                        }).then(() => {
-                            window.location.href = '{{ route('login') }}';
-                        });
-                    } else {
-                        throw new Error('Logout failed');
-                    }
-                })
-                .catch(error => {
-                    console.error('Logout error:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Lỗi!',
-                        text: 'Có lỗi xảy ra khi đăng xuất. Vui lòng thử lại!'
-                    });
-                });
+                // Thêm CSRF token
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                form.appendChild(csrfToken);
+
+                // Thêm form vào body và submit
+                document.body.appendChild(form);
+                form.submit();
             }
         });
     }

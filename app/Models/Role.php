@@ -67,10 +67,42 @@ class Role extends Model
     }
 
     /**
-     * Kiểm tra role có quyền nào đó không
+     * Kiểm tra xem role có quyền cụ thể không
      */
     public function hasPermission($permissionName)
     {
-        return $this->permissions()->where('name', $permissionName)->exists();
+        return $this->is_active && $this->permissions()->where('name', $permissionName)->exists();
+    }
+
+    /**
+     * Kiểm tra quyền trùng lặp với một role khác
+     */
+    public function hasDuplicatePermissionsWith($otherRoleId)
+    {
+        if (!$otherRoleId) {
+            return [
+                'has_duplicates' => false,
+                'duplicate_permissions' => collect()
+            ];
+        }
+        
+        $otherRole = Role::find($otherRoleId);
+        if (!$otherRole) {
+            return [
+                'has_duplicates' => false,
+                'duplicate_permissions' => collect()
+            ];
+        }
+
+        $thisPermissions = $this->permissions()->pluck('permissions.id')->toArray();
+        $otherPermissions = $otherRole->permissions()->pluck('permissions.id')->toArray();
+        
+        // Tìm các quyền trùng lặp
+        $duplicates = array_intersect($thisPermissions, $otherPermissions);
+        
+        return [
+            'has_duplicates' => count($duplicates) > 0,
+            'duplicate_permissions' => Permission::whereIn('id', $duplicates)->get()
+        ];
     }
 }

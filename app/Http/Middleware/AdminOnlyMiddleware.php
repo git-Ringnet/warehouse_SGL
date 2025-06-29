@@ -33,6 +33,6 @@ class AdminOnlyMiddleware
             ], 403);
         }
         
-        return redirect()->back()->with('error', 'Bạn không có quyền truy cập vào chức năng này. Chỉ admin mới có quyền quản lý nhóm phân quyền.');
+        return redirect()->route('home')->with('error', 'Bạn không có quyền truy cập vào chức năng này. Chỉ admin mới có quyền quản lý nhóm phân quyền.');
     }
 } 

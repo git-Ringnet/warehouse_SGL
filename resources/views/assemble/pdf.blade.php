@@ -293,15 +293,54 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($assembly->materials as $index => $material)
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td>{{ $material->material->code ?? '' }}</td>
-                    <td>{{ $material->material->name ?? '' }}</td>
-                    <td class="text-center">{{ $material->quantity }}</td>
-                    <td>{{ $material->serial ?? '' }}</td>
-                    <td>{{ $material->note ?? '' }}</td>
-                </tr>
+            @php
+                $materialsByProduct = [];
+                if ($assembly->products && $assembly->products->count() > 0) {
+                    foreach ($assembly->products as $product) {
+                        $materialsByProduct[$product->product_id] = [
+                            'product' => $product,
+                            'materials' => [],
+                        ];
+                    }
+                    foreach ($assembly->materials as $material) {
+                        $productId = $material->target_product_id ?? $assembly->products->first()->product_id;
+                        if (isset($materialsByProduct[$productId])) {
+                            $materialsByProduct[$productId]['materials'][] = $material;
+                        } else {
+                            $firstProductId = $assembly->products->first()->product_id;
+                            $materialsByProduct[$firstProductId]['materials'][] = $material;
+                        }
+                    }
+                } else {
+                    $materialsByProduct['legacy'] = [
+                        'product' => $assembly->product,
+                        'materials' => $assembly->materials->toArray(),
+                    ];
+                }
+            @endphp
+
+            @foreach ($materialsByProduct as $productId => $productData)
+                @if (count($productData['materials']) > 0)
+                    <tr>
+                        <td colspan="7" style="font-weight: bold;">
+                            @if ($productData['product'] && $productData['product']->product)
+                                {{ $productData['product']->product->name }} ({{ $productData['product']->product->code }})
+                            @else
+                                Thành phẩm chưa xác định
+                            @endif
+                        </td>
+                    </tr>
+                    @foreach ($productData['materials'] as $index => $material)
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ is_object($material) ? $material->material->code : $material['material']['code'] }}</td>
+                        <td>{{ is_object($material) ? $material->material->name : $material['material']['name'] }}</td>
+                        <td>{{ is_object($material) ? $material->quantity : $material['quantity'] }}</td>
+                        <td>{{ is_object($material) ? $material->serial : $material['serial'] }}</td>
+                        <td>{{ is_object($material) ? $material->note : $material['note'] }}</td>
+                    </tr>
+                    @endforeach
+                @endif
             @endforeach
         </tbody>
     </table>

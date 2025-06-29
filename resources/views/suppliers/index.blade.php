@@ -187,15 +187,26 @@
                     @endif
                 </form>
                 <div class="flex flex-wrap gap-2">
-                    <a href="#" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-file-pdf mr-2"></i> Xuất FDF
-                    </a>
-                    <a href="#" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-file-excel mr-2"></i> Xuất Excel
-                    </a>
-                    <a href="{{ route('suppliers.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-plus mr-2"></i> Thêm nhà cung cấp
-                    </a>
+                    @php
+                        $user = Auth::guard('web')->user();
+                        $canExport = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('suppliers.export')));
+                        $canCreate = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('suppliers.create')));
+                    @endphp
+
+                    @if ($canExport)
+                        <a href="{{ route('suppliers.export.fdf', request()->query()) }}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-file-pdf mr-2"></i> Xuất FDF
+                        </a>
+                        <a href="{{ route('suppliers.export.excel', request()->query()) }}" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-file-excel mr-2"></i> Xuất Excel
+                        </a>
+                    @endif
+
+                    @if ($canCreate)
+                        <a href="{{ route('suppliers.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-plus mr-2"></i> Thêm nhà cung cấp
+                        </a>
+                    @endif
                 </div>
             </div>
         </header>
@@ -234,15 +245,30 @@
                                 <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">{{ $supplier->total_items ?? 0 }}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                <a href="{{ route('suppliers.show', $supplier->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                    <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                </a>
-                                <a href="{{ route('suppliers.edit', $supplier->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                </a>
-                                <button onclick="openDeleteModal('{{ $supplier->id }}', '{{ $supplier->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
+                                @php
+                                    $user = Auth::guard('web')->user();
+                                    $canViewDetail = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('suppliers.view_detail')));
+                                    $canEdit = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('suppliers.edit')));
+                                    $canDelete = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('suppliers.delete')));
+                                @endphp
+
+                                @if ($canViewDetail)
+                                    <a href="{{ route('suppliers.show', $supplier->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </a>
+                                @endif
+
+                                @if ($canEdit)
+                                    <a href="{{ route('suppliers.edit', $supplier->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
+                                        <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                    </a>
+                                @endif
+
+                                @if ($canDelete)
+                                    <button onclick="openDeleteModal('{{ $supplier->id }}', '{{ $supplier->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                        <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                    </button>
+                                @endif
                             </td>
                         </tr>
                         @empty

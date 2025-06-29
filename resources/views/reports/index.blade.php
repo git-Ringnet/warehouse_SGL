@@ -546,7 +546,11 @@
                     pdfButton.disabled = false;
                     
                     if (!response.ok) {
-                        // Nếu có lỗi, parse JSON để lấy thông báo lỗi
+                        if (response.status === 403) {
+                            alert('Bạn không có quyền xuất file PDF');
+                            return;
+                        }
+                        // Nếu có lỗi khác, parse JSON để lấy thông báo lỗi
                         return response.json().then(errorData => {
                             throw new Error(errorData.message || 'Server error: ' + response.status);
                         });

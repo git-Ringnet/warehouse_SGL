@@ -32,6 +32,8 @@ use App\Http\Controllers\ProjectRequestController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\CustomerMaintenanceRequestController;
 use App\Http\Controllers\Api\RequestExportController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
@@ -50,47 +52,97 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     });
 
     // Dashboard routes
-    Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/statistics', [App\Http\Controllers\DashboardController::class, 'getStatistics'])->name('dashboard.statistics');
-    Route::get('/dashboard/inventory-overview-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryOverviewChart'])->name('dashboard.inventory-overview-chart');
-    Route::get('/dashboard/inventory-categories-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryCategoriesChart'])->name('dashboard.inventory-categories-chart');
-    Route::get('/dashboard/warehouse-distribution-chart', [App\Http\Controllers\DashboardController::class, 'getWarehouseDistributionChart'])->name('dashboard.warehouse-distribution-chart');
-    Route::get('/dashboard/project-growth-chart', [App\Http\Controllers\DashboardController::class, 'getProjectGrowthChart'])->name('dashboard.project-growth-chart');
+    Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::get('/dashboard/statistics', [App\Http\Controllers\DashboardController::class, 'getStatistics'])->name('dashboard.statistics')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::get('/dashboard/inventory-overview-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryOverviewChart'])->name('dashboard.inventory-overview-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::get('/dashboard/inventory-categories-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryCategoriesChart'])->name('dashboard.inventory-categories-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::get('/dashboard/warehouse-distribution-chart', [App\Http\Controllers\DashboardController::class, 'getWarehouseDistributionChart'])->name('dashboard.warehouse-distribution-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::get('/dashboard/project-growth-chart', [App\Http\Controllers\DashboardController::class, 'getProjectGrowthChart'])->name('dashboard.project-growth-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
 
     // Thay thế routes customers cũ bằng resource controller
-    Route::resource('customers', CustomerController::class);
-    Route::get('customers/{customer}/activate', [CustomerController::class, 'activateAccount'])->name('customers.activate');
-    Route::get('customers/{customer}/toggle-lock', [CustomerController::class, 'toggleLock'])->name('customers.toggle-lock');
+    Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.view'], function () {
+        Route::get('/customers', [CustomerController::class, 'index'])->name('customers.index');
+    });
 
-    //Materials
-    Route::resource('materials', MaterialController::class);
-    Route::delete('materials/images/{id}', [MaterialController::class, 'deleteImage'])->name('materials.images.delete');
-    Route::get('materials-hidden', [MaterialController::class, 'showHidden'])->name('materials.hidden');
-    Route::get('materials-deleted', [MaterialController::class, 'showDeleted'])->name('materials.deleted');
-    Route::post('materials/{id}/restore', [MaterialController::class, 'restore'])->name('materials.restore');
-    Route::get('materials/template/download', [MaterialController::class, 'downloadTemplate'])->name('materials.template.download');
-    Route::post('materials/import', [MaterialController::class, 'import'])->name('materials.import');
-    Route::get('materials/import/results', [MaterialController::class, 'importResults'])->name('materials.import.results');
-    Route::get('materials/export/excel', [MaterialController::class, 'exportExcel'])->name('materials.export.excel');
-    Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->name('materials.export.fdf');
-    Route::get('materials/{id}/history-ajax', [MaterialController::class, 'historyAjax'])->name('materials.historyAjax');
+    // Routes cụ thể phải đặt TRƯỚC routes có parameter
+    Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.create'], function () {
+        Route::get('/customers/create', [CustomerController::class, 'create'])->name('customers.create');
+        Route::post('/customers', [CustomerController::class, 'store'])->name('customers.store');
+    });
 
-    //Products
-    Route::resource('products', ProductController::class);
-    Route::get('products-hidden', [ProductController::class, 'showHidden'])->name('products.hidden');
-    Route::get('products-deleted', [ProductController::class, 'showDeleted'])->name('products.deleted');
-    Route::patch('products/{product}/restore-hidden', [ProductController::class, 'restoreHidden'])->name('products.restore-hidden');
-    Route::patch('products/{product}/restore-deleted', [ProductController::class, 'restoreDeleted'])->name('products.restore-deleted');
+    Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.edit'], function () {
+        Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])->name('customers.edit');
+        Route::put('/customers/{customer}', [CustomerController::class, 'update'])->name('customers.update');
+        Route::patch('/customers/{customer}', [CustomerController::class, 'update']);
+    });
+
+    Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.view_detail'], function () {
+        Route::get('/customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+    });
+
+    Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.delete'], function () {
+        Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');
+    });
+
+    Route::get('customers/{customer}/activate', [CustomerController::class, 'activateAccount'])
+        ->name('customers.activate')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.manage');
+    Route::get('customers/{customer}/toggle-lock', [CustomerController::class, 'toggleLock'])
+        ->name('customers.toggle-lock')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.manage');
+
+    //Materials routes với middleware bảo vệ từng quyền cụ thể
+    Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.view');
+    Route::get('/materials/create', [MaterialController::class, 'create'])->name('materials.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
+    Route::post('/materials', [MaterialController::class, 'store'])->name('materials.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
+    Route::get('/materials/{material}', [MaterialController::class, 'show'])->name('materials.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.view_detail');
+    Route::get('/materials/{material}/edit', [MaterialController::class, 'edit'])->name('materials.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.edit');
+    Route::put('/materials/{material}', [MaterialController::class, 'update'])->name('materials.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.edit');
+    Route::patch('/materials/{material}', [MaterialController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.edit');
+    Route::delete('/materials/{material}', [MaterialController::class, 'destroy'])->name('materials.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.delete');
+
+    // Materials export routes
+    Route::get('materials/export/excel', [MaterialController::class, 'exportExcel'])->name('materials.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.export');
+    Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->name('materials.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.export');
+
+    // Materials image management
+    Route::delete('materials/images/{id}', [MaterialController::class, 'deleteImage'])->name('materials.images.delete')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.edit');
+    Route::get('materials/{id}/history-ajax', [MaterialController::class, 'historyAjax'])->name('materials.historyAjax')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.view_detail');
+
+    // Materials import routes
+    Route::get('materials/template/download', [MaterialController::class, 'downloadTemplate'])->name('materials.template.download')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
+    Route::post('materials/import', [MaterialController::class, 'import'])->name('materials.import')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
+    Route::get('materials/import/results', [MaterialController::class, 'importResults'])->name('materials.import.results')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
+
+    // Materials hidden/deleted management
+    Route::get('materials-hidden', [MaterialController::class, 'showHidden'])->name('materials.hidden')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.view');
+    Route::get('materials-deleted', [MaterialController::class, 'showDeleted'])->name('materials.deleted')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.view');
+    Route::post('materials/{id}/restore', [MaterialController::class, 'restore'])->name('materials.restore')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.edit');
+
+    //Products routes với middleware bảo vệ từng quyền cụ thể
+    Route::get('/products', [ProductController::class, 'index'])->name('products.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.view');
+    Route::get('/products/create', [ProductController::class, 'create'])->name('products.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
+    Route::post('/products', [ProductController::class, 'store'])->name('products.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
+    Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.view_detail');
+    Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.edit');
+    Route::put('/products/{product}', [ProductController::class, 'update'])->name('products.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.edit');
+    Route::patch('/products/{product}', [ProductController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.edit');
+    Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.delete');
+
+    Route::get('products-hidden', [ProductController::class, 'showHidden'])->name('products.hidden')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.view');
+    Route::get('products-deleted', [ProductController::class, 'showDeleted'])->name('products.deleted')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.view');
+    Route::patch('products/{product}/restore-hidden', [ProductController::class, 'restoreHidden'])->name('products.restore-hidden')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.edit');
+    Route::patch('products/{product}/restore-deleted', [ProductController::class, 'restoreDeleted'])->name('products.restore-deleted')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.edit');
 
     // Product export routes
-    Route::get('products/export/pdf', [ProductController::class, 'exportPDF'])->name('products.export.pdf');
-    Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
-    Route::get('products/export/fdf', [ProductController::class, 'exportFDF'])->name('products.export.fdf');
+    Route::get('products/export/pdf', [ProductController::class, 'exportPDF'])->name('products.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.export');
+    Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.export');
+    Route::get('products/export/fdf', [ProductController::class, 'exportFDF'])->name('products.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.export');
 
     // Product import routes
-    Route::get('products/import/template', [ProductController::class, 'downloadTemplate'])->name('products.import.template');
-    Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
-    Route::get('products/import/results', [ProductController::class, 'importResults'])->name('products.import.results');
+    Route::get('products/import/template', [ProductController::class, 'downloadTemplate'])->name('products.import.template')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
+    Route::post('products/import', [ProductController::class, 'import'])->name('products.import')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
+    Route::get('products/import/results', [ProductController::class, 'importResults'])->name('products.import.results')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
 
     // API route for product inventory quantity
     Route::get('/api/products/inventory', [ProductController::class, 'getInventoryQuantity']);
@@ -98,21 +150,29 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // API route for product search
     Route::get('/api/products/search', [ProductController::class, 'searchProductsApi'])->name('products.search.api');
 
-    //Warehouses
+    //Warehouses routes với middleware bảo vệ từng quyền cụ thể
+    Route::get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view');
+    Route::get('/warehouses/create', [WarehouseController::class, 'create'])->name('warehouses.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.create');
+    Route::post('/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.create');
+    Route::get('/warehouses/{warehouse}', [WarehouseController::class, 'show'])->name('warehouses.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view_detail');
+    Route::get('/warehouses/{warehouse}/edit', [WarehouseController::class, 'edit'])->name('warehouses.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
+    Route::put('/warehouses/{warehouse}', [WarehouseController::class, 'update'])->name('warehouses.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
+    Route::patch('/warehouses/{warehouse}', [WarehouseController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
+    Route::delete('/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])->name('warehouses.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.delete');
+
     Route::get('/warehouses/api-search', [WarehouseController::class, 'apiSearch'])->name('warehouses.api-search');
-    Route::resource('warehouses', WarehouseController::class);
 
     // Warehouse hidden and deleted routes
-    Route::get('warehouses-hidden', [WarehouseController::class, 'showHidden'])->name('warehouses.hidden');
-    Route::get('warehouses-deleted', [WarehouseController::class, 'showDeleted'])->name('warehouses.deleted');
-    Route::patch('warehouses/{warehouse}/restore-hidden', [WarehouseController::class, 'restoreHidden'])->name('warehouses.restore-hidden');
-    Route::patch('warehouses/{warehouse}/restore-deleted', [WarehouseController::class, 'restoreDeleted'])->name('warehouses.restore-deleted');
+    Route::get('warehouses-hidden', [WarehouseController::class, 'showHidden'])->name('warehouses.hidden')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view');
+    Route::get('warehouses-deleted', [WarehouseController::class, 'showDeleted'])->name('warehouses.deleted')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view');
+    Route::patch('warehouses/{warehouse}/restore-hidden', [WarehouseController::class, 'restoreHidden'])->name('warehouses.restore-hidden')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
+    Route::patch('warehouses/{warehouse}/restore-deleted', [WarehouseController::class, 'restoreDeleted'])->name('warehouses.restore-deleted')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
 
     // API route for warehouse inventory check
-    Route::get('/warehouses/{id}/check-inventory', [WarehouseController::class, 'checkInventory'])->name('warehouses.check-inventory');
+    Route::get('/warehouses/{id}/check-inventory', [WarehouseController::class, 'checkInventory'])->name('warehouses.check-inventory')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view_detail');
 
     // API route for warehouse materials
-    Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::class, 'getMaterials']);
+    Route::get('/api/warehouses/{warehouseId}/materials', [WarehouseController::class, 'getMaterials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view_detail');
 
     // API route for material inventory quantity
     Route::get('/api/materials/inventory', [MaterialController::class, 'getInventoryQuantity']);
@@ -195,92 +255,26 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
 
     //inventory - Dispatch Management
     Route::prefix('inventory')->name('inventory.')->group(function () {
-        Route::get('/', [DispatchController::class, 'index'])->name('index');
-        Route::get('dispatch/create', [DispatchController::class, 'create'])->name('dispatch.create');
-        Route::post('dispatch', [DispatchController::class, 'store'])->name('dispatch.store');
-        Route::get('dispatch/{dispatch}', [DispatchController::class, 'show'])->name('dispatch.show');
-        Route::get('dispatch/{dispatch}/edit', [DispatchController::class, 'edit'])->name('dispatch.edit');
-        Route::put('dispatch/{dispatch}', [DispatchController::class, 'update'])->name('dispatch.update');
-        Route::post('dispatch/{dispatch}/approve', [DispatchController::class, 'approve'])->name('dispatch.approve');
-        Route::post('dispatch/{dispatch}/cancel', [DispatchController::class, 'cancel'])->name('dispatch.cancel');
-        Route::post('dispatch/{dispatch}/complete', [DispatchController::class, 'complete'])->name('dispatch.complete');
-        Route::delete('dispatch/{dispatch}', [DispatchController::class, 'destroy'])->name('dispatch.destroy');
-        Route::get('search', [DispatchController::class, 'search'])->name('search');
+        Route::get('/', [DispatchController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.view');
+        Route::get('dispatch/create', [DispatchController::class, 'create'])->name('dispatch.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.create');
+        Route::post('dispatch', [DispatchController::class, 'store'])->name('dispatch.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.create');
+        Route::get('dispatch/{dispatch}', [DispatchController::class, 'show'])->name('dispatch.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.view_detail');
+        Route::get('dispatch/{dispatch}/edit', [DispatchController::class, 'edit'])->name('dispatch.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.edit');
+        Route::put('dispatch/{dispatch}', [DispatchController::class, 'update'])->name('dispatch.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.edit');
+        Route::post('dispatch/{dispatch}/approve', [DispatchController::class, 'approve'])->name('dispatch.approve')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.approve');
+        Route::post('dispatch/{dispatch}/cancel', [DispatchController::class, 'cancel'])->name('dispatch.cancel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.cancel');
+        Route::post('dispatch/{dispatch}/complete', [DispatchController::class, 'complete'])->name('dispatch.complete')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.complete');
+        Route::delete('dispatch/{dispatch}', [DispatchController::class, 'destroy'])->name('dispatch.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.delete');
+        Route::get('search', [DispatchController::class, 'search'])->name('search')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.view');
     });
 
     // API routes for dispatch
-    Route::prefix('api/dispatch')->group(function () {
+    Route::prefix('api/dispatch')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.view')->group(function () {
         Route::get('items', [DispatchController::class, 'getAvailableItems']);
         Route::get('items/all', [DispatchController::class, 'getAllAvailableItems']);
         Route::get('projects', [DispatchController::class, 'getProjects']);
         Route::get('rentals', [DispatchController::class, 'getRentals']);
         Route::get('item-serials', [DispatchController::class, 'getItemSerials']);
-    });
-
-    // Temporary route to add warehouse materials data
-    Route::get('/debug/add-warehouse-materials', function () {
-        // Add stock for products 6 and 10 in warehouse 1
-        $products = [6, 10];
-        $added = [];
-
-        foreach ($products as $productId) {
-            // Check if record exists
-            $existing = DB::table('warehouse_materials')
-                ->where('item_type', 'product')
-                ->where('material_id', $productId)
-                ->where('warehouse_id', 1)
-                ->first();
-
-            if (!$existing) {
-                DB::table('warehouse_materials')->insert([
-                    'warehouse_id' => 1,
-                    'item_type' => 'product',
-                    'material_id' => $productId,
-                    'quantity' => 50,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                $added[] = "Added product $productId with quantity 50";
-            } else {
-                $added[] = "Product $productId already exists with quantity {$existing->quantity}";
-            }
-        }
-
-        return response()->json([
-            'message' => 'Warehouse materials processing completed',
-            'results' => $added
-        ]);
-    });
-
-    // Simple route to add stock for all products
-    Route::get('/debug/add-all-stock', function () {
-        $products = DB::table('products')->get();
-        $warehouses = DB::table('warehouses')->get();
-        $added = 0;
-
-        foreach ($products as $product) {
-            foreach ($warehouses as $warehouse) {
-                $existing = DB::table('warehouse_materials')
-                    ->where('item_type', 'product')
-                    ->where('material_id', $product->id)
-                    ->where('warehouse_id', $warehouse->id)
-                    ->first();
-
-                if (!$existing) {
-                    DB::table('warehouse_materials')->insert([
-                        'warehouse_id' => $warehouse->id,
-                        'item_type' => 'product',
-                        'material_id' => $product->id,
-                        'quantity' => rand(20, 100),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                    $added++;
-                }
-            }
-        }
-
-        return "Added $added warehouse material records. Total products: " . $products->count() . ", Total warehouses: " . $warehouses->count();
     });
 
     // API routes for dispatch
@@ -325,16 +319,43 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         return view('reports.index');
     });
 
-    // Thay thế routes suppliers cũ bằng resource controller
-    Route::resource('suppliers', SupplierController::class);
+    // Suppliers routes với middleware bảo vệ từng quyền cụ thể
+    Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.view');
+    Route::get('/suppliers/create', [SupplierController::class, 'create'])->name('suppliers.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.create');
+    Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.create');
+    Route::get('/suppliers/{supplier}', [SupplierController::class, 'show'])->name('suppliers.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.view_detail');
+    Route::get('/suppliers/{supplier}/edit', [SupplierController::class, 'edit'])->name('suppliers.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.edit');
+    Route::put('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.edit');
+    Route::patch('/suppliers/{supplier}', [SupplierController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.edit');
+    Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.delete');
 
-    // Thay thế routes employees cũ bằng resource controller
-    Route::resource('employees', EmployeeController::class);
-    Route::patch('employees/{employee}/toggle-active', [EmployeeController::class, 'toggleActive'])->name('employees.toggle-active');
+    // Export routes for suppliers
+    Route::get('/suppliers/export/fdf', [SupplierController::class, 'exportFDF'])->name('suppliers.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.export');
+    Route::get('/suppliers/export/excel', [SupplierController::class, 'exportExcel'])->name('suppliers.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.export');
 
-    // Thay thế routes inventory-imports cũ bằng resource controller
-    Route::resource('inventory-imports', InventoryImportController::class);
-    Route::get('api/materials/{id}', [InventoryImportController::class, 'getMaterialInfo'])->name('api.material.info');
+    // Employees routes với middleware bảo vệ từng quyền cụ thể
+    Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.view');
+    Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.create');
+    Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.create');
+    Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.view_detail');
+    Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.edit');
+    Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.edit');
+    Route::patch('/employees/{employee}', [EmployeeController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.edit');
+    Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.delete');
+    Route::patch('employees/{employee}/toggle-active', [EmployeeController::class, 'toggleActive'])->name('employees.toggle-active')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.toggle_active');
+
+    // Routes cho Nhập kho với middleware bảo vệ từng quyền cụ thể
+    Route::get('/inventory-imports', [InventoryImportController::class, 'index'])->name('inventory-imports.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view');
+    Route::get('/inventory-imports/create', [InventoryImportController::class, 'create'])->name('inventory-imports.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.create');
+    Route::post('/inventory-imports', [InventoryImportController::class, 'store'])->name('inventory-imports.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.create');
+    Route::get('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'show'])->name('inventory-imports.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view_detail');
+    Route::get('/inventory-imports/{inventory_import}/edit', [InventoryImportController::class, 'edit'])->name('inventory-imports.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
+    Route::put('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'update'])->name('inventory-imports.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
+    Route::patch('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
+    Route::delete('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'destroy'])->name('inventory-imports.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.delete');
+    
+    // API route cho thông tin vật tư
+    Route::get('api/materials/{id}', [InventoryImportController::class, 'getMaterialInfo'])->name('api.material.info')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view');
 
     // Quản lý chuyển kho
     Route::resource('warehouse-transfers', WarehouseTransferController::class);
@@ -345,14 +366,30 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('software/{software}/download-manual', [SoftwareController::class, 'downloadManual'])->name('software.download_manual');
 
     // Quản lý kiểm thử (QA)
-    Route::resource('testing', TestingController::class);
-    Route::post('testing/{testing}/approve', [TestingController::class, 'approve'])->name('testing.approve');
-    Route::post('testing/{testing}/reject', [TestingController::class, 'reject'])->name('testing.reject');
-    Route::post('testing/{testing}/receive', [TestingController::class, 'receive'])->name('testing.receive');
-    Route::post('testing/{testing}/complete', [TestingController::class, 'complete'])->name('testing.complete');
-    Route::post('testing/{testing}/update-inventory', [TestingController::class, 'updateInventory'])->name('testing.update-inventory');
-    Route::get('testing/{testing}/print', [TestingController::class, 'print'])->name('testing.print');
-    Route::get('testing/{testing}/check-pending', [TestingController::class, 'checkPending'])->name('testing.check-pending');
+    Route::middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.view')->group(function () {
+        Route::get('/testing', [TestingController::class, 'index'])->name('testing.index');
+        Route::middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.create')->group(function () {
+            Route::get('/testing/create', [TestingController::class, 'create'])->name('testing.create');
+            Route::post('/testing', [TestingController::class, 'store'])->name('testing.store');
+        });
+        Route::get('/testing/{testing}', [TestingController::class, 'show'])->name('testing.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.view_detail');
+        Route::get('/testing/{testing}/print', [TestingController::class, 'print'])->name('testing.print')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.print');
+        Route::get('/testing/{testing}/check-pending', [TestingController::class, 'checkPending'])->name('testing.check-pending');
+
+        Route::middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.edit')->group(function () {
+            Route::get('/testing/{testing}/edit', [TestingController::class, 'edit'])->name('testing.edit');
+            Route::put('/testing/{testing}', [TestingController::class, 'update'])->name('testing.update');
+            Route::patch('/testing/{testing}', [TestingController::class, 'update']);
+        });
+
+        Route::post('/testing/{testing}/approve', [TestingController::class, 'approve'])->name('testing.approve')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.approve');
+        Route::post('/testing/{testing}/reject', [TestingController::class, 'reject'])->name('testing.reject')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.reject');
+        Route::post('/testing/{testing}/receive', [TestingController::class, 'receive'])->name('testing.receive')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.receive');
+        Route::post('/testing/{testing}/complete', [TestingController::class, 'complete'])->name('testing.complete')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.complete');
+        Route::post('/testing/{testing}/update-inventory', [TestingController::class, 'updateInventory'])->name('testing.update-inventory')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.update_inventory');
+        Route::delete('/testing/{testing}', [TestingController::class, 'destroy'])->name('testing.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.delete');
+    });
+
     Route::get('api/testing/materials-by-type', [TestingController::class, 'getMaterialsByType'])->name('api.testing.materials-by-type');
     Route::get('api/testing/serial-numbers', [TestingController::class, 'getSerialNumbers'])->name('api.testing.serial-numbers');
     Route::get('api/items/{type}/{id}', [TestingController::class, 'getItemDetails'])->name('api.items.details');
@@ -413,19 +450,27 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
             Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
         });
     });
-    // Assembly routes
-    Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code');
-    Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code');
-    Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials');
-    Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees');
-    Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock');
-    Route::get('/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials');
+    // Assembly routes với middleware bảo vệ từng quyền cụ thể
+    Route::get('/assemblies', [AssemblyController::class, 'index'])->name('assemblies.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.view');
+    Route::get('/assemblies/create', [AssemblyController::class, 'create'])->name('assemblies.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::post('/assemblies', [AssemblyController::class, 'store'])->name('assemblies.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/{assembly}', [AssemblyController::class, 'show'])->name('assemblies.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.view_detail');
+    Route::get('/assemblies/{assembly}/edit', [AssemblyController::class, 'edit'])->name('assemblies.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.edit');
+    Route::put('/assemblies/{assembly}', [AssemblyController::class, 'update'])->name('assemblies.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.edit');
+    Route::patch('/assemblies/{assembly}', [AssemblyController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.edit');
+    Route::delete('/assemblies/{assembly}', [AssemblyController::class, 'destroy'])->name('assemblies.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.delete');
 
     // Assembly export routes
-    Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])->name('assemblies.export.excel');
-    Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf');
+    Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])->name('assemblies.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
+    Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
 
-    Route::resource('assemblies', AssemblyController::class);
+    // Assembly API routes
+    Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
 
     // API route for checking serial duplicates
     Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');
@@ -449,80 +494,46 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export');
 
     // Routes cho nhật ký thay đổi (change logs)
-    Route::get('change-logs', [ChangeLogController::class, 'index'])->name('change-logs.index');
-    Route::get('change-logs/{changeLog}', [ChangeLogController::class, 'show'])->name('change-logs.show');
-    Route::get('change-logs/{changeLog}/details', [ChangeLogController::class, 'getDetails'])->name('change-logs.details');
-    Route::put('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.update');
-    Route::patch('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.patch');
-
-    // Temporary debug route
-    Route::get('/debug/materials', function () {
-        try {
-            $columns = Schema::getColumnListing('materials');
-            $sample = \App\Models\Material::first();
-            return [
-                'columns' => $columns,
-                'sample' => $sample,
-            ];
-        } catch (\Exception $e) {
-            return [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ];
-        }
-    });
-
-    // Routes for goods
-    Route::resource('goods', GoodController::class);
-    Route::get('/goodshidden', [GoodController::class, 'showHidden'])->name('goodshidden');
-    Route::get('/goodsdeleted', [GoodController::class, 'showDeleted'])->name('goodsdeleted');
-    Route::post('/goods/restore/{id}', [GoodController::class, 'restore'])->name('goods.restore');
-    Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages']);
-    Route::delete('/api/goods/images/{id}', [GoodController::class, 'deleteImage']);
-    Route::get('/goods/export/excel', [GoodController::class, 'exportExcel'])->name('goods.export.excel');
-    Route::get('/goods/export/fdf', [GoodController::class, 'exportFDF'])->name('goods.export.fdf');
-    Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate'])->name('goods.template.download');
-    Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import');
-    Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results');
-    Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');
-
-    // Thêm route cho API kiểm tra tồn kho
-    Route::get('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory');
-    Route::post('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory.post');
-
-    // Temporary debug route
-    Route::get('/debug/warehouse-materials', function () {
-        $totalRecords = DB::table('warehouse_materials')->count();
-        $productRecords = DB::table('warehouse_materials')->where('item_type', 'product')->count();
-        $sampleRecords = DB::table('warehouse_materials')->where('item_type', 'product')->limit(10)->get();
-
-        // Check specific products that were failing
-        $specificProducts = DB::table('warehouse_materials')
-            ->where('item_type', 'product')
-            ->whereIn('material_id', [6, 10])
-            ->where('warehouse_id', 1)
-            ->get();
-
-        return response()->json([
-            'total_records' => $totalRecords,
-            'product_records' => $productRecords,
-            'sample_records' => $sampleRecords,
-            'specific_products_6_10' => $specificProducts,
-            'all_warehouse_1_products' => DB::table('warehouse_materials')
-                ->where('item_type', 'product')
-                ->where('warehouse_id', 1)
-                ->get()
-        ]);
-    });
+    Route::get('change-logs', [ChangeLogController::class, 'index'])->name('change-logs.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
+    Route::get('change-logs/{changeLog}', [ChangeLogController::class, 'show'])->name('change-logs.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
+    Route::get('change-logs/{changeLog}/details', [ChangeLogController::class, 'getDetails'])->name('change-logs.details')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
+    Route::put('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
+    Route::patch('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.patch')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
 
     // Routes for Reports
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
         Route::post('/filter-ajax', [ReportController::class, 'filterAjax'])->name('filter.ajax');
-        Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel');
-        Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export.pdf');
+        Route::get('/export-excel', [ReportController::class, 'exportExcel'])->name('export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.export');
+        Route::get('/export-pdf', [ReportController::class, 'exportPdf'])->name('export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.export');
     });
 
+    // Routes for goods
+    Route::get('/goods', [GoodController::class, 'index'])->name('goods.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.view');
+    Route::get('/goods/create', [GoodController::class, 'create'])->name('goods.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
+    Route::post('/goods', [GoodController::class, 'store'])->name('goods.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
+    Route::get('/goods/{good}', [GoodController::class, 'show'])->name('goods.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.view_detail');
+    Route::get('/goods/{good}/edit', [GoodController::class, 'edit'])->name('goods.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.edit');
+    Route::put('/goods/{good}', [GoodController::class, 'update'])->name('goods.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.edit');
+    Route::delete('/goods/{good}', [GoodController::class, 'destroy'])->name('goods.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.delete');
+
+    Route::get('/goodshidden', [GoodController::class, 'showHidden'])->name('goodshidden')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.view');
+    Route::get('/goodsdeleted', [GoodController::class, 'showDeleted'])->name('goodsdeleted')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.view');
+    Route::post('/goods/restore/{id}', [GoodController::class, 'restore'])->name('goods.restore')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.edit');
+
+    Route::get('/api/goods/{id}/images', [GoodController::class, 'getGoodImages'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.view_detail');
+    Route::delete('/api/goods/images/{id}', [GoodController::class, 'deleteImage'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.edit');
+
+    Route::get('/goods/export/excel', [GoodController::class, 'exportExcel'])->name('goods.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.export');
+    Route::get('/goods/export/fdf', [GoodController::class, 'exportFDF'])->name('goods.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.export');
+    Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate'])->name('goods.template.download')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
+    Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
+    Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
+    Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');
+
+    // Thêm route cho API kiểm tra tồn kho
+    Route::get('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory');
+    Route::post('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory.post');
 
     // Equipment service routes (bảo hành, thay thế, thu hồi)
     Route::prefix('equipment-service')->name('equipment.')->group(function () {

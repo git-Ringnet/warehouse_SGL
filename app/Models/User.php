@@ -23,6 +23,7 @@ class User extends Authenticatable
         'password',
         'username',
         'role',
+        'role_id',
         'customer_id',
         'active',
     ];
@@ -57,5 +58,36 @@ class User extends Authenticatable
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Get the role group associated with the user.
+     * This relationship is for compatibility with permission checking system.
+     */
+    public function roleGroup()
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * Check if user has specific permission
+     */
+    public function hasPermission($permissionName)
+    {
+        // Nếu role là admin, luôn có quyền
+        if ($this->role === 'admin') {
+            return true;
+        }
+
+        // Kiểm tra quyền từ nhóm quyền
+        if ($this->role_id && $this->roleGroup) {
+            // Kiểm tra xem nhóm quyền có đang kích hoạt không
+            if (!$this->roleGroup->is_active) {
+                return false;
+            }
+            return $this->roleGroup->hasPermission($permissionName);
+        }
+
+        return false;
     }
 }

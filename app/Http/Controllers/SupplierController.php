@@ -6,6 +6,8 @@ use App\Models\Supplier;
 use App\Models\Material;
 use App\Models\Good;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\SuppliersExport;
 
 class SupplierController extends Controller
 {
@@ -167,7 +169,7 @@ class SupplierController extends Controller
         
         if ($materialsCount > 0) {
             return redirect()->route('suppliers.show', $id)
-                ->with('error', 'Không thể xóa nhà cung cấp này vì có vật tư liên quan. Vui lòng xóa các vật tư trước.');
+                ->with('error', 'Không thể xóa nhà cung cấp này vì có ' . $materialsCount . ' vật tư liên quan. Vui lòng xóa các vật tư trước.');
         }
         
         // Kiểm tra xem nhà cung cấp có hàng hóa liên quan không
@@ -175,12 +177,139 @@ class SupplierController extends Controller
         
         if ($goodsCount > 0) {
             return redirect()->route('suppliers.show', $id)
-                ->with('error', 'Không thể xóa nhà cung cấp này vì có hàng hóa liên quan. Vui lòng xóa các hàng hóa trước.');
+                ->with('error', 'Không thể xóa nhà cung cấp này vì có ' . $goodsCount . ' hàng hóa liên quan. Vui lòng xóa các hàng hóa trước.');
+        }
+        
+        // Kiểm tra xem nhà cung cấp có trong testing_items không
+        $testingItemsCount = \App\Models\TestingItem::where('supplier_id', $id)->count();
+        
+        if ($testingItemsCount > 0) {
+            return redirect()->route('suppliers.show', $id)
+                ->with('error', 'Không thể xóa nhà cung cấp này vì có ' . $testingItemsCount . ' mục kiểm thử liên quan. Vui lòng xóa các mục kiểm thử trước.');
         }
         
         $supplier->delete();
 
         return redirect()->route('suppliers.index')
             ->with('success', 'Nhà cung cấp đã được xóa thành công.');
+    }
+
+    /**
+     * Export suppliers list to FDF
+     */
+    public function exportFDF(Request $request)
+    {
+        try {
+            $query = Supplier::query();
+            
+            // Apply search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                if ($request->filled('filter')) {
+                    switch ($request->filter) {
+                        case 'name':
+                            $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'phone':
+                            $query->where('phone', 'like', "%{$search}%");
+                            break;
+                        case 'email':
+                            $query->where('email', 'like', "%{$search}%");
+                            break;
+                        case 'address':
+                            $query->where('address', 'like', "%{$search}%");
+                            break;
+                    }
+                } else {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%");
+                    });
+                }
+            }
+            
+            $suppliers = $query->latest()->get();
+            
+            // Generate FDF content
+            $fdfContent = "%FDF-1.2\n";
+            $fdfContent .= "%âãÏÓ\n";
+            $fdfContent .= "1 0 obj\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/FDF\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/Fields [\n";
+
+            // Add supplier data to FDF
+            foreach ($suppliers as $index => $supplier) {
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (supplier_" . ($index + 1) . "_name)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($supplier->name) . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (supplier_" . ($index + 1) . "_representative)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($supplier->representative ?? '') . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (supplier_" . ($index + 1) . "_phone)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($supplier->phone) . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (supplier_" . ($index + 1) . "_email)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($supplier->email ?? '') . ")\n";
+                $fdfContent .= ">>\n";
+
+                $fdfContent .= "<<\n";
+                $fdfContent .= "/T (supplier_" . ($index + 1) . "_address)\n";
+                $fdfContent .= "/V (" . $this->escapeFDFString($supplier->address ?? '') . ")\n";
+                $fdfContent .= ">>\n";
+            }
+
+            $fdfContent .= "]\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= "endobj\n";
+            $fdfContent .= "trailer\n";
+            $fdfContent .= "<<\n";
+            $fdfContent .= "/Root 1 0 R\n";
+            $fdfContent .= ">>\n";
+            $fdfContent .= "%%EOF\n";
+
+            return response($fdfContent)
+                ->header('Content-Type', 'application/vnd.fdf')
+                ->header('Content-Disposition', 'attachment; filename="danh-sach-nha-cung-cap-' . date('Y-m-d') . '.fdf"');
+                
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất FDF: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Escape string for FDF format
+     */
+    private function escapeFDFString($string)
+    {
+        return str_replace(['(', ')'], ['\\(', '\\)'], $string);
+    }
+    
+    /**
+     * Export suppliers list to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        try {
+            $filters = [
+                'search' => $request->get('search'),
+                'filter' => $request->get('filter')
+            ];
+
+            return Excel::download(new SuppliersExport($filters), 'danh-sach-nha-cung-cap-' . date('Y-m-d') . '.xlsx');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
+        }
     }
 }

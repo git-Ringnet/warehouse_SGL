@@ -65,13 +65,20 @@
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center space-x-2">
+                        @php
+                            $user = auth()->user();
+                            $isAdmin = $user->role === 'admin';
+                        @endphp
+                        @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.view_detail')))
                         <a href="{{ route('assemblies.show', $assembly->id) }}">
                             <button
                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                title="Xem">
+                                title="Xem chi tiết">
                                 <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                             </button>
                         </a>
+                        @endif
+                        @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.edit')))
                         <a href="{{ route('assemblies.edit', $assembly->id) }}">
                             <button
                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
@@ -79,6 +86,8 @@
                                 <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                             </button>
                         </a>
+                        @endif
+                        @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.delete')))
                         <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST"
                             onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
                             @csrf
@@ -89,6 +98,7 @@
                                 <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                             </button>
                         </form>
+                        @endif
                     </td>
                 </tr>
             @empty

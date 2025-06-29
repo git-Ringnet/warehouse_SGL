@@ -1,18 +1,3 @@
-<!-- Ghi chú giải thích -->
-<div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-    <div class="flex items-start">
-        <i class="fas fa-info-circle text-blue-500 mt-0.5 mr-2"></i>
-        <div class="text-sm text-blue-800">
-            <p class="font-medium mb-1">Ghi chú:</p>
-            <ul class="list-disc list-inside space-y-1">
-                <li><strong>Tồn cuối kỳ:</strong> Tồn đầu kỳ + Nhập - Xuất (tính theo công thức)</li>
-                <li><strong>Tồn hiện tại:</strong> Số lượng thực tế trong kho tại thời điểm hiện tại</li>
-                <li><strong>Chênh lệch:</strong> Tồn hiện tại - Tồn cuối kỳ (dương = thừa, âm = thiếu)</li>
-            </ul>
-        </div>
-    </div>
-</div>
-
 <table class="min-w-full bg-white border border-gray-200">
     <thead class="bg-gray-50">
         <tr>

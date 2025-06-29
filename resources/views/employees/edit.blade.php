@@ -91,12 +91,19 @@
                             <select id="role_id" name="role_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">-- Chọn vai trò --</option>
                                 @foreach($roles as $role)
-                                <option value="{{ $role->id }}" {{ old('role_id', $employee->role_id) == $role->id ? 'selected' : '' }}>
+                                <option value="{{ $role->id }}" {{ old('role_id', $employee->role_id) == $role->id ? 'selected' : '' }}
+                                    {{ !$role->is_active ? 'data-inactive=true' : '' }}>
                                     {{ $role->name }} {{ !$role->is_active ? '(Vô hiệu hóa)' : '' }}
                                 </option>
                                 @endforeach
                             </select>
                             <p class="text-xs text-gray-500 mt-1">Vai trò xác định các quyền cụ thể mà nhân viên được phép thực hiện</p>
+                            <div id="role-warning" class="hidden mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <p class="text-sm text-yellow-700">
+                                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>
+                                    Nhóm quyền này đang bị vô hiệu hóa. Nhân viên sẽ không thể sử dụng các quyền của nhóm cho đến khi nhóm được kích hoạt lại.
+                                </p>
+                            </div>
                         </div>
 
                         <div>
@@ -145,8 +152,8 @@
                                 <option value="1" {{ old('is_active', $employee->is_active) == '1' ? 'selected' : '' }}>Hoạt động</option>
                                 <option value="0" {{ old('is_active', $employee->is_active) == '0' ? 'selected' : '' }}>Khóa</option>
                             </select>
-                    </div>
-                    
+                        </div>
+                        
                         <div>
                             <label for="avatar" class="block text-sm font-medium text-gray-700 mb-1">Ảnh đại diện</label>
                             <div class="flex items-center space-x-4">
@@ -338,6 +345,30 @@
             
             // Tải danh sách phòng ban khi trang tải xong
             loadDepartments();
+        });
+    </script>
+
+    <script>
+        document.getElementById('role_id').addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const warningDiv = document.getElementById('role-warning');
+            
+            if (selectedOption.getAttribute('data-inactive')) {
+                warningDiv.classList.remove('hidden');
+            } else {
+                warningDiv.classList.add('hidden');
+            }
+        });
+
+        // Kiểm tra trạng thái ban đầu
+        window.addEventListener('load', function() {
+            const select = document.getElementById('role_id');
+            const selectedOption = select.options[select.selectedIndex];
+            const warningDiv = document.getElementById('role-warning');
+            
+            if (selectedOption.getAttribute('data-inactive')) {
+                warningDiv.classList.remove('hidden');
+            }
         });
     </script>
 </body>

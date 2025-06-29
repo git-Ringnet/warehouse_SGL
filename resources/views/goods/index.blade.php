@@ -115,55 +115,67 @@
                         <div id="moreActionsDropdown"
                             class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-20 hidden border border-gray-200 overflow-hidden">
                             <div class="py-1">
-                                <button id="importDataButton"
-                                    class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-file-import text-green-500 mr-2"></i> Import Data
-                                </button>
-                                <a href="{{ route('goods.template.download') }}"
-                                    class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fa-solid fa-download text-green-500 mr-2"></i> Tải mẫu Import
-                                </a>
+                                @php
+                                    $user = Auth::guard('web')->user();
+                                    $isAdmin = $user && $user->role === 'admin';
+                                @endphp
+                                @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.create')))
+                                    <button id="importDataButton"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-file-import text-green-500 mr-2"></i> Import Data
+                                    </button>
+                                    <a href="{{ route('goods.template.download') }}"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fa-solid fa-download text-green-500 mr-2"></i> Tải mẫu Import
+                                    </a>
+                                @endif
                                 <div class="border-t border-gray-200 my-1"></div>
-                                <a href="{{ route('goodshidden') }}"
-                                    class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-eye-slash text-yellow-500 mr-2"></i> Hàng hóa ẩn
-                                </a>
-                                <a href="{{ route('goodsdeleted') }}"
-                                    class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-trash text-red-500 mr-2"></i> Đã xóa
-                                </a>
+                                @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view')))
+                                    <a href="{{ route('goodshidden') }}"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-eye-slash text-yellow-500 mr-2"></i> Hàng hóa ẩn
+                                    </a>
+                                    <a href="{{ route('goodsdeleted') }}"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-trash text-red-500 mr-2"></i> Đã xóa
+                                    </a>
+                                @endif
                             </div>
                         </div>
                     </div>
 
-                    <div class="relative inline-block text-left">
-                        <button id="exportDropdownButton" type="button"
-                            class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors group">
-                            <i class="fas fa-download mr-2"></i> Xuất dữ liệu
-                            <i
-                                class="fas fa-chevron-down ml-2 transition-transform group-hover:transform group-hover:translate-y-0.5"></i>
-                        </button>
-                        <div id="exportDropdown"
-                            class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 hidden border border-gray-200 overflow-hidden">
-                            <div class="py-1">
-                                <button id="exportExcelButton"
-                                    class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-file-excel text-green-500 mr-2"></i> Xuất Excel
-                                </button>
-                                <button id="exportFDFButton"
-                                    class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-file-code text-blue-500 mr-2"></i> Xuất FDF
-                                </button>
+                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.export')))
+                        <div class="relative inline-block text-left">
+                            <button id="exportDropdownButton" type="button"
+                                class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors group">
+                                <i class="fas fa-download mr-2"></i> Xuất dữ liệu
+                                <i
+                                    class="fas fa-chevron-down ml-2 transition-transform group-hover:transform group-hover:translate-y-0.5"></i>
+                            </button>
+                            <div id="exportDropdown"
+                                class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 hidden border border-gray-200 overflow-hidden">
+                                <div class="py-1">
+                                    <button id="exportExcelButton"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-file-excel text-green-500 mr-2"></i> Xuất Excel
+                                    </button>
+                                    <button id="exportFDFButton"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-file-code text-blue-500 mr-2"></i> Xuất FDF
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    @endif
 
-                    <a href="{{ route('goods.create') }}">
-                        <button
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-plus mr-2"></i> Thêm hàng hóa
-                        </button>
-                    </a>
+                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.create')))
+                        <a href="{{ route('goods.create') }}">
+                            <button
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                <i class="fas fa-plus mr-2"></i> Thêm hàng hóa
+                            </button>
+                        </a>
+                    @endif
                 </div>
             </div>
         </header>
@@ -257,29 +269,35 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                    <a href="{{ route('goods.show', $good->id) }}">
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                            title="Xem">
-                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                        </button>
-                                    </a>
-                                    @if ($good->status !== 'deleted' && !$good->is_hidden)
-                                        <a href="{{ route('goods.edit', $good->id) }}">
+                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view_detail')))
+                                        <a href="{{ route('goods.show', $good->id) }}">
                                             <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                                title="Sửa">
-                                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                                title="Xem">
+                                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
                                     @endif
-                                    <button type="button"
-                                        onclick="showImagesModal('{{ $good->id }}', '{{ $good->name }}')"
-                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
-                                        title="Xem hình ảnh">
-                                        <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
-                                    </button>
                                     @if ($good->status !== 'deleted' && !$good->is_hidden)
+                                        @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.edit')))
+                                            <a href="{{ route('goods.edit', $good->id) }}">
+                                                <button
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                                    title="Sửa">
+                                                    <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
+                                                </button>
+                                            </a>
+                                        @endif
+                                    @endif
+                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view_detail')))
+                                        <button type="button"
+                                            onclick="showImagesModal('{{ $good->id }}', '{{ $good->name }}')"
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
+                                            title="Xem hình ảnh">
+                                            <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
+                                        </button>
+                                    @endif
+                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.delete')))
                                         <button
                                             onclick="openDeleteModal('{{ $good->id }}', '{{ $good->code }}', {{ $good->inventory_quantity }})"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"

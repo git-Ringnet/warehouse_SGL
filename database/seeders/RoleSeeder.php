@@ -20,7 +20,7 @@ class RoleSeeder extends Seeder
         DB::table('role_permission')->truncate();
         Role::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
-        
+
         // Tạo các nhóm quyền mặc định
         $roles = [
             // Super Admin - quản trị toàn bộ hệ thống
@@ -31,7 +31,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'is_system' => true,
             ],
-            
+
             // Kho sản xuất
             [
                 'name' => 'Kho Sản Xuất',
@@ -40,7 +40,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'is_system' => false,
             ],
-            
+
             // Kho thành phẩm
             [
                 'name' => 'Kho Thành Phẩm',
@@ -49,7 +49,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'is_system' => false,
             ],
-            
+
             // Kho bảo hành
             [
                 'name' => 'Kho Bảo Hành',
@@ -58,7 +58,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'is_system' => false,
             ],
-            
+
             // Kho phần mềm
             [
                 'name' => 'Kho Phần Mềm',
@@ -67,7 +67,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'is_system' => false,
             ],
-            
+
             // Quản lý dự án
             [
                 'name' => 'Quản Lý Dự Án',
@@ -77,92 +77,112 @@ class RoleSeeder extends Seeder
                 'is_system' => false,
             ],
         ];
-        
+
         foreach ($roles as $roleData) {
             $role = Role::create($roleData);
-            
+
             // Gán tất cả quyền cho Super Admin
             if ($role->name === 'Super Admin') {
                 $permissions = Permission::all();
                 $role->permissions()->attach($permissions->pluck('id')->toArray());
             }
-            
+
             // Gán quyền cho các vai trò khác theo scope
             else {
                 $this->assignDefaultPermissions($role);
             }
         }
     }
-    
+
     /**
      * Gán các quyền mặc định cho từng nhóm quyền
      */
     private function assignDefaultPermissions(Role $role)
     {
         $permissionsToAssign = [];
-        
+
         // Các quyền chung cho tất cả các nhóm
         $commonPermissions = [
             // Nhân viên - chỉ xem
             'employees.view',
-            
+
             // Khách hàng - các quyền CRUD
             'customers.view',
             'customers.create',
             'customers.edit',
             'customers.delete',
-            
+
             // Nhà cung cấp - các quyền CRUD
             'suppliers.view',
             'suppliers.create',
             'suppliers.edit',
             'suppliers.delete',
-            
-            // Báo cáo - xem và xuất
-            'reports.view',
-            'reports.export',
+
+            // Báo cáo - xem dashboard và báo cáo chi tiết
+            'reports.overview',    // Xem dashboard thống kê
+            'reports.inventory',   // Xem báo cáo xuất nhập tồn chi tiết
+            'reports.export',      // Xuất file báo cáo
 
             // Phiếu yêu cầu - view và create
             'requests.view',
             'requests.create',
         ];
-        
+
         // Các quyền theo scope
         switch ($role->scope) {
             case 'warehouse':
                 $warehousePermissions = [
                     // Kho hàng - xem
                     'warehouses.view',
-                    
+                    'warehouses.view_detail',
+                    'warehouses.export',
+
                     // Vật tư - các quyền CRUD
                     'materials.view',
                     'materials.create',
                     'materials.edit',
                     'materials.delete',
-                    
+                    'materials.view_detail',
+                    'materials.export',
+
+                    // Hàng hóa - các quyền CRUD
+                    'goods.view',
+                    'goods.create',
+                    'goods.edit',
+                    'goods.delete',
+                    'goods.view_detail',
+                    'goods.export',
+
                     // Thành phẩm - các quyền CRUD
                     'products.view',
                     'products.create',
                     'products.edit',
                     'products.delete',
-                    
+                    'products.view_detail',
+                    'products.export',
+
                     // Nhập kho - các quyền CRUD
-                    'imports.view',
-                    'imports.create',
-                    'imports.edit',
-                    'imports.delete',
-                    
+                    'inventory_imports.view',
+                    'inventory_imports.create',
+                    'inventory_imports.view_detail',
+                    'inventory_imports.edit',
+                    'inventory_imports.delete',
+
                     // Xuất kho - các quyền CRUD
-                    'exports.view',
-                    'exports.create',
-                    'exports.edit',
-                    'exports.delete',
-                    
+                    'inventory.view',
+                    'inventory.view_detail',
+                    'inventory.create',
+                    'inventory.edit',
+                    'inventory.delete',
+                    'inventory.approve',
+                    'inventory.reject',
+
                     // Chuyển kho - các quyền CRUD
-                    'transfers.view',
-                    'transfers.create',
-                    'transfers.edit',
-                    'transfers.delete',
+                    'warehouse-transfers.view',
+                    'warehouse-transfers.view_detail',
+                    'warehouse-transfers.create',
+                    'warehouse-transfers.edit',
+                    'warehouse-transfers.delete',
 
                     // Báo cáo tồn kho
                     'reports.inventory',
@@ -170,33 +190,40 @@ class RoleSeeder extends Seeder
                     // Phạm vi quyền
                     'scope.warehouse',
                 ];
-                
+
                 $permissionsToAssign = array_merge($commonPermissions, $warehousePermissions);
-                
+
                 // Thêm quyền đặc biệt theo tên nhóm
                 if ($role->name === 'Kho Sản Xuất') {
                     $permissionsToAssign = array_merge($permissionsToAssign, [
                         'assembly.view',
+                        'assembly.view_detail',
                         'assembly.create',
                         'assembly.edit',
                         'assembly.delete',
-                        
+                        'assembly.export',
+
                         'testing.view',
+                        'testing.view_detail',
                         'testing.create',
                         'testing.edit',
                         'testing.delete',
-
-                        'reports.operations',
+                        'testing.approve',
+                        'testing.reject',
+                        'testing.receive',
+                        'testing.complete',
+                        'testing.update_inventory',
+                        'testing.print',
                     ]);
                 }
-                
+
                 if ($role->name === 'Kho Bảo Hành') {
                     $permissionsToAssign = array_merge($permissionsToAssign, [
                         'repairs.view',
                         'repairs.create',
                         'repairs.edit',
                         'repairs.delete',
-                        
+
                         'warranties.view',
                         'warranties.create',
                         'warranties.edit',
@@ -213,9 +240,9 @@ class RoleSeeder extends Seeder
                         'software.download',
                     ]);
                 }
-                
+
                 break;
-                
+
             case 'project':
                 $projectPermissions = [
                     // Dự án - các quyền CRUD
@@ -223,27 +250,27 @@ class RoleSeeder extends Seeder
                     'projects.create',
                     'projects.edit',
                     'projects.delete',
-                    
+
                     // Cho thuê - các quyền CRUD
                     'rentals.view',
                     'rentals.create',
                     'rentals.edit',
                     'rentals.delete',
-                    
+
                     // Kho hàng - xem
                     'warehouses.view',
-                    
+
                     // Vật tư, thành phẩm - chỉ xem
                     'materials.view',
                     'products.view',
-                    
+
                     // Nhập xuất kho - chỉ xem
                     'imports.view',
                     'exports.view',
                     'transfers.view',
 
                     // Báo cáo dự án
-                    'reports.projects',
+                    'reports.overview',
 
                     // Phạm vi quyền
                     'scope.project',
@@ -254,11 +281,11 @@ class RoleSeeder extends Seeder
                     'requests.approve',
                     'requests.reject',
                 ];
-                
+
                 $permissionsToAssign = array_merge($commonPermissions, $projectPermissions);
                 break;
         }
-        
+
         // Gán quyền
         $permissions = Permission::whereIn('name', $permissionsToAssign)->get();
         $role->permissions()->attach($permissions->pluck('id')->toArray());

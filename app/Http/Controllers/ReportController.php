@@ -188,7 +188,7 @@ class ReportController extends Controller
             $materialsQuery->where(function($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
                   ->orWhere('code', 'LIKE', "%{$search}%")
-                  ->orWhere('description', 'LIKE', "%{$search}%");
+                  ->orWhere('notes', 'LIKE', "%{$search}%");
             });
         }
 
@@ -584,7 +584,7 @@ class ReportController extends Controller
             $materialsQuery->where(function($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
                   ->orWhere('code', 'LIKE', "%{$search}%")
-                  ->orWhere('description', 'LIKE', "%{$search}%");
+                  ->orWhere('notes', 'LIKE', "%{$search}%");
             });
         }
 
@@ -802,7 +802,7 @@ class ReportController extends Controller
             $materialsQuery->where(function($q) use ($search) {
                 $q->where('name', 'LIKE', "%{$search}%")
                   ->orWhere('code', 'LIKE', "%{$search}%")
-                  ->orWhere('description', 'LIKE', "%{$search}%");
+                  ->orWhere('notes', 'LIKE', "%{$search}%");
             });
         }
 

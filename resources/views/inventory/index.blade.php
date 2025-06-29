@@ -19,10 +19,16 @@
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Quản lý xuất kho</h1>
             <div class="flex items-center gap-2">
+                @php
+                    $user = Auth::guard('web')->user();
+                    $isAdmin = $user && $user->role === 'admin';
+                @endphp
+                @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.create')))
                 <a href="{{ route('inventory.dispatch.create') }}"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-plus mr-2"></i> Tạo phiếu xuất
                 </a>
+                @endif
             </div>
         </header>
 
@@ -165,6 +171,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <div class="flex space-x-2">
+                                        @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.view_detail')))
                                         <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}">
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
@@ -172,7 +179,9 @@
                                                 <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                             </button>
                                         </a>
-                                        @if(!in_array($dispatch->status, ['completed', 'cancelled']))
+                                        @endif
+
+                                        @if((!in_array($dispatch->status, ['completed', 'cancelled'])) && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.edit'))))
                                         <a href="{{ route('inventory.dispatch.edit', $dispatch->id) }}">
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
@@ -181,18 +190,24 @@
                                             </button>
                                         </a>
                                         @endif
-                                        @if($dispatch->status === 'pending')
+
+                                        @if($dispatch->status === 'pending' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.approve'))))
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
                                             title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}">
                                             <i class="fas fa-check text-green-500 group-hover:text-white"></i>
                                         </button>
+                                        @endif
+
+                                        @if($dispatch->status === 'pending' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.cancel'))))
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
                                             title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}">
                                             <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                         </button>
-                                        @elseif($dispatch->status === 'cancelled')
+                                        @endif
+
+                                        @if($dispatch->status === 'cancelled' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.delete'))))
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn"
                                             title="Xóa phiếu xuất" data-id="{{ $dispatch->id }}">
@@ -340,7 +355,23 @@
                     return;
                 }
 
-                tableBody.innerHTML = dispatches.map(dispatch => `
+                tableBody.innerHTML = dispatches.map(dispatch => {
+                    const isAdmin = {{ Auth::guard('web')->user() && Auth::guard('web')->user()->role === 'admin' ? 'true' : 'false' }};
+                    const userPermissions = {
+                        view_detail: {{ auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.view_detail') ? 'true' : 'false' }},
+                        edit: {{ auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.edit') ? 'true' : 'false' }},
+                        approve: {{ auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.approve') ? 'true' : 'false' }},
+                        cancel: {{ auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.cancel') ? 'true' : 'false' }},
+                        delete: {{ auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.delete') ? 'true' : 'false' }}
+                    };
+
+                    const canView = isAdmin || userPermissions.view_detail;
+                    const canEdit = isAdmin || (userPermissions.edit && !['completed', 'cancelled'].includes(dispatch.status));
+                    const canApprove = isAdmin || (userPermissions.approve && dispatch.status === 'pending');
+                    const canCancel = isAdmin || (userPermissions.cancel && dispatch.status === 'pending');
+                    const canDelete = (dispatch.status === 'cancelled') && (isAdmin || userPermissions.delete);
+
+                    return `
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             ${dispatch.dispatch_code}
@@ -370,29 +401,31 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex space-x-2">
-                                <a href="/inventory/dispatch/${dispatch.id}">
-                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                    </button>
-                                </a>
-                                ${dispatch.can_edit ? `
+                                ${canView ? `
+                                    <a href="/inventory/dispatch/${dispatch.id}">
+                                        <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                        </button>
+                                    </a>
+                                ` : ''}
+                                ${canEdit ? `
                                     <a href="/inventory/dispatch/${dispatch.id}/edit">
                                         <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                             <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                         </button>
                                     </a>
                                 ` : ''}
-                                ${dispatch.can_approve ? `
+                                ${canApprove ? `
                                     <button class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn" title="Duyệt phiếu xuất" data-id="${dispatch.id}">
                                         <i class="fas fa-check text-green-500 group-hover:text-white"></i>
                                     </button>
                                 ` : ''}
-                                ${dispatch.can_cancel ? `
+                                ${canCancel ? `
                                     <button class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn" title="Hủy phiếu xuất" data-id="${dispatch.id}">
                                         <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                     </button>
                                 ` : ''}
-                                ${dispatch.can_delete ? `
+                                ${canDelete ? `
                                     <button class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn" title="Xóa phiếu xuất" data-id="${dispatch.id}">
                                         <i class="fas fa-trash text-gray-500 group-hover:text-white"></i>
                                     </button>
@@ -400,7 +433,8 @@
                             </div>
                         </td>
                     </tr>
-                `).join('');
+                    `;
+                }).join('');
 
                 // Re-attach event listeners to new buttons
                 attachActionButtonListeners();

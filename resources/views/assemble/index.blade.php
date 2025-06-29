@@ -24,6 +24,10 @@
 </head>
 
 <body class="bg-gray-50">
+    @php
+        $user = auth()->user();
+        $isAdmin = $user->role === 'admin';
+    @endphp
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area ml-64">
@@ -112,12 +116,14 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2 items-center">
+                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.create')))
                     <a href="{{ route('assemblies.create') }}">
                         <button
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                             <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
                         </button>
                     </a>
+                    @endif
                 </div>
             </div>
         </header>

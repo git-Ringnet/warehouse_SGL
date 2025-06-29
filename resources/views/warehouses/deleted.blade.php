@@ -12,6 +12,10 @@
 </head>
 
 <body>
+    @php
+        $user = auth()->user();
+        $isAdmin = $user->role === 'admin';
+    @endphp
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area">
@@ -28,10 +32,12 @@
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-list mr-2"></i> Danh sách chính
                 </a>
+                @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('warehouses.view')))
                 <a href="{{ route('warehouses.hidden') }}"
                     class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                     <i class="fas fa-eye-slash mr-2"></i> Đã ẩn
                 </a>
+                @endif
             </div>
         </header>
 
@@ -96,13 +102,15 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->manager }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
+                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('warehouses.view_detail')))
                                     <a href="{{ route('warehouses.show', $warehouse->id) }}">
                                         <button
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                            title="Xem">
+                                            title="Xem chi tiết">
                                             <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                         </button>
                                     </a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

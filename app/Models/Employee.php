@@ -109,6 +109,10 @@ class Employee extends Authenticatable
 
         // Kiểm tra quyền từ nhóm quyền
         if ($this->role_id && $this->roleGroup) {
+            // Kiểm tra xem nhóm quyền có đang kích hoạt không
+            if (!$this->roleGroup->is_active) {
+                return false;
+            }
             return $this->roleGroup->hasPermission($permissionName);
         }
 
