@@ -367,8 +367,8 @@
 
                     const canView = isAdmin || userPermissions.view_detail;
                     const canEdit = isAdmin || (userPermissions.edit && !['completed', 'cancelled'].includes(dispatch.status));
-                    const canApprove = isAdmin || (userPermissions.approve && dispatch.status === 'pending');
-                    const canCancel = isAdmin || (userPermissions.cancel && dispatch.status === 'pending');
+                    const canApprove = (isAdmin || userPermissions.approve) && dispatch.status === 'pending';
+                    const canCancel = (isAdmin || userPermissions.cancel) && dispatch.status === 'pending';
                     const canDelete = (dispatch.status === 'cancelled') && (isAdmin || userPermissions.delete);
 
                     return `
