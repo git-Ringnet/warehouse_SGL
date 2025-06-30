@@ -15,6 +15,16 @@
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area">
+        @php
+            $user = Auth::guard('web')->user();
+            $canEdit =
+                ($user && $user->role === 'admin') ||
+                ($user && $user->roleGroup && $user->roleGroup->hasPermission('roles.edit'));
+            $canDelete =
+                ($user && $user->role === 'admin') ||
+                ($user && $user->roleGroup && $user->roleGroup->hasPermission('roles.delete'));
+        @endphp
+
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
                 <a href="{{ route('roles.index') }}" class="text-gray-600 hover:text-blue-500 mr-4">
@@ -44,7 +54,7 @@
                 @endif
             </div>
             <div class="flex space-x-3">
-                @unless ($role->is_system)
+                @if ($canEdit && !$role->is_system)
                     <a href="{{ route('roles.edit', $role->id) }}"
                         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
@@ -58,7 +68,7 @@
                             {{ $role->is_active ? 'Vô hiệu hóa' : 'Kích hoạt' }}
                         </button>
                     </form>
-                @endunless
+                @endif
             </div>
         </header>
 
@@ -92,11 +102,6 @@
                         <div>
                             <p class="text-sm text-gray-500 font-medium mb-1">Mô tả</p>
                             <p class="text-base text-gray-800">{{ $role->description ?? 'Không có mô tả' }}</p>
-                        </div>
-
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">Phạm vi</p>
-                            <p class="text-base text-gray-800">{{ $role->scope ?? 'Không có phạm vi' }}</p>
                         </div>
 
                         <div>
@@ -144,18 +149,41 @@
                         </div>
                     </div>
 
-                    @unless ($role->is_system)
+                    @if ($canDelete && !$role->is_system)
                         <div class="mt-6 pt-4 border-t border-gray-100">
-                            <form action="{{ route('roles.destroy', $role->id) }}" method="POST"
-                                onsubmit="return confirm('Bạn có chắc chắn muốn xóa nhóm quyền này?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="flex items-center text-red-600 hover:text-red-800">
-                                    <i class="fas fa-trash-alt mr-2"></i> Xóa nhóm quyền
-                                </button>
-                            </form>
+                            @php
+                                $employeesCount = $role->employees->count();
+                            @endphp
+                            @if ($employeesCount > 0)
+                                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                    <div class="flex items-start">
+                                        <i class="fas fa-exclamation-triangle text-yellow-500 mt-1 mr-3"></i>
+                                        <div>
+                                            <h4 class="text-sm font-medium text-yellow-800">Không thể xóa nhóm quyền</h4>
+                                            <p class="text-sm text-yellow-700 mt-1">
+                                                Có {{ $employeesCount }} nhân viên đang sử dụng nhóm quyền này. 
+                                                Vui lòng chuyển các nhân viên sang nhóm quyền khác trước khi xóa.
+                                            </p>
+                                            <a href="{{ route('roles.edit', $role->id) }}" 
+                                                class="mt-2 inline-flex items-center text-sm text-yellow-700 hover:text-yellow-900 underline">
+                                                <i class="fas fa-edit mr-1"></i>
+                                                Chỉnh sửa nhóm quyền
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <form action="{{ route('roles.destroy', $role->id) }}" method="POST"
+                                    onsubmit="return confirm('Bạn có chắc chắn muốn xóa nhóm quyền này? Hành động này không thể hoàn tác.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="flex items-center text-red-600 hover:text-red-800 transition-colors">
+                                        <i class="fas fa-trash-alt mr-2"></i> Xóa nhóm quyền
+                                    </button>
+                                </form>
+                            @endif
                         </div>
-                    @endunless
+                    @endif
                 </div>
 
                 <!-- Thống kê -->
@@ -170,7 +198,11 @@
                             <div class="bg-blue-50 p-4 rounded-lg">
                                 <h3 class="text-sm font-medium text-blue-800">Tổng số quyền</h3>
                                 <p class="mt-2 text-2xl font-bold text-blue-700">{{ $role->permissions->count() }}</p>
-                                <p class="mt-1 text-xs text-blue-600">trên {{ count($permissions) }} nhóm quyền</p>
+                                @php
+                                    // Đếm số nhóm quyền mà role này thực sự có quyền
+                                    $rolePermissionGroups = $role->permissions->pluck('group')->unique()->count();
+                                @endphp
+                                <p class="mt-1 text-xs text-blue-600">từ {{ $rolePermissionGroups }} nhóm khác nhau</p>
                             </div>
 
                             <div class="bg-green-50 p-4 rounded-lg">
@@ -372,32 +404,37 @@
 
             <!-- Danh sách dự án -->
             <div class="mb-6 bg-white rounded-xl shadow-md p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Dự án được phân quyền ({{ $projects->count() }})</h2>
-                @if($projects->count() > 0)
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Dự án được phân quyền ({{ $projects->count() }})
+                </h2>
+                @if ($projects->count() > 0)
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Tên dự án
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Khách hàng
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($projects as $project)
+                                @foreach ($projects as $project)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap">
-                                            <div class="text-sm font-medium text-gray-900">{{ $project->project_name }}</div>
-                                            @if(isset($project->contract_code))
-                                                <div class="text-xs text-gray-500">Mã HĐ: {{ $project->contract_code }}</div>
+                                            <div class="text-sm font-medium text-gray-900">
+                                                {{ $project->project_name }}</div>
+                                            @if (isset($project->contract_code))
+                                                <div class="text-xs text-gray-500">Mã HĐ:
+                                                    {{ $project->contract_code }}</div>
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm text-gray-900">
-                                                @if($project->customer)
+                                                @if ($project->customer)
                                                     {{ $project->customer->name }}
                                                 @else
                                                     <span class="text-gray-500 italic">Không có</span>
@@ -416,35 +453,39 @@
 
             <!-- Danh sách hợp đồng cho thuê -->
             <div class="mb-6 bg-white rounded-xl shadow-md p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Hợp đồng cho thuê được phân quyền ({{ $rentals->count() }})</h2>
-                @if($rentals->count() > 0)
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Hợp đồng cho thuê được phân quyền
+                    ({{ $rentals->count() }})</h2>
+                @if ($rentals->count() > 0)
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Mã hợp đồng
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Khách hàng
                                     </th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th scope="col"
+                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Ngày bắt đầu
                                     </th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($rentals as $rental)
+                                @foreach ($rentals as $rental)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm font-medium text-gray-900">#{{ $rental->id }}</div>
-                                            @if(isset($rental->contract_code))
+                                            @if (isset($rental->contract_code))
                                                 <div class="text-xs text-gray-500">{{ $rental->contract_code }}</div>
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm text-gray-900">
-                                                @if($rental->customer)
+                                                @if ($rental->customer)
                                                     {{ $rental->customer->name }}
                                                 @else
                                                     <span class="text-gray-500 italic">Không có</span>
@@ -453,7 +494,7 @@
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">
                                             <div class="text-sm text-gray-900">
-                                                @if($rental->start_date)
+                                                @if ($rental->start_date)
                                                     {{ \Carbon\Carbon::parse($rental->start_date)->format('d/m/Y') }}
                                                 @else
                                                     <span class="text-gray-500 italic">Chưa xác định</span>

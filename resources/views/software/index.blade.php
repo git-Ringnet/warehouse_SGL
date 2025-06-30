@@ -11,6 +11,15 @@
     <script src="{{ asset('js/delete-modal.js') }}"></script>
 </head>
 <body>
+    @php
+        $user = Auth::guard('web')->user();
+        $canCreate = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('software.create')));
+        $canEdit = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('software.edit')));
+        $canDelete = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('software.delete')));
+        $canViewDetail = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('software.view_detail')));
+        $canDownload = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('software.download')));
+    @endphp
+
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area">
@@ -33,9 +42,11 @@
                         </button>
                     </div>
                 </form>
+                @if($canCreate)
                 <a href="{{ route('software.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
                     <i class="fas fa-plus-circle mr-2"></i> Thêm phần mềm mới
                 </a>
+                @endif
             </div>
         </header>
 
@@ -77,22 +88,34 @@
                                 <span class="px-2 py-1 {{ $item->statusClass }} rounded text-xs">{{ $item->statusLabel }}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
+                                @if($canViewDetail)
                                 <a href="{{ route('software.show', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                 </a>
+                                @endif
+
+                                @if($canEdit)
                                 <a href="{{ route('software.edit', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                 </a>
+                                @endif
+
+                                @if($canDelete)
                                 <button onclick="openDeleteModal('{{ $item->id }}', '{{ $item->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                 </button>
+                                @endif
+
+                                @if($canDownload)
                                 <a href="{{ route('software.download', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Tải xuống phần mềm">
                                     <i class="fas fa-download text-purple-500 group-hover:text-white"></i>
                                 </a>
+
                                 @if(!empty($item->manual_path))
                                 <a href="{{ route('software.download_manual', $item->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group" title="Tải tài liệu hướng dẫn">
                                     <i class="fas fa-file-pdf text-green-500 group-hover:text-white"></i>
                                 </a>
+                                @endif
                                 @endif
                             </td>
                         </tr>

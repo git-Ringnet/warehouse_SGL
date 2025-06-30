@@ -48,6 +48,61 @@
                 </div>
             @endif
 
+            <!-- Thông báo cảnh báo quyền trùng lặp -->
+            @if (session('duplicate_warnings'))
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm leading-5 font-medium text-yellow-800">
+                                Cảnh báo quyền trùng lặp!
+                            </h3>
+                            <p class="mt-1 text-sm text-yellow-700">
+                                Một số nhân viên bạn chọn đã có quyền tương tự từ nhóm quyền khác:
+                            </p>
+                            <div class="mt-3 space-y-3">
+                                @foreach (session('duplicate_warnings') as $warning)
+                                    <div class="bg-yellow-100 border border-yellow-200 rounded-lg p-3">
+                                        <div class="flex items-start justify-between">
+                                            <div>
+                                                <p class="text-sm font-medium text-yellow-800">
+                                                    <i class="fas fa-user mr-1"></i>
+                                                    {{ $warning['employee']->name }}
+                                                </p>
+                                                <p class="text-xs text-yellow-600 mt-1">
+                                                    Hiện tại thuộc nhóm: <strong>{{ $warning['current_role']->name }}</strong>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <p class="text-xs text-yellow-600 mb-1">Quyền trùng lặp:</p>
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach ($warning['duplicate_permissions']->take(3) as $permission)
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                                        {{ $permission->display_name }}
+                                                    </span>
+                                                @endforeach
+                                                @if ($warning['duplicate_permissions']->count() > 3)
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                                        +{{ $warning['duplicate_permissions']->count() - 3 }} quyền khác
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="mt-3 text-sm text-yellow-700">
+                                <i class="fas fa-lightbulb mr-1"></i>
+                                <strong>Khuyến nghị:</strong> Xem xét loại bỏ nhân viên này khỏi danh sách hoặc điều chỉnh quyền để tránh xung đột.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <form action="{{ route('roles.update', $role->id) }}" method="POST" class="space-y-6">
                 @csrf
                 @method('PUT')

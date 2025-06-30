@@ -15,6 +15,18 @@
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area">
+        @php
+            $user = Auth::guard('web')->user();
+            $canEdit =
+                $user &&
+                ($user->role === 'admin' ||
+                    ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('repairs.edit')));
+            $canDelete =
+                $user &&
+                ($user->role === 'admin' ||
+                    ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('repairs.delete')));
+        @endphp
+
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
                 <a href="{{ asset('repair') }}" class="text-gray-600 hover:text-blue-500 mr-4">
@@ -23,16 +35,21 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết sửa chữa & bảo trì</h1>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('repairs.edit', $repair->id) }}">
-                    <button
-                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                        <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                @if ($canEdit)
+                    <a href="{{ route('repairs.edit', $repair->id) }}">
+                        <button
+                            class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                        </button>
+                    </a>
+                @endif
+
+                @if ($canDelete)
+                    <button type="button" onclick="confirmDelete({{ $repair->id }}, '{{ $repair->repair_code }}')"
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i> Xóa
                     </button>
-                </a>
-                <button type="button"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i> Xóa
-                </button>
+                @endif
             </div>
         </header>
 
@@ -210,10 +227,11 @@
                                             {{ $replacement->material_name }}
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-700">
-                                            @if($replacement->old_serials && count($replacement->old_serials) > 0)
+                                            @if ($replacement->old_serials && count($replacement->old_serials) > 0)
                                                 <div class="space-y-1">
-                                                    @foreach($replacement->old_serials as $serial)
-                                                        <span class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded">{{ $serial }}</span>
+                                                    @foreach ($replacement->old_serials as $serial)
+                                                        <span
+                                                            class="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded">{{ $serial }}</span>
                                                     @endforeach
                                                 </div>
                                             @else
@@ -221,10 +239,11 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-700">
-                                            @if($replacement->new_serials && count($replacement->new_serials) > 0)
+                                            @if ($replacement->new_serials && count($replacement->new_serials) > 0)
                                                 <div class="space-y-1">
-                                                    @foreach($replacement->new_serials as $serial)
-                                                        <span class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{{ $serial }}</span>
+                                                    @foreach ($replacement->new_serials as $serial)
+                                                        <span
+                                                            class="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{{ $serial }}</span>
                                                     @endforeach
                                                 </div>
                                             @else
@@ -371,25 +390,28 @@
                             <i class="fas fa-history text-blue-500 mr-2"></i>
                             Lịch sử sửa chữa
                         </h3>
-                        
+
                         <div class="space-y-4">
                             <!-- Timeline item: Tạo phiếu sửa chữa -->
                             <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500">
                                 <div class="flex-shrink-0">
-                                    <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center">
+                                    <div
+                                        class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center">
                                         <i class="fas fa-plus text-sm"></i>
                                     </div>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center justify-between">
                                         <h4 class="text-sm font-medium text-gray-900">Tạo phiếu sửa chữa</h4>
-                                        <span class="text-sm text-gray-500">{{ $repair->created_at->format('d/m/Y H:i') }}</span>
+                                        <span
+                                            class="text-sm text-gray-500">{{ $repair->created_at->format('d/m/Y H:i') }}</span>
                                     </div>
                                     <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                         <div>
                                             <span class="font-medium text-gray-700">Loại sửa chữa:</span>
-                                            <span class="ml-1 px-2 py-1 text-xs rounded-full 
-                                                @if($repair->repair_type == 'maintenance') bg-blue-100 text-blue-800
+                                            <span
+                                                class="ml-1 px-2 py-1 text-xs rounded-full 
+                                                @if ($repair->repair_type == 'maintenance') bg-blue-100 text-blue-800
                                                 @elseif($repair->repair_type == 'repair') bg-yellow-100 text-yellow-800
                                                 @elseif($repair->repair_type == 'replacement') bg-purple-100 text-purple-800
                                                 @elseif($repair->repair_type == 'upgrade') bg-green-100 text-green-800
@@ -399,7 +421,8 @@
                                         </div>
                                         <div>
                                             <span class="font-medium text-gray-700">Kỹ thuật viên:</span>
-                                            <span class="ml-1">{{ $repair->technician->name ?? 'Không xác định' }}</span>
+                                            <span
+                                                class="ml-1">{{ $repair->technician->name ?? 'Không xác định' }}</span>
                                         </div>
                                     </div>
                                     <div class="mt-2">
@@ -410,22 +433,26 @@
                             </div>
 
                             <!-- Timeline items: Cập nhật phiếu sửa chữa -->
-                            @if($repair->updated_at && $repair->updated_at != $repair->created_at)
-                                <div class="flex items-start space-x-4 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
+                            @if ($repair->updated_at && $repair->updated_at != $repair->created_at)
+                                <div
+                                    class="flex items-start space-x-4 p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
                                     <div class="flex-shrink-0">
-                                        <div class="w-10 h-10 bg-yellow-500 text-white rounded-full flex items-center justify-center">
+                                        <div
+                                            class="w-10 h-10 bg-yellow-500 text-white rounded-full flex items-center justify-center">
                                             <i class="fas fa-edit text-sm"></i>
                                         </div>
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center justify-between">
                                             <h4 class="text-sm font-medium text-gray-900">Cập nhật phiếu sửa chữa</h4>
-                                            <span class="text-sm text-gray-500">{{ $repair->updated_at->format('d/m/Y H:i') }}</span>
+                                            <span
+                                                class="text-sm text-gray-500">{{ $repair->updated_at->format('d/m/Y H:i') }}</span>
                                         </div>
                                         <div class="mt-2">
                                             <span class="font-medium text-gray-700">Trạng thái hiện tại:</span>
-                                            <span class="ml-1 px-2 py-1 text-xs rounded-full 
-                                                @if($repair->status == 'completed') bg-green-100 text-green-800
+                                            <span
+                                                class="ml-1 px-2 py-1 text-xs rounded-full 
+                                                @if ($repair->status == 'completed') bg-green-100 text-green-800
                                                 @elseif($repair->status == 'in_progress') bg-yellow-100 text-yellow-800
                                                 @else bg-gray-100 text-gray-800 @endif">
                                                 {{ $repair->status_label }}
@@ -436,10 +463,12 @@
                             @endif
 
                             <!-- Timeline items: Thay thế linh kiện -->
-                            @foreach($repair->materialReplacements as $replacement)
-                                <div class="flex items-start space-x-4 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
+                            @foreach ($repair->materialReplacements as $replacement)
+                                <div
+                                    class="flex items-start space-x-4 p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
                                     <div class="flex-shrink-0">
-                                        <div class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center">
+                                        <div
+                                            class="w-10 h-10 bg-orange-500 text-white rounded-full flex items-center justify-center">
                                             <i class="fas fa-exchange-alt text-sm"></i>
                                         </div>
                                     </div>
@@ -457,14 +486,16 @@
                                             </div>
                                             <div>
                                                 <span class="font-medium text-gray-700">Linh kiện:</span>
-                                                <span class="ml-1">{{ $replacement->material_code }} - {{ $replacement->material_name }}</span>
+                                                <span class="ml-1">{{ $replacement->material_code }} -
+                                                    {{ $replacement->material_name }}</span>
                                             </div>
                                             <div>
                                                 <span class="font-medium text-gray-700">Serial cũ:</span>
                                                 <div class="ml-1 flex flex-wrap gap-1">
-                                                    @if($replacement->old_serials && count($replacement->old_serials) > 0)
-                                                        @foreach($replacement->old_serials as $serial)
-                                                            <span class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">{{ $serial }}</span>
+                                                    @if ($replacement->old_serials && count($replacement->old_serials) > 0)
+                                                        @foreach ($replacement->old_serials as $serial)
+                                                            <span
+                                                                class="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">{{ $serial }}</span>
                                                         @endforeach
                                                     @else
                                                         <span class="text-gray-400">Không có</span>
@@ -474,9 +505,10 @@
                                             <div>
                                                 <span class="font-medium text-gray-700">Serial mới:</span>
                                                 <div class="ml-1 flex flex-wrap gap-1">
-                                                    @if($replacement->new_serials && count($replacement->new_serials) > 0)
-                                                        @foreach($replacement->new_serials as $serial)
-                                                            <span class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">{{ $serial }}</span>
+                                                    @if ($replacement->new_serials && count($replacement->new_serials) > 0)
+                                                        @foreach ($replacement->new_serials as $serial)
+                                                            <span
+                                                                class="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">{{ $serial }}</span>
                                                         @endforeach
                                                     @else
                                                         <span class="text-gray-400">Không có</span>
@@ -485,14 +517,16 @@
                                             </div>
                                             <div>
                                                 <span class="font-medium text-gray-700">Kho lấy vật tư:</span>
-                                                <span class="ml-1">{{ $replacement->targetWarehouse->name ?? 'Không xác định' }}</span>
+                                                <span
+                                                    class="ml-1">{{ $replacement->targetWarehouse->name ?? 'Không xác định' }}</span>
                                             </div>
                                             <div>
                                                 <span class="font-medium text-gray-700">Kho chuyển cũ:</span>
-                                                <span class="ml-1">{{ $replacement->sourceWarehouse->name ?? 'Không xác định' }}</span>
+                                                <span
+                                                    class="ml-1">{{ $replacement->sourceWarehouse->name ?? 'Không xác định' }}</span>
                                             </div>
                                         </div>
-                                        @if($replacement->notes)
+                                        @if ($replacement->notes)
                                             <div class="mt-2">
                                                 <span class="font-medium text-gray-700">Ghi chú:</span>
                                                 <p class="text-gray-600 mt-1">{{ $replacement->notes }}</p>
@@ -500,17 +534,19 @@
                                         @endif
                                         <div class="mt-2">
                                             <span class="font-medium text-gray-700">Thực hiện bởi:</span>
-                                            <span class="ml-1">{{ $replacement->replacedBy->name ?? 'Không xác định' }}</span>
+                                            <span
+                                                class="ml-1">{{ $replacement->replacedBy->name ?? 'Không xác định' }}</span>
                                         </div>
                                     </div>
                                 </div>
                             @endforeach
 
                             <!-- Timeline items: Thiết bị bị từ chối -->
-                            @foreach($repair->repairItems->where('device_status', 'rejected') as $rejectedItem)
+                            @foreach ($repair->repairItems->where('device_status', 'rejected') as $rejectedItem)
                                 <div class="flex items-start space-x-4 p-4 bg-red-50 rounded-lg border-l-4 border-red-500">
                                     <div class="flex-shrink-0">
-                                        <div class="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center">
+                                        <div
+                                            class="w-10 h-10 bg-red-500 text-white rounded-full flex items-center justify-center">
                                             <i class="fas fa-times text-sm"></i>
                                         </div>
                                     </div>
@@ -524,20 +560,22 @@
                                         <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                             <div>
                                                 <span class="font-medium text-gray-700">Thiết bị:</span>
-                                                <span class="ml-1">{{ $rejectedItem->device_code }} - {{ $rejectedItem->device_name }}</span>
+                                                <span class="ml-1">{{ $rejectedItem->device_code }} -
+                                                    {{ $rejectedItem->device_name }}</span>
                                             </div>
                                             <div>
                                                 <span class="font-medium text-gray-700">Serial:</span>
-                                                <span class="ml-1">{{ $rejectedItem->device_serial ?: 'Không có' }}</span>
+                                                <span
+                                                    class="ml-1">{{ $rejectedItem->device_serial ?: 'Không có' }}</span>
                                             </div>
                                         </div>
-                                        @if($rejectedItem->rejected_reason)
+                                        @if ($rejectedItem->rejected_reason)
                                             <div class="mt-2">
                                                 <span class="font-medium text-gray-700">Lý do từ chối:</span>
                                                 <p class="text-gray-600 mt-1">{{ $rejectedItem->rejected_reason }}</p>
                                             </div>
                                         @endif
-                                        @if($rejectedItem->rejectedWarehouse)
+                                        @if ($rejectedItem->rejectedWarehouse)
                                             <div class="mt-2">
                                                 <span class="font-medium text-gray-700">Kho lưu trữ:</span>
                                                 <span class="ml-1">{{ $rejectedItem->rejectedWarehouse->name }}</span>
@@ -548,26 +586,32 @@
                             @endforeach
 
                             <!-- Timeline item: Vật tư hư hỏng -->
-                            @if($repair->damagedMaterials->count() > 0)
-                                <div class="flex items-start space-x-4 p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
+                            @if ($repair->damagedMaterials->count() > 0)
+                                <div
+                                    class="flex items-start space-x-4 p-4 bg-purple-50 rounded-lg border-l-4 border-purple-500">
                                     <div class="flex-shrink-0">
-                                        <div class="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center">
+                                        <div
+                                            class="w-10 h-10 bg-purple-500 text-white rounded-full flex items-center justify-center">
                                             <i class="fas fa-exclamation-triangle text-sm"></i>
                                         </div>
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center justify-between">
                                             <h4 class="text-sm font-medium text-gray-900">Vật tư hư hỏng</h4>
-                                            <span class="text-sm text-gray-500">{{ $repair->updated_at->format('d/m/Y H:i') }}</span>
+                                            <span
+                                                class="text-sm text-gray-500">{{ $repair->updated_at->format('d/m/Y H:i') }}</span>
                                         </div>
                                         <div class="mt-2 space-y-2">
-                                            @foreach($repair->damagedMaterials as $damaged)
+                                            @foreach ($repair->damagedMaterials as $damaged)
                                                 <div class="text-sm">
-                                                    <span class="font-medium text-gray-700">{{ $damaged->device_code }}</span>
+                                                    <span
+                                                        class="font-medium text-gray-700">{{ $damaged->device_code }}</span>
                                                     <span class="mx-1">-</span>
-                                                    <span>{{ $damaged->material_code }} ({{ $damaged->material_name }})</span>
-                                                    @if($damaged->serial)
-                                                        <span class="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">{{ $damaged->serial }}</span>
+                                                    <span>{{ $damaged->material_code }}
+                                                        ({{ $damaged->material_name }})</span>
+                                                    @if ($damaged->serial)
+                                                        <span
+                                                            class="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">{{ $damaged->serial }}</span>
                                                     @endif
                                                 </div>
                                             @endforeach
@@ -576,7 +620,10 @@
                                 </div>
                             @endif
 
-                            @if($repair->materialReplacements->count() == 0 && $repair->repairItems->where('device_status', 'rejected')->count() == 0 && $repair->damagedMaterials->count() == 0)
+                            @if (
+                                $repair->materialReplacements->count() == 0 &&
+                                    $repair->repairItems->where('device_status', 'rejected')->count() == 0 &&
+                                    $repair->damagedMaterials->count() == 0)
                                 <div class="text-center py-8">
                                     <i class="fas fa-info-circle text-gray-400 text-2xl mb-2"></i>
                                     <p class="text-gray-500">Chưa có hoạt động nào khác ngoài việc tạo phiếu sửa chữa</p>

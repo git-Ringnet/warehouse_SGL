@@ -197,21 +197,23 @@
                             <i class="fas fa-chevron-down text-xs"></i>
                         </button>
                         <ul id="operations" class="dropdown-content pl-4 mt-1 space-y-1">
-                            @if (($user && $user->role === 'admin') || ($user && $user->roleGroup && $user->roleGroup->hasPermission('inventory_imports.view')))
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('inventory_imports.view')))
                                 <li>
                                     <a href="{{ asset('inventory-imports') }}"
                                         class="nav-subitem flex items-center px-4 py-2 rounded-lg hover:bg-gray-700">
-                                        <i class="fas fa-file-import mr-3"></i>
                                         <span class="nav-text">Nhập kho</span>
                                     </a>
                                 </li>
                             @endif
-                            
-                            @if (($user && $user->role === 'admin') || ($user && $user->roleGroup && $user->roleGroup->hasPermission('inventory.view')))
+
+                            @if (
+                                ($user && $user->role === 'admin') ||
+                                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('inventory.view')))
                                 <li>
                                     <a href="{{ asset('inventory') }}"
                                         class="nav-subitem flex items-center px-4 py-2 rounded-lg hover:bg-gray-700">
-                                        <i class="fas fa-file-export mr-3"></i>
                                         <span class="nav-text">Xuất kho</span>
                                     </a>
                                 </li>
@@ -365,7 +367,26 @@
                 </li>
             @endif
 
-            @if (Auth::guard('web')->check() && Auth::guard('web')->user()->role === 'admin')
+            @php
+                $hasRolesPermission =
+                    ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('roles.view'));
+                $hasPermissionsPermission = $user && $user->role === 'admin';
+                $hasUserLogsPermission =
+                    ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('user-logs.view'));
+                $hasChangeLogsPermission =
+                    ($user && $user->role === 'admin') ||
+                    ($user && $user->roleGroup && $user->roleGroup->hasPermission('change-logs.view'));
+
+                $hasAnyPermissionAccess =
+                    $hasRolesPermission ||
+                    $hasPermissionsPermission ||
+                    $hasUserLogsPermission ||
+                    $hasChangeLogsPermission;
+            @endphp
+
+            @if ($hasAnyPermissionAccess)
                 <li>
                     <div class="dropdown">
                         <button onclick="toggleDropdown('permissions')"
@@ -377,29 +398,35 @@
                             <i class="fas fa-chevron-down text-xs"></i>
                         </button>
                         <ul id="permissions" class="dropdown-content pl-4 mt-1 space-y-1">
-                            <li>
-                                <a href="{{ asset('roles') }}" class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                    Nhóm quyền
-                                    <span class="text-xs text-yellow-300 ml-1">(Admin only)</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ asset('permissions') }}"
-                                    class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                    Danh sách quyền
-                                    <span class="text-xs text-yellow-300 ml-1">(Admin only)</span>
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{{ asset('user-logs') }}"
-                                    class="block px-4 py-2 rounded-lg hover:bg-gray-700">
-                                    Nhật ký người dùng
-                                </a>
-                            </li>
+                            @if ($hasRolesPermission)
+                                <li>
+                                    <a href="{{ asset('roles') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        Nhóm quyền
+                                    </a>
+                                </li>
+                            @endif
+                            @if ($hasPermissionsPermission)
+                                <li>
+                                    <a href="{{ asset('permissions') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        Danh sách quyền
+                                        <span class="text-xs text-yellow-300 ml-1">(Admin only)</span>
+                                    </a>
+                                </li>
+                            @endif
+                            @if ($hasUserLogsPermission)
+                                <li>
+                                    <a href="{{ asset('user-logs') }}"
+                                        class="block px-4 py-2 rounded-lg hover:bg-gray-700">
+                                        Nhật ký người dùng
+                                    </a>
+                                </li>
+                            @endif
                         </ul>
                     </div>
                 </li>
-            @else
+            @elseif (Auth::guard('web')->check())
                 <li>
                     <div class="opacity-50">
                         <div
@@ -410,7 +437,7 @@
                             </div>
                             <i class="fas fa-lock text-xs"></i>
                         </div>
-                        <p class="text-xs text-gray-400 px-4 pb-2">Chỉ admin mới có quyền</p>
+                        <p class="text-xs text-gray-400 px-4 pb-2">Bạn không có quyền truy cập</p>
                     </div>
                 </li>
             @endif

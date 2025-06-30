@@ -28,7 +28,7 @@
         </header>
 
         <main class="p-6">
-            <!-- Thông báo quyền admin -->
+            <!-- Thông báo quyền -->
             <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
                 <div class="flex">
                     <div class="flex-shrink-0">
@@ -36,8 +36,7 @@
                     </div>
                     <div class="ml-3">
                         <p class="text-sm text-green-700">
-                            <strong>Xác nhận quyền:</strong> Bạn đang truy cập với quyền admin và có thể tạo nhóm phân
-                            quyền mới.
+                            <strong>Xác nhận quyền:</strong> Bạn có quyền tạo nhóm phân quyền mới.
                             Vui lòng cấu hình quyền một cách cẩn thận để đảm bảo an toàn hệ thống.
                         </p>
                     </div>
@@ -59,6 +58,61 @@
                                     <li>{{ $error }}</li>
                                 @endforeach
                             </ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Thông báo cảnh báo quyền trùng lặp -->
+            @if (session('duplicate_warnings'))
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm leading-5 font-medium text-yellow-800">
+                                Cảnh báo quyền trùng lặp!
+                            </h3>
+                            <p class="mt-1 text-sm text-yellow-700">
+                                Một số nhân viên bạn chọn đã có quyền tương tự từ nhóm quyền khác:
+                            </p>
+                            <div class="mt-3 space-y-3">
+                                @foreach (session('duplicate_warnings') as $warning)
+                                    <div class="bg-yellow-100 border border-yellow-200 rounded-lg p-3">
+                                        <div class="flex items-start justify-between">
+                                            <div>
+                                                <p class="text-sm font-medium text-yellow-800">
+                                                    <i class="fas fa-user mr-1"></i>
+                                                    {{ $warning['employee']->name }}
+                                                </p>
+                                                <p class="text-xs text-yellow-600 mt-1">
+                                                    Hiện tại thuộc nhóm: <strong>{{ $warning['current_role']->name }}</strong>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <p class="text-xs text-yellow-600 mb-1">Quyền trùng lặp:</p>
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach ($warning['duplicate_permissions']->take(3) as $permission)
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                                        {{ $permission->display_name }}
+                                                    </span>
+                                                @endforeach
+                                                @if ($warning['duplicate_permissions']->count() > 3)
+                                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-200 text-yellow-800">
+                                                        +{{ $warning['duplicate_permissions']->count() - 3 }} quyền khác
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="mt-3 text-sm text-yellow-700">
+                                <i class="fas fa-lightbulb mr-1"></i>
+                                <strong>Khuyến nghị:</strong> Xem xét loại bỏ nhân viên này khỏi danh sách hoặc điều chỉnh quyền để tránh xung đột.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -87,11 +141,11 @@
                             <textarea id="description" name="description" rows="3"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('description') }}</textarea>
                         </div>
-                        
+
                         <div class="flex items-center">
-                            <input type="checkbox" id="is_active" name="is_active" value="1" 
-                                   {{ old('is_active', true) ? 'checked' : '' }}
-                                   class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <input type="checkbox" id="is_active" name="is_active" value="1"
+                                {{ old('is_active', true) ? 'checked' : '' }}
+                                class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                             <label for="is_active" class="ml-2 block text-sm font-medium text-gray-700">
                                 Kích hoạt nhóm quyền
                             </label>
@@ -272,26 +326,29 @@
                                         @php
                                             // Nhóm các quyền theo từ khóa
                                             $groupedPermissions = [];
-                                            foreach($groupPermissions as $permission) {
+                                            foreach ($groupPermissions as $permission) {
                                                 $key = explode('.', $permission->name)[0];
                                                 $groupedPermissions[$key][] = $permission;
                                             }
-                                            
+
                                             // Sắp xếp các nhóm quyền
                                             ksort($groupedPermissions);
                                         @endphp
 
-                                        @foreach($groupedPermissions as $key => $permissions)
+                                        @foreach ($groupedPermissions as $key => $permissions)
                                             <div class="space-y-2">
-                                                @foreach($permissions as $permission)
+                                                @foreach ($permissions as $permission)
                                                     <div class="permission-item flex items-center">
-                                                        <input type="checkbox" id="permission-{{ $permission->id }}" name="permissions[]" value="{{ $permission->id }}"
+                                                        <input type="checkbox" id="permission-{{ $permission->id }}"
+                                                            name="permissions[]" value="{{ $permission->id }}"
                                                             {{ in_array($permission->id, old('permissions', [])) ? 'checked' : '' }}
                                                             class="permission-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                                                        <label for="permission-{{ $permission->id }}" class="ml-2 block text-sm text-gray-700">
+                                                        <label for="permission-{{ $permission->id }}"
+                                                            class="ml-2 block text-sm text-gray-700">
                                                             {{ $permission->display_name }}
-                                                            @if($permission->name === 'customers.manage')
-                                                                <i class="fas fa-user-lock text-gray-400 ml-1" title="Quyền này cho phép kích hoạt hoặc vô hiệu hóa tài khoản khách hàng"></i>
+                                                            @if ($permission->name === 'customers.manage')
+                                                                <i class="fas fa-user-lock text-gray-400 ml-1"
+                                                                    title="Quyền này cho phép kích hoạt hoặc vô hiệu hóa tài khoản khách hàng"></i>
                                                             @endif
                                                         </label>
                                                     </div>
@@ -386,12 +443,14 @@
                                                 @endif
                                             </td>
                                             <td class="px-3 py-2 whitespace-nowrap">
-                                                @if($employee->is_active)
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                @if ($employee->is_active)
+                                                    <span
+                                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                                         Đang hoạt động
                                                     </span>
                                                 @else
-                                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                                    <span
+                                                        class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                                                         Đã khóa
                                                     </span>
                                                 @endif
@@ -404,7 +463,8 @@
 
                         <div class="flex items-center justify-between text-sm text-gray-600 mt-4">
                             <div>
-                                <span class="font-medium">Lưu ý:</span> Nhân viên được chọn sẽ được gán vào nhóm quyền này sau khi lưu thay đổi
+                                <span class="font-medium">Lưu ý:</span> Nhân viên được chọn sẽ được gán vào nhóm quyền
+                                này sau khi lưu thay đổi
                             </div>
                             <div>
                                 <span id="selectedEmployeesCount">0</span> nhân viên được chọn

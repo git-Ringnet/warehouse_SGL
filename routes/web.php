@@ -223,35 +223,39 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
 
     //repair - Repair Management
     Route::prefix('repairs')->name('repairs.')->group(function () {
-        Route::get('/', [App\Http\Controllers\RepairController::class, 'index'])->name('index');
-        Route::get('/create', [App\Http\Controllers\RepairController::class, 'create'])->name('create');
-        Route::post('/', [App\Http\Controllers\RepairController::class, 'store'])->name('store');
-        Route::get('/{repair}', [App\Http\Controllers\RepairController::class, 'show'])->name('show');
-        Route::get('/{repair}/edit', [App\Http\Controllers\RepairController::class, 'edit'])->name('edit');
-        Route::put('/{repair}', [App\Http\Controllers\RepairController::class, 'update'])->name('update');
-        Route::delete('/{repair}', [App\Http\Controllers\RepairController::class, 'destroy'])->name('destroy');
+        Route::get('/', [App\Http\Controllers\RepairController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        Route::get('/create', [App\Http\Controllers\RepairController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.create');
+        Route::post('/', [App\Http\Controllers\RepairController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.create');
+        Route::get('/{repair}', [App\Http\Controllers\RepairController::class, 'show'])->name('show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view_detail');
+        Route::get('/{repair}/edit', [App\Http\Controllers\RepairController::class, 'edit'])->name('edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
+        Route::put('/{repair}', [App\Http\Controllers\RepairController::class, 'update'])->name('update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
+        Route::delete('/{repair}', [App\Http\Controllers\RepairController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.delete');
     });
 
     // API routes for repairs
     Route::prefix('api/repairs')->group(function () {
-        Route::get('search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarranty']);
+        Route::get('search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarranty'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        Route::get('device-materials', [App\Http\Controllers\RepairController::class, 'getDeviceMaterials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        Route::get('available-serials', [App\Http\Controllers\RepairController::class, 'getAvailableSerials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        Route::post('replace-material', [App\Http\Controllers\RepairController::class, 'replaceMaterial'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
+        Route::post('update-device-status', [App\Http\Controllers\RepairController::class, 'updateDeviceStatus'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
     });
 
     // Legacy routes (for backward compatibility)
-    Route::get('/repair', [App\Http\Controllers\RepairController::class, 'create']);
-    Route::get('/repair_list', [App\Http\Controllers\RepairController::class, 'index']);
+    Route::get('/repair', [App\Http\Controllers\RepairController::class, 'create'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.create');
+    Route::get('/repair_list', [App\Http\Controllers\RepairController::class, 'index'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
     Route::get('/repair_detail/{repair?}', function ($repair = null) {
         if ($repair) {
             return redirect()->route('repairs.show', $repair);
         }
         return redirect()->route('repairs.index');
-    });
+    })->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view_detail');
     Route::get('/repair_edit/{repair?}', function ($repair = null) {
         if ($repair) {
             return redirect()->route('repairs.edit', $repair);
         }
         return redirect()->route('repairs.index');
-    });
+    })->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
 
     //inventory - Dispatch Management
     Route::prefix('inventory')->name('inventory.')->group(function () {
@@ -358,12 +362,32 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('api/materials/{id}', [InventoryImportController::class, 'getMaterialInfo'])->name('api.material.info')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view');
 
     // Quản lý chuyển kho
-    Route::resource('warehouse-transfers', WarehouseTransferController::class);
+    Route::prefix('warehouse-transfers')->name('warehouse-transfers.')->middleware('auth')->group(function () {
+        Route::get('/', [WarehouseTransferController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
+        Route::get('/create', [WarehouseTransferController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.create');
+        Route::post('/', [WarehouseTransferController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.create');
+        Route::get('/{warehouseTransfer}', [WarehouseTransferController::class, 'show'])->name('show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view_detail');
+        Route::get('/{warehouseTransfer}/edit', [WarehouseTransferController::class, 'edit'])->name('edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.edit');
+        Route::put('/{warehouseTransfer}', [WarehouseTransferController::class, 'update'])->name('update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.edit');
+        Route::delete('/{warehouseTransfer}', [WarehouseTransferController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.delete');
+        
+        // API routes
+        Route::get('/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('check-inventory')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
+        Route::post('/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('check-inventory.post')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
+    });
 
     // Quản lý phần mềm
-    Route::resource('software', SoftwareController::class);
-    Route::get('software/{software}/download', [SoftwareController::class, 'download'])->name('software.download');
-    Route::get('software/{software}/download-manual', [SoftwareController::class, 'downloadManual'])->name('software.download_manual');
+    Route::prefix('software')->name('software.')->middleware('auth')->group(function () {
+        Route::get('/', [SoftwareController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.view');
+        Route::get('/create', [SoftwareController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.create');
+        Route::post('/', [SoftwareController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.create');
+        Route::get('/{software}', [SoftwareController::class, 'show'])->name('show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.view_detail');
+        Route::get('/{software}/edit', [SoftwareController::class, 'edit'])->name('edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.edit');
+        Route::put('/{software}', [SoftwareController::class, 'update'])->name('update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.edit');
+        Route::delete('/{software}', [SoftwareController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.delete');
+        Route::get('/{software}/download', [SoftwareController::class, 'download'])->name('download')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.download');
+        Route::get('/{software}/download-manual', [SoftwareController::class, 'downloadManual'])->name('download_manual')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':software.download');
+    });
 
     // Quản lý kiểm thử (QA)
     Route::middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.view')->group(function () {
@@ -395,59 +419,75 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('api/items/{type}/{id}', [TestingController::class, 'getItemDetails'])->name('api.items.details');
 
     // Quản lý dự án
-    Route::resource('projects', ProjectController::class);
+    Route::prefix('projects')->name('projects.')->middleware('auth')->group(function () {
+        Route::get('/', [ProjectController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.view');
+        Route::get('/create', [ProjectController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.create');
+        Route::post('/', [ProjectController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.create');
+        Route::get('/{project}', [ProjectController::class, 'show'])->name('show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.view_detail');
+        Route::get('/{project}/edit', [ProjectController::class, 'edit'])->name('edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.edit');
+        Route::put('/{project}', [ProjectController::class, 'update'])->name('update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.edit');
+        Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':projects.delete');
+    });
 
     // API để lấy thông tin khách hàng
     Route::get('/api/customers/{id}', [CustomerController::class, 'getCustomerInfo']);
 
     // Quản lý cho thuê
-    Route::resource('rentals', RentalController::class);
-    Route::post('/rentals/{rental}/extend', [RentalController::class, 'extend'])->name('rentals.extend');
+    Route::prefix('rentals')->name('rentals.')->middleware('auth')->group(function () {
+        Route::get('/', [RentalController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.view');
+        Route::get('/create', [RentalController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.create');
+        Route::post('/', [RentalController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.create');
+        Route::get('/{rental}', [RentalController::class, 'show'])->name('show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.view_detail');
+        Route::get('/{rental}/edit', [RentalController::class, 'edit'])->name('edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.edit');
+        Route::put('/{rental}', [RentalController::class, 'update'])->name('update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.edit');
+        Route::delete('/{rental}', [RentalController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.delete');
+        Route::post('/{rental}/extend', [RentalController::class, 'extend'])->name('extend')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':rentals.edit');
+    });
 
     // Phiếu đề xuất triển khai dự án
     Route::prefix('requests')->name('requests.')->group(function () {
-        Route::get('/', [ProjectRequestController::class, 'index'])->name('index');
+        Route::get('/', [ProjectRequestController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view');
 
         // Project Request routes
         Route::prefix('project')->name('project.')->group(function () {
-            Route::get('/create', [ProjectRequestController::class, 'create'])->name('create');
-            Route::post('/', [ProjectRequestController::class, 'store'])->name('store');
-            Route::get('/{id}', [ProjectRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
-            Route::get('/{id}/edit', [ProjectRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
-            Route::patch('/{id}', [ProjectRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
-            Route::delete('/{id}', [ProjectRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
-            Route::post('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
-            Route::post('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
-            Route::post('/{id}/status', [ProjectRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
-            Route::get('/{id}/preview', [ProjectRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+            Route::get('/create', [ProjectRequestController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.project.create');
+            Route::post('/', [ProjectRequestController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.project.create');
+            Route::get('/{id}', [ProjectRequestController::class, 'show'])->name('show')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
+            Route::get('/{id}/edit', [ProjectRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
+            Route::patch('/{id}', [ProjectRequestController::class, 'update'])->name('update')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
+            Route::delete('/{id}', [ProjectRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.delete');
+            Route::post('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.approve');
+            Route::post('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
+            Route::post('/{id}/status', [ProjectRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.update_status');
+            Route::get('/{id}/preview', [ProjectRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
         });
 
         // Maintenance Request routes
         Route::prefix('maintenance')->name('maintenance.')->group(function () {
-            Route::get('/create', [MaintenanceRequestController::class, 'create'])->name('create');
-            Route::post('/', [MaintenanceRequestController::class, 'store'])->name('store');
-            Route::get('/{id}', [MaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
-            Route::get('/{id}/edit', [MaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
-            Route::patch('/{id}', [MaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
-            Route::delete('/{id}', [MaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
-            Route::post('/{id}/approve', [MaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
-            Route::post('/{id}/reject', [MaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
-            Route::post('/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
-            Route::get('/{id}/preview', [MaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+            Route::get('/create', [MaintenanceRequestController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.maintenance.create');
+            Route::post('/', [MaintenanceRequestController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.maintenance.create');
+            Route::get('/{id}', [MaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
+            Route::get('/{id}/edit', [MaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
+            Route::patch('/{id}', [MaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
+            Route::delete('/{id}', [MaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.delete');
+            Route::post('/{id}/approve', [MaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.approve');
+            Route::post('/{id}/reject', [MaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
+            Route::post('/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.update_status');
+            Route::get('/{id}/preview', [MaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
         });
 
         // Customer Maintenance Request routes
         Route::prefix('customer-maintenance')->name('customer-maintenance.')->middleware(\App\Http\Middleware\CustomerOrAdminMiddleware::class)->group(function () {
-            Route::get('/create', [CustomerMaintenanceRequestController::class, 'create'])->name('create');
-            Route::post('/', [CustomerMaintenanceRequestController::class, 'store'])->name('store');
-            Route::get('/{id}', [CustomerMaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
-            Route::get('/{id}/edit', [CustomerMaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+');
-            Route::patch('/{id}', [CustomerMaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+');
-            Route::delete('/{id}', [CustomerMaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+');
-            Route::post('/{id}/approve', [CustomerMaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+');
-            Route::post('/{id}/reject', [CustomerMaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+');
-            Route::post('/{id}/status', [CustomerMaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+');
-            Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+');
+            Route::get('/create', [CustomerMaintenanceRequestController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.create');
+            Route::post('/', [CustomerMaintenanceRequestController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.create');
+            Route::get('/{id}', [CustomerMaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
+            Route::get('/{id}/edit', [CustomerMaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
+            Route::patch('/{id}', [CustomerMaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
+            Route::delete('/{id}', [CustomerMaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.delete');
+            Route::post('/{id}/approve', [CustomerMaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.approve');
+            Route::post('/{id}/reject', [CustomerMaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
+            Route::post('/{id}/status', [CustomerMaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.update_status');
+            Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
         });
     });
     // Assembly routes với middleware bảo vệ từng quyền cụ thể
@@ -479,26 +519,33 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/api/products/{id}/components', [ProductController::class, 'getComponents'])->name('api.products.components');
 
     // Thêm phần routes phân quyền
-    // Routes cho nhóm quyền (roles) - chỉ admin mới có quyền
-    Route::middleware('admin-only')->group(function () {
-        Route::resource('roles', RoleController::class);
-        Route::patch('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggleStatus');
+    // Routes cho nhóm quyền (roles) với middleware phân quyền
+    Route::get('/roles', [RoleController::class, 'index'])->name('roles.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.view');
+    Route::get('/roles/create', [RoleController::class, 'create'])->name('roles.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.create');
+    Route::post('/roles', [RoleController::class, 'store'])->name('roles.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.create');
+    Route::get('/roles/{role}', [RoleController::class, 'show'])->name('roles.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.view_detail');
+    Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.edit');
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.edit');
+    Route::patch('/roles/{role}', [RoleController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.edit');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.delete');
+    Route::patch('roles/{role}/toggle-status', [RoleController::class, 'toggleStatus'])->name('roles.toggleStatus')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':roles.edit');
 
-        // Routes cho danh sách quyền (permissions)
+    // Routes cho danh sách quyền (permissions) - vẫn giữ admin-only vì đây là quyền hệ thống
+    Route::middleware('admin-only')->group(function () {
         Route::resource('permissions', PermissionController::class);
     });
 
     // Routes cho nhật ký người dùng (user logs)
-    Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index');
-    Route::get('user-logs/{id}', [UserLogController::class, 'show'])->name('user-logs.show');
-    Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export');
+    Route::get('user-logs', [UserLogController::class, 'index'])->name('user-logs.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':user-logs.view');
+    Route::get('user-logs/{id}', [UserLogController::class, 'show'])->name('user-logs.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':user-logs.view');
+    Route::get('user-logs-export', [UserLogController::class, 'export'])->name('user-logs.export')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':user-logs.export');
 
     // Routes cho nhật ký thay đổi (change logs)
     Route::get('change-logs', [ChangeLogController::class, 'index'])->name('change-logs.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
-    Route::get('change-logs/{changeLog}', [ChangeLogController::class, 'show'])->name('change-logs.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
-    Route::get('change-logs/{changeLog}/details', [ChangeLogController::class, 'getDetails'])->name('change-logs.details')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
-    Route::put('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
-    Route::patch('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.patch')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view');
+    Route::get('change-logs/{changeLog}', [ChangeLogController::class, 'show'])->name('change-logs.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view_detail');
+    Route::get('change-logs/{changeLog}/details', [ChangeLogController::class, 'getDetails'])->name('change-logs.details')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.view_detail');
+    Route::put('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.edit');
+    Route::patch('change-logs/{changeLog}', [ChangeLogController::class, 'update'])->name('change-logs.patch')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':change-logs.edit');
 
     // Routes for Reports
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -530,10 +577,6 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
     Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
     Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');
-
-    // Thêm route cho API kiểm tra tồn kho
-    Route::get('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory');
-    Route::post('/warehouse-transfers/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('warehouse-transfers.check-inventory.post');
 
     // Equipment service routes (bảo hành, thay thế, thu hồi)
     Route::prefix('equipment-service')->name('equipment.')->group(function () {

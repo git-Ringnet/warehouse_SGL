@@ -15,12 +15,22 @@
     <x-sidebar-component />
     <!-- Main Content -->
     <div class="content-area">
+        @php
+            $user = Auth::guard('web')->user();
+            $canCreate = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('repairs.create')));
+            $canViewDetail = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('repairs.view_detail')));
+            $canEdit = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('repairs.edit')));
+            $canDelete = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('repairs.delete')));
+        @endphp
+
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Quản lý sửa chữa & bảo trì</h1>
             <div class="flex items-center gap-2">
+                @if($canCreate)
                 <a href="{{ route('repairs.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-plus mr-2"></i> Thêm mới
                 </a>
+                @endif
             </div>
         </header>
 
@@ -155,6 +165,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div class="flex space-x-2">
+                                            @if($canViewDetail)
                                             <a href="{{ route('repairs.show', $repair->id) }}">      
                                                 <button
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
@@ -162,6 +173,9 @@
                                                     <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                                 </button>
                                             </a>
+                                            @endif
+
+                                            @if($canEdit)
                                             <a href="{{ route('repairs.edit', $repair->id) }}">        
                                                 <button
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
@@ -169,11 +183,15 @@
                                                     <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                                 </button>
                                             </a>
+                                            @endif
+
+                                            @if($canDelete)
                                             <button onclick="confirmDelete({{ $repair->id }}, '{{ $repair->repair_code }}')"
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                                 title="Xóa">
                                                 <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                             </button>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>

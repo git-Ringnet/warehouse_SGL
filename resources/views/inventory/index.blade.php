@@ -402,11 +402,11 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div class="flex space-x-2">
                                 ${canView ? `
-                                    <a href="/inventory/dispatch/${dispatch.id}">
-                                        <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                            <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                        </button>
-                                    </a>
+                                <a href="/inventory/dispatch/${dispatch.id}">
+                                    <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
+                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                    </button>
+                                </a>
                                 ` : ''}
                                 ${canEdit ? `
                                     <a href="/inventory/dispatch/${dispatch.id}/edit">

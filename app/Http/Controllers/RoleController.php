@@ -25,9 +25,9 @@ class RoleController extends Controller
     {
         $search = $request->input('search');
         $filter = $request->input('filter');
-        
+
         $query = Role::query();
-        
+
         // Xử lý tìm kiếm
         if ($search) {
             if ($filter) {
@@ -37,21 +37,21 @@ class RoleController extends Controller
                 // Tìm kiếm tổng quát
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%")
-                      ->orWhere('scope', 'like', "%{$search}%");
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('scope', 'like', "%{$search}%");
                 });
             }
         }
-        
+
         // Lọc theo trạng thái
         if ($request->has('is_active')) {
             $query->where('is_active', $request->is_active);
         }
-        
+
         $roles = $query->orderBy('is_system', 'desc')
-                       ->orderBy('name', 'asc')
-                       ->paginate(10);
-        
+            ->orderBy('name', 'asc')
+            ->paginate(10);
+
         return view('roles.index', compact('roles', 'search', 'filter'));
     }
 
@@ -62,19 +62,19 @@ class RoleController extends Controller
     {
         // Lấy tất cả quyền trong hệ thống
         $permissions = Permission::orderBy('group')
-                               ->orderBy('display_name')
-                               ->get()
-                               ->groupBy('group');
-        
+            ->orderBy('display_name')
+            ->get()
+            ->groupBy('group');
+
         // Lấy tất cả nhân viên
         $employees = \App\Models\Employee::orderBy('name')->get();
-        
+
         // Lấy tất cả dự án (sử dụng project_name thay vì name)
         $projects = \App\Models\Project::orderBy('project_name')->get();
-        
+
         // Lấy tất cả hợp đồng cho thuê (không lọc theo status vì cột không tồn tại)
         $rentals = \App\Models\Rental::orderBy('created_at', 'desc')->get();
-        
+
         return view('roles.create', compact('permissions', 'employees', 'projects', 'rentals'));
     }
 
@@ -97,7 +97,42 @@ class RoleController extends Controller
             'rentals.*' => 'exists:rentals,id',
         ]);
 
-        // Tạo role với is_active mặc định là true nếu không có trong request
+        // KIỂM TRA TRÙNG LẶP TRƯỚC KHI TẠO NHÓM QUYỀN
+        if ($request->has('employees') && $request->has('permissions')) {
+            $duplicateWarnings = [];
+            $requestPermissions = $request->permissions;
+
+            foreach ($request->employees as $employeeId) {
+                $employee = \App\Models\Employee::find($employeeId);
+                if ($employee && $employee->role_id) {
+                    // Lấy quyền của role hiện tại của nhân viên
+                    $currentRole = Role::find($employee->role_id);
+                    if ($currentRole) {
+                        $currentPermissions = $currentRole->permissions()->pluck('permissions.id')->toArray();
+
+                        // Tìm quyền trùng lặp
+                        $duplicates = array_intersect($requestPermissions, $currentPermissions);
+
+                        if (!empty($duplicates)) {
+                            $duplicateWarnings[] = [
+                                'employee' => $employee,
+                                'current_role' => $currentRole,
+                                'duplicate_permissions' => Permission::whereIn('id', $duplicates)->get()
+                            ];
+                        }
+                    }
+                }
+            }
+
+            if (!empty($duplicateWarnings)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('duplicate_warnings', $duplicateWarnings)
+                    ->with('warning', 'Phát hiện quyền trùng lặp với một số nhân viên. Vui lòng kiểm tra lại.');
+            }
+        }
+
+        // TẠO ROLE SAU KHI ĐÃ KIỂM TRA TRÙNG LẶP
         $role = Role::create([
             'name' => $request->name,
             'description' => $request->description,
@@ -109,33 +144,12 @@ class RoleController extends Controller
         if ($request->has('permissions')) {
             $role->permissions()->sync($request->permissions);
         }
-        
-        // Kiểm tra và gán nhân viên vào nhóm quyền
-        if ($request->has('employees')) {
-            $duplicateWarnings = [];
-            foreach ($request->employees as $employeeId) {
-                $employee = \App\Models\Employee::find($employeeId);
-                if ($employee && $employee->role_id) {
-                    $duplicateCheck = $role->hasDuplicatePermissionsWith($employee->role_id);
-                    if ($duplicateCheck['has_duplicates']) {
-                        $duplicateWarnings[] = [
-                            'employee' => $employee,
-                            'current_role' => Role::find($employee->role_id),
-                            'duplicate_permissions' => $duplicateCheck['duplicate_permissions']
-                        ];
-                    }
-                }
-            }
 
-            if (!empty($duplicateWarnings)) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('duplicate_warnings', $duplicateWarnings)
-                    ->with('warning', 'Phát hiện quyền trùng lặp với một số nhân viên. Vui lòng kiểm tra lại.');
-            }
+        // Gán nhân viên vào nhóm quyền (đã kiểm tra trùng lặp ở trên)
+        if ($request->has('employees')) {
 
             \App\Models\Employee::whereIn('id', $request->employees)->update(['role_id' => $role->id]);
-            
+
             // Ghi nhật ký cho việc gán nhân viên
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -148,11 +162,11 @@ class RoleController extends Controller
                 );
             }
         }
-        
+
         // Gán dự án cho nhóm quyền
         if ($request->has('projects')) {
             $role->projects()->sync($request->projects);
-            
+
             // Ghi nhật ký cho việc gán dự án
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -165,11 +179,11 @@ class RoleController extends Controller
                 );
             }
         }
-        
+
         // Gán hợp đồng cho thuê cho nhóm quyền
         if ($request->has('rentals')) {
             $role->rentals()->sync($request->rentals);
-            
+
             // Ghi nhật ký cho việc gán hợp đồng cho thuê
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -182,7 +196,7 @@ class RoleController extends Controller
                 );
             }
         }
-        
+
         // Ghi nhật ký
         if (Auth::check()) {
             UserLog::logActivity(
@@ -206,19 +220,19 @@ class RoleController extends Controller
     {
         // Lấy tất cả quyền của role
         $rolePermissions = $role->permissions()->pluck('permissions.id')->toArray();
-        
+
         // Lấy tất cả quyền phân theo nhóm
         $permissions = Permission::orderBy('group')
-                               ->orderBy('display_name')
-                               ->get()
-                               ->groupBy('group');
-        
+            ->orderBy('display_name')
+            ->get()
+            ->groupBy('group');
+
         // Lấy dự án được gán cho nhóm quyền này
         $projects = $role->projects;
-        
+
         // Lấy hợp đồng cho thuê được gán cho nhóm quyền này
         $rentals = $role->rentals;
-        
+
         return view('roles.show', compact('role', 'permissions', 'rolePermissions', 'projects', 'rentals'));
     }
 
@@ -232,43 +246,43 @@ class RoleController extends Controller
             return redirect()->route('roles.show', $role->id)
                 ->with('error', 'Không thể chỉnh sửa nhóm quyền hệ thống.');
         }
-        
+
         // Lấy tất cả quyền của role
         $rolePermissions = $role->permissions()->pluck('permissions.id')->toArray();
-        
+
         // Lấy tất cả quyền phân theo nhóm
         $permissions = Permission::orderBy('group')
-                               ->orderBy('display_name')
-                               ->get()
-                               ->groupBy('group');
-        
+            ->orderBy('display_name')
+            ->get()
+            ->groupBy('group');
+
         // Lấy tất cả nhân viên
         $employees = \App\Models\Employee::orderBy('name')->get();
-        
+
         // Lấy danh sách id nhân viên đang thuộc nhóm quyền này
         $roleEmployees = $role->employees->pluck('id')->toArray();
-        
+
         // Lấy tất cả dự án (sử dụng project_name thay vì name)
         $projects = \App\Models\Project::orderBy('project_name')->get();
-        
+
         // Lấy danh sách id dự án đã được gán cho nhóm quyền này
         $roleProjects = $role->projects->pluck('id')->toArray();
-        
+
         // Lấy tất cả hợp đồng cho thuê (không lọc theo status vì cột không tồn tại)
         $rentals = \App\Models\Rental::orderBy('created_at', 'desc')->get();
-        
+
         // Lấy danh sách id hợp đồng cho thuê đã được gán cho nhóm quyền này
         $roleRentals = $role->rentals->pluck('id')->toArray();
-        
+
         return view('roles.edit', compact(
-            'role', 
-            'permissions', 
-            'rolePermissions', 
-            'employees', 
-            'roleEmployees', 
-            'projects', 
-            'roleProjects', 
-            'rentals', 
+            'role',
+            'permissions',
+            'rolePermissions',
+            'employees',
+            'roleEmployees',
+            'projects',
+            'roleProjects',
+            'rentals',
             'roleRentals'
         ));
     }
@@ -283,7 +297,7 @@ class RoleController extends Controller
             return redirect()->route('roles.show', $role->id)
                 ->with('error', 'Không thể chỉnh sửa nhóm quyền hệ thống.');
         }
-        
+
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
             'description' => 'nullable|string|max:255',
@@ -299,45 +313,50 @@ class RoleController extends Controller
         ]);
 
         $oldData = $role->toArray();
-        
+
         // Chỉ cập nhật is_active nếu có field này trong request
         $updateData = [
             'name' => $request->name,
             'description' => $request->description,
             'scope' => $request->scope,
         ];
-        
+
         // Chỉ cập nhật is_active nếu có trong request (tránh tự động vô hiệu hóa)
         if ($request->has('is_active')) {
             $updateData['is_active'] = $request->boolean('is_active');
         }
-        
-        $role->update($updateData);
 
-        // Gán quyền
-        if ($request->has('permissions')) {
-            $role->permissions()->sync($request->permissions);
-        } else {
-            $role->permissions()->detach();
-        }
-        
-        // Kiểm tra và cập nhật nhân viên trong nhóm quyền
-        // Đầu tiên, bỏ nhóm quyền cho tất cả nhân viên thuộc nhóm quyền này
-        \App\Models\Employee::where('role_id', $role->id)->update(['role_id' => null]);
-        
-        // Sau đó, kiểm tra và gán lại nhóm quyền cho các nhân viên được chọn
-        if ($request->has('employees')) {
+        // KIỂM TRA TRÙNG LẶP TRƯỚC KHI CẬP NHẬT
+        if ($request->has('employees') && $request->has('permissions')) {
             $duplicateWarnings = [];
+            $requestPermissions = $request->permissions;
+
+            // Lấy danh sách nhân viên hiện tại của role này
+            $currentEmployeeIds = $role->employees->pluck('id')->toArray();
+
             foreach ($request->employees as $employeeId) {
+                // Bỏ qua nhân viên đã thuộc role này
+                if (in_array($employeeId, $currentEmployeeIds)) {
+                    continue;
+                }
+
                 $employee = \App\Models\Employee::find($employeeId);
-                if ($employee && $employee->role_id && $employee->role_id != $role->id) {
-                    $duplicateCheck = $role->hasDuplicatePermissionsWith($employee->role_id);
-                    if ($duplicateCheck['has_duplicates']) {
-                        $duplicateWarnings[] = [
-                            'employee' => $employee,
-                            'current_role' => Role::find($employee->role_id),
-                            'duplicate_permissions' => $duplicateCheck['duplicate_permissions']
-                        ];
+                if ($employee && $employee->role_id) {
+                    // Lấy quyền của role hiện tại của nhân viên
+                    $currentRole = Role::find($employee->role_id);
+                    if ($currentRole) {
+                        $currentPermissions = $currentRole->permissions()->pluck('permissions.id')->toArray();
+
+                        // Tìm quyền trùng lặp
+                        $duplicates = array_intersect($requestPermissions, $currentPermissions);
+
+                        if (!empty($duplicates)) {
+                            $duplicateWarnings[] = [
+                                'employee' => $employee,
+                                'current_role' => $currentRole,
+                                'duplicate_permissions' => Permission::whereIn('id', $duplicates)->get()
+                            ];
+                        }
                     }
                 }
             }
@@ -348,9 +367,25 @@ class RoleController extends Controller
                     ->with('duplicate_warnings', $duplicateWarnings)
                     ->with('warning', 'Phát hiện quyền trùng lặp với một số nhân viên. Vui lòng kiểm tra lại.');
             }
+        }
 
+        $role->update($updateData);
+
+        // Gán quyền
+        if ($request->has('permissions')) {
+            $role->permissions()->sync($request->permissions);
+        } else {
+            $role->permissions()->detach();
+        }
+
+        // Cập nhật nhân viên trong nhóm quyền (đã kiểm tra trùng lặp ở trên)
+        // Đầu tiên, bỏ nhóm quyền cho tất cả nhân viên thuộc nhóm quyền này
+        \App\Models\Employee::where('role_id', $role->id)->update(['role_id' => null]);
+
+        // Sau đó, gán lại nhóm quyền cho các nhân viên được chọn
+        if ($request->has('employees')) {
             \App\Models\Employee::whereIn('id', $request->employees)->update(['role_id' => $role->id]);
-            
+
             // Ghi nhật ký cho việc cập nhật nhân viên
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -363,12 +398,12 @@ class RoleController extends Controller
                 );
             }
         }
-        
+
         // Cập nhật dự án cho nhóm quyền
         $oldProjects = $role->projects->pluck('id')->toArray();
         if ($request->has('projects')) {
             $role->projects()->sync($request->projects);
-            
+
             // Ghi nhật ký cho việc cập nhật dự án
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -382,7 +417,7 @@ class RoleController extends Controller
             }
         } else {
             $role->projects()->detach();
-            
+
             if (count($oldProjects) > 0 && Auth::check()) {
                 UserLog::logActivity(
                     Auth::id(),
@@ -394,12 +429,12 @@ class RoleController extends Controller
                 );
             }
         }
-        
+
         // Cập nhật hợp đồng cho thuê cho nhóm quyền
         $oldRentals = $role->rentals->pluck('id')->toArray();
         if ($request->has('rentals')) {
             $role->rentals()->sync($request->rentals);
-            
+
             // Ghi nhật ký cho việc cập nhật hợp đồng cho thuê
             if (Auth::check()) {
                 UserLog::logActivity(
@@ -413,7 +448,7 @@ class RoleController extends Controller
             }
         } else {
             $role->rentals()->detach();
-            
+
             if (count($oldRentals) > 0 && Auth::check()) {
                 UserLog::logActivity(
                     Auth::id(),
@@ -425,7 +460,7 @@ class RoleController extends Controller
                 );
             }
         }
-        
+
         // Ghi nhật ký
         if (Auth::check()) {
             UserLog::logActivity(
@@ -457,14 +492,21 @@ class RoleController extends Controller
         $roleData = $role->toArray();
 
         // Kiểm tra xem có nhân viên nào đang sử dụng role này không
-        if ($role->employees()->count() > 0) {
-            return redirect()->route('roles.index')
-                ->with('error', 'Không thể xóa nhóm quyền đang được sử dụng bởi nhân viên.');
+        $employeesCount = $role->employees()->count();
+        if ($employeesCount > 0) {
+            $employeeNames = $role->employees()->pluck('name')->take(3)->toArray();
+            $employeeList = implode(', ', $employeeNames);
+            if ($employeesCount > 3) {
+                $employeeList .= ' và ' . ($employeesCount - 3) . ' nhân viên khác';
+            }
+
+            return redirect()->route('roles.show', $role->id)
+                ->with('error', 'Không thể xóa nhóm quyền này vì đang có ' . $employeesCount . ' nhân viên sử dụng: ' . $employeeList . '. Vui lòng chuyển các nhân viên này sang nhóm quyền khác trước khi xóa.');
         }
-        
+
         $role->permissions()->detach(); // Xóa các quan hệ với quyền
         $role->delete();
-        
+
         // Ghi nhật ký
         if (Auth::check()) {
             UserLog::logActivity(
@@ -495,12 +537,12 @@ class RoleController extends Controller
         $oldData = $role->toArray();
         $role->is_active = !$role->is_active;
         $role->save();
-        
+
         $statusText = $role->is_active ? 'kích hoạt' : 'vô hiệu hóa';
-        
+
         // Lấy danh sách nhân viên bị ảnh hưởng
         $affectedEmployees = $role->employees()->get();
-        
+
         // Tạo thông báo cho từng nhân viên bị ảnh hưởng
         foreach ($affectedEmployees as $employee) {
             \App\Models\Notification::createNotification(
@@ -513,7 +555,7 @@ class RoleController extends Controller
                 route('roles.show', $role->id)
             );
         }
-        
+
         // Ghi nhật ký
         if (Auth::check()) {
             UserLog::logActivity(
@@ -527,7 +569,7 @@ class RoleController extends Controller
         }
 
         return redirect()->route('roles.index')
-            ->with('success', 'Nhóm quyền đã được ' . $statusText . ' thành công. ' . 
+            ->with('success', 'Nhóm quyền đã được ' . $statusText . ' thành công. ' .
                 ($affectedEmployees->count() > 0 ? $affectedEmployees->count() . ' nhân viên bị ảnh hưởng.' : ''));
     }
 }

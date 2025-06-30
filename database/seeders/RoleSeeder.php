@@ -123,9 +123,37 @@ class RoleSeeder extends Seeder
             'reports.inventory',   // Xem báo cáo xuất nhập tồn chi tiết
             'reports.export',      // Xuất file báo cáo
 
-            // Phiếu yêu cầu - view và create
+            // Phiếu yêu cầu - quyền chung
             'requests.view',
-            'requests.create',
+            'requests.view_detail',
+            'requests.edit',
+            'requests.delete',
+            'requests.approve',
+            'requests.reject',
+            'requests.export',
+            'requests.copy',
+            'requests.update_status',
+
+            // Phiếu đề xuất dự án
+            'requests.project.create',
+            'requests.project.edit',
+            'requests.project.delete',
+            'requests.project.approve',
+            'requests.project.reject',
+
+            // Phiếu bảo trì dự án
+            'requests.maintenance.create',
+            'requests.maintenance.edit',
+            'requests.maintenance.delete',
+            'requests.maintenance.approve',
+            'requests.maintenance.reject',
+
+            // Phiếu bảo trì của khách hàng
+            'requests.customer-maintenance.create',
+            'requests.customer-maintenance.edit',
+            'requests.customer-maintenance.delete',
+            'requests.customer-maintenance.approve',
+            'requests.customer-maintenance.reject',
         ];
 
         // Các quyền theo scope
@@ -220,20 +248,20 @@ class RoleSeeder extends Seeder
                 if ($role->name === 'Kho Bảo Hành') {
                     $permissionsToAssign = array_merge($permissionsToAssign, [
                         'repairs.view',
+                        'repairs.view_detail',
                         'repairs.create',
                         'repairs.edit',
                         'repairs.delete',
 
                         'warranties.view',
-                        'warranties.create',
-                        'warranties.edit',
-                        'warranties.delete',
+                        'warranties.view_detail',
                     ]);
                 }
 
                 if ($role->name === 'Kho Phần Mềm') {
                     $permissionsToAssign = array_merge($permissionsToAssign, [
                         'software.view',
+                        'software.view_detail',
                         'software.create',
                         'software.edit',
                         'software.delete',
@@ -247,12 +275,14 @@ class RoleSeeder extends Seeder
                 $projectPermissions = [
                     // Dự án - các quyền CRUD
                     'projects.view',
+                    'projects.view_detail',
                     'projects.create',
                     'projects.edit',
                     'projects.delete',
 
                     // Cho thuê - các quyền CRUD
                     'rentals.view',
+                    'rentals.view_detail',
                     'rentals.create',
                     'rentals.edit',
                     'rentals.delete',
