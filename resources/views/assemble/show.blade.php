@@ -448,16 +448,20 @@ if ($assembly->products && $assembly->products->count() > 0) {
                         <i class="fas fa-print mr-2"></i> In phiếu
                     </button>
 
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('testing.create')))
-                    @if ($assembly->testings->isEmpty() || $assembly->testings->first()->status === 'cancelled')
-                        <a href="{{ route('testing.create', ['assembly_id' => $assembly->id]) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
-                            <i class="fas fa-vial mr-2"></i> Tạo phiếu kiểm thử
-                        </a>
-                    @else
-                        <a href="{{ route('testing.show', $assembly->testings->first()->id) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                    @php
+                        $testing = $assembly->testings->first();
+                    @endphp
+                    @if($testing)
+                        <a href="{{ route('testing.show', $testing->id) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
                             <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
                         </a>
-                    @endif
+                    @else
+                        <form action="{{ route('assemblies.create-testing', $assembly->id) }}" method="POST" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                                <i class="fas fa-vial mr-2"></i> Tạo phiếu kiểm thử
+                            </button>
+                        </form>
                     @endif
                     
                     @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.delete')))

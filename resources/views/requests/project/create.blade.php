@@ -91,9 +91,9 @@
                             <input type="hidden" name="project_name" id="project_name">
                         </div>
                         <div>
-                            <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
-                            <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Chọn đối tác --</option>
+                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
+                    <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Chọn đối tác --</option>
                                 @foreach($customers as $customer)
                                     <option value="{{ $customer->id }}" 
                                             data-name="{{ $customer->name }}"
@@ -101,10 +101,10 @@
                                             data-email="{{ $customer->email }}" 
                                             data-address="{{ $customer->address }}"
                                             {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
-                                        {{ $customer->company_name }} ({{ $customer->name }})
-                                    </option>
-                                @endforeach
-                            </select>
+                                {{ $customer->company_name }} ({{ $customer->name }})
+                            </option>
+                        @endforeach
+                    </select>
                         </div>
                         <div class="md:col-span-2">
                             <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
@@ -487,12 +487,12 @@
         }
     });
     
-    // Thêm thiết bị
-    let equipmentCount = 1;
-    document.getElementById('add_equipment').addEventListener('click', function() {
-        const container = document.getElementById('equipment_container');
-        const newRow = document.createElement('div');
-        newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
+        // Thêm thiết bị
+        let equipmentCount = 1;
+        document.getElementById('add_equipment').addEventListener('click', function() {
+            const container = document.getElementById('equipment_container');
+            const newRow = document.createElement('div');
+            newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
         
         // Lấy danh sách thiết bị từ select đầu tiên
         const firstSelect = document.getElementById('equipment_id_0');

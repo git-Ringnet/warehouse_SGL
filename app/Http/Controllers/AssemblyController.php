@@ -1453,4 +1453,20 @@ class AssemblyController extends Controller
             return back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
         }
     }
+
+    public function createTestingFromAssembly(Assembly $assembly)
+    {
+        // Kiểm tra đã có phiếu kiểm thử chưa
+        $existing = $assembly->testings()->first();
+        if ($existing) {
+            return redirect()->route('testing.show', $existing->id)
+                ->with('info', 'Phiếu kiểm thử đã tồn tại.');
+        }
+
+        // Tạo mới kiểm thử (dùng lại logic đã có)
+        $testing = $this->createTestingRecordForAssembly($assembly);
+
+        return redirect()->route('testing.show', $testing->id)
+            ->with('success', 'Đã tạo phiếu kiểm thử tự động từ phiếu lắp ráp.');
+    }
 }

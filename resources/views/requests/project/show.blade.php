@@ -182,9 +182,9 @@
                                                 </ul>
                                             </div>
                                         @endif
-                                    @else
+                        @else
                                         <p class="text-sm text-blue-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu lắp ráp từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý lắp ráp để tạo phiếu lắp ráp mới.</p>
-                                    @endif
+                        @endif
                                 </div>
                             </div>
                         </div>
@@ -199,7 +199,7 @@
                                     <p class="text-sm text-green-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu xuất kho từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý kho để tạo phiếu xuất kho mới.</p>
                                 </div>
                             </div>
-                        </div>
+                </div>
                     @endif
                 </div>
             @endif

@@ -600,4 +600,9 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // API routes cho thiết bị của dự án và đơn thuê
     Route::get('/api/projects/{projectId}/items', [ProjectController::class, 'getProjectItems'])->name('api.projects.items');
     Route::get('/api/rentals/{rentalId}/items', [RentalController::class, 'getRentalItems'])->name('api.rentals.items');
+
+    // New route for creating testing from assembly
+    Route::post('/assemblies/{assembly}/create-testing', [AssemblyController::class, 'createTestingFromAssembly'])
+        ->name('assemblies.create-testing')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.create');
 });
