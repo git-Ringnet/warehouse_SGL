@@ -12,6 +12,9 @@ use App\Models\Good;
 use App\Models\Notification;
 use App\Models\Project;
 use App\Models\ProductMaterial;
+use App\Models\Dispatch;
+use App\Models\DispatchItem;
+use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -554,7 +557,9 @@ class ProjectRequestController extends Controller
     public function approve(Request $request, $id)
     {
         try {
-            $projectRequest = ProjectRequest::findOrFail($id);
+            DB::beginTransaction();
+            
+            $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'items'])->findOrFail($id);
             
             // Chỉ cho phép duyệt nếu trạng thái là pending
             if ($projectRequest->status !== 'pending') {
@@ -581,48 +586,29 @@ class ProjectRequestController extends Controller
                 );
             }
             
-            // Xử lý dựa trên phương thức xử lý được chọn
-            if ($projectRequest->approval_method === 'production') {
-                // Tự động tạo phiếu lắp ráp
-                $assembly = $this->createAssemblyFromRequest($projectRequest);
-                
-                // Gửi thông báo về việc cần tạo phiếu lắp ráp
-                if ($projectRequest->implementer_id) {
-                    Notification::createNotification(
-                        'Phiếu lắp ráp đã được tạo',
-                        'Phiếu lắp ráp đã được tạo tự động cho phiếu đề xuất dự án ' . $projectRequest->project_name,
-                        'info',
-                        $projectRequest->implementer_id,
-                        'project_request',
-                        $projectRequest->id,
-                        route('assemblies.index')
-                    );
-                }
-            } elseif ($projectRequest->approval_method === 'warehouse') {
-                // Gửi thông báo về việc cần tạo phiếu xuất kho
-                if ($projectRequest->implementer_id) {
-                    Notification::createNotification(
-                        'Yêu cầu tạo phiếu xuất kho',
-                        'Bạn cần tạo phiếu xuất kho cho phiếu đề xuất dự án ' . $projectRequest->project_name,
-                        'info',
-                        $projectRequest->implementer_id,
-                        'project_request',
-                        $projectRequest->id,
-                        route('inventory.index')
-                    );
-                }
-            }
-            
             $successMessage = 'Phiếu đề xuất đã được duyệt thành công.';
             
-            // Thêm thông báo về phiếu lắp ráp nếu đã tạo thành công
-            if ($projectRequest->approval_method === 'production' && isset($assembly) && $assembly) {
-                $successMessage .= ' Phiếu lắp ráp ' . $assembly->code . ' đã được tạo tự động.';
+            // Xử lý dựa trên phương thức xử lý được chọn
+            if ($projectRequest->approval_method === 'production') {
+                // Tạo phiếu lắp ráp tự động
+                $assembly = $this->createAssemblyFromRequest($projectRequest);
+                if ($assembly) {
+                    $successMessage .= ' Phiếu lắp ráp ' . $assembly->code . ' đã được tạo tự động.';
+                }
+            } else if ($projectRequest->approval_method === 'warehouse') {
+                // Tạo phiếu xuất kho tự động
+                $dispatch = $this->createDispatchFromRequest($projectRequest);
+                if ($dispatch) {
+                    $successMessage .= ' Phiếu xuất kho ' . $dispatch->dispatch_code . ' đã được tạo tự động.';
+                }
             }
+            
+            DB::commit();
             
             return redirect()->route('requests.project.show', $projectRequest->id)
                 ->with('success', $successMessage);
         } catch (\Exception $e) {
+            DB::rollBack();
             return back()->with('error', 'Có lỗi xảy ra khi duyệt phiếu đề xuất: ' . $e->getMessage());
         }
     }
@@ -927,5 +913,73 @@ class ProjectRequestController extends Controller
             
             return null;
         }
+    }
+
+    /**
+     * Tạo phiếu xuất kho tự động từ phiếu đề xuất dự án
+     */
+    private function createDispatchFromRequest($projectRequest)
+    {
+        // Tạo phiếu xuất kho mới
+        $dispatch = Dispatch::create([
+            'dispatch_code' => 'DISP-' . date('YmdHis'),
+            'dispatch_date' => now(),
+            'dispatch_type' => 'project', // Mặc định là dự án
+            'dispatch_detail' => 'contract', // Mặc định là hợp đồng
+            'customer_id' => $projectRequest->customer_id,
+            'project_id' => $projectRequest->project_id,
+            'project_receiver' => $projectRequest->project_name, // Thêm trường project_receiver
+            'company_representative_id' => $projectRequest->implementer_id ?? $projectRequest->proposer_id, // Lấy từ người thực hiện hoặc người đề xuất
+            'dispatch_note' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
+            'status' => 'pending',
+            'created_by' => Auth::id() ?? 1,
+            'warranty_period' => null, // Có thể lấy từ project nếu cần
+            'rental_id' => null, // Không cần vì là xuất cho dự án
+        ]);
+
+        // Lấy warehouse mặc định (có thể cần thêm logic để chọn warehouse phù hợp)
+        $defaultWarehouse = Warehouse::query()
+            ->where('status', 'active')
+            ->where('is_hidden', false)
+            ->first();
+
+        if (!$defaultWarehouse) {
+            throw new \Exception('Không tìm thấy kho mặc định để xuất hàng.');
+        }
+
+        // Lặp qua các items trong phiếu đề xuất và tạo dispatch items tương ứng
+        foreach ($projectRequest->items as $item) {
+            // Xác định loại item và thêm thông tin tương ứng
+            switch ($item->item_type) {
+                case 'equipment':
+                    $itemType = 'product';
+                    $itemId = $item->item_id;
+                    break;
+                case 'material':
+                    $itemType = 'material';
+                    $itemId = $item->item_id;
+                    break;
+                case 'good':
+                    $itemType = 'good';
+                    $itemId = $item->item_id;
+                    break;
+                default:
+                    throw new \Exception('Loại item không hợp lệ: ' . $item->item_type);
+            }
+
+            // Tạo dispatch item với đầy đủ thông tin
+            DispatchItem::create([
+                'dispatch_id' => $dispatch->id,
+                'warehouse_id' => $defaultWarehouse->id,
+                'item_type' => $itemType,
+                'item_id' => $itemId,
+                'quantity' => $item->quantity,
+                'category' => 'contract', // Mặc định là contract theo yêu cầu
+                'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
+                'serial_numbers' => null // Có thể thêm logic xử lý serial numbers sau
+            ]);
+        }
+
+        return $dispatch;
     }
 } 
