@@ -10,6 +10,8 @@ use App\Models\Product;
 use App\Models\Material;
 use App\Models\Good;
 use App\Models\Notification;
+use App\Models\Project;
+use App\Models\ProductMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -170,6 +172,9 @@ class ProjectRequestController extends Controller
         // Lấy danh sách khách hàng
         $customers = Customer::orderBy('company_name')->get();
         
+        // Lấy danh sách dự án
+        $projects = Project::with('customer')->orderBy('project_name')->get();
+        
         // Lấy danh sách thiết bị, vật tư, hàng hóa
         $equipments = Product::where('status', 'active')->orderBy('name')->get();
         $materials = Material::where('status', 'active')->orderBy('name')->get();
@@ -181,6 +186,7 @@ class ProjectRequestController extends Controller
         return view('requests.project.create', compact(
             'employees', 
             'customers', 
+            'projects',
             'equipments', 
             'materials', 
             'goods', 
@@ -242,6 +248,7 @@ class ProjectRequestController extends Controller
             'request_date' => 'required|date',
             'proposer_id' => 'required|exists:employees,id',
             'implementer_id' => 'nullable|exists:employees,id',
+            'project_id' => 'required|exists:projects,id',
             'project_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
             'project_address' => 'required|string|max:255',
@@ -289,8 +296,8 @@ class ProjectRequestController extends Controller
         try {
             DB::beginTransaction();
             
-            // Lấy thông tin khách hàng từ ID
-            $customer = Customer::findOrFail($request->customer_id);
+            // Lấy thông tin dự án từ ID
+            $project = Project::with('customer')->findOrFail($request->project_id);
             
             // Tạo phiếu đề xuất mới
             $projectRequest = ProjectRequest::create([
@@ -299,13 +306,13 @@ class ProjectRequestController extends Controller
                 'proposer_id' => $request->proposer_id,
                 'implementer_id' => $request->implementer_id,
                 'project_name' => $request->project_name,
-                'customer_id' => $customer->id,
+                'customer_id' => $project->customer->id,
                 'project_address' => $request->project_address,
                 'approval_method' => $request->approval_method,
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'customer_address' => $request->customer_address,
+                'customer_name' => $project->customer->name,
+                'customer_phone' => $project->customer->phone,
+                'customer_email' => $project->customer->email,
+                'customer_address' => $project->customer->address,
                 'notes' => $request->notes,
                 'status' => 'pending',
             ]);
@@ -413,8 +420,14 @@ class ProjectRequestController extends Controller
      */
     public function show($id)
     {
-        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'equipments', 'materials'])->findOrFail($id);
-        return view('requests.project.show', compact('projectRequest'));
+        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'equipments.equipment', 'materials.materialItem'])->findOrFail($id);
+        
+        // Tìm phiếu lắp ráp liên quan nếu có
+        $assembly = \App\Models\Assembly::where('notes', 'like', '%phiếu đề xuất dự án #' . $id . '%')
+            ->with(['products.product'])
+            ->first();
+        
+        return view('requests.project.show', compact('projectRequest', 'assembly'));
     }
 
     /**
@@ -555,8 +568,60 @@ class ProjectRequestController extends Controller
                 'status' => 'approved',
             ]);
             
+            // Gửi thông báo duyệt phiếu cho người đề xuất
+            if ($projectRequest->proposer_id) {
+                Notification::createNotification(
+                    'Phiếu đề xuất đã được duyệt',
+                    'Phiếu đề xuất triển khai dự án ' . $projectRequest->project_name . ' đã được duyệt',
+                    'success',
+                    $projectRequest->proposer_id,
+                    'project_request',
+                    $projectRequest->id,
+                    route('requests.project.show', $projectRequest->id)
+                );
+            }
+            
+            // Xử lý dựa trên phương thức xử lý được chọn
+            if ($projectRequest->approval_method === 'production') {
+                // Tự động tạo phiếu lắp ráp
+                $assembly = $this->createAssemblyFromRequest($projectRequest);
+                
+                // Gửi thông báo về việc cần tạo phiếu lắp ráp
+                if ($projectRequest->implementer_id) {
+                    Notification::createNotification(
+                        'Phiếu lắp ráp đã được tạo',
+                        'Phiếu lắp ráp đã được tạo tự động cho phiếu đề xuất dự án ' . $projectRequest->project_name,
+                        'info',
+                        $projectRequest->implementer_id,
+                        'project_request',
+                        $projectRequest->id,
+                        route('assemblies.index')
+                    );
+                }
+            } elseif ($projectRequest->approval_method === 'warehouse') {
+                // Gửi thông báo về việc cần tạo phiếu xuất kho
+                if ($projectRequest->implementer_id) {
+                    Notification::createNotification(
+                        'Yêu cầu tạo phiếu xuất kho',
+                        'Bạn cần tạo phiếu xuất kho cho phiếu đề xuất dự án ' . $projectRequest->project_name,
+                        'info',
+                        $projectRequest->implementer_id,
+                        'project_request',
+                        $projectRequest->id,
+                        route('inventory.index')
+                    );
+                }
+            }
+            
+            $successMessage = 'Phiếu đề xuất đã được duyệt thành công.';
+            
+            // Thêm thông báo về phiếu lắp ráp nếu đã tạo thành công
+            if ($projectRequest->approval_method === 'production' && isset($assembly) && $assembly) {
+                $successMessage .= ' Phiếu lắp ráp ' . $assembly->code . ' đã được tạo tự động.';
+            }
+            
             return redirect()->route('requests.project.show', $projectRequest->id)
-                ->with('success', 'Phiếu đề xuất đã được duyệt thành công.');
+                ->with('success', $successMessage);
         } catch (\Exception $e) {
             return back()->with('error', 'Có lỗi xảy ra khi duyệt phiếu đề xuất: ' . $e->getMessage());
         }
@@ -684,5 +749,183 @@ class ProjectRequestController extends Controller
     {
         $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'equipments', 'materials'])->findOrFail($id);
         return view('requests.project.preview', compact('projectRequest'));
+    }
+
+    /**
+     * Tạo phiếu lắp ráp tự động từ phiếu đề xuất dự án
+     */
+    private function createAssemblyFromRequest($projectRequest)
+    {
+        try {
+            // Tải đầy đủ dữ liệu phiếu đề xuất nếu chưa có
+            if (!$projectRequest->relationLoaded('equipments')) {
+                $projectRequest->load(['equipments.equipment', 'materials.materialItem']);
+            }
+            
+            // Kiểm tra xem có thiết bị/sản phẩm nào không
+            if ($projectRequest->item_type === 'equipment' && $projectRequest->equipments->count() === 0) {
+                throw new \Exception('Phiếu đề xuất không có thiết bị nào để lắp ráp');
+            }
+            
+            // Debug: Log thông tin phiếu đề xuất
+            \Illuminate\Support\Facades\Log::info('Thông tin phiếu đề xuất trước khi tạo phiếu lắp ráp', [
+                'project_request_id' => $projectRequest->id,
+                'item_type' => $projectRequest->item_type,
+                'equipments_count' => $projectRequest->equipments->count(),
+                'equipments' => $projectRequest->equipments->toArray()
+            ]);
+            
+            // Tạo mã phiếu lắp ráp
+            $prefix = 'ASM';
+            $date = now()->format('ymd');
+            
+            // Tìm mã phiếu lắp ráp mới nhất trong ngày
+            $latestAssembly = \App\Models\Assembly::where('code', 'like', $prefix . $date . '%')
+                ->orderBy('code', 'desc')
+                ->first();
+                
+            if ($latestAssembly) {
+                // Trích xuất số thứ tự từ mã
+                $code = $latestAssembly->code;
+                
+                if (preg_match('/^' . preg_quote($prefix . $date) . '(\d{3})$/', $code, $matches)) {
+                    $sequence = intval($matches[1]) + 1;
+                } else {
+                    $sequence = intval(substr($code, -3)) + 1;
+                }
+            } else {
+                $sequence = 1;
+            }
+            
+            $assemblyCode = $prefix . $date . str_pad($sequence, 3, '0', STR_PAD_LEFT);
+            
+            // Lấy kho mặc định
+            $defaultWarehouse = \App\Models\Warehouse::where('status', 'active')
+                ->where('is_hidden', false)
+                ->orderBy('id')
+                ->first();
+                
+            if (!$defaultWarehouse) {
+                throw new \Exception('Không tìm thấy kho mặc định');
+            }
+            
+            // Tạo phiếu lắp ráp
+            $assembly = \App\Models\Assembly::create([
+                'code' => $assemblyCode,
+                'date' => now()->format('Y-m-d'),
+                'warehouse_id' => $defaultWarehouse->id,
+                'target_warehouse_id' => $defaultWarehouse->id,
+                'assigned_employee_id' => $projectRequest->implementer_id,
+                'tester_id' => $projectRequest->implementer_id,
+                'purpose' => 'project',
+                'project_id' => null,
+                'status' => 'pending',
+                'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id . ' - ' . $projectRequest->project_name,
+            ]);
+            
+            // Thêm các sản phẩm từ phiếu đề xuất vào phiếu lắp ráp
+            $productsAdded = false;
+            
+            if ($projectRequest->item_type === 'equipment' && $projectRequest->equipments->count() > 0) {
+                foreach ($projectRequest->equipments as $equipment) {
+                    // Lấy thông tin sản phẩm
+                    $product = null;
+                    
+                    // Kiểm tra nếu có quan hệ equipment được tải
+                    if ($equipment->equipment) {
+                        $product = $equipment->equipment;
+                    } else {
+                        // Nếu không, tìm sản phẩm theo item_id
+                        $product = \App\Models\Product::find($equipment->item_id);
+                    }
+                    
+                    if ($product) {
+                        // Thêm sản phẩm vào phiếu lắp ráp
+                        \App\Models\AssemblyProduct::create([
+                            'assembly_id' => $assembly->id,
+                            'product_id' => $product->id,
+                            'quantity' => $equipment->quantity,
+                            'serials' => null,
+                        ]);
+                        
+                        $productsAdded = true;
+                        
+                        // Lấy danh sách vật tư của sản phẩm
+                        $productMaterials = \App\Models\ProductMaterial::where('product_id', $product->id)->get();
+                        
+                        // Thêm các vật tư vào phiếu lắp ráp
+                        foreach ($productMaterials as $material) {
+                            \App\Models\AssemblyMaterial::create([
+                                'assembly_id' => $assembly->id,
+                                'material_id' => $material->material_id,
+                                'quantity' => $material->quantity * $equipment->quantity, // Số lượng vật tư = số lượng cần cho 1 sản phẩm * số lượng sản phẩm
+                                'serial' => null,
+                                'product_id' => $product->id // Liên kết vật tư với sản phẩm
+                            ]);
+                        }
+                        
+                        // Log thông tin
+                        \Illuminate\Support\Facades\Log::info('Đã thêm sản phẩm và vật tư vào phiếu lắp ráp', [
+                            'assembly_code' => $assembly->code,
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'quantity' => $equipment->quantity,
+                            'materials_count' => $productMaterials->count()
+                        ]);
+                    } else {
+                        \Illuminate\Support\Facades\Log::warning('Không tìm thấy sản phẩm', [
+                            'item_id' => $equipment->item_id,
+                            'equipment' => $equipment->toArray()
+                        ]);
+                    }
+                }
+            }
+            
+            // Nếu không có sản phẩm nào được thêm, thêm sản phẩm mặc định
+            if (!$productsAdded) {
+                // Tìm sản phẩm đầu tiên trong hệ thống
+                $defaultProduct = \App\Models\Product::where('status', 'active')
+                    ->where('is_hidden', false)
+                    ->first();
+                
+                if ($defaultProduct) {
+                    \App\Models\AssemblyProduct::create([
+                        'assembly_id' => $assembly->id,
+                        'product_id' => $defaultProduct->id,
+                        'quantity' => 1,
+                        'serials' => null,
+                    ]);
+                    
+                    // Lấy và thêm vật tư của sản phẩm mặc định
+                    $defaultProductMaterials = \App\Models\ProductMaterial::where('product_id', $defaultProduct->id)->get();
+                    foreach ($defaultProductMaterials as $material) {
+                        \App\Models\AssemblyMaterial::create([
+                            'assembly_id' => $assembly->id,
+                            'material_id' => $material->material_id,
+                            'quantity' => $material->quantity,
+                            'serial' => null,
+                            'product_id' => $defaultProduct->id
+                        ]);
+                    }
+                    
+                    \Illuminate\Support\Facades\Log::info('Đã thêm sản phẩm mặc định và vật tư vào phiếu lắp ráp', [
+                        'assembly_code' => $assembly->code,
+                        'product_id' => $defaultProduct->id,
+                        'product_name' => $defaultProduct->name,
+                        'materials_count' => $defaultProductMaterials->count()
+                    ]);
+                }
+            }
+            
+            return $assembly;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Lỗi khi tạo phiếu lắp ráp tự động: ' . $e->getMessage(), [
+                'project_request_id' => $projectRequest->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return null;
+        }
     }
 } 

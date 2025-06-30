@@ -45,7 +45,7 @@
                     <input type="date" name="request_date" id="request_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('request_date', date('Y-m-d')) }}">
                 </div>
                 <div>
-                    <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ thuật đề xuất</label>
+                    <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Nhân viên đề xuất</label>
                     <select name="proposer_id" id="proposer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn nhân viên --</option>
                         @foreach ($employees as $employee)
@@ -55,6 +55,27 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="mb-6 border-b border-gray-200 pb-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3">Nhân sự thực hiện</h2>
+            <div id="staff_container">
+                <div class="staff-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
+                    <div class="md:col-span-3">
+                        <label for="staff_name_0" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhân viên</label>
+                        <select name="staff[0][id]" id="staff_name_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Chọn nhân viên --</option>
+                            @foreach ($employees as $employee)
+                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="md:col-span-1 flex items-end">
+                        <button type="button" id="add_staff" class="h-10 px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center">
+                            <i class="fas fa-plus mr-2"></i> Thêm
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
             </div>
         </div>
         
@@ -70,7 +91,12 @@
                     <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn đối tác --</option>
                         @foreach ($customers as $customer)
-                            <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
+                            <option value="{{ $customer->id }}" 
+                                    data-name="{{ $customer->name }}"
+                                    data-phone="{{ $customer->phone }}"
+                                    data-email="{{ $customer->email }}" 
+                                    data-address="{{ $customer->address }}"
+                                    {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
                                 {{ $customer->company_name }}
                             </option>
                         @endforeach
@@ -79,6 +105,32 @@
                 <div class="md:col-span-2">
                     <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
                     <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_address') }}">
+                </div>
+                <div id="customer_details" class="md:col-span-2 border border-gray-200 rounded-lg p-4 bg-gray-50 hidden">
+                    <h3 class="text-md font-medium text-gray-800 mb-2">Thông tin đối tác</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-sm text-gray-500">Tên người liên hệ:</span>
+                            <p id="customer_name_display" class="font-medium text-gray-700"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Số điện thoại:</span>
+                            <p id="customer_phone_display" class="font-medium text-gray-700"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Email:</span>
+                            <p id="customer_email_display" class="font-medium text-gray-700"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Địa chỉ:</span>
+                            <p id="customer_address_display" class="font-medium text-gray-700"></p>
+                        </div>
+                    </div>
+                    <!-- Thêm các trường ẩn để lưu dữ liệu -->
+                    <input type="hidden" name="customer_name" id="customer_name">
+                    <input type="hidden" name="customer_phone" id="customer_phone">
+                    <input type="hidden" name="customer_email" id="customer_email">
+                    <input type="hidden" name="customer_address" id="customer_address">
                 </div>
             </div>
         </div>
@@ -138,49 +190,7 @@
             </div>
         </div>
         
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin liên hệ khách hàng</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên khách hàng</label>
-                    <input type="text" name="customer_name" id="customer_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_name') }}">
-                </div>
-                <div>
-                    <label for="customer_phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
-                    <input type="text" name="customer_phone" id="customer_phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_phone') }}">
-                </div>
-                <div>
-                    <label for="customer_email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" name="customer_email" id="customer_email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_email') }}">
-                </div>
-                <div class="md:col-span-3">
-                    <label for="customer_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ</label>
-                    <input type="text" name="customer_address" id="customer_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_address') }}">
-                </div>
-            </div>
-        </div>
-        
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Nhân sự thực hiện</h2>
-            <div id="staff_container">
-                <div class="staff-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
-                    <div class="md:col-span-3">
-                        <label for="staff_name_0" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhân viên</label>
-                        <select name="staff[0][id]" id="staff_name_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">-- Chọn nhân viên --</option>
-                            @foreach ($employees as $employee)
-                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="md:col-span-1 flex items-end">
-                        <button type="button" id="add_staff" class="h-10 px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center">
-                            <i class="fas fa-plus mr-2"></i> Thêm
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+      
         
         <div class="mb-6">
             <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
@@ -278,21 +288,46 @@
         });
     }
 
-    // Auto-fill thông tin khách hàng khi chọn đối tác
+    // Xử lý hiển thị thông tin đối tác khi chọn
     document.getElementById('customer_id').addEventListener('change', function() {
-        const customerId = this.value;
-        if (!customerId) return;
+        const customerDetailsDiv = document.getElementById('customer_details');
         
-        // Gọi API để lấy thông tin khách hàng
-        fetch(`/api/customers/${customerId}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('customer_name').value = data.name || '';
-                document.getElementById('customer_phone').value = data.phone || '';
-                document.getElementById('customer_email').value = data.email || '';
-                document.getElementById('customer_address').value = data.address || '';
-            })
-            .catch(error => console.error('Lỗi khi lấy thông tin khách hàng:', error));
+        if (this.value) {
+            // Lấy thông tin từ data attributes của option được chọn
+            const selectedOption = this.options[this.selectedIndex];
+            const name = selectedOption.getAttribute('data-name');
+            const phone = selectedOption.getAttribute('data-phone');
+            const email = selectedOption.getAttribute('data-email');
+            const address = selectedOption.getAttribute('data-address');
+            
+            // Hiển thị thông tin
+            document.getElementById('customer_name_display').textContent = name || 'N/A';
+            document.getElementById('customer_phone_display').textContent = phone || 'N/A';
+            document.getElementById('customer_email_display').textContent = email || 'N/A';
+            document.getElementById('customer_address_display').textContent = address || 'N/A';
+            
+            // Cập nhật giá trị cho các trường ẩn
+            document.getElementById('customer_name').value = name || '';
+            document.getElementById('customer_phone').value = phone || '';
+            document.getElementById('customer_email').value = email || '';
+            document.getElementById('customer_address').value = address || '';
+            
+            // Hiển thị div thông tin
+            customerDetailsDiv.classList.remove('hidden');
+        } else {
+            // Ẩn div thông tin nếu không có đối tác nào được chọn
+            customerDetailsDiv.classList.add('hidden');
+        }
+    });
+    
+    // Kiểm tra nếu đã có đối tác được chọn khi tải trang
+    document.addEventListener('DOMContentLoaded', function() {
+        const customerSelect = document.getElementById('customer_id');
+        if (customerSelect.value) {
+            // Kích hoạt sự kiện change để hiển thị thông tin
+            const event = new Event('change');
+            customerSelect.dispatchEvent(event);
+        }
     });
 </script>
 @endsection 

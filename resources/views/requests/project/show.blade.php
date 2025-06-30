@@ -102,12 +102,48 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin đề xuất</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <p class="text-sm text-gray-500">Người đề xuất</p>
-                    <p class="font-medium">{{ $projectRequest->proposer ? $projectRequest->proposer->name : 'Không có' }}</p>
+                    <p class="text-sm text-gray-600">Ngày đề xuất</p>
+                    <p class="font-medium">{{ \Carbon\Carbon::parse($projectRequest->request_date)->format('d/m/Y') }}</p>
                 </div>
                 <div>
-                    <p class="text-sm text-gray-500">Ngày đề xuất</p>
-                    <p class="font-medium">{{ $projectRequest->request_date->format('d/m/Y') }}</p>
+                    <p class="text-sm text-gray-600">Trạng thái</p>
+                    <p>
+                        @if($projectRequest->status == 'pending')
+                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Chờ duyệt</span>
+                        @elseif($projectRequest->status == 'approved')
+                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Đã duyệt</span>
+                        @elseif($projectRequest->status == 'rejected')
+                            <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Từ chối</span>
+                        @elseif($projectRequest->status == 'in_progress')
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Đang thực hiện</span>
+                        @elseif($projectRequest->status == 'completed')
+                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Hoàn thành</span>
+                        @elseif($projectRequest->status == 'canceled')
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">Đã hủy</span>
+                        @endif
+                    </p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Nhân viên đề xuất</p>
+                    <p class="font-medium">{{ $projectRequest->proposer->name ?? 'N/A' }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Nhân viên thực hiện</p>
+                    <p class="font-medium">{{ $projectRequest->implementer->name ?? 'Chưa phân công' }}</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-600">Phương thức xử lý</p>
+                    <p class="font-medium">
+                        @if($projectRequest->approval_method == 'production')
+                            <span class="inline-flex items-center">
+                                <i class="fas fa-tools mr-1 text-blue-600"></i> Sản xuất lắp ráp
+                            </span>
+                        @elseif($projectRequest->approval_method == 'warehouse')
+                            <span class="inline-flex items-center">
+                                <i class="fas fa-warehouse mr-1 text-green-600"></i> Xuất kho
+                            </span>
+                        @endif
+                    </p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-500">Tên dự án</p>
@@ -117,21 +153,56 @@
                     <p class="text-sm text-gray-500">Địa chỉ dự án</p>
                     <p class="font-medium">{{ $projectRequest->project_address }}</p>
                 </div>
-                <div>
-                    <p class="text-sm text-gray-500">Phương thức xử lý</p>
-                    <p class="font-medium">
-                        @if($projectRequest->approval_method === 'production')
-                            Sản xuất lắp ráp
-                        @else
-                            Xuất kho
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Người thực hiện</p>
-                    <p class="font-medium">{{ $projectRequest->implementer ? $projectRequest->implementer->name : 'Chưa phân công' }}</p>
-                </div>
             </div>
+
+            @if($projectRequest->status == 'approved' || $projectRequest->status == 'in_progress' || $projectRequest->status == 'completed')
+                <div class="mt-4">
+                    @if($projectRequest->approval_method == 'production')
+                        <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <div class="flex items-center">
+                                <div class="bg-blue-100 p-2 rounded-full">
+                                    <i class="fas fa-tools text-blue-600"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-md font-medium text-blue-800">Phiếu lắp ráp</h3>
+                                    @php
+                                        $assembly = \App\Models\Assembly::where('notes', 'like', '%phiếu đề xuất dự án #' . $projectRequest->id . '%')->first();
+                                    @endphp
+                                    
+                                    @if(isset($assembly) && $assembly)
+                                        <p class="text-sm text-blue-600">Phiếu lắp ráp <a href="{{ route('assemblies.show', $assembly->id) }}" class="font-semibold hover:underline">{{ $assembly->code }}</a> đã được tạo tự động.</p>
+                                        
+                                        @if($assembly->products && $assembly->products->count() > 0)
+                                            <div class="mt-2">
+                                                <p class="text-sm font-medium text-blue-700">Sản phẩm trong phiếu lắp ráp:</p>
+                                                <ul class="mt-1 list-disc list-inside text-sm text-blue-600 ml-2">
+                                                    @foreach($assembly->products as $assemblyProduct)
+                                                        <li>{{ $assemblyProduct->product->name }} ({{ $assemblyProduct->product->code }}) - Số lượng: {{ $assemblyProduct->quantity }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        @endif
+                                    @else
+                                        <p class="text-sm text-blue-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu lắp ráp từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý lắp ráp để tạo phiếu lắp ráp mới.</p>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($projectRequest->approval_method == 'warehouse')
+                        <div class="p-4 bg-green-50 rounded-lg border border-green-200">
+                            <div class="flex items-center">
+                                <div class="bg-green-100 p-2 rounded-full">
+                                    <i class="fas fa-warehouse text-green-600"></i>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-md font-medium text-green-800">Phiếu xuất kho</h3>
+                                    <p class="text-sm text-green-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu xuất kho từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý kho để tạo phiếu xuất kho mới.</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
         </div>
 
         <!-- Thông tin khách hàng -->

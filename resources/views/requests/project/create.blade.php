@@ -73,23 +73,68 @@
                     <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
-                    <input type="text" name="project_name" id="project_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_name') }}">
+                            <label for="project_id" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
+                            <select name="project_id" id="project_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Chọn dự án --</option>
+                                @foreach($projects as $project)
+                                    <option value="{{ $project->id }}" 
+                                            data-customer-id="{{ $project->customer->id }}"
+                                            data-customer-name="{{ $project->customer->name }}"
+                                            data-customer-phone="{{ $project->customer->phone }}"
+                                            data-customer-email="{{ $project->customer->email }}" 
+                                            data-customer-address="{{ $project->customer->address }}"
+                                            {{ old('project_id') == $project->id ? 'selected' : '' }}>
+                                        {{ $project->project_name }} ({{ $project->project_code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <input type="hidden" name="project_name" id="project_name">
                         </div>
                         <div>
-                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
-                    <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">-- Chọn đối tác --</option>
-                        @foreach($customers ?? [] as $customer)
-                            <option value="{{ $customer->id }}" {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
-                                {{ $customer->company_name }} ({{ $customer->name }})
-                            </option>
-                        @endforeach
-                    </select>
+                            <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
+                            <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Chọn đối tác --</option>
+                                @foreach($customers as $customer)
+                                    <option value="{{ $customer->id }}" 
+                                            data-name="{{ $customer->name }}"
+                                            data-phone="{{ $customer->phone }}"
+                                            data-email="{{ $customer->email }}" 
+                                            data-address="{{ $customer->address }}"
+                                            {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
+                                        {{ $customer->company_name }} ({{ $customer->name }})
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
                         <div class="md:col-span-2">
                             <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
                     <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_address') }}">
+                        </div>
+                        <div id="customer_details" class="md:col-span-2 border border-gray-200 rounded-lg p-4 bg-gray-50 hidden">
+                            <h3 class="text-md font-medium text-gray-800 mb-2">Thông tin đối tác</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <span class="text-sm text-gray-500">Tên người liên hệ:</span>
+                                    <p id="customer_name_display" class="font-medium text-gray-700"></p>
+                                </div>
+                                <div>
+                                    <span class="text-sm text-gray-500">Số điện thoại:</span>
+                                    <p id="customer_phone_display" class="font-medium text-gray-700"></p>
+                                </div>
+                                <div>
+                                    <span class="text-sm text-gray-500">Email:</span>
+                                    <p id="customer_email_display" class="font-medium text-gray-700"></p>
+                                </div>
+                                <div>
+                                    <span class="text-sm text-gray-500">Địa chỉ:</span>
+                                    <p id="customer_address_display" class="font-medium text-gray-700"></p>
+                                </div>
+                            </div>
+                            <!-- Thêm các trường ẩn để lưu dữ liệu -->
+                            <input type="hidden" name="customer_name" id="customer_name">
+                            <input type="hidden" name="customer_phone" id="customer_phone">
+                            <input type="hidden" name="customer_email" id="customer_email">
+                            <input type="hidden" name="customer_address" id="customer_address">
                         </div>
                     </div>
                 </div>
@@ -105,6 +150,14 @@
                             <div class="flex items-center">
                         <input type="radio" name="approval_method" id="warehouse" value="warehouse" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('approval_method') == 'warehouse' ? 'checked' : '' }}>
                                 <label for="warehouse" class="ml-2 block text-sm font-medium text-gray-700">Xuất kho</label>
+                            </div>
+                        </div>
+                        <div class="col-span-2 mt-2">
+                            <div id="production_info" class="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 {{ old('approval_method', 'production') == 'production' ? 'block' : 'hidden' }}">
+                                <i class="fas fa-info-circle mr-1"></i> Khi chọn <strong>Sản xuất lắp ráp</strong>, hệ thống sẽ gửi thông báo đến nhân viên thực hiện để tạo phiếu lắp ráp sau khi phiếu được duyệt.
+                            </div>
+                            <div id="warehouse_info" class="p-3 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700 {{ old('approval_method') == 'warehouse' ? 'block' : 'hidden' }}">
+                                <i class="fas fa-info-circle mr-1"></i> Khi chọn <strong>Xuất kho</strong>, hệ thống sẽ gửi thông báo đến nhân viên thực hiện để tạo phiếu xuất kho sau khi phiếu được duyệt.
                             </div>
                         </div>
                     </div>
@@ -139,7 +192,7 @@
                         <div class="equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
                             <div class="md:col-span-3">
                             <label for="equipment_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Thiết bị</label>
-                            <select name="equipment[0][id]" id="equipment_id_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
+                            <select name="equipment[0][id]" id="equipment_id_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field equipment-select">
                                 <option value="">-- Chọn thiết bị --</option>
                                 @foreach($equipments ?? [] as $equipment)
                                     <option value="{{ $equipment->id }}" {{ old('equipment.0.id') == $equipment->id ? 'selected' : '' }}>
@@ -150,7 +203,7 @@
                             </div>
                             <div class="md:col-span-1">
                                 <label for="equipment_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                            <input type="number" name="equipment[0][quantity]" id="equipment_quantity_0" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ old('equipment.0.quantity', 1) }}">
+                            <input type="number" name="equipment[0][quantity]" id="equipment_quantity_0" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field equipment-quantity" value="{{ old('equipment.0.quantity', 1) }}">
                             </div>
                             <div class="md:col-span-1 flex items-end">
                                 <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
@@ -189,7 +242,6 @@
                             <div class="md:col-span-1 flex items-end">
                                 <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
                                     <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                </button>
                         </div>
                     </div>
                 </div>
@@ -226,28 +278,6 @@
                             </button>
                         </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-6 border-b border-gray-200 pb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin liên hệ khách hàng</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên khách hàng</label>
-                    <input type="text" name="customer_name" id="customer_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_name') }}">
-                        </div>
-                        <div>
-                            <label for="customer_phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
-                    <input type="text" name="customer_phone" id="customer_phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_phone') }}">
-                        </div>
-                        <div>
-                            <label for="customer_email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" name="customer_email" id="customer_email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_email') }}">
-                        </div>
-                        <div class="md:col-span-3">
-                            <label for="customer_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ</label>
-                    <input type="text" name="customer_address" id="customer_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_address') }}">
                         </div>
                     </div>
                 </div>
@@ -299,8 +329,109 @@
         });
     });
     
-    // Hiển thị section mặc định khi tải trang
+    // Xử lý khi chọn dự án
+    document.getElementById('project_id').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const customerId = selectedOption.getAttribute('data-customer-id');
+        const customerName = selectedOption.getAttribute('data-customer-name');
+        const customerPhone = selectedOption.getAttribute('data-customer-phone');
+        const customerEmail = selectedOption.getAttribute('data-customer-email');
+        const customerAddress = selectedOption.getAttribute('data-customer-address');
+        
+        // Cập nhật select box khách hàng
+        const customerSelect = document.getElementById('customer_id');
+        customerSelect.value = customerId;
+        
+        // Kích hoạt sự kiện change để hiển thị thông tin khách hàng
+        const event = new Event('change');
+        customerSelect.dispatchEvent(event);
+        
+        // Cập nhật tên dự án
+        document.getElementById('project_name').value = selectedOption.text.split(' (')[0];
+        
+        // Cập nhật các trường thông tin khách hàng
+        document.getElementById('customer_name').value = customerName;
+        document.getElementById('customer_phone').value = customerPhone;
+        document.getElementById('customer_email').value = customerEmail;
+        document.getElementById('customer_address').value = customerAddress;
+        
+        // Hiển thị thông tin trong div
+        document.getElementById('customer_name_display').textContent = customerName;
+        document.getElementById('customer_phone_display').textContent = customerPhone;
+        document.getElementById('customer_email_display').textContent = customerEmail;
+        document.getElementById('customer_address_display').textContent = customerAddress;
+        
+        // Hiển thị div thông tin
+        document.getElementById('customer_details').classList.remove('hidden');
+    });
+    
+    // Xử lý khi chọn khách hàng trực tiếp
+    document.getElementById('customer_id').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (this.value) {
+            // Lấy thông tin từ data attributes của option được chọn
+            const name = selectedOption.getAttribute('data-name');
+            const phone = selectedOption.getAttribute('data-phone');
+            const email = selectedOption.getAttribute('data-email');
+            const address = selectedOption.getAttribute('data-address');
+            
+            // Hiển thị thông tin
+            document.getElementById('customer_name_display').textContent = name || 'N/A';
+            document.getElementById('customer_phone_display').textContent = phone || 'N/A';
+            document.getElementById('customer_email_display').textContent = email || 'N/A';
+            document.getElementById('customer_address_display').textContent = address || 'N/A';
+            
+            // Cập nhật giá trị cho các trường ẩn
+            document.getElementById('customer_name').value = name || '';
+            document.getElementById('customer_phone').value = phone || '';
+            document.getElementById('customer_email').value = email || '';
+            document.getElementById('customer_address').value = address || '';
+            
+            // Hiển thị div thông tin
+            document.getElementById('customer_details').classList.remove('hidden');
+        } else {
+            // Ẩn div thông tin nếu không có đối tác nào được chọn
+            document.getElementById('customer_details').classList.add('hidden');
+        }
+    });
+    
+    // Kiểm tra nếu đã có dự án được chọn khi tải trang
     document.addEventListener('DOMContentLoaded', function() {
+        const projectSelect = document.getElementById('project_id');
+        if (projectSelect.value) {
+            // Kích hoạt sự kiện change để hiển thị thông tin
+            const event = new Event('change');
+            projectSelect.dispatchEvent(event);
+        }
+    });
+    
+    // Xử lý hiển thị thông tin phương thức xử lý
+    document.querySelectorAll('input[name="approval_method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Ẩn tất cả các thông tin
+            document.getElementById('production_info').classList.add('hidden');
+            document.getElementById('warehouse_info').classList.add('hidden');
+            
+            // Hiển thị thông tin tương ứng
+            if (this.value === 'production') {
+                document.getElementById('production_info').classList.remove('hidden');
+            } else if (this.value === 'warehouse') {
+                document.getElementById('warehouse_info').classList.remove('hidden');
+            }
+        });
+    });
+    
+    // Kiểm tra nếu đã có đối tác được chọn khi tải trang
+    document.addEventListener('DOMContentLoaded', function() {
+        const customerSelect = document.getElementById('customer_id');
+        if (customerSelect.value) {
+            // Kích hoạt sự kiện change để hiển thị thông tin
+            const event = new Event('change');
+            customerSelect.dispatchEvent(event);
+        }
+        
+        // Hiển thị section mặc định khi tải trang
         const selectedType = document.querySelector('input[name="item_type"]:checked').value;
         const selectedSection = document.getElementById(selectedType + '_section');
         selectedSection.classList.remove('hidden');
@@ -356,12 +487,12 @@
         }
     });
     
-        // Thêm thiết bị
-        let equipmentCount = 1;
-        document.getElementById('add_equipment').addEventListener('click', function() {
-            const container = document.getElementById('equipment_container');
-            const newRow = document.createElement('div');
-            newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
+    // Thêm thiết bị
+    let equipmentCount = 1;
+    document.getElementById('add_equipment').addEventListener('click', function() {
+        const container = document.getElementById('equipment_container');
+        const newRow = document.createElement('div');
+        newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
         
         // Lấy danh sách thiết bị từ select đầu tiên
         const firstSelect = document.getElementById('equipment_id_0');
@@ -499,6 +630,75 @@
                 });
             });
         }
+
+    // Xử lý khi chọn thiết bị
+    function handleEquipmentChange(selectElement) {
+        const equipmentId = selectElement.value;
+        const equipmentRow = selectElement.closest('.equipment-row');
+        const quantityInput = equipmentRow.querySelector('.equipment-quantity');
+        
+        if (equipmentId) {
+            // Lấy danh sách vật tư của thiết bị
+            fetch(`/assemblies/product-materials/${equipmentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.materials && data.materials.length > 0) {
+                        // Lấy số lượng thiết bị
+                        const equipmentQuantity = parseInt(quantityInput.value) || 1;
+                        
+                        // Thêm các vật tư vào danh sách
+                        data.materials.forEach(material => {
+                            // Tính số lượng vật tư dựa trên số lượng thiết bị
+                            const materialQuantity = material.quantity * equipmentQuantity;
+                            
+                            // Tìm vật tư trong danh sách hiện tại
+                            const existingMaterial = document.querySelector(`select[name^="material["] option[value="${material.id}"]:checked`);
+                            
+                            if (!existingMaterial) {
+                                // Thêm vật tư mới
+                                const addMaterialBtn = document.getElementById('add_material');
+                                addMaterialBtn.click();
+                                
+                                // Lấy row vật tư vừa thêm
+                                const materialRows = document.querySelectorAll('.material-row');
+                                const lastMaterialRow = materialRows[materialRows.length - 1];
+                                
+                                // Chọn vật tư và cập nhật số lượng
+                                const materialSelect = lastMaterialRow.querySelector('select');
+                                const materialQuantityInput = lastMaterialRow.querySelector('input[type="number"]');
+                                
+                                materialSelect.value = material.id;
+                                materialQuantityInput.value = materialQuantity;
+                            } else {
+                                // Cập nhật số lượng vật tư hiện có
+                                const materialRow = existingMaterial.closest('.material-row');
+                                const materialQuantityInput = materialRow.querySelector('input[type="number"]');
+                                materialQuantityInput.value = parseInt(materialQuantityInput.value) + materialQuantity;
+                            }
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading materials:', error);
+                });
+        }
+    }
+    
+    // Thêm sự kiện change cho thiết bị
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('.equipment-select')) {
+            handleEquipmentChange(e.target);
+        }
+    });
+    
+    // Thêm sự kiện change cho số lượng thiết bị
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('.equipment-quantity')) {
+            const equipmentRow = e.target.closest('.equipment-row');
+            const equipmentSelect = equipmentRow.querySelector('.equipment-select');
+            handleEquipmentChange(equipmentSelect);
+        }
+    });
     </script>
 @endsection
 @endsection 
