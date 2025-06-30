@@ -586,11 +586,19 @@
                 devicesList.innerHTML = '';
 
                 devices.forEach(device => {
+                    // Determine if this is a good or a product
+                    const isGood = device.type === 'good';
+                    const deviceTypeText = isGood ? 'Hàng hóa' : 'Sản phẩm';
+                    const deviceTypeClass = isGood ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
+                    
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50';
                     row.innerHTML = `
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.code}</td>
-                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.name}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
+                            ${device.name}
+                            <span class="ml-1 px-2 py-0.5 text-xs rounded-full ${deviceTypeClass}">${deviceTypeText}</span>
+                        </td>
                         <td class="px-3 py-2 text-sm text-gray-700" style="max-width: 200px; word-wrap: break-word;">${device.serial_numbers_text || device.serial || ''}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
                             <input type="number" min="1" max="${device.quantity || 1}" value="1" 
@@ -725,7 +733,8 @@
                             notes: notes,
                             images: imagesArray, // Use array instead of FileList
                             status: device.status,
-                            fromWarranty: true
+                            fromWarranty: true,
+                            type: device.type || 'product' // Store device type (good or product)
                         };
 
                         console.log('🔍 Device to add to list:', deviceToAdd);
@@ -1132,7 +1141,8 @@
                         serial: device.serial,
                         quantity: device.quantity,
                         notes: device.notes,
-                        imagesCount: device.images ? device.images.length : 0
+                        imagesCount: device.images ? device.images.length : 0,
+                        type: device.type || 'product'
                     });
 
                     const deviceDiv = document.createElement('div');
@@ -1145,6 +1155,12 @@
                         imagesDisplay = `<div class="text-xs text-blue-600 mt-1">📸 ${device.images.length} hình ảnh đã chọn</div>`;
                     }
                     
+                    // Determine device type badge
+                    const isGood = device.type === 'good';
+                    const deviceTypeBadge = isGood 
+                        ? '<span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">Hàng hóa</span>' 
+                        : '<span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">Sản phẩm</span>';
+                    
                     deviceDiv.innerHTML = `
                         <input type="hidden" name="selected_devices[]" value="${device.id}">
                         <input type="hidden" name="device_code[${device.id}]" value="${device.code}">
@@ -1152,8 +1168,11 @@
                         <input type="hidden" name="device_serial[${device.id}]" value="${device.serial || ''}">
                         <input type="hidden" name="device_quantity[${device.id}]" value="${device.quantity || 1}">
                         <input type="hidden" name="device_notes[${device.id}]" value="${device.notes || ''}">
+                        <input type="hidden" name="device_type[${device.id}]" value="${device.type || 'product'}">
                         <div class="flex-1">
-                            <div class="text-sm font-medium text-gray-900">${device.code} - ${device.name}</div>
+                            <div class="text-sm font-medium text-gray-900">
+                                ${device.code} - ${device.name} ${deviceTypeBadge}
+                            </div>
                             <div class="text-xs text-gray-500">
                                 ${device.serial ? 'Serial: ' + device.serial : 'Không có serial'}
                                 ${device.quantity ? ' • Số lượng: ' + device.quantity : ''}

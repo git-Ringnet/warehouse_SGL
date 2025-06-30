@@ -139,12 +139,15 @@ class InventoryImportController extends Controller
                             );
                         }
 
-                        // Kiểm tra serial number đã tồn tại chưa
+                        // Kiểm tra serial number đã tồn tại chưa (ngoại trừ serials thuộc về chính phiếu nhập này)
                         if (!empty($material['item_type']) && !empty($material['material_id'])) {
                             $itemType = $material['item_type'];
                             $itemId = (int) $material['material_id'];
 
+                            // Khi tạo mới, không cần kiểm tra serials của phiếu nhập hiện tại
                             foreach ($serialArray as $serialIndex => $serialNumber) {
+                                // Kiểm tra serial có tồn tại trong hệ thống không
+                                // Cần kiểm tra chính xác type và product_id để không báo lỗi khi serial trùng với loại sản phẩm khác
                                 $existingSerial = Serial::where([
                                     'product_id' => $itemId,
                                     'type' => $itemType,
@@ -376,7 +379,32 @@ class InventoryImportController extends Controller
                             $itemType = $material['item_type'];
                             $itemId = (int) $material['material_id'];
 
+                            // Nếu đang trong chế độ chỉnh sửa, lấy danh sách serial của phiếu nhập hiện tại
+                            $currentImportSerials = [];
+                            if (isset($id)) {
+                                $currentImportMaterials = InventoryImportMaterial::where('inventory_import_id', $id)->get();
+                                foreach ($currentImportMaterials as $importMaterial) {
+                                    if (!empty($importMaterial->serial_numbers)) {
+                                        if (is_string($importMaterial->serial_numbers)) {
+                                            $serialsArray = json_decode($importMaterial->serial_numbers);
+                                            if (is_array($serialsArray)) {
+                                                $currentImportSerials = array_merge($currentImportSerials, $serialsArray);
+                                            }
+                                        } else if (is_array($importMaterial->serial_numbers)) {
+                                            $currentImportSerials = array_merge($currentImportSerials, $importMaterial->serial_numbers);
+                                        }
+                                    }
+                                }
+                            }
+
                             foreach ($serialArray as $serialIndex => $serialNumber) {
+                                // Nếu serial thuộc phiếu nhập hiện tại, bỏ qua kiểm tra trùng lặp
+                                if (in_array($serialNumber, $currentImportSerials)) {
+                                    continue;
+                                }
+
+                                // Kiểm tra serial có tồn tại trong hệ thống không
+                                // Cần kiểm tra chính xác type và product_id để không báo lỗi khi serial trùng với loại sản phẩm khác
                                 $existingSerial = Serial::where([
                                     'product_id' => $itemId,
                                     'type' => $itemType,

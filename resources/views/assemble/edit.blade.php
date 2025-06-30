@@ -387,6 +387,9 @@
                                                             Serial</th>
                                                         <th
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Thuộc thành phẩm</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Ghi chú</th>
                                                     </tr>
                                                 </thead>
@@ -430,18 +433,44 @@
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <select
-                                                                        name="components[{{ $component['globalIndex'] }}][serial_id]"
-                                                                        class="component-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                        data-material-id="{{ $component['material']->material_id }}"
-                                                                        data-warehouse-id="{{ $assembly->warehouse_id }}"
-                                                                        data-current-serial="{{ $component['material']->serial ?? '' }}"
-                                                                        data-current-serial-id="{{ $component['material']->serial_id ?? '' }}">
-                                                                        <option value="">Chọn serial</option>
-                                                                    </select>
-                                                                    <input type="hidden"
-                                                                        name="components[{{ $component['globalIndex'] }}][serial]"
-                                                                        value="{{ $component['material']->serial ?? '' }}">
+                                                                    <div class="space-y-2"
+                                                                        data-product-id="{{ $component['material']->target_product_id }}"
+                                                                        data-product-index="{{ $productIndex }}">
+                                                                        @php
+                                                                            // Ensure we properly handle all serial scenarios
+                                                                            $serials = [];
+                                                                            if ($component['material']->serials) {
+                                                                                // Split by comma
+                                                                                $serials = explode(
+                                                                                    ',',
+                                                                                    $component['material']->serials,
+                                                                                );
+                                                                            }
+                                                                        @endphp
+
+                                                                        @for ($i = 0; $i < $component['material']->quantity; $i++)
+                                                                            <div class="flex items-center">
+                                                                                <select
+                                                                                    name="components[{{ $component['globalIndex'] }}][serials][]"
+                                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 product-serial-select"
+                                                                                    data-serial-index="{{ $i }}"
+                                                                                    data-product-id="{{ $component['material']->target_product_id }}"
+                                                                                    data-product-unit="{{ $i }}"
+                                                                                    data-current-serial="{{ $serials[$i] ?? '' }}">
+                                                                                    <option value="">-- Chọn
+                                                                                        serial {{ $i + 1 }} --
+                                                                                    </option>
+                                                                                    @if (isset($serials[$i]) && !empty($serials[$i]))
+                                                                                        <option
+                                                                                            value="{{ $serials[$i] }}"
+                                                                                            selected>
+                                                                                            {{ $serials[$i] }}
+                                                                                        </option>
+                                                                                    @endif
+                                                                                </select>
+                                                                            </div>
+                                                                        @endfor
+                                                                    </div>
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -450,6 +479,29 @@
                                                                         value="{{ $component['material']->note ?? '' }}"
                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                         placeholder="Ghi chú">
+                                                                </td>
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    <select name="components[{{ $component['globalIndex'] }}][product_unit]" 
+                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select"
+                                                                        data-component-index="{{ $component['globalIndex'] }}"
+                                                                        data-product-id="{{ $component['material']->target_product_id }}">
+                                                                        @php
+                                                                            $productUnit = $component['material']->product_unit ?? 0;
+                                                                            $productQuantity = $assemblyProduct->quantity ?? 1;
+                                                                        @endphp
+                                                                        @for ($i = 0; $i < $productQuantity; $i++)
+                                                                            <option value="{{ $i }}" {{ $productUnit == $i ? 'selected' : '' }}>
+                                                                                Thành phẩm #{{ $i + 1 }}
+                                                                                @if ($assemblyProduct->serials)
+                                                                                    @php $serialArray = explode(',', $assemblyProduct->serials); @endphp
+                                                                                    @if (isset($serialArray[$i]) && !empty($serialArray[$i]))
+                                                                                        (Serial: {{ $serialArray[$i] }})
+                                                                                    @endif
+                                                                                @endif
+                                                                            </option>
+                                                                        @endfor
+                                                                    </select>
                                                                 </td>
                                                             </tr>
                                                         @endforeach
@@ -499,6 +551,9 @@
                                                         Serial</th>
                                                     <th
                                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Thuộc thành phẩm</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Ghi chú</th>
                                                 </tr>
                                             </thead>
@@ -534,18 +589,39 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <select
-                                                                    name="components[{{ $index }}][serial_id]"
-                                                                    class="component-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    data-material-id="{{ $material->material_id }}"
-                                                                    data-warehouse-id="{{ $assembly->warehouse_id }}"
-                                                                    data-current-serial="{{ $material->serial ?? '' }}"
-                                                                    data-current-serial-id="{{ $material->serial_id ?? '' }}">
-                                                                    <option value="">Chọn serial</option>
-                                                                </select>
-                                                                <input type="hidden"
-                                                                    name="components[{{ $index }}][serial]"
-                                                                    value="{{ $material->serial ?? '' }}">
+                                                                <div class="space-y-2"
+                                                                    data-product-id="{{ $material->target_product_id }}"
+                                                                    data-product-index="0">
+                                                                    @php
+                                                                        // Ensure we properly handle all serial scenarios
+                                                                        $serials = [];
+                                                                        if ($material->serials) {
+                                                                            // Split by comma
+                                                                            $serials = explode(',', $material->serials);
+                                                                        }
+                                                                    @endphp
+
+                                                                    @for ($i = 0; $i < $material->quantity; $i++)
+                                                                        <div class="flex items-center">
+                                                                            <select
+                                                                                name="components[{{ $index }}][serials][]"
+                                                                                class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 product-serial-select"
+                                                                                data-serial-index="{{ $i }}"
+                                                                                data-product-id="{{ $material->target_product_id }}"
+                                                                                data-product-unit="{{ $i }}"
+                                                                                data-current-serial="{{ $serials[$i] ?? '' }}">
+                                                                                <option value="">-- Chọn serial
+                                                                                    {{ $i + 1 }} --</option>
+                                                                                @if (isset($serials[$i]) && !empty($serials[$i]))
+                                                                                    <option
+                                                                                        value="{{ $serials[$i] }}"
+                                                                                        selected>{{ $serials[$i] }}
+                                                                                    </option>
+                                                                                @endif
+                                                                            </select>
+                                                                        </div>
+                                                                    @endfor
+                                                                </div>
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -554,6 +630,28 @@
                                                                     value="{{ $material->note ?? '' }}"
                                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     placeholder="Ghi chú">
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                <select name="components[{{ $index }}][product_unit]" 
+                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select"
+                                                                    data-component-index="{{ $index }}"
+                                                                    data-product-id="{{ $material->target_product_id }}">
+                                                                    @php
+                                                                        $productUnit = $material->product_unit ?? 0;
+                                                                        $productQuantity = $assembly->quantity ?? 1;
+                                                                    @endphp
+                                                                    @for ($i = 0; $i < $productQuantity; $i++)
+                                                                        <option value="{{ $i }}" {{ $productUnit == $i ? 'selected' : '' }}>
+                                                                            Thành phẩm #{{ $i + 1 }}
+                                                                            @if (isset($productSerials) && is_array($productSerials))
+                                                                                @if (isset($productSerials[$i]) && !empty($productSerials[$i]))
+                                                                                    (Serial: {{ $productSerials[$i] }})
+                                                                                @endif
+                                                                            @endif
+                                                                        </option>
+                                                                    @endfor
+                                                                </select>
                                                             </td>
                                                         </tr>
                                                     @endforeach
@@ -771,48 +869,50 @@
             async function loadMaterialSerials(selectElement) {
                 const materialId = selectElement.dataset.materialId;
                 const warehouseId = selectElement.dataset.warehouseId;
-                
+
                 if (!materialId || !warehouseId) {
                     console.error('Missing material ID or warehouse ID');
                     return;
                 }
 
                 try {
-                    const response = await fetch(`{{ route('assemblies.material-serials') }}?material_id=${materialId}&warehouse_id=${warehouseId}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        }
-                    });
+                    const response = await fetch(
+                        `{{ route('assemblies.material-serials') }}?material_id=${materialId}&warehouse_id=${warehouseId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .getAttribute('content')
+                            }
+                        });
 
                     const data = await response.json();
-                    
+
                     if (data.success) {
                         // Clear existing options except the first one
                         selectElement.innerHTML = '<option value="">Chọn serial</option>';
-                        
+
                         const currentSerialId = selectElement.dataset.currentSerialId;
-                        
+
                         // Add serial options
                         data.serials.forEach(serial => {
                             const option = document.createElement('option');
                             option.value = serial.id;
                             option.textContent = serial.serial_number;
-                            
+
                             // Select current serial if it matches
                             if (currentSerialId && serial.id == currentSerialId) {
                                 option.selected = true;
                             }
-                            
+
                             selectElement.appendChild(option);
                         });
-                        
+
                         // If no current serial_id but has current serial text, try to match by text
                         if (!currentSerialId) {
                             const currentSerial = selectElement.dataset.currentSerial;
                             if (currentSerial) {
-                                const matchingOption = Array.from(selectElement.options).find(opt => 
+                                const matchingOption = Array.from(selectElement.options).find(opt =>
                                     opt.textContent === currentSerial
                                 );
                                 if (matchingOption) {
@@ -831,7 +931,7 @@
             // Function to initialize material serial selects
             function initializeMaterialSerialSelects() {
                 const serialSelects = document.querySelectorAll('.component-serial-select');
-                
+
                 serialSelects.forEach(select => {
                     // Load serials when first opened
                     select.addEventListener('focus', function() {
@@ -842,8 +942,9 @@
 
                     // Handle selection change
                     select.addEventListener('change', function() {
-                        const serialInput = this.parentNode.querySelector('input[name*="[serial]"]');
-                        
+                        const serialInput = this.parentNode.querySelector(
+                        'input[name*="[serial]"]');
+
                         if (this.value) {
                             // Find selected option text
                             const selectedOption = this.options[this.selectedIndex];
@@ -876,7 +977,8 @@
                 let hasDuplicateSerials = false;
 
                 // Check product serials (only within same product)
-                const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
+                const productSerialInputs = document.querySelectorAll(
+                    'input[name*="products"][name*="serials"]');
                 productSerialInputs.forEach(input => {
                     const serial = input.value.trim();
                     if (serial) {
@@ -884,11 +986,11 @@
                         const match = input.name.match(/products\[(\d+)\]/);
                         if (match) {
                             const productIndex = match[1];
-                            
+
                             if (!productSerialMap.has(productIndex)) {
                                 productSerialMap.set(productIndex, []);
                             }
-                            
+
                             const productSerials = productSerialMap.get(productIndex);
                             if (productSerials.includes(serial)) {
                                 hasDuplicateSerials = true;
@@ -913,6 +1015,99 @@
 
             // Initialize material serial selects
             initializeMaterialSerialSelects();
+
+            // Initialize product unit selectors
+            function initializeProductUnitSelectors() {
+                const productUnitSelects = document.querySelectorAll('select[name*="[product_unit]"]');
+                
+                productUnitSelects.forEach(select => {
+                    // Apply initial styling
+                    const unitValue = select.value;
+                    select.classList.add('product-unit-select', `product-unit-${unitValue}`);
+                    
+                    // Add visual indicator of product unit
+                    const productId = select.getAttribute('data-product-id');
+                    if (productId) {
+                        // Find product serials
+                        const productSerials = document.querySelectorAll(`input[name*="products"][name*="serials"]`);
+                        const productSerial = getProductSerialForUnit(productSerials, unitValue);
+                        
+                        // Add indicator after select
+                        const indicator = document.createElement('div');
+                        indicator.className = `product-unit-indicator product-unit-${unitValue}-bg mt-2 text-xs`;
+                        
+                        if (productSerial && productSerial.value.trim()) {
+                            indicator.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(unitValue) + 1} (Serial: <strong>${productSerial.value}</strong>)`;
+                        } else {
+                            indicator.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(unitValue) + 1}`;
+                        }
+                        
+                        // Add indicator after select element
+                        select.insertAdjacentElement('afterend', indicator);
+                    }
+                    
+                    // Update styling when selection changes
+                    select.addEventListener('change', function() {
+                        // Remove old styling
+                        const classes = Array.from(this.classList);
+                        classes.forEach(cls => {
+                            if (cls.match(/product-unit-\d+/)) {
+                                this.classList.remove(cls);
+                            }
+                        });
+                        
+                        // Add new styling based on selected value
+                        const newUnitValue = this.value;
+                        this.classList.add('product-unit-select', `product-unit-${newUnitValue}`);
+                        
+                        // Update indicator
+                        const nextElement = this.nextElementSibling;
+                        if (nextElement && nextElement.classList.contains('product-unit-indicator')) {
+                            // Remove old classes
+                            const indicatorClasses = Array.from(nextElement.classList);
+                            indicatorClasses.forEach(cls => {
+                                if (cls.match(/product-unit-\d+-bg/)) {
+                                    nextElement.classList.remove(cls);
+                                }
+                            });
+                            
+                            // Add new class
+                            nextElement.classList.add(`product-unit-${newUnitValue}-bg`);
+                            
+                            // Update text
+                            const productId = this.getAttribute('data-product-id');
+                            if (productId) {
+                                const productSerials = document.querySelectorAll(`input[name*="products"][name*="serials"]`);
+                                const productSerial = getProductSerialForUnit(productSerials, newUnitValue);
+                                
+                                if (productSerial && productSerial.value.trim()) {
+                                    nextElement.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(newUnitValue) + 1} (Serial: <strong>${productSerial.value}</strong>)`;
+                                } else {
+                                    nextElement.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(newUnitValue) + 1}`;
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // Helper function to get product serial for a specific unit
+            function getProductSerialForUnit(serialInputs, unitIndex) {
+                // Convert serialInputs to array
+                const inputsArray = Array.from(serialInputs);
+                
+                // If we have exactly the same number of serial inputs as the unit index + 1, 
+                // then we can assume they're ordered correctly
+                if (inputsArray.length > unitIndex) {
+                    return inputsArray[unitIndex];
+                }
+                
+                // Otherwise return null
+                return null;
+            }
+            
+            // Call the initialization function
+            initializeProductUnitSelectors();
         });
     </script>
 </body>

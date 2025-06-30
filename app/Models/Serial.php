@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class Serial extends Model
 {
@@ -53,6 +54,15 @@ class Serial extends Model
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    /**
+     * Get the inventory import material related to this serial.
+     */
+    public function importMaterial()
+    {
+        return $this->belongsTo(InventoryImportMaterial::class, 'serial_number', 'serial_numbers')
+            ->where('serial_numbers', 'like', DB::raw("CONCAT('%', serial_number, '%')"));
     }
 
     /**

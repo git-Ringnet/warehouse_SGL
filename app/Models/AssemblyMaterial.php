@@ -22,6 +22,7 @@ class AssemblyMaterial extends Model
         'serial',
         'serial_id',
         'note',
+        'product_unit',
     ];
 
     /**

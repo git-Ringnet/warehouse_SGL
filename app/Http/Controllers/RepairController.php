@@ -24,6 +24,7 @@ use App\Models\Serial;
 use App\Models\Assembly;
 use App\Models\User;
 use App\Helpers\ChangeLogHelper;
+use App\Models\Good;
 
 class RepairController extends Controller
 {
@@ -129,24 +130,32 @@ class RepairController extends Controller
             $warrantyProducts = $warranty->warrantyProducts ?? [];
 
             foreach ($warrantyProducts as $product) {
-                // Với logic mới, product đã được gom nhóm theo mã
-                $mainSerial = '';
-                if (!empty($product['serial_numbers']) && is_array($product['serial_numbers'])) {
-                    $mainSerial = $product['serial_numbers'][0]; // Lấy serial đầu tiên để tạo ID
-                } elseif (!empty($product['serial_numbers_text']) && $product['serial_numbers_text'] !== 'Chưa có') {
-                    $parts = explode(',', $product['serial_numbers_text']);
-                    $mainSerial = trim($parts[0]); // Lấy serial đầu tiên
-                }
-
                 $devices[] = [
-                    'id' => $product['product_code'] . '_' . $mainSerial . '_' . microtime(true) . '_' . uniqid(), // Tạo ID unique với microtime và uniqid
+                    'id' => $product['product_code'] . '_' . microtime(true) . '_' . uniqid(),
                     'code' => $product['product_code'],
                     'name' => $product['product_name'],
-                    'quantity' => $product['quantity'],
-                    'serial' => $mainSerial, // Serial đầu tiên để tương thích ngược
+                    'quantity' => $product['quantity'] ?? 1,
+                    'serial' => $product['serial_numbers'][0] ?? '',
                     'serial_numbers' => $product['serial_numbers'] ?? [],
-                    'serial_numbers_text' => $product['serial_numbers_text'] ?? 'Chưa có',
-                    'status' => 'active'
+                    'serial_numbers_text' => $product['serial_numbers_text'] ?? '',
+                    'status' => 'active',
+                    'type' => $product['type'] ?? 'product' // Include type field from warrantyProducts
+                ];
+            }
+
+            // Add good to devices if warranty is for a good
+            if ($warranty->item_type === 'good' && $warranty->item) {
+                $good = $warranty->item;
+                $devices[] = [
+                    'id' => 'good_' . $good->code . '_' . ($warranty->serial_number ?: '') . '_' . microtime(true) . '_' . uniqid(),
+                    'code' => $good->code,
+                    'name' => $good->name,
+                    'quantity' => 1,
+                    'serial' => $warranty->serial_number ?: '',
+                    'serial_numbers' => $warranty->serial_number ? [$warranty->serial_number] : [],
+                    'serial_numbers_text' => $warranty->serial_number ?: 'Chưa có',
+                    'status' => 'active',
+                    'type' => 'good' // Add type field to identify as a good
                 ];
             }
 
@@ -203,6 +212,43 @@ class RepairController extends Controller
         }
 
         try {
+            // Check if this is a good (starts with good_)
+            if (strpos($deviceId, 'good_') === 0) {
+                // Parse good code from device_id (format: good_CODE_serial_timestamp_random)
+                $parts = explode('_', $deviceId);
+                $goodCode = $parts[1] ?? '';
+                $deviceSerial = $parts[2] ?? '';
+                
+                // Find good by code
+                $good = Good::where('code', $goodCode)->first();
+                
+                if (!$good) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không tìm thấy thông tin hàng hóa'
+                    ]);
+                }
+                
+                // For goods, we don't have component materials like products
+                // Just return the good itself as a material for repair purposes
+                $materials = [[
+                    'id' => $good->id,
+                    'code' => $good->code,
+                    'name' => $good->name,
+                    'quantity' => 1,
+                    'serial' => $deviceSerial,
+                    'current_serials' => [$deviceSerial],
+                    'status' => 'active',
+                    'is_good' => true
+                ]];
+                
+                return response()->json([
+                    'success' => true,
+                    'materials' => $materials
+                ]);
+            }
+            
+            // Regular product handling (existing code)
             // Parse device code from device_id (format: CODE_timestamp_random)
             $deviceCode = explode('_', $deviceId)[0] ?? $deviceId;
             $deviceSerial = '';
@@ -668,29 +714,21 @@ class RepairController extends Controller
                         $request->input("device_notes[{$deviceKey}]") ??
                         $request->input("device_notes.{$deviceId}") ??
                         $request->input("device_notes[{$deviceId}]") ?? '';
+                    $deviceType = $request->input("device_type.{$deviceKey}") ??
+                        $request->input("device_type[{$deviceKey}]") ??
+                        $request->input("device_type.{$deviceId}") ??
+                        $request->input("device_type[{$deviceId}]") ?? 'product';
 
-                    Log::info('Device data from request (dot notation):', [
-                        'device_code' => $request->input("device_code.{$deviceId}", ''),
-                        'device_name' => $request->input("device_name.{$deviceId}", ''),
-                        'device_serial' => $request->input("device_serial.{$deviceId}", ''),
-                        'device_quantity' => $request->input("device_quantity.{$deviceId}", 1),
-                        'device_notes' => $request->input("device_notes.{$deviceId}", ''),
-                    ]);
-
-                    Log::info('Device data from request (bracket notation):', [
-                        'device_code' => $request->input("device_code[{$deviceId}]", ''),
-                        'device_name' => $request->input("device_name[{$deviceId}]", ''),
-                        'device_serial' => $request->input("device_serial[{$deviceId}]", ''),
-                        'device_quantity' => $request->input("device_quantity[{$deviceId}]", 1),
-                        'device_notes' => $request->input("device_notes[{$deviceId}]", ''),
-                    ]);
-
-                    Log::info('Final device data to save:', [
-                        'device_code' => $deviceCode,
-                        'device_name' => $deviceName,
-                        'device_serial' => $deviceSerial,
-                        'device_quantity' => $deviceQuantity,
-                        'device_notes' => $deviceNotes,
+                    // Debug logging
+                    Log::info('Device data from request:', [
+                        'deviceId' => $deviceId,
+                        'deviceKey' => $deviceKey,
+                        'deviceCode' => $deviceCode,
+                        'deviceName' => $deviceName,
+                        'deviceSerial' => $deviceSerial,
+                        'deviceQuantity' => $deviceQuantity,
+                        'deviceNotes' => $deviceNotes,
+                        'deviceType' => $deviceType
                     ]);
 
                     // Handle device images
@@ -750,6 +788,7 @@ class RepairController extends Controller
                         'device_notes' => $deviceNotes,
                         'device_images' => $deviceImages,
                         'device_parts' => $deviceParts,
+                        'device_type' => $deviceType,
                     ]);
 
                     Log::info('✅ Created RepairItem:', [
@@ -780,6 +819,7 @@ class RepairController extends Controller
                             'rejected_reason' => $rejectedDevice['reason'] ?? '',
                             'rejected_warehouse_id' => $rejectedDevice['warehouse_id'] ?? null,
                             'rejected_at' => $rejectedDevice['rejected_at'] ?? now(),
+                            'device_type' => $rejectedDevice['type'] ?? 'product',
                         ]);
 
                         // Lưu nhật ký thay đổi cho thành phẩm bị từ chối

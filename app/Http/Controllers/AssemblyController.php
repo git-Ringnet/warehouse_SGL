@@ -546,6 +546,7 @@ class AssemblyController extends Controller
             'components' => 'nullable|array',
             'components.*.serial' => 'nullable|string',
             'components.*.note' => 'nullable|string',
+            'components.*.product_unit' => 'nullable|integer|min:0',
         ]);
 
         DB::beginTransaction();
@@ -657,6 +658,11 @@ class AssemblyController extends Controller
                             // Update new serial status
                             Serial::where('id', $component['serial_id'])
                                 ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
+                        }
+                        
+                        // Update product_unit if provided
+                        if (isset($component['product_unit'])) {
+                            $updateData['product_unit'] = (int)$component['product_unit'];
                         }
 
                         $assemblyMaterial->update($updateData);

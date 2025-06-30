@@ -357,7 +357,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::put('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'update'])->name('inventory-imports.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
     Route::patch('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
     Route::delete('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'destroy'])->name('inventory-imports.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.delete');
-    
+
     // API route cho thông tin vật tư
     Route::get('api/materials/{id}', [InventoryImportController::class, 'getMaterialInfo'])->name('api.material.info')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view');
 
@@ -370,7 +370,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/{warehouseTransfer}/edit', [WarehouseTransferController::class, 'edit'])->name('edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.edit');
         Route::put('/{warehouseTransfer}', [WarehouseTransferController::class, 'update'])->name('update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.edit');
         Route::delete('/{warehouseTransfer}', [WarehouseTransferController::class, 'destroy'])->name('destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.delete');
-        
+
         // API routes
         Route::get('/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('check-inventory')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
         Route::post('/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('check-inventory.post')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
@@ -490,6 +490,16 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
             Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
         });
     });
+
+    // Assembly API routes
+    Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/product-serials', [AssemblyController::class, 'getProductSerials'])->name('assemblies.product-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::get('/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+
     // Assembly routes với middleware bảo vệ từng quyền cụ thể
     Route::get('/assemblies', [AssemblyController::class, 'index'])->name('assemblies.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.view');
     Route::get('/assemblies/create', [AssemblyController::class, 'create'])->name('assemblies.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
@@ -503,14 +513,6 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // Assembly export routes
     Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])->name('assemblies.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
     Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
-
-    // Assembly API routes
-    Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
-    Route::get('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
-    Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
-    Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
-    Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
-    Route::get('/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
 
     // API route for checking serial duplicates
     Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');

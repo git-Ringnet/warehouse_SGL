@@ -444,61 +444,75 @@ class Warranty extends Model
      */
     public function getWarrantyProductsAttribute()
     {
+        // For project-type warranties, get all products from project dispatches
         if ($this->item_type === 'project' && $this->item_id) {
             $products = [];
-            $groupedProducts = []; // Array để gom nhóm sản phẩm theo mã
+            $groupedProducts = [];
 
-            // Determine dispatch type from the warranty's original dispatch
-            $originalDispatch = $this->dispatch;
-            $dispatchType = $originalDispatch ? $originalDispatch->dispatch_type : null;
-
-            // Get ONLY APPROVED dispatches for this project with the same dispatch_type
+            // Get all dispatches for this project
             $projectDispatches = Dispatch::where('project_id', $this->item_id)
-                ->whereIn('status', ['approved', 'completed']);
-            
-            // Only filter by dispatch_type if we can determine it from the original dispatch
-            if ($dispatchType) {
-                $projectDispatches = $projectDispatches->where('dispatch_type', $dispatchType);
-            }
-            
-            $projectDispatches = $projectDispatches->get();
+                ->whereIn('status', ['approved', 'completed'])
+                ->get();
 
             foreach ($projectDispatches as $dispatch) {
-                // Only include contract items
-                $contractItems = $dispatch->items()->where('category', 'contract')->where('item_type', 'product')->get();
+                // Only include contract items, not backup items
+                $contractItems = $dispatch->items()->where('category', 'contract')->get();
 
                 foreach ($contractItems as $dispatchItem) {
-                    $product = Product::find($dispatchItem->item_id);
-                    if ($product) {
-                        $serialNumbers = $dispatchItem->serial_numbers ?: [];
-                        
-                        // Khởi tạo nhóm sản phẩm nếu chưa có
+                    if ($dispatchItem->item_type === 'product') {
+                        $product = $dispatchItem->product;
+                        if (!$product) continue;
+
+                        // Group by product code
                         if (!isset($groupedProducts[$product->code])) {
                             $groupedProducts[$product->code] = [
                                 'product_code' => $product->code,
                                 'product_name' => $product->name,
                                 'quantity' => 0,
                                 'serial_numbers' => [],
-                                'serial_numbers_text' => '',
                             ];
                         }
 
-                        // Nếu có serial numbers, thêm vào danh sách
-                        if (!empty($serialNumbers)) {
-                            $groupedProducts[$product->code]['quantity'] += count($serialNumbers);
+                        // Update quantity
+                        $groupedProducts[$product->code]['quantity'] += $dispatchItem->quantity;
+
+                        // Add serial numbers if available
+                        if (!empty($dispatchItem->serial_numbers)) {
                             $groupedProducts[$product->code]['serial_numbers'] = array_merge(
                                 $groupedProducts[$product->code]['serial_numbers'],
-                                $serialNumbers
+                                $dispatchItem->serial_numbers
                             );
-                        } else {
-                            // Nếu không có serial, cộng số lượng
-                            $groupedProducts[$product->code]['quantity'] += $dispatchItem->quantity;
+                        }
+                    } elseif ($dispatchItem->item_type === 'good') {
+                        $good = $dispatchItem->good;
+                        if (!$good) continue;
+
+                        // Group by good code
+                        if (!isset($groupedProducts[$good->code])) {
+                            $groupedProducts[$good->code] = [
+                                'product_code' => $good->code,
+                                'product_name' => $good->name,
+                                'quantity' => 0,
+                                'serial_numbers' => [],
+                                'type' => 'good'
+                            ];
+                        }
+
+                        // Update quantity
+                        $groupedProducts[$good->code]['quantity'] += $dispatchItem->quantity;
+
+                        // Add serial numbers if available
+                        if (!empty($dispatchItem->serial_numbers)) {
+                            $groupedProducts[$good->code]['serial_numbers'] = array_merge(
+                                $groupedProducts[$good->code]['serial_numbers'],
+                                $dispatchItem->serial_numbers
+                            );
                         }
                     }
                 }
             }
 
-            // Chuyển đổi grouped products thành array và tạo serial_numbers_text
+            // Process grouped products
             foreach ($groupedProducts as $productCode => $productData) {
                 // Loại bỏ serial trùng lặp và sắp xếp
                 $productData['serial_numbers'] = array_unique($productData['serial_numbers']);
@@ -521,13 +535,20 @@ class Warranty extends Model
         if ($this->item_type !== 'project') {
             $item = $this->item;
             if ($item) {
-                return [[
+                $data = [
                     'product_code' => $item->code,
                     'product_name' => $item->name,
                     'quantity' => 1,
                     'serial_numbers' => $this->serial_number ? [$this->serial_number] : [],
                     'serial_numbers_text' => $this->serial_number ?: 'Chưa có',
-                ]];
+                ];
+                
+                // Add type field for goods to differentiate them from products
+                if ($this->item_type === 'good') {
+                    $data['type'] = 'good';
+                }
+                
+                return [$data];
             }
         }
 
