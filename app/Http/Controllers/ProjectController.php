@@ -365,4 +365,28 @@ class ProjectController extends Controller
         
         return response()->json($allItems);
     }
+
+    /**
+     * Lấy thông tin chi tiết của dự án qua API
+     */
+    public function getProjectDetails($projectId)
+    {
+        $project = Project::with('customer')->findOrFail($projectId);
+        
+        return response()->json([
+            'success' => true,
+            'project' => [
+                'id' => $project->id,
+                'project_code' => $project->project_code,
+                'project_name' => $project->project_name,
+                'customer' => [
+                    'id' => $project->customer->id,
+                    'name' => $project->customer->name,
+                    'phone' => $project->customer->phone,
+                    'email' => $project->customer->email,
+                    'address' => $project->customer->address
+                ]
+            ]
+        ]);
+    }
 } 

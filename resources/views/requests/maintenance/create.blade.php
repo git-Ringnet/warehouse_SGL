@@ -45,66 +45,55 @@
                     <input type="date" name="request_date" id="request_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('request_date', date('Y-m-d')) }}">
                 </div>
                 <div>
-                    <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Nhân viên đề xuất</label>
+                    <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ thuật viên</label>
                     <select name="proposer_id" id="proposer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">-- Chọn nhân viên --</option>
+                        <option value="">-- Chọn kỹ thuật viên --</option>
                         @foreach ($employees as $employee)
                             <option value="{{ $employee->id }}" {{ old('proposer_id', Auth::id()) == $employee->id ? 'selected' : '' }}>
                                 {{ $employee->name }}
                             </option>
                         @endforeach
                     </select>
-                </div>
-                <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Nhân sự thực hiện</h2>
-            <div id="staff_container">
-                <div class="staff-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
-                    <div class="md:col-span-3">
-                        <label for="staff_name_0" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhân viên</label>
-                        <select name="staff[0][id]" id="staff_name_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">-- Chọn nhân viên --</option>
-                            @foreach ($employees as $employee)
-                                <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="md:col-span-1 flex items-end">
-                        <button type="button" id="add_staff" class="h-10 px-4 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center">
-                            <i class="fas fa-plus mr-2"></i> Thêm
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
             </div>
         </div>
         
         <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án bảo trì</h2>
+            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="warranty_id" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án bảo hành</label>
+                    <select name="warranty_id" id="warranty_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">-- Chọn dự án --</option>
+                        @forelse($warranties as $warranty)
+                            <option value="{{ $warranty->id }}" 
+                                    data-project-id="{{ $warranty->dispatch->project->id ?? '' }}"
+                                    data-project-name="{{ $warranty->dispatch->project->project_name ?? $warranty->project_name }}"
+                                    data-customer-id="{{ $warranty->dispatch->project->customer->id ?? '' }}"
+                                    data-customer-name="{{ $warranty->dispatch->project->customer->company_name ?? $warranty->customer_name }}"
+                                    data-customer-phone="{{ $warranty->dispatch->project->customer->phone ?? $warranty->customer_phone }}"
+                                    data-customer-email="{{ $warranty->dispatch->project->customer->email ?? $warranty->customer_email }}" 
+                                    data-customer-address="{{ $warranty->dispatch->project->customer->address ?? $warranty->customer_address }}"
+                                    data-warranty-type="{{ $warranty->warranty_type ?? 'Tiêu chuẩn' }}"
+                                    data-warranty-period="{{ $warranty->warranty_period_months ?? '12' }}"
+                                    data-warranty-end="{{ $warranty->warranty_end_date }}"
+                                    {{ old('warranty_id') == $warranty->id ? 'selected' : '' }}>
+                                {{ $warranty->project_name }} - {{ $warranty->warranty_code }} (Hết hạn: {{ \Carbon\Carbon::parse($warranty->warranty_end_date)->format('d/m/Y') }})
+                            </option>
+                        @empty
+                            <option value="" disabled>Không có dự án bảo hành nào đang hoạt động</option>
+                        @endforelse
+                    </select>
+                    @if($warranties->isEmpty())
+                        <p class="mt-1 text-sm text-red-600">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
+                            Không tìm thấy dự án bảo hành nào đang hoạt động trong hệ thống.
+                        </p>
+                    @endif
+                </div>
                 <div>
                     <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
                     <input type="text" name="project_name" id="project_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_name') }}">
-                </div>
-                <div>
-                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
-                    <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">-- Chọn đối tác --</option>
-                        @foreach ($customers as $customer)
-                            <option value="{{ $customer->id }}" 
-                                    data-name="{{ $customer->name }}"
-                                    data-phone="{{ $customer->phone }}"
-                                    data-email="{{ $customer->email }}" 
-                                    data-address="{{ $customer->address }}"
-                                    {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
-                                {{ $customer->company_name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="md:col-span-2">
-                    <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
-                    <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_address') }}">
                 </div>
                 <div id="customer_details" class="md:col-span-2 border border-gray-200 rounded-lg p-4 bg-gray-50 hidden">
                     <h3 class="text-md font-medium text-gray-800 mb-2">Thông tin đối tác</h3>
@@ -126,11 +115,56 @@
                             <p id="customer_address_display" class="font-medium text-gray-700"></p>
                         </div>
                     </div>
+                    
+                    <h3 class="text-md font-medium text-gray-800 mt-4 mb-2">Thông tin bảo hành</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <span class="text-sm text-gray-500">Loại bảo hành:</span>
+                            <p id="warranty_type_display" class="font-medium text-gray-700"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Thời gian bảo hành:</span>
+                            <p id="warranty_period_display" class="font-medium text-gray-700"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Ngày hết hạn:</span>
+                            <p id="warranty_end_display" class="font-medium text-gray-700"></p>
+                        </div>
+                    </div>
+                    
                     <!-- Thêm các trường ẩn để lưu dữ liệu -->
+                    <input type="hidden" name="customer_id" id="customer_id">
                     <input type="hidden" name="customer_name" id="customer_name">
                     <input type="hidden" name="customer_phone" id="customer_phone">
                     <input type="hidden" name="customer_email" id="customer_email">
                     <input type="hidden" name="customer_address" id="customer_address">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Danh sách thiết bị trong bảo hành -->
+        <div class="mb-6 border-b border-gray-200 pb-4">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thiết bị bảo trì</h2>
+            <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
+                <p class="text-sm">
+                    <i class="fas fa-info-circle mr-1"></i> Các thiết bị trong dự án bảo hành sẽ được tự động thêm vào phiếu bảo trì.
+                </p>
+            </div>
+            <div id="warranty_items_container" class="hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chọn</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã serial</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warranty_items_list" class="bg-white divide-y divide-gray-200">
+                            <!-- Danh sách thiết bị sẽ được thêm vào đây -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -158,40 +192,6 @@
             </div>
         </div>
         
-        <div class="mb-6 border-b border-gray-200 pb-4">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-lg font-semibold text-gray-800">Thành phẩm cần bảo trì</h2>
-                <button type="button" id="add_product" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                    <i class="fas fa-plus-circle mr-1"></i> Thêm thành phẩm
-                </button>
-            </div>
-            
-            <div id="product_container">
-                <div class="product-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
-                    <div class="md:col-span-3">
-                        <label for="product_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Thành phẩm</label>
-                        <select name="products[0][id]" id="product_id_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">-- Chọn thành phẩm --</option>
-                            @foreach ($products as $product)
-                                <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->code }})</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="md:col-span-1">
-                        <label for="product_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                        <input type="number" name="products[0][quantity]" id="product_quantity_0" required min="1" value="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="md:col-span-1 flex items-end">
-                        <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
-                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-      
-        
         <div class="mb-6">
             <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
             <textarea name="notes" id="notes" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('notes') }}</textarea>
@@ -213,120 +213,108 @@
 </style>
 
 <script>
-    // Thêm thành phẩm
-    let productCount = 1;
-    document.getElementById('add_product').addEventListener('click', function() {
-        const container = document.getElementById('product_container');
-        const newRow = document.createElement('div');
-        newRow.className = 'product-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
-        
-        // Lấy danh sách thành phẩm từ select đầu tiên
-        const firstSelect = document.getElementById('product_id_0');
-        let optionsHtml = '<option value="">-- Chọn thành phẩm --</option>';
-        
-        Array.from(firstSelect.options).forEach(option => {
-            optionsHtml += `<option value="${option.value}">${option.text}</option>`;
-        });
-        
-        newRow.innerHTML = `
-            <div class="md:col-span-3">
-                <label for="product_id_${productCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Thành phẩm</label>
-                <select name="products[${productCount}][id]" id="product_id_${productCount}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    ${optionsHtml}
-                </select>
-            </div>
-            <div class="md:col-span-1">
-                <label for="product_quantity_${productCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                <input type="number" name="products[${productCount}][quantity]" id="product_quantity_${productCount}" required min="1" value="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="md:col-span-1 flex items-end">
-                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
-                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(newRow);
-        productCount++;
-        
-        addRemoveRowEventListeners();
-    });
-    
-    // Thêm nhân viên
-    let staffCount = 1;
-    document.getElementById('add_staff').addEventListener('click', function() {
-        const container = document.getElementById('staff_container');
-        const newRow = document.createElement('div');
-        newRow.className = 'staff-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-3';
-        newRow.innerHTML = `
-            <div class="md:col-span-3">
-                <label for="staff_name_${staffCount}" class="block text-sm font-medium text-gray-700 mb-1 required">Tên nhân viên</label>
-                <select name="staff[${staffCount}][id]" id="staff_name_${staffCount}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <option value="">-- Chọn nhân viên --</option>
-                    @foreach ($employees as $employee)
-                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="md:col-span-1 flex items-end">
-                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
-                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(newRow);
-        staffCount++;
-        
-        addRemoveRowEventListeners();
-    });
-    
-    // Xử lý sự kiện nút xóa
-    function addRemoveRowEventListeners() {
-        document.querySelectorAll('.remove-row').forEach(button => {
-            button.addEventListener('click', function() {
-                this.closest('.product-row, .staff-row').remove();
-            });
-        });
-    }
+    // Xử lý khi chọn dự án bảo hành
+    document.getElementById('warranty_id').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (!this.value) {
+            // Reset form nếu không chọn dự án
+            document.getElementById('customer_details').classList.add('hidden');
+            document.getElementById('warranty_items_container').classList.add('hidden');
+            return;
+        }
 
-    // Xử lý hiển thị thông tin đối tác khi chọn
-    document.getElementById('customer_id').addEventListener('change', function() {
-        const customerDetailsDiv = document.getElementById('customer_details');
+        // Lấy thông tin từ data attributes
+        const projectName = selectedOption.getAttribute('data-project-name');
+        const customerName = selectedOption.getAttribute('data-customer-name');
+        const customerPhone = selectedOption.getAttribute('data-customer-phone');
+        const customerEmail = selectedOption.getAttribute('data-customer-email');
+        const customerAddress = selectedOption.getAttribute('data-customer-address');
+        const customerId = selectedOption.getAttribute('data-customer-id');
+        const warrantyType = selectedOption.getAttribute('data-warranty-type') || 'Tiêu chuẩn';
+        const warrantyPeriod = selectedOption.getAttribute('data-warranty-period') || '12';
+        const warrantyEnd = selectedOption.getAttribute('data-warranty-end');
+    
+        // Cập nhật các trường dự án
+        document.getElementById('project_name').value = projectName || '';
+
+        // Cập nhật các trường thông tin khách hàng
+        document.getElementById('customer_name').value = customerName || '';
+        document.getElementById('customer_phone').value = customerPhone || '';
+        document.getElementById('customer_email').value = customerEmail || '';
+        document.getElementById('customer_address').value = customerAddress || '';
         
-        if (this.value) {
-            // Lấy thông tin từ data attributes của option được chọn
-            const selectedOption = this.options[this.selectedIndex];
-            const name = selectedOption.getAttribute('data-name');
-            const phone = selectedOption.getAttribute('data-phone');
-            const email = selectedOption.getAttribute('data-email');
-            const address = selectedOption.getAttribute('data-address');
+        // Cập nhật customer_id nếu có select box
+        const customerIdField = document.getElementById('customer_id');
+        if (customerIdField && customerId) {
+            customerIdField.value = customerId;
+        }
             
-            // Hiển thị thông tin
-            document.getElementById('customer_name_display').textContent = name || 'N/A';
-            document.getElementById('customer_phone_display').textContent = phone || 'N/A';
-            document.getElementById('customer_email_display').textContent = email || 'N/A';
-            document.getElementById('customer_address_display').textContent = address || 'N/A';
+        // Hiển thị thông tin trong div
+        document.getElementById('customer_name_display').textContent = customerName || 'Không có thông tin';
+        document.getElementById('customer_phone_display').textContent = customerPhone || 'Không có thông tin';
+        document.getElementById('customer_email_display').textContent = customerEmail || 'Không có thông tin';
+        document.getElementById('customer_address_display').textContent = customerAddress || 'Không có thông tin';
             
-            // Cập nhật giá trị cho các trường ẩn
-            document.getElementById('customer_name').value = name || '';
-            document.getElementById('customer_phone').value = phone || '';
-            document.getElementById('customer_email').value = email || '';
-            document.getElementById('customer_address').value = address || '';
+        // Hiển thị thông tin bảo hành
+        document.getElementById('warranty_type_display').textContent = warrantyType;
+        document.getElementById('warranty_period_display').textContent = warrantyPeriod + ' tháng';
+        document.getElementById('warranty_end_display').textContent = warrantyEnd ? new Date(warrantyEnd).toLocaleDateString('vi-VN') : 'Không có thông tin';
             
             // Hiển thị div thông tin
-            customerDetailsDiv.classList.remove('hidden');
+        document.getElementById('customer_details').classList.remove('hidden');
+
+        // Lấy danh sách thiết bị của dự án
+        fetch(`/api/warranty/${this.value}/items`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Xóa các hàng hiện tại trong bảng thiết bị
+                    const tbody = document.querySelector('#warranty_items_list');
+                    tbody.innerHTML = '';
+
+                    // Hiển thị container thiết bị
+                    document.getElementById('warranty_items_container').classList.remove('hidden');
+
+                    // Thêm các thiết bị mới vào bảng
+                    if (data.items.length > 0) {
+                        data.items.forEach(item => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td class="px-6 py-4">
+                                    <input type="checkbox" name="warranty_items[]" value="${item.id}" class="rounded border-gray-300">
+                                </td>
+                                <td class="px-6 py-4">${item.name}</td>
+                                <td class="px-6 py-4">${item.serial_number || 'Không có'}</td>
+                                <td class="px-6 py-4">${item.type}</td>
+                            `;
+                            tbody.appendChild(row);
+                        });
+                    } else {
+                        // Hiển thị thông báo không có thiết bị
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                                Không tìm thấy thiết bị nào trong dự án bảo hành này
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    }
         } else {
-            // Ẩn div thông tin nếu không có đối tác nào được chọn
-            customerDetailsDiv.classList.add('hidden');
+                    console.error('Error fetching warranty items:', data.message);
         }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
     });
     
-    // Kiểm tra nếu đã có đối tác được chọn khi tải trang
+    // Kiểm tra nếu đã có dự án được chọn khi tải trang
     document.addEventListener('DOMContentLoaded', function() {
-        const customerSelect = document.getElementById('customer_id');
-        if (customerSelect.value) {
+        const warrantySelect = document.getElementById('warranty_id');
+        if (warrantySelect.value) {
             // Kích hoạt sự kiện change để hiển thị thông tin
             const event = new Event('change');
-            customerSelect.dispatchEvent(event);
+            warrantySelect.dispatchEvent(event);
         }
     });
 </script>

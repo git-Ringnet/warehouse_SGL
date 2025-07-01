@@ -132,8 +132,6 @@ class WarrantyController extends Controller
         ]);
     }
 
-
-
     /**
      * Get warranties for a specific dispatch
      */
@@ -147,5 +145,76 @@ class WarrantyController extends Controller
             'success' => true,
             'warranties' => $warranties
         ]);
+    }
+    
+    /**
+     * API endpoint to get warranty items
+     */
+    public function getWarrantyItems($warrantyId)
+    {
+        try {
+            $warranty = Warranty::with(['dispatch.items' => function($query) {
+                $query->where('category', 'contract');
+            }, 'dispatch.items.product', 'dispatch.items.material', 'dispatch.items.good'])
+            ->findOrFail($warrantyId);
+
+            $items = [];
+            
+            if ($warranty->dispatch && $warranty->dispatch->items) {
+                foreach ($warranty->dispatch->items as $item) {
+                    // Lấy thông tin chi tiết dựa vào loại item
+                    $itemDetail = null;
+                    $itemName = '';
+                    $itemType = '';
+                    $serialNumber = '';
+
+                    switch ($item->item_type) {
+                        case 'product':
+                            if ($item->product) {
+                                $itemDetail = $item->product;
+                                $itemName = $itemDetail->name;
+                                $itemType = 'Thiết bị';
+                                $serialNumber = $item->serial_numbers;
+                            }
+                            break;
+                        case 'material':
+                            if ($item->material) {
+                                $itemDetail = $item->material;
+                                $itemName = $itemDetail->name;
+                                $itemType = 'Vật tư';
+                                $serialNumber = $item->serial_numbers;
+                            }
+                            break;
+                        case 'good':
+                            if ($item->good) {
+                                $itemDetail = $item->good;
+                                $itemName = $itemDetail->name;
+                                $itemType = 'Hàng hóa';
+                                $serialNumber = $item->serial_numbers;
+                            }
+                            break;
+                    }
+
+                    if ($itemDetail) {
+                        $items[] = [
+                            'id' => $item->id,
+                            'name' => $itemName,
+                            'type' => $itemType,
+                            'serial_number' => $serialNumber
+                        ];
+                    }
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'items' => $items
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy danh sách thiết bị: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

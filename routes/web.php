@@ -295,6 +295,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
     Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
     Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
+    Route::get('/api/warranty/{warrantyId}/items', [WarrantyController::class, 'getWarrantyItems'])->name('api.warranty.items');
 
     // Repair API routes
     Route::prefix('api/repairs')->group(function () {
@@ -598,8 +599,11 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     });
 
     // API routes cho thiết bị của dự án và đơn thuê
+    Route::get('/api/projects/{projectId}', [ProjectController::class, 'getProjectDetails'])->name('api.projects.details');
     Route::get('/api/projects/{projectId}/items', [ProjectController::class, 'getProjectItems'])->name('api.projects.items');
     Route::get('/api/rentals/{rentalId}/items', [RentalController::class, 'getRentalItems'])->name('api.rentals.items');
+
+    Route::get('/api/warranty/{warrantyId}/items', [WarrantyController::class, 'getWarrantyItems'])->name('api.warranty.items');
 
     // New route for creating testing from assembly
     Route::post('/assemblies/{assembly}/create-testing', [AssemblyController::class, 'createTestingFromAssembly'])

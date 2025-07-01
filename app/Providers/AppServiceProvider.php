@@ -5,7 +5,11 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use App\Models\Project;
+use App\Models\Product;
+use App\Models\Material;
+use App\Models\Good;
 use App\Observers\ProjectObserver;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +27,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register morphMap for polymorphic relations
+        Relation::morphMap([
+            'project' => Project::class,
+            'product' => Product::class,
+            'material' => Material::class,
+            'good' => Good::class,
+        ]);
+
         // Đăng ký observer cho model Project
         Project::observe(ProjectObserver::class);
 

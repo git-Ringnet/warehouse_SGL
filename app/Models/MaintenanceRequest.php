@@ -20,6 +20,7 @@ class MaintenanceRequest extends Model
         'proposer_id',
         'project_name',
         'customer_id',
+        'warranty_id',
         'project_address',
         'maintenance_date',
         'maintenance_type',
@@ -73,6 +74,22 @@ class MaintenanceRequest extends Model
     public function staff()
     {
         return $this->belongsToMany(Employee::class, 'maintenance_request_staff');
+    }
+
+    /**
+     * Lấy thông tin bảo hành liên quan.
+     */
+    public function warranty()
+    {
+        return $this->belongsTo(Warranty::class, 'warranty_id');
+    }
+
+    /**
+     * Lấy danh sách phiếu sửa chữa được tạo từ phiếu bảo trì này.
+     */
+    public function repairs()
+    {
+        return $this->hasMany(Repair::class, 'maintenance_request_id');
     }
 
     /**

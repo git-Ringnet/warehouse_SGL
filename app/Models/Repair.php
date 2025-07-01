@@ -23,6 +23,7 @@ class Repair extends Model
         'repair_photos',
         'status',
         'created_by',
+        'maintenance_request_id',
     ];
 
     protected $casts = [
@@ -60,6 +61,11 @@ class Repair extends Model
     public function warranty()
     {
         return $this->belongsTo(Warranty::class);
+    }
+
+    public function maintenanceRequest()
+    {
+        return $this->belongsTo(MaintenanceRequest::class);
     }
 
     public function repairItems()

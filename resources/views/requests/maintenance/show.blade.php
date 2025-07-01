@@ -102,22 +102,18 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin đề xuất</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <p class="text-sm text-gray-500">Người đề xuất</p>
+                    <p class="text-sm text-gray-500">Kỹ thuật viên</p>
                     <p class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Không có' }}</p>
                 </div>
-                                <div>
+                <div>
                     <p class="text-sm text-gray-500">Ngày đề xuất</p>
                     <p class="font-medium">{{ $maintenanceRequest->request_date->format('d/m/Y') }}</p>
-                                </div>
-                                <div>
+                </div>
+                <div>
                     <p class="text-sm text-gray-500">Tên dự án</p>
                     <p class="font-medium">{{ $maintenanceRequest->project_name }}</p>
-                        </div>
-                                <div>
-                    <p class="text-sm text-gray-500">Địa chỉ dự án</p>
-                    <p class="font-medium">{{ $maintenanceRequest->project_address }}</p>
-                                </div>
-                                <div>
+                </div>
+                <div>
                     <p class="text-sm text-gray-500">Loại bảo trì</p>
                     <p class="font-medium">
                         @if($maintenanceRequest->maintenance_type === 'regular')
@@ -130,54 +126,75 @@
                             Không xác định
                         @endif
                     </p>
-                                </div>
-                                <div>
-                    <p class="text-sm text-gray-500">Người thực hiện</p>
-                    <p class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Chưa phân công' }}</p>
-                                </div>
-                            </div>
-                        </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Thông tin khách hàng -->
         <div class="bg-white rounded-xl shadow-md p-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin khách hàng</h2>
-                                <div>
+            <div>
                 <p class="text-sm text-gray-500">Đối tác</p>
                 <p class="font-medium">{{ $maintenanceRequest->customer ? $maintenanceRequest->customer->company_name : $maintenanceRequest->customer_name }}</p>
             </div>
             <div class="mt-3">
                 <p class="text-sm text-gray-500">Tên người liên hệ</p>
                 <p class="font-medium">{{ $maintenanceRequest->customer_name }}</p>
-                                </div>
+            </div>
             <div class="mt-3">
                 <p class="text-sm text-gray-500">Số điện thoại</p>
                 <p class="font-medium">{{ $maintenanceRequest->customer_phone }}</p>
-                                </div>
+            </div>
             <div class="mt-3">
                 <p class="text-sm text-gray-500">Email</p>
                 <p class="font-medium">{{ $maintenanceRequest->customer_email ?: 'Không có' }}</p>
-                                </div>
+            </div>
             <div class="mt-3">
                 <p class="text-sm text-gray-500">Địa chỉ</p>
                 <p class="font-medium">{{ $maintenanceRequest->customer_address }}</p>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Thông tin bảo trì -->
     <div class="bg-white rounded-xl shadow-md p-6 mt-6">
         <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin bảo trì</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
+            <div>
                 <p class="text-sm text-gray-500">Ngày bảo trì dự kiến</p>
                 <p class="font-medium">{{ $maintenanceRequest->maintenance_date->format('d/m/Y') }}</p>
-                                </div>
-                                <div>
+            </div>
+            <div>
                 <p class="text-sm text-gray-500">Lý do bảo trì</p>
                 <p class="font-medium">{{ $maintenanceRequest->maintenance_reason }}</p>
-                                </div>
-                            </div>
-                        </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Thông tin bảo hành -->
+    @if($maintenanceRequest->warranty)
+    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin dự án bảo hành</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm text-gray-500">Mã bảo hành</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->warranty_code }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Loại bảo hành</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->type ?? 'Tiêu chuẩn' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Thời gian bảo hành</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->period ?? '12' }} tháng</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Ngày hết hạn</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->warranty_end_date ? date('d/m/Y', strtotime($maintenanceRequest->warranty->warranty_end_date)) : 'Không có' }}</p>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Danh sách thành phẩm -->
     <div class="bg-white rounded-xl shadow-md p-6 mt-6">
@@ -250,7 +267,7 @@
                     <form action="{{ route('requests.maintenance.approve', $maintenanceRequest->id) }}" method="POST">
                         @csrf
                         <input type="hidden" name="implementer_id" value="{{ $maintenanceRequest->proposer_id }}">
-                        <p class="mb-4 text-gray-700">Người thực hiện: <span class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Không có' }}</span></p>
+                        <p class="mb-4 text-gray-700">Kỹ thuật viên: <span class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Không có' }}</span></p>
                         <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                             <i class="fas fa-check mr-2"></i> Duyệt phiếu
                         </button>
@@ -304,6 +321,51 @@
                         <i class="fas fa-save mr-2"></i> Cập nhật trạng thái
                     </button>
                 </form>
+                
+                <!-- Hiển thị thông tin phiếu sửa chữa đã tạo -->
+                @if($maintenanceRequest->repairs && $maintenanceRequest->repairs->count() > 0)
+                    <div class="mt-6 border-t border-gray-200 pt-4">
+                        <h3 class="text-md font-medium text-gray-700 mb-3">Phiếu sửa chữa & bảo trì đã tạo</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã phiếu</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach($maintenanceRequest->repairs as $repair)
+                                        <tr>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {{ $repair->repair_code }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $repair->repair_type_label }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $repair->repair_date->format('d/m/Y') }}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{{ $repair->status_color }}-100 text-{{ $repair->status_color }}-800">
+                                                    {{ $repair->status_label }}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                <a href="{{ route('repairs.show', $repair->id) }}" class="text-blue-600 hover:text-blue-900">
+                                                    <i class="fas fa-eye"></i> Xem
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     </div>
@@ -397,12 +459,12 @@
 <!-- Add signature section before the last div -->
 <div class="signature-section" style="display: none;">
     <div class="signature-box">
-        <div class="signature-title">Người đề xuất</div>
+        <div class="signature-title">Kỹ thuật viên</div>
         <div class="signature-name">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : '' }}</div>
     </div>
     <div class="signature-box">
-        <div class="signature-title">Người thực hiện</div>
-        <div class="signature-name">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : '' }}</div>
+        <div class="signature-title">Người duyệt</div>
+        <div class="signature-name"></div>
     </div>
 </div>
 

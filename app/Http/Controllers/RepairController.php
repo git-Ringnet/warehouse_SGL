@@ -25,6 +25,7 @@ use App\Models\Assembly;
 use App\Models\User;
 use App\Helpers\ChangeLogHelper;
 use App\Models\Good;
+use App\Models\ProductMaterial;
 
 class RepairController extends Controller
 {
@@ -388,25 +389,61 @@ class RepairController extends Controller
     private function getDeviceMaterialsFromAssembly($product)
     {
         $materials = [];
-        $assemblyMaterials = \App\Models\AssemblyMaterial::where('target_product_id', $product->id)
-            ->with(['material', 'assembly'])
-            ->get();
-
-        foreach ($assemblyMaterials as $am) {
-            if ($am->material) {
-                $materials[] = [
-                    'id' => $am->material->id,
-                    'code' => $am->material->code,
-                    'name' => $am->material->name,
-                    'quantity' => $am->quantity,
-                    'serial' => $am->serial ?? '',
-                    'current_serials' => [$am->serial ?? ''],
-                    'status' => 'active'
-                ];
+        
+        try {
+            Log::info("Looking for materials for product: {$product->code} (ID: {$product->id})");
+            
+            // First try to get materials from assembly_materials table
+            $assemblyMaterials = \App\Models\AssemblyMaterial::where('target_product_id', $product->id)
+                ->with(['material', 'assembly'])
+                ->get();
+            
+            Log::info("Found {$assemblyMaterials->count()} assembly materials for product {$product->code}");
+            
+            foreach ($assemblyMaterials as $am) {
+                if ($am->material) {
+                    $materials[] = [
+                        'id' => $am->material->id,
+                        'code' => $am->material->code,
+                        'name' => $am->material->name,
+                        'quantity' => $am->quantity,
+                        'serial' => $am->serial ?? '',
+                        'current_serials' => [$am->serial ?? ''],
+                        'status' => 'active'
+                    ];
+                    Log::info("Added material: {$am->material->code} - {$am->material->name} from assembly");
+                }
             }
+            
+            // If no materials found from assembly_materials, try to get from product_materials
+            if (empty($materials)) {
+                Log::info("No assembly materials found, checking product_materials for {$product->code}");
+                
+                // Check if product has materials defined in product_materials table
+                $productMaterials = \App\Models\ProductMaterial::where('product_id', $product->id)
+                    ->with('material')
+                    ->get();
+                    
+                foreach ($productMaterials as $pm) {
+                    if ($pm->material) {
+                        $materials[] = [
+                            'id' => $pm->material->id,
+                            'code' => $pm->material->code,
+                            'name' => $pm->material->name,
+                            'quantity' => $pm->quantity,
+                            'serial' => '',
+                            'current_serials' => [''],
+                            'status' => 'active'
+                        ];
+                        Log::info("Added material: {$pm->material->code} - {$pm->material->name} from product_materials");
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Error getting materials for product {$product->code}: " . $e->getMessage());
         }
 
-        Log::info("Found " . count($materials) . " materials from assembly for product {$product->code}");
+        Log::info("Found " . count($materials) . " materials for product {$product->code}");
         return $materials;
     }
 

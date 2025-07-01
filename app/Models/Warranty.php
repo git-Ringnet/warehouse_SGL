@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Models\Project;
 
 class Warranty extends Model
 {
@@ -86,17 +87,25 @@ class Warranty extends Model
 
     public function material()
     {
-        return $this->morphTo('item', 'item_type', 'item_id')->where('item_type', 'material');
+        return $this->belongsTo(Material::class, 'item_id')->where('item_type', 'material');
     }
 
     public function product()
     {
-        return $this->morphTo('item', 'item_type', 'item_id')->where('item_type', 'product');
+        return $this->belongsTo(Product::class, 'item_id')->where('item_type', 'product');
     }
 
     public function good()
     {
-        return $this->morphTo('item', 'item_type', 'item_id')->where('item_type', 'good');
+        return $this->belongsTo(Good::class, 'item_id')->where('item_type', 'good');
+    }
+
+    /**
+     * Get the polymorphic relationship for the item
+     */
+    public function item()
+    {
+        return $this->morphTo('item', 'item_type', 'item_id');
     }
 
     /**
@@ -104,22 +113,31 @@ class Warranty extends Model
      */
     public function getItemAttribute()
     {
-        switch ($this->item_type) {
-            case 'material':
-                return Material::find($this->item_id);
-            case 'product':
-                return Product::find($this->item_id);
-            case 'good':
-                return Good::find($this->item_id);
-            case 'project':
-                // For project-wide warranty, return project info as pseudo-item
-                return (object) [
-                    'name' => 'Bảo hành dự án: ' . $this->project_name,
-                    'code' => 'PROJECT-' . ($this->item_id ?: 'NA'),
-                ];
-            default:
-                return null;
+        // Use the polymorphic relationship if available
+        if ($this->item_type && $this->item_id) {
+            switch ($this->item_type) {
+                case 'material':
+                    return Material::find($this->item_id);
+                case 'product':
+                    return Product::find($this->item_id);
+                case 'good':
+                    return Good::find($this->item_id);
+                case 'project':
+                    // For project-wide warranty, return project info as pseudo-item
+                    $project = Project::find($this->item_id);
+                    if ($project) {
+                        return (object) [
+                            'name' => 'Bảo hành dự án: ' . $project->project_name,
+                            'code' => 'PROJECT-' . $project->id,
+                        ];
+                    }
+                    return (object) [
+                        'name' => 'Bảo hành dự án: ' . $this->project_name,
+                        'code' => 'PROJECT-' . ($this->item_id ?: 'NA'),
+                    ];
+            }
         }
+        return null;
     }
 
     /**
@@ -635,23 +653,6 @@ class Warranty extends Model
                 return 'PROJECT-' . $this->item_id;
             default:
                 return 'N/A';
-        }
-    }
-
-    /**
-     * Get the polymorphic item relationship
-     */
-    public function item()
-    {
-        switch ($this->item_type) {
-            case 'product':
-                return $this->belongsTo(Product::class, 'item_id');
-            case 'material':
-                return $this->belongsTo(Material::class, 'item_id');
-            case 'good':
-                return $this->belongsTo(Good::class, 'item_id');
-            default:
-                return null;
         }
     }
 
