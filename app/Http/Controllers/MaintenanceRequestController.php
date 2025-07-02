@@ -168,36 +168,6 @@ class MaintenanceRequestController extends Controller
                         }
                     }
                 }
-            } elseif ($request->has('warranty_items')) {
-                foreach ($request->warranty_items as $itemId) {
-                    // Phân tích id để lấy loại và id thực
-                    $parts = explode('_', $itemId);
-                    if (count($parts) == 2) {
-                        $itemType = $parts[0];
-                        $code = $parts[1];
-                        
-                        // Tìm item dựa trên loại và code
-                        $item = null;
-                        switch ($itemType) {
-                            case 'product':
-                                $item = Product::where('code', $code)->first();
-                                break;
-                            // Thêm các loại khác nếu cần
-                        }
-                        
-                        if ($item) {
-                            MaintenanceRequestProduct::create([
-                                'maintenance_request_id' => $maintenanceRequest->id,
-                                'product_id' => $item->id,
-                                'product_name' => $item->name,
-                                'product_code' => $item->code,
-                                'quantity' => 1,
-                                'unit' => $item->unit,
-                                'description' => $item->description
-                            ]);
-                        }
-                    }
-                }
             } elseif ($request->has('products')) {
                 // Xử lý cách cũ nếu không có warranty_items
                 foreach ($request->products as $product) {

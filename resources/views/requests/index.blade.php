@@ -79,6 +79,32 @@
 
         <div class="bg-white rounded-xl shadow-md overflow-hidden">
             <div class="p-4 border-b border-gray-200">
+                @if(session('success'))
+                    <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-4 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm">{{ session('success') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                @if(session('error'))
+                    <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm">{{ session('error') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <form action="{{ route('requests.index') }}" method="GET" class="flex flex-wrap gap-4">
                     <div class="flex-grow min-w-[200px]">
                         <input type="text" name="search" placeholder="Tìm kiếm..." value="{{ request('search') }}"

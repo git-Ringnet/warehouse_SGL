@@ -67,14 +67,21 @@ class CustomerMaintenanceRequestController extends Controller
      */
     public function create()
     {
-        $this->checkAccess();
+        // Chỉ cho phép khách hàng truy cập trang này
+        if (Auth::guard('web')->check()) {
+            return redirect()->route('requests.index')
+                ->with('error', 'Chức năng này chỉ dành cho khách hàng. Nhân viên không thể tạo phiếu khách yêu cầu bảo trì.');
+        }
+        
+        if (!Auth::guard('customer')->check()) {
+            abort(403, 'Chức năng này chỉ dành cho khách hàng.');
+        }
         
         $customers = Customer::orderBy('company_name')->get();
         $request = new CustomerMaintenanceRequest();
         $request->request_date = Carbon::now()->format('Y-m-d');
         
-        // Nếu là khách hàng đăng nhập, lấy thông tin của khách hàng
-        if (Auth::guard('customer')->check()) {
+        // Lấy thông tin của khách hàng
             $customerUser = Auth::guard('customer')->user();
             $customer = $customerUser->customer;
             
@@ -96,7 +103,6 @@ class CustomerMaintenanceRequestController extends Controller
                     ->get();
                     
                 return view('requests.customer-maintenance.create', compact('customers', 'request', 'customerProjects', 'customerRentals'));
-            }
         }
         
         return view('requests.customer-maintenance.create', compact('customers', 'request'));
@@ -107,7 +113,15 @@ class CustomerMaintenanceRequestController extends Controller
      */
     public function store(Request $request)
     {
-        $this->checkAccess();
+        // Chỉ cho phép khách hàng truy cập trang này
+        if (Auth::guard('web')->check()) {
+            return redirect()->route('requests.index')
+                ->with('error', 'Chức năng này chỉ dành cho khách hàng. Nhân viên không thể tạo phiếu khách yêu cầu bảo trì.');
+        }
+        
+        if (!Auth::guard('customer')->check()) {
+            abort(403, 'Chức năng này chỉ dành cho khách hàng.');
+        }
         
         // Nếu là sao chép từ phiếu khác
         if ($request->has('copy_from')) {

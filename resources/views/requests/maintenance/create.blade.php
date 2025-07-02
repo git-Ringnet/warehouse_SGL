@@ -155,7 +155,6 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chọn</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã serial</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
@@ -280,9 +279,6 @@
                         data.items.forEach(item => {
                             const row = document.createElement('tr');
                             row.innerHTML = `
-                                <td class="px-6 py-4">
-                                    <input type="checkbox" name="warranty_items[]" value="${item.id}" class="rounded border-gray-300">
-                                </td>
                                 <td class="px-6 py-4">${item.name}</td>
                                 <td class="px-6 py-4">${item.serial_number || 'Không có'}</td>
                                 <td class="px-6 py-4">${item.type}</td>
@@ -293,7 +289,7 @@
                         // Hiển thị thông báo không có thiết bị
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td colspan="4" class="px-6 py-4 text-center text-gray-500">
+                            <td colspan="3" class="px-6 py-4 text-center text-gray-500">
                                 Không tìm thấy thiết bị nào trong dự án bảo hành này
                             </td>
                         `;

@@ -394,23 +394,23 @@ class RepairController extends Controller
             Log::info("Looking for materials for product: {$product->code} (ID: {$product->id})");
             
             // First try to get materials from assembly_materials table
-            $assemblyMaterials = \App\Models\AssemblyMaterial::where('target_product_id', $product->id)
-                ->with(['material', 'assembly'])
-                ->get();
-            
+        $assemblyMaterials = \App\Models\AssemblyMaterial::where('target_product_id', $product->id)
+            ->with(['material', 'assembly'])
+            ->get();
+
             Log::info("Found {$assemblyMaterials->count()} assembly materials for product {$product->code}");
             
-            foreach ($assemblyMaterials as $am) {
-                if ($am->material) {
-                    $materials[] = [
-                        'id' => $am->material->id,
-                        'code' => $am->material->code,
-                        'name' => $am->material->name,
-                        'quantity' => $am->quantity,
-                        'serial' => $am->serial ?? '',
-                        'current_serials' => [$am->serial ?? ''],
-                        'status' => 'active'
-                    ];
+        foreach ($assemblyMaterials as $am) {
+            if ($am->material) {
+                $materials[] = [
+                    'id' => $am->material->id,
+                    'code' => $am->material->code,
+                    'name' => $am->material->name,
+                    'quantity' => $am->quantity,
+                    'serial' => $am->serial ?? '',
+                    'current_serials' => [$am->serial ?? ''],
+                    'status' => 'active'
+                ];
                     Log::info("Added material: {$am->material->code} - {$am->material->name} from assembly");
                 }
             }
