@@ -31,4 +31,8 @@ Route::get('dispatch/item-serials', [App\Http\Controllers\InventoryController::c
 Route::get('device-codes/{dispatch_id}', [DeviceCodeController::class, 'getByDispatch']);
 Route::post('device-codes/save', [DeviceCodeController::class, 'saveDeviceCodes']);
 Route::post('device-codes/import', [DeviceCodeController::class, 'importFromExcel']);
-Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial'); 
+Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial');
+
+// Product API routes
+Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductController::class, 'createFromAssembly'])
+    ->middleware(['auth:web', \App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create']); 

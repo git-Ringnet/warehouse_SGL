@@ -404,9 +404,6 @@
                                                             Serial</th>
                                                         <th
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Thuộc thành phẩm</th>
-                                                        <th
-                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Ghi chú</th>
                                                     </tr>
                                                 </thead>
@@ -493,42 +490,18 @@
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <select
-                                                                        name="components[{{ $component['globalIndex'] }}][product_unit]"
-                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select"
-                                                                        data-component-index="{{ $component['globalIndex'] }}"
-                                                                        data-material-id="{{ $component['material']->material_id }}"
-                                                                        data-product-id="{{ $component['material']->target_product_id }}"
-                                                                        onchange="window.handleProductUnitChange(this)">
-                                                                        @php
-                                                                            $productUnit =
-                                                                                $component['material']->product_unit ??
-                                                                                0;
-                                                                            $productQuantity =
-                                                                                $assemblyProduct->quantity ?? 1;
-                                                                        @endphp
-                                                                        @for ($i = 0; $i < $productQuantity; $i++)
-                                                                            <option value="{{ $i }}"
-                                                                                {{ $productUnit == $i ? 'selected' : '' }}>
-                                                                                Thành phẩm #{{ $i + 1 }}
-                                                                                @if ($assemblyProduct->serials)
-                                                                                    @php $serialArray = explode(',', $assemblyProduct->serials); @endphp
-                                                                                    @if (isset($serialArray[$i]) && !empty($serialArray[$i]))
-                                                                                        (Serial:
-                                                                                        {{ $serialArray[$i] }})
-                                                                                    @endif
-                                                                                @endif
-                                                                            </option>
-                                                                        @endfor
-                                                                    </select>
-                                                                </td>
-                                                                <td
-                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                                                     <input type="text"
                                                                         name="components[{{ $component['globalIndex'] }}][note]"
                                                                         value="{{ $component['material']->note ?? '' }}"
                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                         placeholder="Ghi chú">
+                                                                    <input type="hidden"
+                                                                        name="components[{{ $component['globalIndex'] }}][product_unit]"
+                                                                        value="{{ $component['material']->product_unit ?? 0 }}"
+                                                                        class="product-unit-select"
+                                                                        data-component-index="{{ $component['globalIndex'] }}"
+                                                                        data-material-id="{{ $component['material']->material_id }}"
+                                                                        data-product-id="{{ $component['material']->target_product_id }}">
                                                                 </td>
                                                             </tr>
                                                         @endforeach
@@ -576,9 +549,6 @@
                                                     <th
                                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Serial</th>
-                                                    <th
-                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                        Thuộc thành phẩm</th>
                                                     <th
                                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Ghi chú</th>
@@ -661,33 +631,14 @@
                                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                     placeholder="Ghi chú">
                                                             </td>
-                                                            <td
-                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <select
+                                                            <input type="hidden"
                                                                     name="components[{{ $index }}][product_unit]"
-                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select"
+                                                                    value="{{ $material->product_unit ?? 0 }}"
+                                                                    class="product-unit-select"
                                                                     data-component-index="{{ $index }}"
                                                                     data-material-id="{{ $material->material_id }}"
                                                                     data-product-id="{{ $material->target_product_id }}"
                                                                     onchange="window.handleProductUnitChange(this)">
-                                                                    @php
-                                                                        $productUnit = $material->product_unit ?? 0;
-                                                                        $productQuantity = $assembly->quantity ?? 1;
-                                                                    @endphp
-                                                                    @for ($i = 0; $i < $productQuantity; $i++)
-                                                                        <option value="{{ $i }}"
-                                                                            {{ $productUnit == $i ? 'selected' : '' }}>
-                                                                            Thành phẩm #{{ $i + 1 }}
-                                                                            @if (isset($productSerials) && is_array($productSerials))
-                                                                                @if (isset($productSerials[$i]) && !empty($productSerials[$i]))
-                                                                                    (Serial:
-                                                                                    {{ $productSerials[$i] }})
-                                                                                @endif
-                                                                            @endif
-                                                                        </option>
-                                                                    @endfor
-                                                                </select>
-                                                            </td>
                                                         </tr>
                                                     @endforeach
                                                 @else
@@ -892,7 +843,7 @@
                 @if ($assembly->products && $assembly->products->count() > 0)
                     @foreach ($assembly->products as $productIndex => $assemblyProduct)
                         const productSerialInputs{{ $productIndex }} = document.querySelectorAll(
-                            'input[name*="products[{{ $productIndex }}][serials]"]');
+                            'input[name*="products[${productIndex}][serials]"]');
                         productSerialInputs{{ $productIndex }}.forEach(input => {
                             addProductSerialValidation(input, {{ $assemblyProduct->product_id }});
                         });

@@ -39,7 +39,6 @@ return new class extends Migration
             
             // Indexes
             $table->index(['item_type', 'item_id']);
-            $table->index('serial_number');
             $table->index('warranty_code');
             $table->index('status');
         });

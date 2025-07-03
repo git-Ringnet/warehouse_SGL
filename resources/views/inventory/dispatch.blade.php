@@ -233,12 +233,12 @@
                     </div>
 
                     <!-- Nút cập nhật mã thiết bị hợp đồng -->
-                    <div class="mt-4 flex justify-end">
+                    {{-- <div class="mt-4 flex justify-end">
                         <button type="button" id="update_contract_device_codes_btn"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
                             <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
                         </button>
-                    </div>
+                    </div> --}}
                 </div>
 
                 <!-- Danh sách thiết bị dự phòng (hiển thị khi chọn "Tất cả") -->
@@ -307,12 +307,12 @@
                     </div>
 
                     <!-- Nút cập nhật mã thiết bị dự phòng -->
-                    <div class="mt-4 flex justify-end">
+                    {{-- <div class="mt-4 flex justify-end">
                         <button type="button" id="update_backup_device_codes_btn"
                             class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
                             <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
                         </button>
-                    </div>
+                    </div> --}}
                 </div>
 
                 <div class="flex justify-end space-x-3">

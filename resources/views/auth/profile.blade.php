@@ -30,13 +30,17 @@
                 <div class="relative">
                     <button id="notificationToggle" class="flex items-center focus:outline-none relative">
                         <i class="fas fa-bell text-gray-700 dark:text-gray-300 text-xl"></i>
-                        <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                        <span
+                            class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
                     </button>
-                    <div class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-0 hidden z-50 border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
+                    <div
+                        class="dropdown-menu absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-0 hidden z-50 border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <div
+                            class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 flex items-center justify-between">
                             <h3 class="text-sm font-semibold text-gray-800 dark:text-white">Thông báo</h3>
                             <div class="flex space-x-2">
-                                <button class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã đọc</button>
+                                <button class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Đánh dấu đã
+                                    đọc</button>
                             </div>
                         </div>
                         <div class="max-h-80 overflow-y-auto py-1">
@@ -47,8 +51,8 @@
 
                 <div class="relative">
                     <button id="userMenuToggle" class="flex items-center focus:outline-none">
-                        <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://randomuser.me/api/portraits/men/32.jpg' }}" alt="User"
-                            class="w-8 h-8 rounded-full mr-2" />
+                        <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://randomuser.me/api/portraits/men/32.jpg' }}"
+                            alt="User" class="w-8 h-8 rounded-full mr-2" />
                         <span class="text-gray-700 dark:text-gray-300 hidden md:inline">{{ $employee->name }}</span>
                     </button>
                     <div
@@ -63,7 +67,8 @@
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit"
-                                class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng xuất</button>
+                                class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng
+                                xuất</button>
                         </form>
                     </div>
                 </div>
@@ -77,49 +82,58 @@
                     <div class="flex flex-col md:flex-row">
                         <div class="md:w-1/3 flex flex-col items-center mb-6 md:mb-0">
                             <div class="relative">
-                                <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg' }}" 
+                                {{-- <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg' }}" 
                                     alt="{{ $employee->name }}" 
+                                    class="w-40 h-40 rounded-full object-cover border-4 border-blue-100 dark:border-blue-900"> --}}
+                                <img src="https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png"
+                                    alt="User"
                                     class="w-40 h-40 rounded-full object-cover border-4 border-blue-100 dark:border-blue-900">
                             </div>
                             <h2 class="text-xl font-bold text-gray-800 dark:text-white mt-4">{{ $employee->name }}</h2>
                             <p class="text-blue-600 dark:text-blue-400 font-medium">{{ $employee->role }}</p>
                         </div>
-                        
+
                         <div class="md:w-2/3 md:pl-8">
                             <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
-                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Thông tin cá nhân</h3>
-                                
+                                <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Thông tin cá nhân
+                                </h3>
+
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">Tên đăng nhập</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->username }}</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->username }}
+                                        </p>
                                     </div>
-                                    
+
                                     <div>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->email ?? 'Chưa cập nhật' }}</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">
+                                            {{ $employee->email ?? 'Chưa cập nhật' }}</p>
                                     </div>
-                                    
+
                                     <div>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">Số điện thoại</p>
                                         <p class="text-gray-800 dark:text-white font-medium">{{ $employee->phone }}</p>
                                     </div>
-                                    
+
                                     <div>
                                         <p class="text-sm text-gray-500 dark:text-gray-400">Phòng ban</p>
-                                        <p class="text-gray-800 dark:text-white font-medium">{{ $employee->department ?? 'Chưa cập nhật' }}</p>
+                                        <p class="text-gray-800 dark:text-white font-medium">
+                                            {{ $employee->department ?? 'Chưa cập nhật' }}</p>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
                                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Địa chỉ</h3>
-                                <p class="text-gray-800 dark:text-white">{{ $employee->address ?? 'Chưa cập nhật' }}</p>
+                                <p class="text-gray-800 dark:text-white">{{ $employee->address ?? 'Chưa cập nhật' }}
+                                </p>
                             </div>
-                            
+
                             <div>
                                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Ghi chú</h3>
-                                <p class="text-gray-800 dark:text-white">{{ $employee->notes ?? 'Không có ghi chú' }}</p>
+                                <p class="text-gray-800 dark:text-white">{{ $employee->notes ?? 'Không có ghi chú' }}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -139,7 +153,7 @@
                 menu.classList.toggle("hidden");
             });
         });
-        
+
         // Close dropdowns when clicking outside
         document.addEventListener("click", () => {
             document.querySelectorAll(".dropdown-menu").forEach((menu) => {
@@ -156,4 +170,4 @@
     </script>
 </body>
 
-</html> 
+</html>

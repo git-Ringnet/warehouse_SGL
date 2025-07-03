@@ -490,8 +490,10 @@
         <div class="relative">
             <button id="userMenuToggle" class="flex items-center focus:outline-none">
                 @if (session('user_type') === 'customer')
-                    <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
-                        class="w-8 h-8 rounded-full mr-2" />
+                    {{-- <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
+                        class="w-8 h-8 rounded-full mr-2" /> --}}
+                    <img src="https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png"
+                        alt="User" class="w-[3rem] h-8 rounded-full mr-2">
                     <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
                         @if (Auth::guard('customer')->check())
                             {{ Auth::guard('customer')->user()->name }} (Khách hàng)
@@ -500,8 +502,10 @@
                         @endif
                     </span>
                 @else
-                    <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
-                        class="w-8 h-8 rounded-full mr-2" />
+                    {{-- <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
+                        class="w-8 h-8 rounded-full mr-2" /> --}}
+                    <img src="https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png"
+                        alt="User" class="w-[3rem] h-8 rounded-full mr-2">
                     <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
                         @if (Auth::guard('web')->check())
                             {{ Auth::guard('web')->user()->name }} (Nhân viên)

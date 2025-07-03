@@ -23,22 +23,22 @@ class DatabaseSeeder extends Seeder
 
         // Chạy các Seeders
         $this->call([
-            CustomerSeeder::class,
-            SupplierSeeder::class,
+            // CustomerSeeder::class,
+            // SupplierSeeder::class,
             PermissionSeeder::class,
             RoleSeeder::class,
             EmployeeSeeder::class,
             AdminSeeder::class, // Tạo admin sau khi có role
             WarehouseSeeder::class,
             MaterialSeeder::class,
-            SoftwareSeeder::class,
+            // SoftwareSeeder::class,
             WarehouseMaterialSeeder::class,
             ProductSeeder::class,
             // UserLogSeeder::class,
             // AssemblySeeder::class,
             // DispatchSeeder::class,
             // WarrantySeeder::class,
-            TestingSeeder::class,
+            // TestingSeeder::class,
         ]);
     }
 }

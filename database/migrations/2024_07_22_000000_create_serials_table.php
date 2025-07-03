@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('serials', function (Blueprint $table) {
             $table->id();
             $table->string('serial_number');
-            $table->foreignId('product_id')->constrained()->onDelete('cascade');
+            $table->integer('product_id');
             $table->enum('type', ['product', 'material', 'good'])->default('product');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->integer('warehouse_id')->default(0);

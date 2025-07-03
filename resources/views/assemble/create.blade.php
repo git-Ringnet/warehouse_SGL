@@ -100,7 +100,7 @@
                                 </select>
                                 <div class="w-24">
                                     <input type="number" id="product_add_quantity" min="1" step="1"
-                                        value="1" required
+                                        value="1" readonly
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         placeholder="Số lượng">
                                 </div>
@@ -329,7 +329,7 @@
                             </thead>
                             <tbody id="component_list" class="bg-white divide-y divide-gray-200">
                                 <tr id="no_components_row">
-                                    <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
+                                    <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
                                         Chưa có vật tư nào được thêm vào phiếu lắp ráp
                                     </td>
                                 </tr>
@@ -764,9 +764,6 @@
                     '                Ghi chú' +
                     '            </th>' +
                     '            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">' +
-                    '                Đơn vị' +
-                    '            </th>' +
-                    '            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">' +
                     '                Thao tác' +
                     '            </th>' +
                     '        </tr>' +
@@ -774,7 +771,7 @@
                     '    <tbody id="component_list_' + product.uniqueId +
                     '" class="bg-white divide-y divide-gray-200">' +
                     '        <tr id="no_components_row_' + product.uniqueId + '">' +
-                    '            <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">' +
+                    '            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">' +
                     '                Chưa có linh kiện nào cho thành phẩm này' +
                     '            </td>' +
                     '        </tr>' +
@@ -1182,10 +1179,6 @@
                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <div class="stock-warning-container"></div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 ${modifiedClass} product-unit-cell">
-                            <input type="hidden" name="components[${index}][product_unit]" value="${component.productUnit || 0}">
-                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">${component.productUnit !== undefined ? 'Đơn vị ' + (parseInt(component.productUnit) + 1) : 'Đơn vị 1'}</span>
-                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${modifiedClass}">
                             <button type="button" class="text-red-500 hover:text-red-700 delete-component" 
                                     data-product-id="${productUniqueId}" data-component-id="${component.id}">
@@ -1554,7 +1547,7 @@
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' + product.name +
                         '</td>' +
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
-                        '<input type="number" min="1" step="1" value="' + (
+                        '<input type="number" readonly min="1" step="1" value="' + (
                             product.quantity || 1) + '"' +
                         ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-quantity-input"' +
                         ' data-index="' + index + '">' +
@@ -2332,7 +2325,7 @@
                             <i class="fas fa-info-circle mr-2"></i>
                             Bạn đã thay đổi công thức gốc. Bạn có thể tạo một thành phẩm mới với công thức này.
                         </div>
-                        <button type="button" class="create-new-product-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm"
+                        <button type="button" class="create-new-product-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm hidden"
                                 data-product-id="${productId}" data-unique-id="${productUniqueId}">
                             <i class="fas fa-plus-circle mr-1"></i> Tạo thành phẩm mới
                         </button>
@@ -2390,16 +2383,10 @@
 
                 // Show confirmation dialog
                 const confirmed = confirm(
-                    `Bạn có muốn tạo thành phẩm mới "${product.name} (Modified)" với công thức sau?\n\n${formulaSummary}\n` +
-                    `Chức năng này sẽ lưu công thức mới vào hệ thống để sử dụng cho các lần lắp ráp tiếp theo.`
+                    `Bạn có muốn tạo thành phẩm mới "${product.name} (Modified)" với công thức sau?\n\n${formulaSummary}\n`
                 );
 
                 if (confirmed) {
-                    // Here you would normally send the data to backend to create new product
-                    alert(
-                        'Đã ghi nhận yêu cầu tạo thành phẩm mới. Chức năng này sẽ được phát triển trong phiên bản tiếp theo.'
-                    );
-
                     // Optional: You could also update the UI to show that a new product will be created
                     const componentBlock = document.getElementById('component_block_' + productUniqueId);
                     if (componentBlock) {
