@@ -44,7 +44,7 @@
                 </form>
                 @if($canCreate)
                 <a href="{{ route('software.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full md:w-auto justify-center h-10">
-                    <i class="fas fa-plus-circle mr-2"></i> Thêm phần mềm mới
+                    <i class="fas fa-plus-circle mr-2"></i> Thêm
                 </a>
                 @endif
             </div>

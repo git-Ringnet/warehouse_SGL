@@ -398,10 +398,11 @@ class ProjectController extends Controller
         $allItems = collect();
 
         foreach ($dispatches as $dispatch) {
-            $items = $dispatch->items()
+            // Lấy danh sách products (thiết bị)
+            $products = $dispatch->items()
                 ->with(['product'])
                 ->where('category', 'contract')
-                ->where('item_type', 'product') // Chỉ lấy products
+                ->where('item_type', 'product')
                 ->get()
                 ->map(function ($item) use ($dispatch) {
                     return [
@@ -414,8 +415,27 @@ class ProjectController extends Controller
                         'dispatch_code' => $dispatch->dispatch_code
                     ];
                 });
+            
+            // Lấy danh sách goods (hàng hóa)
+            $goods = $dispatch->items()
+                ->with(['good'])
+                ->where('category', 'contract')
+                ->where('item_type', 'good')
+                ->get()
+                ->map(function ($item) use ($dispatch) {
+                    return [
+                        'id' => $item->id,
+                        'type' => 'good',
+                        'name' => $item->good->name,
+                        'serial_number' => $item->serial_number,
+                        'description' => $item->good->description,
+                        'project_name' => $dispatch->project_name,
+                        'dispatch_code' => $dispatch->dispatch_code
+                    ];
+                });
 
-            $allItems = $allItems->concat($items);
+            // Kết hợp cả products và goods
+            $allItems = $allItems->concat($products)->concat($goods);
         }
 
         return response()->json($allItems);

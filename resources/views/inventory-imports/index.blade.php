@@ -38,8 +38,8 @@
                                 {{ isset($filter) && $filter == 'order_code' ? 'selected' : '' }}>Mã đơn hàng</option>
                         </select>
                         <button type="submit"
-                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-search"></i>
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-search"></i> Tìm kiếm
                         </button>
                     </div>
                 </form>

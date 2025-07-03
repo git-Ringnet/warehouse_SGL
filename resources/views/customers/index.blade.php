@@ -242,7 +242,7 @@
                                     </button>
                                     <button id="exportPdfButton"
                                         class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">
-                                        <i class="far fa-file-pdf text-red-500 mr-2"></i> Xuất FDF
+                                        <i class="far fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
                                     </button>
                                 </div>
                             </div>

@@ -918,8 +918,10 @@
                             const projectIdInput = document.getElementById('project_id');
                             if (selectedOption && selectedOption.dataset.rentalId) {
                                 projectIdInput.value = selectedOption.dataset.rentalId;
+                                console.log('Đã cập nhật project_id với rental_id:', selectedOption.dataset.rentalId);
                             } else {
                                 projectIdInput.value = '';
+                                console.log('Không có rental_id để cập nhật project_id');
                             }
                         };
 

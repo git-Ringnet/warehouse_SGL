@@ -85,14 +85,12 @@
 
     <!-- Danh sách phiếu yêu cầu bảo trì đã tạo -->
     <div class="mt-8">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Phiếu yêu cầu bảo trì của bạn</h2>
-        
-        @php
-            $maintenanceRequests = \App\Models\CustomerMaintenanceRequest::where('customer_id', $customer->id)
-                ->orderBy('created_at', 'desc')
-                ->take(5)
-                ->get();
-        @endphp
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-gray-800">Phiếu yêu cầu bảo trì của bạn</h2>
+            <a href="{{ route('customer-maintenance.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <i class="fas fa-plus mr-2"></i> Tạo phiếu mới
+            </a>
+        </div>
         
         @if($maintenanceRequests->count() > 0)
             <div class="bg-white rounded-xl shadow-md overflow-hidden">
@@ -102,6 +100,7 @@
                             <tr>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã phiếu</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên dự án</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lý do</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
@@ -115,6 +114,9 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $request->project_name }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $request->maintenance_reason }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $request->created_at->format('d/m/Y') }}

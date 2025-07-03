@@ -386,10 +386,11 @@ class RentalController extends Controller
         $allItems = collect();
         
         foreach ($dispatches as $dispatch) {
-            $items = $dispatch->items()
+            // Lấy danh sách products (thiết bị)
+            $products = $dispatch->items()
                 ->with(['product'])
                 ->where('category', 'contract')
-                ->where('item_type', 'product') // Chỉ lấy products
+                ->where('item_type', 'product')
                 ->get()
                 ->map(function ($item) use ($rental) {
                     return [
@@ -401,8 +402,26 @@ class RentalController extends Controller
                         'rental_code' => $rental->rental_code
                     ];
                 });
-                
-            $allItems = $allItems->concat($items);
+            
+            // Lấy danh sách goods (hàng hóa)
+            $goods = $dispatch->items()
+                ->with(['good'])
+                ->where('category', 'contract')
+                ->where('item_type', 'good')
+                ->get()
+                ->map(function ($item) use ($rental) {
+                    return [
+                        'id' => $item->id,
+                        'type' => 'good',
+                        'name' => $item->good->name,
+                        'serial_number' => $item->serial_number,
+                        'description' => $item->good->description,
+                        'rental_code' => $rental->rental_code
+                    ];
+                });
+            
+            // Kết hợp cả products và goods
+            $allItems = $allItems->concat($products)->concat($goods);
         }
         
         return response()->json($allItems);

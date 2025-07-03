@@ -90,7 +90,6 @@ class DispatchController extends Controller
                 'dispatch_date' => 'required|date',
                 'dispatch_type' => 'required|in:project,rental,warranty',
                 'dispatch_detail' => 'required|in:all,contract,backup',
-                'project_id' => 'nullable|exists:projects,id',
                 'items' => 'required|array|min:1',
                 'items.*.item_type' => 'required|in:material,product,good',
                 'items.*.item_id' => 'required|integer',
@@ -98,6 +97,16 @@ class DispatchController extends Controller
                 'items.*.warehouse_id' => 'required|exists:warehouses,id',
                 'items.*.category' => 'sometimes|in:contract,backup,general',
             ];
+            
+            // Validation for project_id depends on dispatch_type
+            if ($request->dispatch_type === 'project') {
+                $validationRules['project_id'] = 'required|exists:projects,id';
+            } else if ($request->dispatch_type === 'rental') {
+                // For rental type, project_id is optional or can be a rental_id
+                $validationRules['project_id'] = 'nullable';
+            } else {
+                $validationRules['project_id'] = 'nullable|exists:projects,id';
+            }
 
             // Validation for project_receiver depends on dispatch_type
             if ($request->dispatch_type === 'project' || $request->dispatch_type === 'warranty') {
