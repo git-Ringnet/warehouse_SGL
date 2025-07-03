@@ -105,6 +105,19 @@
                     </div>
                 @endif
 
+                @if(session('warning'))
+                    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm">{{ session('warning') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <form action="{{ route('requests.index') }}" method="GET" class="flex flex-wrap gap-4">
                     <div class="flex-grow min-w-[200px]">
                         <input type="text" name="search" placeholder="Tìm kiếm..." value="{{ request('search') }}"

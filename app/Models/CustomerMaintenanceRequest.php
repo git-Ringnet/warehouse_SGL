@@ -52,7 +52,7 @@ class CustomerMaintenanceRequest extends Model
      */
     public function approvedByUser()
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(Employee::class, 'approved_by');
     }
 
     /**

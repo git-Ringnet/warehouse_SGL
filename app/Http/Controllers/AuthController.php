@@ -19,10 +19,22 @@ class AuthController extends Controller
      */
     public function showLoginForm()
     {
-        // Kiểm tra nếu người dùng đã đăng nhập với bất kỳ guard nào
-        if (Auth::guard('web')->check() || Auth::guard('customer')->check()) {
-            return redirect('/dashboard');
+        // Kiểm tra từng guard riêng biệt
+        if (Auth::guard('web')->check()) {
+            // Nếu là nhân viên, kiểm tra quyền trước khi chuyển hướng
+            $employee = Auth::guard('web')->user();
+            if ($employee->role === 'admin' || 
+                ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
+                return redirect('/dashboard');
+            }
+            return redirect('/'); // Chuyển về trang chủ nếu không có quyền
         }
+        
+        if (Auth::guard('customer')->check()) {
+            // Khách hàng luôn được chuyển về trang chủ riêng
+            return redirect('/customer/dashboard');
+        }
+        
         return view('auth.login');
     }
 
@@ -49,7 +61,13 @@ class AuthController extends Controller
             Session::put('user_type', 'employee');
             
             $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+            
+            // Kiểm tra quyền truy cập dashboard
+            if ($employee->role === 'admin' || 
+                ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
+                return redirect()->intended('/dashboard');
+            }
+            return redirect('/');
         }
         
         // Nếu không thành công, thử đăng nhập với bảng users (khách hàng)
@@ -63,7 +81,7 @@ class AuthController extends Controller
                 Session::put('user_type', 'customer');
                 
                 $request->session()->regenerate();
-                return redirect()->intended('/dashboard');
+                return redirect()->intended('/customer/dashboard');
             }
         }
         

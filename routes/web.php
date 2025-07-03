@@ -34,11 +34,80 @@ use App\Http\Controllers\CustomerMaintenanceRequestController;
 use App\Http\Controllers\Api\RequestExportController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
+use App\Http\Controllers\CustomerDashboardController;
+use App\Http\Middleware\CheckUserType;
+use App\Http\Middleware\CustomerAccessMiddleware;
+use App\Http\Middleware\CheckPermissionMiddleware;
 
 // Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
+});
+
+// Routes chung cho cả nhân viên và khách hàng
+Route::middleware(['auth:web,customer', CheckUserType::class])->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/profile', [AuthController::class, 'profile'])->name('profile');
+    Route::post('/profile/update-password', [AuthController::class, 'updatePassword'])->name('profile.update_password');
+    
+    // Redirect root to dashboard
+    Route::get('/', function () {
+        if (Auth::guard('customer')->check()) {
+            return redirect()->route('customer.dashboard');
+        }
+        return redirect()->route('dashboard');
+    });
+});
+
+// Routes cho nhân viên
+Route::middleware(['auth:web', CheckUserType::class])->group(function () {
+    // Dashboard cho nhân viên
+    Route::get('/dashboard', [App\Http\Controllers\DashboardController::class, 'index'])
+        ->name('dashboard')
+        ->middleware(CheckPermissionMiddleware::class . ':reports.overview');
+        
+    // Các route khác cho nhân viên...
+});
+
+// Routes cho khách hàng
+Route::middleware(['auth:customer', CheckUserType::class])->group(function () {
+    // Dashboard cho khách hàng
+    Route::get('/customer/dashboard', [CustomerDashboardController::class, 'index'])->name('customer.dashboard');
+});
+
+// Routes cho phiếu yêu cầu bảo trì của khách hàng
+Route::prefix('customer/maintenance')->name('customer-maintenance.')->middleware(['auth:customer,web', CheckUserType::class])->group(function () {
+    Route::get('/create', [CustomerMaintenanceRequestController::class, 'create'])
+        ->name('create')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.create');
+    Route::post('/', [CustomerMaintenanceRequestController::class, 'store'])
+        ->name('store')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.create');
+    Route::get('/{id}', [CustomerMaintenanceRequestController::class, 'show'])
+        ->name('show')
+        ->where('id', '[0-9]+')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.view');
+    Route::get('/{id}/edit', [CustomerMaintenanceRequestController::class, 'edit'])
+        ->name('edit')
+        ->where('id', '[0-9]+')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.edit');
+    Route::patch('/{id}', [CustomerMaintenanceRequestController::class, 'update'])
+        ->name('update')
+        ->where('id', '[0-9]+')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.edit');
+    Route::delete('/{id}', [CustomerMaintenanceRequestController::class, 'destroy'])
+        ->name('destroy')
+        ->where('id', '[0-9]+')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.delete');
+    Route::post('/{id}/approve', [CustomerMaintenanceRequestController::class, 'approve'])
+        ->name('approve')
+        ->where('id', '[0-9]+')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.approve');
+    Route::post('/{id}/reject', [CustomerMaintenanceRequestController::class, 'reject'])
+        ->name('reject')
+        ->where('id', '[0-9]+')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.reject');
 });
 
 Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::class])->group(function () {
@@ -481,14 +550,35 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::prefix('customer-maintenance')->name('customer-maintenance.')->middleware(\App\Http\Middleware\CustomerOrAdminMiddleware::class)->group(function () {
             Route::get('/create', [CustomerMaintenanceRequestController::class, 'create'])->name('create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.create');
             Route::post('/', [CustomerMaintenanceRequestController::class, 'store'])->name('store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.create');
-            Route::get('/{id}', [CustomerMaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
-            Route::get('/{id}/edit', [CustomerMaintenanceRequestController::class, 'edit'])->name('edit')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
-            Route::patch('/{id}', [CustomerMaintenanceRequestController::class, 'update'])->name('update')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
-            Route::delete('/{id}', [CustomerMaintenanceRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.delete');
-            Route::post('/{id}/approve', [CustomerMaintenanceRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.approve');
-            Route::post('/{id}/reject', [CustomerMaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
-            Route::post('/{id}/status', [CustomerMaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.update_status');
-            Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
+            Route::get('/{id}', [CustomerMaintenanceRequestController::class, 'show'])->name('show')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.view');
+            Route::get('/{id}/edit', [CustomerMaintenanceRequestController::class, 'edit'])
+                ->name('edit')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.edit');
+            Route::patch('/{id}', [CustomerMaintenanceRequestController::class, 'update'])
+                ->name('update')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.edit');
+            Route::delete('/{id}', [CustomerMaintenanceRequestController::class, 'destroy'])
+                ->name('destroy')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.delete');
+            Route::post('/{id}/approve', [CustomerMaintenanceRequestController::class, 'approve'])
+                ->name('approve')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.approve');
+            Route::post('/{id}/reject', [CustomerMaintenanceRequestController::class, 'reject'])
+                ->name('reject')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.reject');
+            Route::post('/{id}/status', [CustomerMaintenanceRequestController::class, 'updateStatus'])
+                ->name('status')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.update_status');
+            Route::get('/{id}/preview', [CustomerMaintenanceRequestController::class, 'preview'])
+                ->name('preview')
+                ->where('id', '[0-9]+')
+                ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.customer-maintenance.view_detail');
         });
     });
 

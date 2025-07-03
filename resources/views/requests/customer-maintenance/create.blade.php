@@ -193,7 +193,7 @@
             
             <!-- Danh sách thiết bị -->
             <div id="items_table" class="mb-4 hidden">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Chọn thiết bị</label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Thiết bị trong dự án</label>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
@@ -202,6 +202,7 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số serial</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã dự án/đơn thuê</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mô tả thiết bị</th>
                             </tr>
                         </thead>
@@ -210,7 +211,7 @@
                         </tbody>
                     </table>
                 </div>
-                        </div>
+            </div>
             @endif
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -451,15 +452,34 @@
             .then(response => response.json())
             .then(items => {
                 document.getElementById('items_table').classList.remove('hidden');
-                document.getElementById('items_list').innerHTML = items.map(item => `
+                
+                // Nhóm các thiết bị theo tên để đếm số lượng
+                const groupedItems = {};
+                items.forEach(item => {
+                    if (!groupedItems[item.name]) {
+                        groupedItems[item.name] = {
+                            name: item.name,
+                            serial_number: item.serial_number || 'N/A',
+                            projectCode: projectCode,
+                            description: item.description || 'N/A',
+                            count: 1,
+                            id: item.id
+                        };
+                    } else {
+                        groupedItems[item.name].count++;
+                    }
+                });
+                
+                document.getElementById('items_list').innerHTML = Object.values(groupedItems).map(item => `
                     <tr>
                         <td class="px-6 py-4">
                             <input type="radio" name="item_id" value="product:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
                         </td>
                         <td class="px-6 py-4">${item.name}</td>
-                        <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
+                        <td class="px-6 py-4">${item.serial_number}</td>
                         <td class="px-6 py-4">${projectCode}</td>
-                        <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                        <td class="px-6 py-4">${item.count}</td>
+                        <td class="px-6 py-4">${item.description}</td>
                     </tr>
                 `).join('');
             });
@@ -482,15 +502,35 @@
             .then(response => response.json())
             .then(items => {
                 document.getElementById('items_table').classList.remove('hidden');
-                document.getElementById('items_list').innerHTML = items.map(item => `
+                
+                // Nhóm các thiết bị theo tên để đếm số lượng
+                const groupedItems = {};
+                items.forEach(item => {
+                    if (!groupedItems[item.name]) {
+                        groupedItems[item.name] = {
+                            name: item.name,
+                            serial_number: item.serial_number || 'N/A',
+                            rentalCode: rentalCode,
+                            description: item.description || 'N/A',
+                            count: 1,
+                            type: item.type,
+                            id: item.id
+                        };
+                    } else {
+                        groupedItems[item.name].count++;
+                    }
+                });
+                
+                document.getElementById('items_list').innerHTML = Object.values(groupedItems).map(item => `
                     <tr>
                         <td class="px-6 py-4">
                             <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
                         </td>
                         <td class="px-6 py-4">${item.name}</td>
-                        <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
+                        <td class="px-6 py-4">${item.serial_number}</td>
                         <td class="px-6 py-4">${rentalCode}</td>
-                        <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                        <td class="px-6 py-4">${item.count}</td>
+                        <td class="px-6 py-4">${item.description}</td>
                     </tr>
                 `).join('');
             });

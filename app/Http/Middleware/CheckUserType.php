@@ -18,13 +18,23 @@ class CheckUserType
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Kiểm tra xem người dùng đã đăng nhập chưa
         if (Auth::guard('web')->check()) {
-            // Người dùng đã đăng nhập với guard web (nhân viên)
+            $employee = Auth::guard('web')->user();
             Session::put('user_type', 'employee');
+            
+            // Kiểm tra quyền truy cập dashboard
+            if ($request->is('dashboard*') && 
+                !($employee->role === 'admin' || 
+                  ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview')))) {
+                return redirect('/');
+            }
         } elseif (Auth::guard('customer')->check()) {
-            // Người dùng đã đăng nhập với guard customer (khách hàng)
             Session::put('user_type', 'customer');
+            
+            // Chặn khách hàng truy cập trang dành cho nhân viên
+            if ($request->is('dashboard*')) {
+                return redirect('/customer/dashboard');
+            }
         }
         
         return $next($request);

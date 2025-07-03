@@ -16,7 +16,19 @@ class CheckPermissionMiddleware
      */
     public function handle(Request $request, Closure $next, string $permission): Response
     {
-        // Kiểm tra xem người dùng đã đăng nhập chưa
+        // Kiểm tra khách hàng trước
+        if (Auth::guard('customer')->check()) {
+            // Cho phép khách hàng truy cập các route customer-maintenance
+            if (str_starts_with($permission, 'requests.customer-maintenance.')) {
+                return $next($request);
+            }
+            
+            // Nếu không phải route customer-maintenance, chuyển về dashboard
+            return redirect()->route('customer.dashboard')
+                ->with('error', 'Bạn không có quyền truy cập chức năng này.');
+        }
+
+        // Kiểm tra nhân viên
         if (!Auth::guard('web')->check()) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['message' => 'Unauthorized'], 401);
@@ -24,7 +36,7 @@ class CheckPermissionMiddleware
             return redirect()->route('login');
         }
 
-        $employee = Auth::guard('web')->user(); // Employee model
+        $employee = Auth::guard('web')->user();
 
         // Nếu là admin, cho phép truy cập tất cả
         if ($employee->role === 'admin') {
@@ -53,6 +65,6 @@ class CheckPermissionMiddleware
             return response()->json(['message' => 'Bạn không có quyền thực hiện thao tác này'], 403);
         }
 
-        return abort(403, 'Bạn không có quyền truy cập trang này. Vui lòng liên hệ quản trị viên.');
+        return redirect()->back()->with('error', 'Bạn không có quyền thực hiện thao tác này.');
     }
 } 
