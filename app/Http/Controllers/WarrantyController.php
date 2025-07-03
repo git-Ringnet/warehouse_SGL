@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UserLog;
 use App\Models\Warranty;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class WarrantyController extends Controller
 {
@@ -51,6 +53,19 @@ class WarrantyController extends Controller
     public function show(Warranty $warranty)
     {
         $warranty->load(['dispatch', 'dispatchItem', 'creator']);
+
+        // Ghi nhật ký xem chi tiết bảo hành
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'warranties',
+                'Xem chi tiết bảo hành: ' . $warranty->warranty_code,
+                null,
+                $warranty->toArray()
+            );
+        }
+
         return view('warranties.show', compact('warranty'));
     }
 

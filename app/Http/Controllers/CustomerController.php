@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
+use App\Models\UserLog;
 
 class CustomerController extends Controller
 {
@@ -103,7 +104,7 @@ class CustomerController extends Controller
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
         ]);
 
-        Customer::create([
+        $customer = Customer::create([
             'name' => $request->customer_name,
             'company_name' => $request->company_name,
             'phone' => $request->phone,
@@ -112,6 +113,18 @@ class CustomerController extends Controller
             'address' => $request->address,
             'notes' => $request->notes,
         ]);
+        
+        // Ghi nhật ký tạo mới khách hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'customers',
+                'Tạo mới khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                null,
+                $customer->toArray()
+            );
+        }
 
         return redirect()->route('customers.index')
             ->with('success', 'Khách hàng đã được thêm thành công.');
@@ -129,6 +142,18 @@ class CustomerController extends Controller
         
         // Lấy danh sách phiếu cho thuê liên quan đến khách hàng
         $rentals = $customer->rentals()->latest()->get();
+        
+        // Ghi nhật ký xem chi tiết khách hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'customers',
+                'Xem chi tiết khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                null,
+                ['id' => $customer->id, 'name' => $customer->name, 'company_name' => $customer->company_name]
+            );
+        }
         
         return view('customers.show', compact('customer', 'projects', 'rentals'));
     }
@@ -172,6 +197,10 @@ class CustomerController extends Controller
         ]);
 
         $customer = Customer::findOrFail($id);
+        
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $customer->toArray();
+        
         $customer->update([
             'name' => $request->customer_name,
             'company_name' => $request->company_name,
@@ -181,6 +210,18 @@ class CustomerController extends Controller
             'address' => $request->address,
             'notes' => $request->notes,
         ]);
+        
+        // Ghi nhật ký cập nhật thông tin khách hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'customers',
+                'Cập nhật thông tin khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                $oldData,
+                $customer->toArray()
+            );
+        }
 
         return redirect()->route('customers.show', $id)
             ->with('success', 'Thông tin khách hàng đã được cập nhật thành công.');
@@ -199,6 +240,9 @@ class CustomerController extends Controller
                 ->with('error', 'Khách hàng đã có tài khoản.');
         }
         
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $customer->toArray();
+        
         // Tạo username từ email hoặc tên công ty
         $username = $customer->email ? explode('@', $customer->email)[0] : Str::slug($customer->company_name);
         $username = $username . rand(100, 999); // Thêm số ngẫu nhiên để tránh trùng
@@ -207,7 +251,7 @@ class CustomerController extends Controller
         $password = Str::random(10);
         
         // Tạo tài khoản người dùng mới
-        User::create([
+        $user = User::create([
             'name' => $customer->name,
             'email' => $customer->email,
             'username' => $username,
@@ -222,6 +266,25 @@ class CustomerController extends Controller
             'account_username' => $username,
             'account_password' => $password // Lưu mật khẩu gốc (không phải đã hash)
         ]);
+        
+        // Ghi nhật ký kích hoạt tài khoản khách hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'customer_account',
+                'Kích hoạt tài khoản cho khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                $oldData,
+                [
+                    'customer' => $customer->toArray(),
+                    'user' => [
+                        'id' => $user->id,
+                        'username' => $username,
+                        'email' => $customer->email
+                    ]
+                ]
+            );
+        }
         
         return redirect()->route('customers.show', $id)
             ->with('success', "Tài khoản khách hàng đã được kích hoạt thành công!");
@@ -246,7 +309,24 @@ class CustomerController extends Controller
                 ->with('error', 'Không thể xóa khách hàng này vì có phiếu cho thuê liên quan. Vui lòng xóa phiếu cho thuê trước.');
         }
         
+        // Lưu thông tin khách hàng trước khi xóa để ghi nhật ký
+        $customerData = $customer->toArray();
+        $customerName = $customer->name;
+        $companyName = $customer->company_name;
+        
         $customer->delete();
+        
+        // Ghi nhật ký
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'delete',
+                'customers',
+                'Xóa khách hàng: ' . $customerName . ' - ' . $companyName,
+                $customerData,
+                null
+            );
+        }
 
         return redirect()->route('customers.index')
             ->with('success', 'Khách hàng đã được xóa thành công.');
@@ -298,6 +378,12 @@ class CustomerController extends Controller
                 ->with('error', 'Không tìm thấy tài khoản người dùng liên kết với khách hàng này.');
         }
         
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = [
+            'customer' => $customer->toArray(),
+            'user' => $user->toArray()
+        ];
+        
         // Đảo trạng thái khóa tài khoản
         $isLocked = !($customer->is_locked ?? false);
         
@@ -314,6 +400,23 @@ class CustomerController extends Controller
         $message = $isLocked 
             ? 'Tài khoản khách hàng đã được khóa thành công.' 
             : 'Tài khoản khách hàng đã được mở khóa thành công.';
+        
+        // Ghi nhật ký khóa/mở khóa tài khoản
+        if (Auth::check()) {
+            $action = $isLocked ? 'Khóa' : 'Mở khóa';
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'customer_account',
+                $action . ' tài khoản khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                $oldData,
+                [
+                    'customer' => $customer->toArray(),
+                    'user' => $user->toArray(),
+                    'action' => $action
+                ]
+            );
+        }
         
         return redirect()->back()
             ->with('success', $message);

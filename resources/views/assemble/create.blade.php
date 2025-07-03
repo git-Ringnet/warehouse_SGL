@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/assembly-product-unit.js') }}"></script>
 </head>
 
 <body>
@@ -54,7 +55,7 @@
                                 ráp</label>
                             <div class="flex space-x-2">
                                 <div class="relative flex-1">
-                            <input type="text" id="assembly_code" name="assembly_code"
+                                    <input type="text" id="assembly_code" name="assembly_code"
                                         placeholder="Đang tạo mã tự động..." readonly
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50">
                                     <div class="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -89,7 +90,7 @@
                                 phẩm <span class="text-red-500">*</span></label>
                             <div class="relative flex space-x-2">
                                 <select id="product_id"
-                                    class="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    class="flex-1 border w-full border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">-- Chọn thành phẩm --</option>
                                     @foreach ($products as $product)
                                         <option value="{{ $product->id }}" data-name="{{ $product->name }}"
@@ -352,6 +353,27 @@
     </div>
 
     <script>
+        // Global function for handling product unit changes
+        function handleProductUnitChange(element) {
+            const componentIndex = parseInt(element.getAttribute('data-component-index'));
+            const component = window.selectedComponents[componentIndex];
+            if (component) {
+                component.productUnit = parseInt(element.value) || 0;
+                
+                // Update serial inputs for this component
+                const row = element.closest('tr');
+                if (row) {
+                    const serialCell = row.querySelector('.serial-cell');
+                    if (serialCell) {
+                        // Fetch serials for this material with the new product unit
+                        if (typeof window.fetchMaterialSerials === "function") {
+                            window.fetchMaterialSerials(element);
+                        }
+                    }
+                }
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Generate unique assembly code on page load
             generateUniqueAssemblyCode();
@@ -375,7 +397,10 @@
             const noProductsRow = document.getElementById('no_products_row');
 
             let selectedComponents = [];
+            window.selectedComponents = selectedComponents;
+            
             let selectedProducts = []; // Danh sách thành phẩm đã chọn
+            window.selectedProducts = selectedProducts;
             let allMaterials = @json($materials);
             let selectedMaterial = null;
             let warehouseMaterials = [];
@@ -401,7 +426,7 @@
                     codeValidationTimeout = setTimeout(() => {
                         if (this.value.trim() === '' && !
                             isRegeneratingCode
-                            ) { // Double-check field is still empty and not regenerating
+                        ) { // Double-check field is still empty and not regenerating
                             generateUniqueAssemblyCode();
                         }
                     }, 1000); // Wait 1 second before auto-generating
@@ -504,7 +529,7 @@
                     alert('Không tìm thấy thành phẩm được chọn!');
                     return;
                 }
-                
+
                 const quantity = parseInt(componentAddQuantity.value) || 1;
 
                 // Check if component already exists for this product
@@ -516,6 +541,7 @@
                     alert('Vật tư này đã được thêm cho thành phẩm này!');
                     return;
                 }
+
 
                 // Add new component
                 const newComponent = {
@@ -531,7 +557,9 @@
                     productId: productUniqueId,
                     actualProductId: selectedProduct.id, // Store actual product ID for backend
                     isFromProduct: false, // User added component
-                    isOriginal: false // Not from original BOM
+                    isOriginal: false, // Not from original BOM
+                    productUnit: selectedUnit ||
+                        0 // Use selected unit or default to 0 for single-unit products
                 };
 
                 selectedComponents.push(newComponent);
@@ -736,6 +764,9 @@
                     '                Ghi chú' +
                     '            </th>' +
                     '            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">' +
+                    '                Đơn vị' +
+                    '            </th>' +
+                    '            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">' +
                     '                Thao tác' +
                     '            </th>' +
                     '        </tr>' +
@@ -743,7 +774,7 @@
                     '    <tbody id="component_list_' + product.uniqueId +
                     '" class="bg-white divide-y divide-gray-200">' +
                     '        <tr id="no_components_row_' + product.uniqueId + '">' +
-                    '            <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">' +
+                    '            <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">' +
                     '                Chưa có linh kiện nào cho thành phẩm này' +
                     '            </td>' +
                     '        </tr>' +
@@ -779,7 +810,7 @@
                     // Validate that the generated code won't conflict with multi-product suffixes
                     const baseCode = data.code;
                     const isCodeAvailable = await validateBaseCodeAvailability(baseCode);
-                    
+
                     if (isCodeAvailable) {
                         input.value = baseCode;
                         showCodeSuccess('Mã phiếu hợp lệ');
@@ -822,7 +853,7 @@
                 try {
                     // Check both the base code and potential multi-product suffixes
                     const isAvailable = await validateBaseCodeAvailability(code);
-                    
+
                     if (isAvailable) {
                         showCodeSuccess('Mã phiếu hợp lệ');
                     } else {
@@ -838,26 +869,26 @@
             async function validateBaseCodeAvailability(baseCode) {
                 try {
                     // Check the base code itself
-                    const baseResponse = await fetch('{{ route('assemblies.check-code') }}?code=' + 
+                    const baseResponse = await fetch('{{ route('assemblies.check-code') }}?code=' +
                         encodeURIComponent(baseCode));
                     const baseData = await baseResponse.json();
-                    
+
                     if (baseData.exists) {
                         return false;
                     }
-                    
+
                     // Check potential multi-product suffixes (-P1, -P2, -P3, etc.)
                     for (let i = 1; i <= 5; i++) { // Check up to 5 products
                         const suffixCode = baseCode + '-P' + i;
-                        const suffixResponse = await fetch('{{ route('assemblies.check-code') }}?code=' + 
+                        const suffixResponse = await fetch('{{ route('assemblies.check-code') }}?code=' +
                             encodeURIComponent(suffixCode));
                         const suffixData = await suffixResponse.json();
-                        
+
                         if (suffixData.exists) {
                             return false; // Conflict found
                         }
                     }
-                    
+
                     return true; // No conflicts found
                 } catch (error) {
                     console.error('Error checking code availability:', error);
@@ -873,21 +904,21 @@
                     // If pattern doesn't match, just append a number
                     return originalCode + '001';
                 }
-                
+
                 const prefix = match[1]; // ASM250613
                 let sequence = parseInt(match[2]); // 001
-                
+
                 // Try incrementing sequence until we find an available code
                 for (let attempts = 0; attempts < 100; attempts++) {
                     sequence++;
                     const newCode = prefix + sequence.toString().padStart(3, '0');
-                    
+
                     const isAvailable = await validateBaseCodeAvailability(newCode);
                     if (isAvailable) {
                         return newCode;
                     }
                 }
-                
+
                 // If we can't find an alternative, return original with timestamp
                 return originalCode + '-' + Date.now().toString().slice(-6);
             }
@@ -966,27 +997,27 @@
                         return response.json();
                     })
                     .then(data => {
-                    // Remove loading indicator
-                    const loadingElement = document.getElementById('loading-components-' + productUniqueId);
-                    if (loadingElement) loadingElement.remove();
+                        // Remove loading indicator
+                        const loadingElement = document.getElementById('loading-components-' + productUniqueId);
+                        if (loadingElement) loadingElement.remove();
 
                         if (data.success) {
                             const components = data.materials;
 
-                    if (components.length === 0) {
-                        // Show info message if no components
-                        const infoMessage = document.createElement('div');
-                        infoMessage.className = 'text-amber-500 text-sm p-3 text-center';
-                        infoMessage.innerHTML =
+                            if (components.length === 0) {
+                                // Show info message if no components
+                                const infoMessage = document.createElement('div');
+                                infoMessage.className = 'text-amber-500 text-sm p-3 text-center';
+                                infoMessage.innerHTML =
                                     '<i class="fas fa-info-circle"></i> Thành phẩm này không có linh kiện định sẵn trong hệ thống.';
-                        infoMessage.id = 'info-components-' + productUniqueId;
-                        componentBlock.appendChild(infoMessage);
+                                infoMessage.id = 'info-components-' + productUniqueId;
+                                componentBlock.appendChild(infoMessage);
 
                                 // Remove message after 5 seconds
-                        setTimeout(() => {
-                            const element = document.getElementById('info-components-' +
-                                productUniqueId);
-                            if (element) element.remove();
+                                setTimeout(() => {
+                                    const element = document.getElementById('info-components-' +
+                                        productUniqueId);
+                                    if (element) element.remove();
                                 }, 5000);
                             } else {
                                 // Store original components for change detection
@@ -1013,7 +1044,8 @@
                                         serials: material.quantity > 1 ? Array(material.quantity)
                                             .fill('') : [],
                                         productId: productUniqueId,
-                                        actualProductId: product.id, // Store actual product ID for backend
+                                        actualProductId: product
+                                        .id, // Store actual product ID for backend
                                         isFromProduct: true, // Flag to indicate this came from product BOM
                                         isOriginal: true // Flag to mark original components
                                     };
@@ -1045,7 +1077,7 @@
                                     const element = document.getElementById('success-components-' +
                                         productUniqueId);
                                     if (element) element.remove();
-                        }, 3000);
+                                }, 3000);
                             }
                         } else {
                             throw new Error(data.message || 'Lỗi khi tải linh kiện');
@@ -1093,7 +1125,7 @@
 
                 if (productComponents.length === 0) {
                     noComponentsRow.style.display = '';
-                        return;
+                    return;
                 } else {
                     noComponentsRow.style.display = 'none';
                 }
@@ -1149,6 +1181,10 @@
                                    placeholder="Ghi chú (tùy chọn)"
                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <div class="stock-warning-container"></div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 ${modifiedClass} product-unit-cell">
+                            <input type="hidden" name="components[${index}][product_unit]" value="${component.productUnit || 0}">
+                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">${component.productUnit !== undefined ? 'Đơn vị ' + (parseInt(component.productUnit) + 1) : 'Đơn vị 1'}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium ${modifiedClass}">
                             <button type="button" class="text-red-500 hover:text-red-700 delete-component" 
@@ -1257,7 +1293,7 @@
                                 addSerialInputsToCell(serialCell, component, componentIndex);
                             }
 
-                        // Check stock sufficiency
+                            // Check stock sufficiency
                             checkStockSufficiency(component);
 
                             // Check for changes and update UI
@@ -1428,7 +1464,7 @@
                 });
             }
 
-            // Add event listener for delete component buttons
+            // Add event listener for delete component buttons and product unit selection
             document.addEventListener('click', function(e) {
                 if (e.target.closest('.delete-component')) {
                     e.preventDefault();
@@ -1444,6 +1480,50 @@
                     // Update UI and check for changes
                     updateProductComponentList(productId);
                     checkAndShowCreateNewProductButton(productId);
+                }
+            });
+
+            // Add event listener for product unit selection
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('product-unit-select')) {
+                    const selectedUnit = e.target.value;
+                    const productId = e.target.getAttribute('data-product-id');
+
+                    // Update all components for this product with the selected unit
+                    const components = selectedComponents.filter(c => c.productId === productId);
+                    components.forEach(component => {
+                        component.productUnit = selectedUnit;
+
+                        // Find and update the component's row
+                        const componentRows = document.querySelectorAll('tr.component-row');
+                        componentRows.forEach(row => {
+                            const hiddenProductId = row.querySelector(
+                                'input[name*="[product_id]"]');
+                            if (hiddenProductId && hiddenProductId.value === productId) {
+                                // Update unit display
+                                const unitCell = row.querySelector('.product-unit-cell');
+                                if (unitCell) {
+                                    unitCell.textContent =
+                                        `Đơn vị ${parseInt(selectedUnit) + 1}`;
+                                }
+
+                                // Clear and reload serial dropdowns
+                                const serialCell = row.querySelector('.serial-cell');
+                                if (serialCell) {
+                                    const serialSelects = serialCell.querySelectorAll(
+                                        'select');
+                                    serialSelects.forEach(select => {
+                                        select.value = ''; // Reset selection
+                                        select.setAttribute('data-product-unit',
+                                            selectedUnit);
+                                        // Trigger serial reload
+                                        const event = new Event('click');
+                                        select.dispatchEvent(event);
+                                    });
+                                }
+                            }
+                        });
+                    });
                 }
             });
 
@@ -1465,6 +1545,7 @@
                 selectedProducts.forEach((product, index) => {
                     const row = document.createElement('tr');
                     row.className = 'product-row';
+                    row.setAttribute('data-product-id', product.uniqueId);
 
                     row.innerHTML =
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">' +
@@ -1478,9 +1559,18 @@
                         ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-quantity-input"' +
                         ' data-index="' + index + '">' +
                         '</td>' +
-                        '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 serial-cell" id="' +
+                        '<td class="px-6 py-4 text-sm text-gray-700 serial-cell" id="' +
                         product.uniqueId + '_serials">' +
-                        '<!-- Serial inputs will be added here -->' +
+                        '<div class="space-y-2">' +
+                        Array.from({
+                                length: product.quantity || 1
+                            }, (_, i) =>
+                            '<input type="text" ' +
+                            'name="products[' + index + '][serials][]" ' +
+                            'placeholder="Serial ' + (i + 1) + '" ' +
+                            'class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">'
+                        ).join('') +
+                        '</div>' +
                         '</td>' +
                         '<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">' +
                         '<button type="button" class="text-red-500 hover:text-red-700 delete-product" data-index="' +
@@ -1759,27 +1849,8 @@
 
                 const quantity = parseInt(componentAddQuantity.value) || 1;
 
-                const newComponent = {
-                    id: selectedMaterial.id,
-                    code: selectedMaterial.code,
-                    name: selectedMaterial.name,
-                    category: selectedMaterial.category,
-                    quantity: quantity,
-                    originalQuantity: quantity, // Store original quantity
-                    stock_quantity: selectedMaterial.stock_quantity || 0,
-                    serial: '',
-                    serials: [],
-                    note: '',
-                    productId: selectedProductId,
-                    actualProductId: selectedProduct.id, // Store actual product ID for backend
-                    productName: selectedProduct.name,
-                    isEditable: true // Make component quantities editable
-                };
-
-                // Check stock sufficiency
-                checkStockSufficiency(newComponent);
-
-                selectedComponents.push(newComponent);
+                // Add the component using the new function
+                const newComponent = window.addSelectedComponent(selectedMaterial, selectedProduct, quantity);
 
                 // Hiển thị thông báo thành công
                 const successMessage = document.createElement('div');
@@ -1940,98 +2011,11 @@
                         const serialCell = row.querySelector('.serial-cell');
                         addSerialInputsToCell(serialCell, component, index);
 
-                        // Add event listeners for quantity input
-                        const quantityInput = row.querySelector('.quantity-input');
-                        quantityInput.addEventListener('change', function() {
-                            const index = parseInt(this.getAttribute('data-component-index'));
-                            const comp = selectedComponents[index];
-                            if (comp) {
-                                const oldQuantity = comp.quantity;
-                                const newQuantity = parseInt(this.value) || 1;
-                                comp.quantity = newQuantity;
-                                comp.manuallyAdjusted = true;
-
-                                // Update serial inputs immediately if quantity changed
-                                if (oldQuantity !== newQuantity) {
-                                    // Adjust serials array length
-                                    if (newQuantity === 1) {
-                                        // If quantity becomes 1, use first serial from array as single serial
-                                        comp.serial = (comp.serials && comp.serials[0]) || '';
-                                        comp.serials = [];
-                                    } else if (newQuantity > 1) {
-                                        // If quantity > 1, ensure serials array has correct length
-                                        if (!comp.serials) comp.serials = [];
-
-                                        // If switching from single to multiple, move serial to first array position
-                                        if (oldQuantity === 1 && comp.serial) {
-                                            comp.serials[0] = comp.serial;
-                                            comp.serial = '';
-                                        }
-
-                                        // Adjust array length
-                                        if (newQuantity > comp.serials.length) {
-                                            // Add empty serials if quantity increased
-                                            const additionalSerials = Array(newQuantity - comp
-                                                .serials.length).fill('');
-                                            comp.serials = [...comp.serials, ...additionalSerials];
-                                        } else if (newQuantity < comp.serials.length) {
-                                            // Trim array if quantity decreased
-                                            comp.serials = comp.serials.slice(0, newQuantity);
-                                        }
-                                    }
-
-                                    // Update serial inputs in the current row
-                                    const serialCell = row.querySelector('.serial-cell');
-                                    addSerialInputsToCell(serialCell, comp, index);
-                                }
-
-                                // Check if quantity differs from original formula
-                                checkAndShowCreateNewProductButton(comp.productId);
-
-                                checkStockSufficiency(comp);
-
-                                // Update stock warning display in current row
-                                const stockWarningDiv = row.querySelector('.stock-warning');
-                                if (stockWarningDiv) {
-                                    stockWarningDiv.remove();
-                                }
-
-                                if (comp.stockWarning) {
-                                    const stockWarning = document.createElement('div');
-                                    stockWarning.className =
-                                        'text-xs text-red-500 mt-1 stock-warning';
-                                    stockWarning.textContent = 'Không đủ tồn kho: ' + comp
-                                        .stock_quantity + ' < ' + comp.quantity;
-                                    this.parentNode.appendChild(stockWarning);
-                                }
-
-                                // Update hidden component list for form submission  
-                                updateHiddenComponentList();
-                                updateHiddenProductList();
-                            }
-                        });
-
-                        // Add event listeners for note input
-                        const noteInput = row.querySelector('.note-input');
-                        if (noteInput) {
-                            noteInput.addEventListener('input', function() {
-                                const index = parseInt(this.getAttribute('data-component-index'));
-                                const comp = selectedComponents[index];
-                                if (comp) {
-                                    comp.note = this.value;
-                                }
-                            });
+                        // Add product unit selector
+                        const productUnitCell = row.querySelector('.product-unit-cell');
+                        if (productUnitCell) {
+                            addProductUnitSelector(productUnitCell, component, index);
                         }
-
-                        // Add event listeners for delete button
-                        const deleteBtn = row.querySelector('.delete-component');
-                        deleteBtn.addEventListener('click', function() {
-                            const index = parseInt(this.getAttribute('data-index'));
-                            if (index >= 0 && index < selectedComponents.length) {
-                                selectedComponents.splice(index, 1);
-                                updateComponentList();
-                            }
-                        });
                     });
 
                     // Check and show create new product button for this product after updating components
@@ -2103,6 +2087,8 @@
                         '<input type="hidden" name="components[' + index + '][quantity]" value="' + (
                             component
                             .quantity || 1) + '">' +
+                        '<input type="hidden" name="components[' + index + '][product_unit]" value="' + (
+                            component.productUnit || 0) + '">' +
                         serialHtml +
                         '<input type="hidden" name="components[' + index + '][note]" value="' + (component
                             .note || '') +
@@ -2114,7 +2100,7 @@
             }
 
             // Update hidden product list for form submission
-            function updateHiddenProductList() {
+            window.updateHiddenProductList = function() {
                 // Remove existing hidden product inputs
                 const existingProductInputs = document.querySelectorAll('input[name^="products["]');
                 existingProductInputs.forEach(input => input.remove());
@@ -2163,9 +2149,10 @@
                 cell.innerHTML = '';
 
                 const quantity = parseInt(component.quantity) || 1;
-                
+
                 // Generate unique identifier for this component instance
-                const componentInstanceId = 'comp_' + component.id + '_' + component.productId + '_' + index + '_' + Date.now();
+                const componentInstanceId = 'comp_' + component.id + '_' + component.productId + '_' + index + '_' +
+                    Date.now();
 
                 // If quantity is 1, show single serial dropdown
                 if (quantity === 1) {
@@ -2175,10 +2162,13 @@
                     // Create select dropdown
                     const selectElement = document.createElement('select');
                     selectElement.name = 'components[' + index + '][serial]';
-                    selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                    selectElement.className =
+                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
                     selectElement.setAttribute('data-material-id', component.id);
                     selectElement.setAttribute('data-component-index', index);
                     selectElement.setAttribute('data-instance-id', componentInstanceId);
+                    selectElement.setAttribute('data-product-id', component.actualProductId);
+                    selectElement.setAttribute('data-product-unit', component.productUnit || 0);
                     selectElement.id = componentInstanceId + '_select';
 
                     // Add default option
@@ -2200,7 +2190,7 @@
                     selectElement.addEventListener('change', function() {
                         const selectedOption = this.options[this.selectedIndex];
                         component.serial = this.value;
-                        
+
                         if (selectedOption.dataset.serialId) {
                             component.serial_id = selectedOption.dataset.serialId;
                             serialIdInput.value = selectedOption.dataset.serialId;
@@ -2208,7 +2198,7 @@
                             component.serial_id = '';
                             serialIdInput.value = '';
                         }
-                        
+
                         // Reload all other serial dropdowns to hide selected serials
                         setTimeout(() => {
                             reloadAllComponentSerials(this);
@@ -2231,11 +2221,14 @@
                         // Create select dropdown for each serial
                         const selectElement = document.createElement('select');
                         selectElement.name = 'components[' + index + '][serials][]';
-                        selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                        selectElement.className =
+                            'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
                         selectElement.setAttribute('data-material-id', component.id);
                         selectElement.setAttribute('data-component-index', index);
                         selectElement.setAttribute('data-serial-index', i);
                         selectElement.setAttribute('data-instance-id', componentInstanceId);
+                        selectElement.setAttribute('data-product-id', component.actualProductId);
+                        selectElement.setAttribute('data-product-unit', component.productUnit || 0);
                         selectElement.id = componentInstanceId + '_select_' + i;
 
                         // Add default option
@@ -2256,12 +2249,12 @@
                         // Add event listener for select change
                         selectElement.addEventListener('change', function() {
                             const selectedOption = this.options[this.selectedIndex];
-                            
+
                             if (!component.serials) component.serials = [];
                             if (!component.serial_ids) component.serial_ids = [];
-                            
+
                             component.serials[i] = this.value;
-                            
+
                             if (selectedOption.dataset.serialId) {
                                 component.serial_ids[i] = selectedOption.dataset.serialId;
                                 serialIdInput.value = selectedOption.dataset.serialId;
@@ -2269,7 +2262,7 @@
                                 component.serial_ids[i] = '';
                                 serialIdInput.value = '';
                             }
-                            
+
                             // Reload all other serial dropdowns to hide selected serials
                             setTimeout(() => {
                                 reloadAllComponentSerials(this);
@@ -2295,8 +2288,8 @@
                 const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
                 if (!product || !product.originalComponents) {
                     // Fallback to old logic if no original components available
-                const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
-                return productComponents.some(component => component.quantity !== component.originalQuantity);
+                    const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
+                    return productComponents.some(component => component.quantity !== component.originalQuantity);
                 }
 
                 const currentComponents = selectedComponents.filter(c => c.productId === productUniqueId);
@@ -2424,13 +2417,21 @@
                 // Update hidden form data before validation
                 updateHiddenComponentList();
                 updateHiddenProductList();
-                
+
                 // Debug: Log data structure before submit
                 console.log('Submit Data Debug:', {
                     selectedProducts: selectedProducts,
                     selectedComponents: selectedComponents,
-                    hiddenProductInputs: Array.from(document.querySelectorAll('input[name^="products["]')).map(i => ({name: i.name, value: i.value})),
-                    hiddenComponentInputs: Array.from(document.querySelectorAll('input[name^="components["]')).map(i => ({name: i.name, value: i.value}))
+                    hiddenProductInputs: Array.from(document.querySelectorAll(
+                        'input[name^="products["]')).map(i => ({
+                        name: i.name,
+                        value: i.value
+                    })),
+                    hiddenComponentInputs: Array.from(document.querySelectorAll(
+                        'input[name^="components["]')).map(i => ({
+                        name: i.name,
+                        value: i.value
+                    }))
                 });
 
                 // Kiểm tra mã phiếu có hợp lệ không
@@ -2476,9 +2477,9 @@
 
                     if (serialValues.length > 0) {
                         const uniqueSerials = new Set(serialValues);
-                    if (serialValues.length !== uniqueSerials.size) {
-                        hasSerialError = true;
-                    }
+                        if (serialValues.length !== uniqueSerials.size) {
+                            hasSerialError = true;
+                        }
                     }
                 });
 
@@ -2533,7 +2534,7 @@
             warehouseSelect.addEventListener('change', function() {
                 // Clear material serials cache when warehouse changes
                 materialSerialsCache = {};
-                
+
                 fetchWarehouseMaterials(this.value);
 
                 // Fetch stock data when warehouse changes
@@ -2635,40 +2636,40 @@
             // Function to get all currently selected serials (excluding specific element)
             function getAllSelectedSerials(excludeElement = null) {
                 const selectedSerials = new Set();
-                
+
                 // Get serials from all select dropdowns
                 document.querySelectorAll('select[data-material-id]').forEach(selectElement => {
                     // Skip if this is the element we want to exclude
                     if (excludeElement && selectElement === excludeElement) {
                         return;
                     }
-                    
+
                     if (selectElement.value && selectElement.value !== '') {
                         selectedSerials.add(selectElement.value);
                     }
                 });
-                
+
                 return selectedSerials;
             }
 
             // Cache for material serials to avoid repeated API calls
             let materialSerialsCache = {};
-            
+
             // Debug function (can be removed in production)
             function debugSerialState() {
                 console.group('Serial Dropdowns Debug');
                 const dropdowns = document.querySelectorAll('select[data-material-id]');
                 const materialGroups = {};
-                
+
                 dropdowns.forEach((dropdown, index) => {
                     const materialId = dropdown.getAttribute('data-material-id');
                     const instanceId = dropdown.getAttribute('data-instance-id');
                     const value = dropdown.value;
-                    
+
                     if (!materialGroups[materialId]) {
                         materialGroups[materialId] = [];
                     }
-                    
+
                     materialGroups[materialId].push({
                         index,
                         instanceId,
@@ -2677,81 +2678,88 @@
                         dropdown
                     });
                 });
-                
+
                 Object.keys(materialGroups).forEach(materialId => {
                     console.group(`Material ID: ${materialId}`);
                     materialGroups[materialId].forEach(info => {
-                        console.log(`Instance ${info.instanceId}: Value="${info.value}", Options=${info.optionCount}`);
+                        console.log(
+                            `Instance ${info.instanceId}: Value="${info.value}", Options=${info.optionCount}`
+                            );
                     });
                     console.groupEnd();
                 });
-                
+
                 console.log('Cache:', materialSerialsCache);
                 console.groupEnd();
             }
-            
+
             // Add debug button in development (can be removed in production)
             if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
                 document.addEventListener('DOMContentLoaded', function() {
                     const debugBtn = document.createElement('button');
                     debugBtn.textContent = 'Debug Serials';
                     debugBtn.type = 'button';
-                    debugBtn.className = 'fixed bottom-4 right-4 bg-red-500 text-white px-3 py-2 rounded text-xs z-50';
+                    debugBtn.className =
+                        'fixed bottom-4 right-4 bg-red-500 text-white px-3 py-2 rounded text-xs z-50';
                     debugBtn.onclick = debugSerialState;
                     document.body.appendChild(debugBtn);
                 });
             }
-            
+
             // Function to reload serials for all components (excluding specific element)
             function reloadAllComponentSerials(excludeElement = null) {
-                // Group selects by material ID to process them together
-                const selectsByMaterial = {};
-                
-                document.querySelectorAll('select[data-material-id]').forEach(selectElement => {
+                // Group selects by material ID and product unit to process them together
+                const selectsByMaterialAndUnit = {};
+
+                document.querySelectorAll('.product-serial-select').forEach(selectElement => {
                     // Skip if this is the element we want to exclude
                     if (excludeElement && selectElement === excludeElement) {
                         return;
                     }
-                    
+
                     const materialId = selectElement.getAttribute('data-material-id');
-                    if (!selectsByMaterial[materialId]) {
-                        selectsByMaterial[materialId] = [];
+                    const productUnit = selectElement.getAttribute('data-product-unit') || '0';
+                    const key = `${materialId}_${productUnit}`;
+
+                    if (!selectsByMaterialAndUnit[key]) {
+                        selectsByMaterialAndUnit[key] = [];
                     }
-                    selectsByMaterial[materialId].push(selectElement);
+                    selectsByMaterialAndUnit[key].push(selectElement);
                 });
-                
-                // Process each material group
-                Object.keys(selectsByMaterial).forEach(materialId => {
-                    const selects = selectsByMaterial[materialId];
-                    reloadSerialsForMaterialGroup(materialId, selects);
+
+                // Process each material group by product unit
+                Object.keys(selectsByMaterialAndUnit).forEach(key => {
+                    const [materialId, productUnit] = key.split('_');
+                    const selects = selectsByMaterialAndUnit[key];
+                    reloadSerialsForMaterialGroup(materialId, selects, productUnit);
                 });
             }
-            
-            // Function to reload serials for a group of selects with the same material
-            async function reloadSerialsForMaterialGroup(materialId, selectElements) {
+
+            // Function to reload serials for a group of selects with the same material and product unit
+            async function reloadSerialsForMaterialGroup(materialId, selectElements, productUnit = '0') {
                 const warehouseId = document.getElementById('warehouse_id').value;
                 if (!warehouseId) {
                     return;
                 }
-                
-                const cacheKey = `${materialId}_${warehouseId}`;
-                
+
+                const cacheKey = `${materialId}_${warehouseId}_${productUnit}`;
+
                 try {
                     let serials;
-                    
+
                     // Check cache first
                     if (materialSerialsCache[cacheKey]) {
                         serials = materialSerialsCache[cacheKey];
                     } else {
                         // Fetch from API
-                        const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                        const response = await fetch('{{ route('assemblies.material-serials') }}?' +
                             new URLSearchParams({
                                 material_id: materialId,
                                 warehouse_id: warehouseId
                             }));
-                        
+
                         const data = await response.json();
-                        
+
                         if (data.success && data.serials) {
                             serials = data.serials;
                             // Cache the result for 30 seconds
@@ -2763,7 +2771,7 @@
                             serials = [];
                         }
                     }
-                    
+
                     // Get all currently selected serials for this material
                     const selectedSerials = new Set();
                     selectElements.forEach(select => {
@@ -2771,39 +2779,40 @@
                             selectedSerials.add(select.value);
                         }
                     });
-                    
+
                     // Update each select element
                     selectElements.forEach(selectElement => {
                         const currentValue = selectElement.value;
                         const componentIndex = selectElement.getAttribute('data-component-index');
                         const serialIndex = selectElement.getAttribute('data-serial-index');
-                        
+
                         // Clear existing options except the first default one
                         while (selectElement.children.length > 1) {
                             selectElement.removeChild(selectElement.lastChild);
                         }
-                        
+
                         // Add serial options
                         serials.forEach(serial => {
                             // Skip this serial if it's already selected in another dropdown of the same material
                             // BUT allow it if it's the current value of this dropdown
-                            if (selectedSerials.has(serial.serial_number) && serial.serial_number !== currentValue) {
+                            if (selectedSerials.has(serial.serial_number) && serial
+                                .serial_number !== currentValue) {
                                 return;
                             }
-                            
+
                             const option = document.createElement('option');
                             option.value = serial.serial_number;
                             option.textContent = serial.serial_number;
                             option.dataset.serialId = serial.id;
-                            
+
                             // Restore selected value if it matches
                             if (currentValue === serial.serial_number) {
                                 option.selected = true;
                             }
-                            
+
                             selectElement.appendChild(option);
                         });
-                        
+
                         // If no serials available, show message
                         if (serials.length === 0) {
                             const noSerialOption = document.createElement('option');
@@ -2812,14 +2821,15 @@
                             selectElement.appendChild(noSerialOption);
                         }
                     });
-                    
+
                 } catch (error) {
                     console.error('Error reloading serials for material', materialId, ':', error);
                 }
             }
 
             // Function to load serials for multiple select (quantity > 1)
-            async function loadSerialsForMultipleSelect(selectElement, serialIdInput, component, index, serialIndex) {
+            async function loadSerialsForMultipleSelect(selectElement, serialIdInput, component, index,
+            serialIndex) {
                 const warehouseId = document.getElementById('warehouse_id').value;
                 if (!warehouseId) {
                     return; // Don't load if no warehouse selected
@@ -2829,7 +2839,7 @@
                 const loadingOption = document.createElement('option');
                 loadingOption.textContent = 'Đang tải...';
                 loadingOption.disabled = true;
-                
+
                 // Clear and add loading option
                 while (selectElement.children.length > 1) {
                     selectElement.removeChild(selectElement.lastChild);
@@ -2837,41 +2847,45 @@
                 selectElement.appendChild(loadingOption);
 
                 try {
-                    const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                    const response = await fetch('{{ route('assemblies.material-serials') }}?' +
                         new URLSearchParams({
                             material_id: component.id,
                             warehouse_id: warehouseId
                         }));
-                    
+
                     const data = await response.json();
-                    
+
                     // Remove loading option
                     selectElement.removeChild(loadingOption);
-                    
+
                     if (data.success && data.serials.length > 0) {
                         // Get currently selected serials from all dropdowns for this material (excluding this one)
                         const allSelectedSerials = new Set();
-                        document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(otherSelect => {
-                            if (otherSelect !== selectElement && otherSelect.value && otherSelect.value !== '') {
-                                allSelectedSerials.add(otherSelect.value);
-                            }
-                        });
-                        
+                        document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(
+                            otherSelect => {
+                                if (otherSelect !== selectElement && otherSelect.value && otherSelect
+                                    .value !== '') {
+                                    allSelectedSerials.add(otherSelect.value);
+                                }
+                            });
+
                         // Add serial options
                         data.serials.forEach(serial => {
                             // Skip this serial if it's already selected in another dropdown of the same material
                             if (allSelectedSerials.has(serial.serial_number)) {
                                 return; // Skip this serial
                             }
-                            
+
                             const option = document.createElement('option');
                             option.value = serial.serial_number;
                             option.textContent = serial.serial_number;
                             option.dataset.serialId = serial.id;
-                            
+
                             // Select this option if it matches component's current serial for this index
-                            if ((component.serials && component.serials[serialIndex] === serial.serial_number) || 
-                                (component.serial_ids && component.serial_ids[serialIndex] == serial.id)) {
+                            if ((component.serials && component.serials[serialIndex] === serial
+                                    .serial_number) ||
+                                (component.serial_ids && component.serial_ids[serialIndex] == serial.id)
+                                ) {
                                 option.selected = true;
                                 selectElement.value = serial.serial_number;
                                 if (!component.serials) component.serials = [];
@@ -2880,7 +2894,7 @@
                                 component.serial_ids[serialIndex] = serial.id;
                                 serialIdInput.value = serial.id;
                             }
-                            
+
                             selectElement.appendChild(option);
                         });
                     } else {
@@ -2914,7 +2928,7 @@
                 const loadingOption = document.createElement('option');
                 loadingOption.textContent = 'Đang tải...';
                 loadingOption.disabled = true;
-                
+
                 // Clear and add loading option
                 while (selectElement.children.length > 1) {
                     selectElement.removeChild(selectElement.lastChild);
@@ -2922,25 +2936,27 @@
                 selectElement.appendChild(loadingOption);
 
                 try {
-                    const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                    const response = await fetch('{{ route('assemblies.material-serials') }}?' +
                         new URLSearchParams({
                             material_id: component.id,
                             warehouse_id: warehouseId
                         }));
-                    
+
                     const data = await response.json();
-                    
+
                     // Remove loading option
                     selectElement.removeChild(loadingOption);
-                    
+
                     if (data.success && data.serials.length > 0) {
                         // Get currently selected serials from all dropdowns for this material (excluding this one)
                         const allSelectedSerials = new Set();
-                        document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(otherSelect => {
-                            if (otherSelect !== selectElement && otherSelect.value && otherSelect.value !== '') {
-                                allSelectedSerials.add(otherSelect.value);
-                            }
-                        });
+                        document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(
+                            otherSelect => {
+                                if (otherSelect !== selectElement && otherSelect.value && otherSelect
+                                    .value !== '') {
+                                    allSelectedSerials.add(otherSelect.value);
+                                }
+                            });
 
                         // Add serial options
                         data.serials.forEach(serial => {
@@ -2948,21 +2964,22 @@
                             if (allSelectedSerials.has(serial.serial_number)) {
                                 return; // Skip this serial
                             }
-                            
+
                             const option = document.createElement('option');
                             option.value = serial.serial_number;
                             option.textContent = serial.serial_number;
                             option.dataset.serialId = serial.id;
-                            
+
                             // Select this option if it matches component's current serial
-                            if (component.serial === serial.serial_number || component.serial_id == serial.id) {
+                            if (component.serial === serial.serial_number || component.serial_id ==
+                                serial.id) {
                                 option.selected = true;
                                 selectElement.value = serial.serial_number;
                                 component.serial = serial.serial_number;
                                 component.serial_id = serial.id;
                                 serialIdInput.value = serial.id;
                             }
-                            
+
                             selectElement.appendChild(option);
                         });
                     } else {
@@ -2994,14 +3011,14 @@
                 }
 
                 try {
-                    const response = await fetch('{{ route("assemblies.material-serials") }}?' + 
+                    const response = await fetch('{{ route('assemblies.material-serials') }}?' +
                         new URLSearchParams({
                             material_id: component.id,
                             warehouse_id: warehouseId
                         }));
-                    
+
                     const data = await response.json();
-                    
+
                     if (!data.success) {
                         alert('Lỗi khi lấy danh sách serial: ' + data.message);
                         return;
@@ -3014,22 +3031,24 @@
 
                     // Create dropdown modal
                     const modal = document.createElement('div');
-                    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-                    
+                    modal.className =
+                        'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+
                     const modalContent = document.createElement('div');
                     modalContent.className = 'bg-white rounded-lg p-6 w-96 max-h-96 overflow-y-auto';
-                    
+
                     const title = document.createElement('h3');
                     title.className = 'text-lg font-medium mb-4';
                     title.textContent = 'Chọn Serial';
-                    
+
                     const serialList = document.createElement('div');
                     serialList.className = 'space-y-2';
-                    
+
                     // Add serial options
                     data.serials.forEach(serial => {
                         const option = document.createElement('div');
-                        option.className = 'p-2 border rounded cursor-pointer hover:bg-blue-50 hover:border-blue-300';
+                        option.className =
+                            'p-2 border rounded cursor-pointer hover:bg-blue-50 hover:border-blue-300';
                         option.textContent = serial.serial_number;
                         option.addEventListener('click', function() {
                             input.value = serial.serial_number;
@@ -3040,28 +3059,28 @@
                         });
                         serialList.appendChild(option);
                     });
-                    
+
                     const cancelBtn = document.createElement('button');
                     cancelBtn.className = 'mt-4 px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400';
                     cancelBtn.textContent = 'Hủy';
                     cancelBtn.addEventListener('click', function() {
                         document.body.removeChild(modal);
                     });
-                    
+
                     modalContent.appendChild(title);
                     modalContent.appendChild(serialList);
                     modalContent.appendChild(cancelBtn);
                     modal.appendChild(modalContent);
-                    
+
                     // Close modal when clicking outside
                     modal.addEventListener('click', function(e) {
                         if (e.target === modal) {
                             document.body.removeChild(modal);
                         }
                     });
-                    
+
                     document.body.appendChild(modal);
-                    
+
                 } catch (error) {
                     console.error('Error fetching serials:', error);
                     alert('Lỗi khi lấy danh sách serial');
@@ -3071,15 +3090,19 @@
             // Function to check serial via API
             async function checkSerialExists(serial, productId, assemblyId = null) {
                 if (!serial || !serial.trim() || !productId) {
-                    return { exists: false, message: '' };
+                    return {
+                        exists: false,
+                        message: ''
+                    };
                 }
 
                 try {
-                    const response = await fetch('{{ route("api.check-serial") }}', {
+                    const response = await fetch('{{ route('api.check-serial') }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content')
                         },
                         body: JSON.stringify({
                             serial: serial.trim(),
@@ -3092,7 +3115,11 @@
                     return data;
                 } catch (error) {
                     console.error('Error checking serial:', error);
-                    return { exists: false, message: '', error: true };
+                    return {
+                        exists: false,
+                        message: '',
+                        error: true
+                    };
                 }
             }
 
@@ -3111,7 +3138,7 @@
                 } else {
                     input.classList.remove('border-green-500');
                     input.classList.add('border-red-500', 'bg-red-50');
-                    
+
                     // Add error message
                     const msgDiv = document.createElement('div');
                     msgDiv.className = 'serial-validation-msg text-xs text-red-600 mt-1';
@@ -3126,13 +3153,13 @@
 
                 input.addEventListener('input', function() {
                     const serial = this.value.trim();
-                    
+
                     // Clear previous timeout
                     clearTimeout(validationTimeout);
-                    
+
                     // Reset styling
                     this.classList.remove('border-red-500', 'border-green-500', 'bg-red-50');
-                    
+
                     // Remove existing validation message
                     const existingMsg = this.parentNode.querySelector('.serial-validation-msg');
                     if (existingMsg) {
@@ -3145,13 +3172,13 @@
 
                     // Show loading state
                     this.classList.add('border-blue-300');
-                    
+
                     // Debounce validation
                     validationTimeout = setTimeout(async () => {
                         const result = await checkSerialExists(serial, productId);
-                        
+
                         this.classList.remove('border-blue-300');
-                        
+
                         if (result.error) {
                             showSerialValidation(this, false, 'Lỗi kiểm tra serial');
                             return;
@@ -3171,7 +3198,7 @@
                     if (!serial) return;
 
                     const result = await checkSerialExists(serial, productId);
-                    
+
                     if (result.error) {
                         showSerialValidation(this, false, 'Lỗi kiểm tra serial');
                         return;
@@ -3205,7 +3232,8 @@
                     input.type = 'text';
                     input.value = product.serials[i] || '';
                     input.placeholder = quantity > 1 ? `Serial ${i + 1} (tùy chọn)` : 'Serial (tùy chọn)';
-                    input.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+                    input.className =
+                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
 
                     // Add event listener to update product.serials array
                     input.addEventListener('input', function() {
@@ -3254,7 +3282,7 @@
             setTimeout(addValidationToExistingProductSerials, 1000);
 
             // Check for success message from server and show SweetAlert2
-            @if(session('success'))
+            @if (session('success'))
                 Swal.fire({
                     icon: 'success',
                     title: 'Thành công!',
@@ -3269,7 +3297,7 @@
             @endif
 
             // Check for error message from server and show SweetAlert2
-            @if(session('error'))
+            @if (session('error'))
                 Swal.fire({
                     icon: 'error',
                     title: 'Lỗi!',
@@ -3277,6 +3305,429 @@
                     confirmButtonText: 'OK'
                 });
             @endif
+
+            // Function to add a new component to a product
+            function addSelectedComponent() {
+                if (!selectedMaterial || !selectedProduct) {
+                    alert('Vui lòng chọn linh kiện và sản phẩm trước khi thêm!');
+                    return;
+                }
+
+                const selectedProductId = selectedProduct.uniqueId;
+                const quantity = parseInt(componentAddQuantity.value) || 1;
+
+                // Create new component object
+                const newComponent = {
+                    id: selectedMaterial.id,
+                    code: selectedMaterial.code,
+                    name: selectedMaterial.name,
+                    category: selectedMaterial.category,
+                    quantity: quantity,
+                    originalQuantity: quantity, // Store original quantity
+                    stock_quantity: selectedMaterial.stock_quantity || 0,
+                    serial: '',
+                    serials: [],
+                    note: '',
+                    productId: selectedProductId,
+                    actualProductId: selectedProduct.id, // Store actual product ID for backend
+                    productName: selectedProduct.name,
+                    isEditable: true, // Make component quantities editable
+                    productUnit: 0 // Default to first product unit (0)
+                };
+
+                // Check if material already exists for this product
+                const existingIndex = selectedComponents.findIndex(
+                    comp => comp.id === newComponent.id && comp.productId === newComponent.productId
+                );
+
+                if (existingIndex >= 0) {
+                    // Ask user if they want to update quantity or add a duplicate
+                    const updateQuantity = confirm(
+                        `Linh kiện "${newComponent.name}" đã tồn tại cho sản phẩm "${newComponent.productName}". Bạn muốn cập nhật số lượng thay vì thêm mới?`
+                    );
+
+                    if (updateQuantity) {
+                        // Update quantity of existing component
+                        selectedComponents[existingIndex].quantity += newComponent.quantity;
+                        selectedComponents[existingIndex].manuallyAdjusted = true;
+
+                        // Update UI
+                        updateComponentList();
+                        return;
+                    }
+                }
+
+                // Add new component
+                selectedComponents.push(newComponent);
+
+                // Check stock sufficiency
+                checkStockSufficiency(newComponent);
+
+                // Cập nhật giao diện
+                updateComponentList();
+
+                // Tự động cuộn đến block của thành phẩm
+                const componentBlock = document.getElementById('component_block_' + selectedProductId);
+                if (componentBlock) {
+                    componentBlock.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
+                }
+
+                // Clear search
+                componentSearchInput.value = '';
+                componentAddQuantity.value = '1';
+                searchResults.classList.add('hidden');
+                selectedMaterial = null;
+            }
+
+            // Function to add product unit selector to a cell
+            window.addProductUnitSelector = function(cell, component, index) {
+                // Clear existing content
+                cell.innerHTML = '';
+
+                // Get the product for this component
+                const product = selectedProducts.find(p => p.uniqueId === component.productId);
+                if (!product) return;
+
+                const productQuantity = parseInt(product.quantity) || 1;
+
+                // Create select element
+                const selectElement = document.createElement('select');
+                selectElement.name = `components[${index}][product_unit]`;
+                selectElement.className =
+                    'w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select';
+                selectElement.setAttribute('data-component-index', index);
+                selectElement.setAttribute('data-material-id', component.id);
+                selectElement.setAttribute('data-product-id', component.actualProductId);
+                                 selectElement.setAttribute('onchange', 'handleProductUnitChange(this)');
+
+                // Add options for each product unit
+                for (let i = 0; i < productQuantity; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = `Đơn vị ${i + 1}`;
+
+                    // Get product serial if available
+                    const productSerials = product.serials || [];
+                    if (productSerials[i]) {
+                        option.textContent += ` (Serial: ${productSerials[i]})`;
+                    }
+
+                    // Select current product unit
+                    if (i === (component.productUnit || 0)) {
+                        option.selected = true;
+                    }
+
+                    selectElement.appendChild(option);
+                }
+
+                // Add event listener to update serials when product unit changes
+                selectElement.addEventListener('change', function() {
+                    const componentIndex = parseInt(this.getAttribute('data-component-index'));
+                    const component = selectedComponents[componentIndex];
+                    if (component) {
+                        component.productUnit = parseInt(this.value) || 0;
+
+                        // Update serial inputs for this component
+                        const row = this.closest('tr');
+                        if (row) {
+                            const serialCell = row.querySelector('.serial-cell');
+                            if (serialCell) {
+                                addSerialInputsToCell(serialCell, component, componentIndex);
+                            }
+                        }
+                    }
+                });
+
+                cell.appendChild(selectElement);
+                
+                // Add a visible badge showing the current unit
+                const badge = document.createElement('div');
+                badge.className = 'mt-2 inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800';
+                badge.textContent = `Đơn vị ${parseInt(component.productUnit || 0) + 1}`;
+                cell.appendChild(badge);
+
+                // Add visual indicator of product unit (hidden since we now have a badge)
+                const indicator = document.createElement('div');
+                indicator.className =
+                    `product-unit-indicator product-unit-${component.productUnit || 0}-bg mt-2 text-xs hidden`;
+                indicator.innerHTML =
+                    `<i class="fas fa-link mr-1"></i> Đơn vị ${parseInt(component.productUnit || 0) + 1}`;
+                indicator.setAttribute('data-product-id', component.productId);
+
+                // Get product serial if available
+                const productSerials = product.serials || [];
+                if (productSerials[component.productUnit || 0]) {
+                    indicator.innerHTML +=
+                        ` (Serial: <strong>${productSerials[component.productUnit || 0]}</strong>)`;
+                }
+
+                cell.appendChild(indicator);
+            }
+
+            // Update component list to allow editing quantities
+            function updateComponentList() {
+                // Group components by product
+                const componentsByProduct = {};
+
+                // Initialize empty arrays for each product
+                selectedProducts.forEach(product => {
+                    componentsByProduct[product.uniqueId] = [];
+                });
+
+                // Group components by product ID
+                selectedComponents.forEach(component => {
+                    if (componentsByProduct[component.productId]) {
+                        componentsByProduct[component.productId].push(component);
+                    }
+                });
+
+                // Update each product's component list
+                for (const [productId, components] of Object.entries(componentsByProduct)) {
+                    const componentList = document.getElementById('component_list_' + productId);
+                    if (!componentList) continue;
+
+                    // Clear current components (except for empty state row)
+                    const emptyRow = document.getElementById('no_components_row_' + productId);
+                    while (componentList.firstChild) {
+                        componentList.removeChild(componentList.firstChild);
+                    }
+
+                    // Add empty row back
+                    componentList.appendChild(emptyRow);
+
+                    // Show or hide the empty row
+                    if (components.length > 0) {
+                        emptyRow.style.display = 'none';
+                    } else {
+                        emptyRow.style.display = '';
+                        continue; // Skip to next product if no components
+                    }
+
+                    // Add each component
+                    components.forEach((component, index) => {
+                        const row = document.createElement('tr');
+
+                        // Add stock warning if needed
+                        const stockWarningHtml = component.stockWarning ?
+                            '<div class="text-xs text-red-500 mt-1 stock-warning">Không đủ tồn kho: ' +
+                            component
+                            .stock_quantity +
+                            ' < ' + component.quantity + '</div>' :
+                            '';
+
+                        // Editable quantity input
+                        const quantityInputHtml =
+                            '<input type="number" min="1" step="1" name="components[' + index +
+                            '][quantity]" value="' + (
+                                component.quantity || 1) + '"' +
+                            ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 quantity-input"' +
+                            ' data-component-index="' + selectedComponents.indexOf(component) + '">';
+
+                        // Set row HTML
+                        row.innerHTML =
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">' +
+                            '<input type="hidden" name="components[' + index + '][id]" value="' + component
+                            .id + '">' +
+                            '<input type="hidden" name="components[' + index + '][product_id]" value="' +
+                            component
+                            .productId + '">' +
+                            component.code +
+                            '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' + component
+                            .category +
+                            '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
+                            component.name +
+                            '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
+                            quantityInputHtml +
+                            stockWarningHtml +
+                            '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 serial-cell">' +
+                            '<!-- Serial inputs will be added here -->' +
+                            '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
+                            '<input type="text" name="components[${index}][note]" value="' + (component
+                                .note ||
+                                '') + '"' +
+                            ' class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 note-input"' +
+                            ' placeholder="Ghi chú" data-component-index="' + selectedComponents.indexOf(
+                                component) + '">' +
+                            '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm font-medium">' +
+                            '<button type="button" class="text-red-500 hover:text-red-700 delete-component" ' +
+                            'data-index="' + selectedComponents.indexOf(component) + '">' +
+                            '<i class="fas fa-trash"></i>' +
+                            '</button>' +
+                            '</td>';
+
+                        componentList.appendChild(row);
+
+                        // Add serial inputs for this component
+                        const serialCell = row.querySelector('.serial-cell');
+                        addSerialInputsToCell(serialCell, component, index);
+
+                        // Add product unit selector
+                        const productUnitCell = row.querySelector('.product-unit-cell');
+                        if (productUnitCell) {
+                            addProductUnitSelector(productUnitCell, component, index);
+                        }
+
+                        // Add event listeners for quantity input
+                        const quantityInput = row.querySelector('.quantity-input');
+                        quantityInput.addEventListener('change', function() {
+                            const index = parseInt(this.getAttribute('data-component-index'));
+                            const comp = selectedComponents[index];
+                            if (comp) {
+                                const oldQuantity = comp.quantity;
+                                const newQuantity = parseInt(this.value) || 1;
+                                comp.quantity = newQuantity;
+                                comp.manuallyAdjusted = true;
+
+                                // Update serial inputs immediately if quantity changed
+                                if (oldQuantity !== newQuantity) {
+                                    // Adjust serials array length
+                                    if (newQuantity === 1) {
+                                        // If quantity becomes 1, use first serial from array as single serial
+                                        comp.serial = (comp.serials && comp.serials[0]) || '';
+                                        comp.serials = [];
+                                    } else if (newQuantity > 1) {
+                                        // If quantity > 1, ensure serials array has correct length
+                                        if (!comp.serials) comp.serials = [];
+
+                                        // If switching from single to multiple, move serial to first array position
+                                        if (oldQuantity === 1 && comp.serial) {
+                                            comp.serials[0] = comp.serial;
+                                            comp.serial = '';
+                                        }
+
+                                        // Adjust array length
+                                        if (newQuantity > comp.serials.length) {
+                                            // Add empty serials if quantity increased
+                                            const additionalSerials = Array(newQuantity - comp
+                                                .serials.length).fill('');
+                                            comp.serials = [...comp.serials, ...additionalSerials];
+                                        } else if (newQuantity < comp.serials.length) {
+                                            // Trim array if quantity decreased
+                                            comp.serials = comp.serials.slice(0, newQuantity);
+                                        }
+                                    }
+
+                                    // Update serial inputs in the current row
+                                    const serialCell = row.querySelector('.serial-cell');
+                                    addSerialInputsToCell(serialCell, comp, index);
+                                }
+
+                                // Check if quantity differs from original formula
+                                checkAndShowCreateNewProductButton(comp.productId);
+
+                                checkStockSufficiency(comp);
+
+                                // Update stock warning display in current row
+                                const stockWarningDiv = row.querySelector('.stock-warning');
+                                if (stockWarningDiv) {
+                                    stockWarningDiv.remove();
+                                }
+
+                                if (comp.stockWarning) {
+                                    const stockWarning = document.createElement('div');
+                                    stockWarning.className =
+                                        'text-xs text-red-500 mt-1 stock-warning';
+                                    stockWarning.textContent = 'Không đủ tồn kho: ' + comp
+                                        .stock_quantity + ' < ' + comp.quantity;
+                                    this.parentNode.appendChild(stockWarning);
+                                }
+
+                                // Update hidden component list for form submission  
+                                updateHiddenComponentList();
+                                updateHiddenProductList();
+                            }
+                        });
+
+                        // Add event listeners for note input
+                        const noteInput = row.querySelector('.note-input');
+                        if (noteInput) {
+                            noteInput.addEventListener('input', function() {
+                                const index = parseInt(this.getAttribute('data-component-index'));
+                                const comp = selectedComponents[index];
+                                if (comp) {
+                                    comp.note = this.value;
+                                }
+                            });
+                        }
+
+                        // Add event listeners for delete button
+                        const deleteBtn = row.querySelector('.delete-component');
+                        deleteBtn.addEventListener('click', function() {
+                            const index = parseInt(this.getAttribute('data-index'));
+                            if (index >= 0 && index < selectedComponents.length) {
+                                selectedComponents.splice(index, 1);
+                                updateComponentList();
+                            }
+                        });
+                    });
+
+                    // Check and show create new product button for this product after updating components
+                    checkAndShowCreateNewProductButton(productId);
+                }
+
+                // Also update the hidden component list for form submission
+                updateHiddenComponentList();
+            }
+
+            // Add event listener for product quantity changes
+            document.addEventListener('change', function(e) {
+                if (e.target.classList.contains('product-quantity-input')) {
+                    const productRow = e.target.closest('tr');
+                    const productId = productRow.getAttribute('data-product-id');
+                    const productIndex = parseInt(e.target.getAttribute('data-index'));
+                    const product = selectedProducts[productIndex];
+                    const quantity = parseInt(e.target.value) || 1;
+                    
+                    if (product) {
+                        // Update product quantity in our data model
+                        product.quantity = quantity;
+                        
+                        // Call our updateProductQuantity function from assembly-product-unit.js
+                        if (typeof window.updateProductQuantity === "function") {
+                            window.updateProductQuantity(e.target);
+                        } else {
+                            console.error("updateProductQuantity function not found");
+                        }
+                    }
+
+                    // Update serial inputs
+                    const serialCell = document.getElementById(`${productId}_serials`);
+                    if (serialCell) {
+                        const product = selectedProducts.find(p => p.uniqueId === productId);
+                        if (product) {
+                            // Ensure serials array exists and has correct length
+                            if (!product.serials) product.serials = [];
+                            while (product.serials.length < quantity) {
+                                product.serials.push('');
+                            }
+                            product.serials = product.serials.slice(0, quantity);
+
+                            // Update serial inputs
+                            serialCell.innerHTML = '<div class="space-y-2">';
+                            for (let i = 0; i < quantity; i++) {
+                                const input = document.createElement('input');
+                                input.type = 'text';
+                                input.name = `products[${selectedProducts.indexOf(product)}][serials][]`;
+                                input.value = product.serials[i] || '';
+                                input.placeholder = `Serial ${i + 1}`;
+                                input.className =
+                                    'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                                serialCell.querySelector('.space-y-2').appendChild(input);
+                            }
+                            serialCell.innerHTML += '</div>';
+                        }
+                    }
+                }
+            });
         });
     </script>
 </body>

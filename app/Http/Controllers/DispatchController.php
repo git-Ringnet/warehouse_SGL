@@ -13,6 +13,7 @@ use App\Models\Warranty;
 use App\Models\Project;
 use App\Models\Rental;
 use App\Helpers\ChangeLogHelper;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -216,6 +217,18 @@ class DispatchController extends Controller
             $dispatch = Dispatch::create($dispatchData);
             Log::info('Dispatch created with ID:', ['id' => $dispatch->id]);
 
+            // Ghi nhật ký tạo mới phiếu xuất
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'dispatches',
+                    'Tạo mới phiếu xuất: ' . $dispatch->dispatch_code,
+                    null,
+                    $dispatch->toArray()
+                );
+            }
+
             // Create dispatch items
             Log::info('Creating dispatch items...');
             $firstDispatchItem = null;
@@ -305,6 +318,18 @@ class DispatchController extends Controller
     {
         $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
 
+        // Ghi nhật ký xem chi tiết phiếu xuất
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'dispatches',
+                'Xem chi tiết phiếu xuất: ' . $dispatch->dispatch_code,
+                null,
+                $dispatch->toArray()
+            );
+        }
+
         return view('inventory.dispatch_detail', compact('dispatch'));
     }
 
@@ -340,6 +365,9 @@ class DispatchController extends Controller
             return redirect()->route('inventory.dispatch.show', $dispatch->id)
                 ->with('error', 'Không thể cập nhật phiếu xuất đã hoàn thành hoặc đã hủy.');
         }
+
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $dispatch->toArray();
 
         // Validation rules depend on dispatch status
         if ($dispatch->status === 'pending') {
@@ -404,6 +432,18 @@ class DispatchController extends Controller
             }
 
             DB::commit();
+
+            // Ghi nhật ký cập nhật phiếu xuất
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'dispatches',
+                    'Cập nhật phiếu xuất: ' . $dispatch->dispatch_code,
+                    $oldData,
+                    $dispatch->toArray()
+                );
+            }
 
             return redirect()->route('inventory.dispatch.show', $dispatch->id)
                 ->with('success', 'Phiếu xuất kho đã được cập nhật thành công.');
@@ -832,6 +872,18 @@ class DispatchController extends Controller
 
             DB::commit();
 
+            // Ghi nhật ký duyệt phiếu xuất
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'approve',
+                    'dispatches',
+                    'Duyệt phiếu xuất: ' . $dispatch->dispatch_code,
+                    null,
+                    $dispatch->toArray()
+                );
+            }
+
             // Count total warranties created
             $totalWarranties = $dispatch->warranties()->count();
 
@@ -875,6 +927,18 @@ class DispatchController extends Controller
 
             DB::commit();
 
+            // Ghi nhật ký hủy phiếu xuất
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'cancel',
+                    'dispatches',
+                    'Hủy phiếu xuất: ' . $dispatch->dispatch_code,
+                    null,
+                    $dispatch->toArray()
+                );
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Phiếu xuất đã được hủy thành công.',
@@ -896,6 +960,10 @@ class DispatchController extends Controller
      */
     public function destroy(Dispatch $dispatch)
     {
+        // Lưu dữ liệu cũ trước khi xóa
+        $oldData = $dispatch->toArray();
+        $dispatchCode = $dispatch->dispatch_code;
+
         if ($dispatch->status !== 'cancelled') {
             return response()->json([
                 'success' => false,
@@ -913,6 +981,18 @@ class DispatchController extends Controller
             $dispatch->delete();
 
             DB::commit();
+
+            // Ghi nhật ký xóa phiếu xuất
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'dispatches',
+                    'Xóa phiếu xuất: ' . $dispatchCode,
+                    $oldData,
+                    null
+                );
+            }
 
             return response()->json([
                 'success' => true,
@@ -1374,6 +1454,18 @@ class DispatchController extends Controller
                 'created_by' => Auth::id() ?? 1,
                 'activated_at' => now(),
             ]);
+
+            // Ghi nhật ký tạo mới bảo hành
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'warranties',
+                    'Tạo mới bảo hành: ' . $warranty->warranty_code,
+                    null,
+                    $warranty->toArray()
+                );
+            }
 
             // Generate QR code
             $warranty->generateQRCode();

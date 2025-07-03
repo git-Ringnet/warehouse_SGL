@@ -2,6 +2,8 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\RequestExportController;
+use App\Http\Controllers\DeviceCodeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,4 +18,17 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
-}); 
+});
+
+Route::get('/export-requests', [RequestExportController::class, 'index']);
+
+// Thêm các route cho dispatch API
+Route::get('dispatch/items/all', [App\Http\Controllers\InventoryController::class, 'getAvailableItems']);
+Route::get('dispatch/rentals', [App\Http\Controllers\InventoryController::class, 'getRentalContracts']);
+Route::get('dispatch/item-serials', [App\Http\Controllers\InventoryController::class, 'getItemSerials']);
+
+// Thêm các route cho device codes API
+Route::get('device-codes/{dispatch_id}', [DeviceCodeController::class, 'getByDispatch']);
+Route::post('device-codes/save', [DeviceCodeController::class, 'saveDeviceCodes']);
+Route::post('device-codes/import', [DeviceCodeController::class, 'importFromExcel']);
+Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial'); 

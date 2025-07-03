@@ -134,6 +134,51 @@ class CustomerMaintenanceRequestController extends Controller
             return redirect()->route('customer.dashboard')
                 ->with('error', 'Không tìm thấy thông tin khách hàng của bạn.');
         }
+        // Nếu là sao chép từ phiếu khác
+        if ($request->has('copy_from')) {
+            $originalRequest = CustomerMaintenanceRequest::findOrFail($request->copy_from);
+            
+            // Tạo mã phiếu mới
+            $latestRequest = CustomerMaintenanceRequest::latest()->first();
+            $requestNumber = $latestRequest ? intval(substr($latestRequest->request_code, -4)) + 1 : 1;
+            $requestCode = 'CUST-MAINT-' . str_pad($requestNumber, 4, '0', STR_PAD_LEFT);
+            
+            // Tạo phiếu mới với thông tin từ phiếu cũ
+            $newRequest = new CustomerMaintenanceRequest();
+            $newRequest->request_code = $requestCode;
+            $newRequest->customer_id = $originalRequest->customer_id;
+            $newRequest->customer_name = $originalRequest->customer_name;
+            $newRequest->customer_phone = $originalRequest->customer_phone;
+            $newRequest->customer_email = $originalRequest->customer_email;
+            $newRequest->customer_address = $originalRequest->customer_address;
+            $newRequest->project_name = $originalRequest->project_name;
+            $newRequest->project_description = $originalRequest->project_description;
+            $newRequest->request_date = now();
+            $newRequest->maintenance_reason = $originalRequest->maintenance_reason;
+            $newRequest->maintenance_details = $originalRequest->maintenance_details;
+            $newRequest->expected_completion_date = $originalRequest->expected_completion_date;
+            $newRequest->priority = $originalRequest->priority;
+            $newRequest->status = 'pending';
+            $newRequest->notes = $originalRequest->notes;
+            
+            $newRequest->save();
+            
+            // Ghi nhật ký tạo phiếu yêu cầu bảo trì từ sao chép
+            if (Auth::guard('customer')->check()) {
+                $userId = Auth::guard('customer')->user()->id;
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'create',
+                    'customer_maintenance_requests',
+                    'Tạo phiếu khách yêu cầu bảo trì (sao chép): ' . $newRequest->request_code,
+                    null,
+                    $newRequest->toArray()
+                );
+            }
+            
+            return redirect()->route('requests.customer-maintenance.show', $newRequest->id)
+                ->with('success', 'Đã sao chép phiếu yêu cầu bảo trì thành công.');
+        }
         
         // Xử lý tạo phiếu mới
         $validatedData = $request->validate([
@@ -178,6 +223,19 @@ class CustomerMaintenanceRequestController extends Controller
             );
         }
 
+        // Ghi nhật ký tạo phiếu yêu cầu bảo trì mới
+        if (Auth::guard('customer')->check()) {
+            $userId = Auth::guard('customer')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'create',
+                'customer_maintenance_requests',
+                'Tạo phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                null,
+                $maintenanceRequest->toArray()
+            );
+        }
+
         return redirect()->route('customer-maintenance.show', $maintenanceRequest->id)
             ->with('success', 'Đã tạo phiếu yêu cầu bảo trì thành công.');
     }
@@ -199,6 +257,29 @@ class CustomerMaintenanceRequestController extends Controller
             if ($customer && $request->customer_id != $customer->id) {
                 abort(403, 'Unauthorized');
             }
+        }
+        
+        // Ghi nhật ký xem chi tiết phiếu yêu cầu bảo trì
+        if (Auth::guard('customer')->check()) {
+            $userId = Auth::guard('customer')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'view',
+                'customer_maintenance_requests',
+                'Xem chi tiết phiếu khách yêu cầu bảo trì: ' . $request->request_code,
+                null,
+                ['id' => $request->id, 'code' => $request->request_code]
+            );
+        } elseif (Auth::guard('web')->check()) {
+            $userId = Auth::guard('web')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'view',
+                'customer_maintenance_requests',
+                'Xem chi tiết phiếu khách yêu cầu bảo trì: ' . $request->request_code,
+                null,
+                ['id' => $request->id, 'code' => $request->request_code]
+            );
         }
         
         return view('requests.customer-maintenance.show', compact('request'));
@@ -258,6 +339,9 @@ class CustomerMaintenanceRequestController extends Controller
                 abort(403, 'Unauthorized');
             }
         }
+
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $maintenanceRequest->toArray();
         
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
@@ -285,6 +369,29 @@ class CustomerMaintenanceRequestController extends Controller
         $maintenanceRequest->notes = $request->notes;
         $maintenanceRequest->save();
 
+        // Ghi nhật ký cập nhật phiếu yêu cầu bảo trì
+        if (Auth::guard('customer')->check()) {
+            $userId = Auth::guard('customer')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'update',
+                'customer_maintenance_requests',
+                'Cập nhật phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                $oldData,
+                $maintenanceRequest->toArray()
+            );
+        } elseif (Auth::guard('web')->check()) {
+            $userId = Auth::guard('web')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'update',
+                'customer_maintenance_requests',
+                'Cập nhật phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                $oldData,
+                $maintenanceRequest->toArray()
+            );
+        }
+
         return redirect()->route('customer-maintenance.show', $maintenanceRequest->id)
             ->with('success', 'Cập nhật phiếu yêu cầu bảo trì thành công!');
     }
@@ -297,6 +404,8 @@ class CustomerMaintenanceRequestController extends Controller
         $this->checkAccess();
         
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
+        $requestCode = $maintenanceRequest->request_code;
+        $requestData = $maintenanceRequest->toArray();
         
         // Chỉ cho phép xóa khi phiếu còn ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
@@ -315,6 +424,29 @@ class CustomerMaintenanceRequestController extends Controller
         }
         
         $maintenanceRequest->delete();
+        
+        // Ghi nhật ký xóa phiếu yêu cầu bảo trì
+        if (Auth::guard('customer')->check()) {
+            $userId = Auth::guard('customer')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'delete',
+                'customer_maintenance_requests',
+                'Xóa phiếu khách yêu cầu bảo trì: ' . $requestCode,
+                $requestData,
+                null
+            );
+        } elseif (Auth::guard('web')->check()) {
+            $userId = Auth::guard('web')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'delete',
+                'customer_maintenance_requests',
+                'Xóa phiếu khách yêu cầu bảo trì: ' . $requestCode,
+                $requestData,
+                null
+            );
+        }
         
         return redirect()->route('customer.dashboard')
             ->with('success', 'Xóa phiếu yêu cầu bảo trì thành công!');
@@ -350,6 +482,7 @@ class CustomerMaintenanceRequestController extends Controller
         $this->checkAccess();
         
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
+        $oldData = $maintenanceRequest->toArray();
         
         if ($maintenanceRequest->status !== 'pending') {
             return redirect()->route('customer-maintenance.show', $id)
@@ -369,6 +502,19 @@ class CustomerMaintenanceRequestController extends Controller
         
         $maintenanceRequest->approved_at = now();
         $maintenanceRequest->save();
+
+        // Ghi nhật ký duyệt phiếu yêu cầu bảo trì
+        if (Auth::guard('web')->check()) {
+            $userId = Auth::guard('web')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'approve',
+                'customer_maintenance_requests',
+                'Duyệt phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                $oldData,
+                $maintenanceRequest->toArray()
+            );
+        }
         
         return redirect()->route('customer-maintenance.show', $id)
             ->with('success', 'Đã duyệt phiếu yêu cầu bảo trì thành công!');
@@ -382,6 +528,7 @@ class CustomerMaintenanceRequestController extends Controller
         $this->checkAccess();
         
         $maintenanceRequest = CustomerMaintenanceRequest::findOrFail($id);
+        $oldData = $maintenanceRequest->toArray();
         
         if ($maintenanceRequest->status !== 'pending') {
             return redirect()->route('customer-maintenance.show', $id)
@@ -395,6 +542,19 @@ class CustomerMaintenanceRequestController extends Controller
         $maintenanceRequest->status = 'rejected';
         $maintenanceRequest->rejection_reason = $request->rejection_reason;
         $maintenanceRequest->save();
+
+        // Ghi nhật ký từ chối phiếu yêu cầu bảo trì
+        if (Auth::guard('web')->check()) {
+            $userId = Auth::guard('web')->user()->id;
+            \App\Models\UserLog::logActivity(
+                $userId,
+                'reject',
+                'customer_maintenance_requests',
+                'Từ chối phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                $oldData,
+                $maintenanceRequest->toArray()
+            );
+        }
         
         return redirect()->route('customer-maintenance.show', $id)
             ->with('success', 'Đã từ chối phiếu yêu cầu bảo trì thành công!');

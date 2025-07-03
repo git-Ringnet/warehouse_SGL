@@ -7,7 +7,9 @@ use App\Models\GoodImage;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
 use App\Models\Supplier;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -52,11 +54,11 @@ class GoodController extends Controller
 
         // Get goods
         $goods = $query->get();
-        
+
         // Initialize grand totals
         $grandTotalQuantity = 0;
         $grandInventoryQuantity = 0;
-        
+
         // For each good, calculate quantities
         foreach ($goods as $good) {
             // Get inventory quantity from warehouse_materials table
@@ -83,12 +85,12 @@ class GoodController extends Controller
                     continue;
                 }
             }
-                
+
             // Add to grand totals
             $grandTotalQuantity += $good->total_quantity;
             $grandInventoryQuantity += $good->inventory_quantity;
         }
-        
+
         // Get unique categories and units for filters
         $categories = Good::select('category')->distinct()->pluck('category')->toArray();
         $units = Good::select('unit')->distinct()->pluck('unit')->toArray();
@@ -103,15 +105,15 @@ class GoodController extends Controller
     {
         // Fetch unique categories from the database
         $categories = Good::select('category')->distinct()->pluck('category')->toArray();
-        
+
         // Add some default categories for demo
         if (empty($categories)) {
             $categories = ['Thực phẩm', 'Đồ uống', 'Quần áo', 'Đồ điện tử', 'Mỹ phẩm'];
         }
-        
+
         // Sort categories alphabetically
         sort($categories);
-        
+
         // Get all suppliers
         $suppliers = Supplier::orderBy('name')->get();
 
@@ -137,6 +139,18 @@ class GoodController extends Controller
         // Create the good
         $good = Good::create($goodData);
 
+        // Ghi nhật ký tạo mới hàng hóa
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'goods',
+                'Tạo mới hàng hóa: ' . $good->name,
+                null,
+                $good->toArray()
+            );
+        }
+
         // Sync suppliers if any
         if ($request->has('supplier_ids')) {
             $good->suppliers()->sync($request->supplier_ids);
@@ -146,7 +160,7 @@ class GoodController extends Controller
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $index => $image) {
                 $imagePath = $image->store('goods', 'public');
-                
+
                 GoodImage::create([
                     'good_id' => $good->id,
                     'image_path' => $imagePath,
@@ -176,6 +190,18 @@ class GoodController extends Controller
         // Calculate total quantity across all locations (without warehouse filter)
         $totalQuantity = $good->warehouseMaterials()->sum('quantity');
 
+        // Ghi nhật ký xem chi tiết hàng hóa
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'goods',
+                'Xem chi tiết hàng hóa: ' . $good->name,
+                null,
+                $good->toArray()
+            );
+        }
+
         return view('goods.show', compact('good', 'warehouses', 'totalQuantity', 'inventoryQuantity'));
     }
 
@@ -186,21 +212,21 @@ class GoodController extends Controller
     {
         // Fetch unique categories from the database
         $categories = Good::select('category')->distinct()->pluck('category')->toArray();
-        
+
         // Add some default categories for demo
         if (empty($categories)) {
             $categories = ['Thực phẩm', 'Đồ uống', 'Quần áo', 'Đồ điện tử', 'Mỹ phẩm'];
         }
-        
+
         // Sort categories alphabetically
         sort($categories);
 
         // Get all suppliers
         $suppliers = Supplier::orderBy('name')->get();
-        
+
         // Load good images
         $good->load('images');
-        
+
         return view('goods.edit', compact('good', 'categories', 'suppliers'));
     }
 
@@ -220,10 +246,25 @@ class GoodController extends Controller
             'supplier_ids.*' => 'exists:suppliers,id'
         ]);
 
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $good->toArray();
+
         $goodData = $request->except(['images', 'image', 'deleted_images', 'supplier_ids']);
 
         // Update the good
         $good->update($goodData);
+
+        // Ghi nhật ký cập nhật hàng hóa
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'goods',
+                'Cập nhật hàng hóa: ' . $good->name,
+                $oldData,
+                $good->toArray()
+            );
+        }
 
         // Sync suppliers if any
         if ($request->has('supplier_ids')) {
@@ -236,7 +277,7 @@ class GoodController extends Controller
         // Handle deleted images
         if ($request->has('deleted_images')) {
             $deletedImages = explode(',', $request->input('deleted_images'));
-            
+
             foreach ($deletedImages as $imageId) {
                 if (!empty($imageId)) {
                     $image = GoodImage::find($imageId);
@@ -253,10 +294,10 @@ class GoodController extends Controller
         // Handle multiple image uploads if present
         if ($request->hasFile('images')) {
             $lastOrder = $good->images()->max('sort_order') ?? -1;
-            
+
             foreach ($request->file('images') as $index => $image) {
                 $imagePath = $image->store('goods', 'public');
-                
+
                 GoodImage::create([
                     'good_id' => $good->id,
                     'image_path' => $imagePath,
@@ -276,6 +317,10 @@ class GoodController extends Controller
     {
         // Get actual inventory from warehouse_materials
         $inventoryQuantity = $good->getInventoryQuantity();
+
+        // Lưu dữ liệu cũ trước khi xóa
+        $oldData = $good->toArray();
+        $goodName = $good->name;
 
         // Only allow deletion when inventory quantity is 0
         if ($inventoryQuantity > 0) {
@@ -302,7 +347,20 @@ class GoodController extends Controller
                 'is_hidden' => false
             ]);
 
-        return redirect()->route('goods.index')
+            // Ghi nhật ký xóa hàng hóa
+
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'goods',
+                    'Xóa hàng hóa: ' . $goodName,
+                    $oldData,
+                    null
+                );
+            }
+
+            return redirect()->route('goods.index')
                 ->with('success', 'Hàng hóa đã được đánh dấu là đã xóa.');
         }
     }
@@ -315,20 +373,20 @@ class GoodController extends Controller
         try {
             $image = GoodImage::findOrFail($id);
             $goodId = $image->good_id;
-            
+
             // Delete the file from storage
             Storage::disk('public')->delete($image->image_path);
-            
+
             // Delete the record
             $image->delete();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Đã xóa ảnh thành công'
             ]);
         } catch (\Exception $e) {
             Log::error('Error deleting good image: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi xóa ảnh: ' . $e->getMessage()
@@ -344,7 +402,7 @@ class GoodController extends Controller
         try {
             $good = Good::findOrFail($id);
             $images = $good->images()->orderBy('sort_order')->get();
-            
+
             $formattedImages = $images->map(function ($image) {
                 return [
                     'id' => $image->id,
@@ -352,7 +410,7 @@ class GoodController extends Controller
                     'sort_order' => $image->sort_order,
                 ];
             });
-            
+
             return response()->json([
                 'good_id' => $good->id,
                 'good_name' => $good->name,
@@ -360,7 +418,7 @@ class GoodController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting good images: ' . $e->getMessage());
-            
+
             return response()->json([
                 'error' => true,
                 'message' => 'Có lỗi xảy ra: ' . $e->getMessage()

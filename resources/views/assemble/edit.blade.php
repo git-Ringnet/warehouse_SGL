@@ -10,6 +10,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/assembly-product-unit.js') }}"></script>
+    <style>
+        /* Styles for product units */
+        .product-unit-0 { border-left: 4px solid #3b82f6; }
+        .product-unit-1 { border-left: 4px solid #10b981; }
+        .product-unit-2 { border-left: 4px solid #f59e0b; }
+        .product-unit-3 { border-left: 4px solid #ef4444; }
+        .product-unit-4 { border-left: 4px solid #8b5cf6; }
+        .product-unit-5 { border-left: 4px solid #ec4899; }
+        
+        .product-unit-0-bg { background-color: rgba(59, 130, 246, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .product-unit-1-bg { background-color: rgba(16, 185, 129, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .product-unit-2-bg { background-color: rgba(245, 158, 11, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .product-unit-3-bg { background-color: rgba(239, 68, 68, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .product-unit-4-bg { background-color: rgba(139, 92, 246, 0.1); padding: 2px 6px; border-radius: 4px; }
+        .product-unit-5-bg { background-color: rgba(236, 72, 153, 0.1); padding: 2px 6px; border-radius: 4px; }
+    </style>
 </head>
 
 <body>
@@ -452,11 +469,13 @@
                                                                             <div class="flex items-center">
                                                                                 <select
                                                                                     name="components[{{ $component['globalIndex'] }}][serials][]"
-                                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 product-serial-select"
+                                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
                                                                                     data-serial-index="{{ $i }}"
+                                                                                    data-material-id="{{ $component['material']->material_id }}"
+                                                                                    data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                                    data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                     data-product-id="{{ $component['material']->target_product_id }}"
-                                                                                    data-product-unit="{{ $i }}"
-                                                                                    data-current-serial="{{ $serials[$i] ?? '' }}">
+                                                                                    data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
                                                                                     <option value="">-- Chọn
                                                                                         serial {{ $i + 1 }} --
                                                                                     </option>
@@ -474,34 +493,42 @@
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <input type="text"
-                                                                        name="components[{{ $component['globalIndex'] }}][note]"
-                                                                        value="{{ $component['material']->note ?? '' }}"
-                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                        placeholder="Ghi chú">
-                                                                </td>
-                                                                <td
-                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <select name="components[{{ $component['globalIndex'] }}][product_unit]" 
+                                                                    <select
+                                                                        name="components[{{ $component['globalIndex'] }}][product_unit]"
                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select"
                                                                         data-component-index="{{ $component['globalIndex'] }}"
-                                                                        data-product-id="{{ $component['material']->target_product_id }}">
+                                                                        data-material-id="{{ $component['material']->material_id }}"
+                                                                        data-product-id="{{ $component['material']->target_product_id }}"
+                                                                        onchange="window.handleProductUnitChange(this)">
                                                                         @php
-                                                                            $productUnit = $component['material']->product_unit ?? 0;
-                                                                            $productQuantity = $assemblyProduct->quantity ?? 1;
+                                                                            $productUnit =
+                                                                                $component['material']->product_unit ??
+                                                                                0;
+                                                                            $productQuantity =
+                                                                                $assemblyProduct->quantity ?? 1;
                                                                         @endphp
                                                                         @for ($i = 0; $i < $productQuantity; $i++)
-                                                                            <option value="{{ $i }}" {{ $productUnit == $i ? 'selected' : '' }}>
+                                                                            <option value="{{ $i }}"
+                                                                                {{ $productUnit == $i ? 'selected' : '' }}>
                                                                                 Thành phẩm #{{ $i + 1 }}
                                                                                 @if ($assemblyProduct->serials)
                                                                                     @php $serialArray = explode(',', $assemblyProduct->serials); @endphp
                                                                                     @if (isset($serialArray[$i]) && !empty($serialArray[$i]))
-                                                                                        (Serial: {{ $serialArray[$i] }})
+                                                                                        (Serial:
+                                                                                        {{ $serialArray[$i] }})
                                                                                     @endif
                                                                                 @endif
                                                                             </option>
                                                                         @endfor
                                                                     </select>
+                                                                </td>
+                                                                <td
+                                                                    class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    <input type="text"
+                                                                        name="components[{{ $component['globalIndex'] }}][note]"
+                                                                        value="{{ $component['material']->note ?? '' }}"
+                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                        placeholder="Ghi chú">
                                                                 </td>
                                                             </tr>
                                                         @endforeach
@@ -605,17 +632,20 @@
                                                                         <div class="flex items-center">
                                                                             <select
                                                                                 name="components[{{ $index }}][serials][]"
-                                                                                class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 product-serial-select"
+                                                                                class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
                                                                                 data-serial-index="{{ $i }}"
+                                                                                data-material-id="{{ $material->material_id }}"
+                                                                                data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                                data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                 data-product-id="{{ $material->target_product_id }}"
-                                                                                data-product-unit="{{ $i }}"
-                                                                                data-current-serial="{{ $serials[$i] ?? '' }}">
+                                                                                data-product-unit="{{ $material->product_unit ?? 0 }}">
                                                                                 <option value="">-- Chọn serial
                                                                                     {{ $i + 1 }} --</option>
                                                                                 @if (isset($serials[$i]) && !empty($serials[$i]))
                                                                                     <option
                                                                                         value="{{ $serials[$i] }}"
-                                                                                        selected>{{ $serials[$i] }}
+                                                                                        selected>
+                                                                                        {{ $serials[$i] }}
                                                                                     </option>
                                                                                 @endif
                                                                             </select>
@@ -633,20 +663,25 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <select name="components[{{ $index }}][product_unit]" 
+                                                                <select
+                                                                    name="components[{{ $index }}][product_unit]"
                                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-unit-select"
                                                                     data-component-index="{{ $index }}"
-                                                                    data-product-id="{{ $material->target_product_id }}">
+                                                                    data-material-id="{{ $material->material_id }}"
+                                                                    data-product-id="{{ $material->target_product_id }}"
+                                                                    onchange="window.handleProductUnitChange(this)">
                                                                     @php
                                                                         $productUnit = $material->product_unit ?? 0;
                                                                         $productQuantity = $assembly->quantity ?? 1;
                                                                     @endphp
                                                                     @for ($i = 0; $i < $productQuantity; $i++)
-                                                                        <option value="{{ $i }}" {{ $productUnit == $i ? 'selected' : '' }}>
+                                                                        <option value="{{ $i }}"
+                                                                            {{ $productUnit == $i ? 'selected' : '' }}>
                                                                             Thành phẩm #{{ $i + 1 }}
                                                                             @if (isset($productSerials) && is_array($productSerials))
                                                                                 @if (isset($productSerials[$i]) && !empty($productSerials[$i]))
-                                                                                    (Serial: {{ $productSerials[$i] }})
+                                                                                    (Serial:
+                                                                                    {{ $productSerials[$i] }})
                                                                                 @endif
                                                                             @endif
                                                                         </option>
@@ -869,6 +904,7 @@
             async function loadMaterialSerials(selectElement) {
                 const materialId = selectElement.dataset.materialId;
                 const warehouseId = selectElement.dataset.warehouseId;
+                const currentSerial = selectElement.dataset.currentSerial;
 
                 if (!materialId || !warehouseId) {
                     console.error('Missing material ID or warehouse ID');
@@ -877,7 +913,7 @@
 
                 try {
                     const response = await fetch(
-                        `{{ route('assemblies.material-serials') }}?material_id=${materialId}&warehouse_id=${warehouseId}`, {
+                        `{{ route('assemblies.material-serials') }}?material_id=${materialId}&warehouse_id=${warehouseId}&assembly_id={{ $assembly->id }}`, {
                             method: 'GET',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -892,34 +928,19 @@
                         // Clear existing options except the first one
                         selectElement.innerHTML = '<option value="">Chọn serial</option>';
 
-                        const currentSerialId = selectElement.dataset.currentSerialId;
-
                         // Add serial options
                         data.serials.forEach(serial => {
                             const option = document.createElement('option');
-                            option.value = serial.id;
+                            option.value = serial.serial_number;
                             option.textContent = serial.serial_number;
 
                             // Select current serial if it matches
-                            if (currentSerialId && serial.id == currentSerialId) {
+                            if (currentSerial && serial.serial_number === currentSerial) {
                                 option.selected = true;
                             }
 
                             selectElement.appendChild(option);
                         });
-
-                        // If no current serial_id but has current serial text, try to match by text
-                        if (!currentSerialId) {
-                            const currentSerial = selectElement.dataset.currentSerial;
-                            if (currentSerial) {
-                                const matchingOption = Array.from(selectElement.options).find(opt =>
-                                    opt.textContent === currentSerial
-                                );
-                                if (matchingOption) {
-                                    matchingOption.selected = true;
-                                }
-                            }
-                        }
                     } else {
                         console.error('Error loading serials:', data.message);
                     }
@@ -930,84 +951,103 @@
 
             // Function to initialize material serial selects
             function initializeMaterialSerialSelects() {
-                const serialSelects = document.querySelectorAll('.component-serial-select');
+                const serialSelects = document.querySelectorAll('.material-serial-select');
 
                 serialSelects.forEach(select => {
                     // Load serials when first opened
                     select.addEventListener('focus', function() {
-                        if (this.children.length <= 1) { // Only default option
+                        if (!this.dataset.loaded) {
                             loadMaterialSerials(this);
+                            this.dataset.loaded = 'true';
                         }
                     });
 
                     // Handle selection change
                     select.addEventListener('change', function() {
-                        const serialInput = this.parentNode.querySelector(
-                        'input[name*="[serial]"]');
-
-                        if (this.value) {
-                            // Find selected option text
-                            const selectedOption = this.options[this.selectedIndex];
-                            serialInput.value = selectedOption.textContent;
-                        } else {
-                            serialInput.value = '';
-                        }
+                        const selectedSerial = this.value;
+                        this.dataset.currentSerial = selectedSerial;
                     });
                 });
             }
 
-            // Enhanced form validation to check for serial errors
-            document.querySelector('form').addEventListener('submit', function(e) {
-                // Only check for serial validation errors (not existing serials that haven't changed)
-                const serialErrors = document.querySelectorAll('.serial-validation-msg');
-                if (serialErrors.length > 0) {
-                    e.preventDefault();
-                    alert('Vui lòng sửa các lỗi serial trước khi cập nhật phiếu lắp ráp!');
-                    // Focus on first error
-                    const firstErrorInput = serialErrors[0].parentNode.querySelector('input');
-                    if (firstErrorInput) {
-                        firstErrorInput.focus();
-                    }
-                    return false;
-                }
-
-                // Check duplicate serials within this form only (not against database)
-                // Group serials by product to allow same serial for different products
-                const productSerialMap = new Map();
-                let hasDuplicateSerials = false;
-
-                // Check product serials (only within same product)
-                const productSerialInputs = document.querySelectorAll(
-                    'input[name*="products"][name*="serials"]');
-                productSerialInputs.forEach(input => {
-                    const serial = input.value.trim();
-                    if (serial) {
-                        // Extract product index from input name like "products[0][serials][0]"
-                        const match = input.name.match(/products\[(\d+)\]/);
-                        if (match) {
-                            const productIndex = match[1];
-
-                            if (!productSerialMap.has(productIndex)) {
-                                productSerialMap.set(productIndex, []);
-                            }
-
-                            const productSerials = productSerialMap.get(productIndex);
-                            if (productSerials.includes(serial)) {
-                                hasDuplicateSerials = true;
-                            } else {
-                                productSerials.push(serial);
-                            }
-                        }
-                    }
+            // Function to validate product serials form-wide (check for duplicates)
+            function validateProductSerials() {
+                // Reset all previous validation messages
+                document.querySelectorAll('.serial-validation-msg').forEach(msg => msg.remove());
+                document.querySelectorAll('input[name*="products"][name*="serials"]').forEach(input => {
+                    input.classList.remove('border-red-500', 'bg-red-50');
                 });
 
-                if (hasDuplicateSerials) {
-                    e.preventDefault();
-                    alert('Phát hiện trùng lặp serial trong cùng một thành phẩm. Vui lòng kiểm tra lại!');
-                    return false;
-                }
+                // Track all serials by product
+                const serialsByProduct = {};
+                let hasError = false;
 
-                return true;
+                // Collect all serials for each product
+                document.querySelectorAll('input[name*="products"][name*="serials"]').forEach(input => {
+                    // Extract product index from input name like "products[0][serials][0]"
+                    const match = input.name.match(/products\[(\d+)\]/);
+                    if (!match) return;
+
+                    const productIndex = match[1];
+                    const productId = input.closest('div[data-product-id]')?.dataset.productId ||
+                        productIndex;
+                    const serial = input.value.trim();
+
+                    if (!serial) return; // Skip empty serials
+
+                    if (!serialsByProduct[productId]) {
+                        serialsByProduct[productId] = [];
+                    }
+
+                    // Check if this serial already exists for this product
+                    if (serialsByProduct[productId].includes(serial)) {
+                        // Show error on all inputs with this serial for this product
+                        document.querySelectorAll(`input[name*="products[${productIndex}][serials]"]`)
+                            .forEach(inp => {
+                                if (inp.value.trim() === serial) {
+                                    inp.classList.add('border-red-500', 'bg-red-50');
+                                    const msgDiv = document.createElement('div');
+                                    msgDiv.className =
+                                        'serial-validation-msg text-xs text-red-600 mt-1';
+                                    msgDiv.textContent =
+                                        'Serial không được trùng lặp trong cùng một sản phẩm';
+                                    inp.parentNode.appendChild(msgDiv);
+                                }
+                            });
+
+                        hasError = true;
+                    }
+
+                    serialsByProduct[productId].push(serial);
+                });
+
+                return !hasError;
+            }
+
+            // Validate serials before form submission
+            document.querySelector('form').addEventListener('submit', function(e) {
+                if (!validateProductSerials()) {
+                    e.preventDefault();
+                    // Show error message at the top of the form
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-700';
+                    errorDiv.innerHTML =
+                        '<i class="fas fa-exclamation-circle mr-2"></i>Vui lòng sửa lỗi trùng lặp serial sản phẩm trước khi lưu';
+                    this.insertBefore(errorDiv, this.firstChild);
+
+                    // Scroll to the top
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+
+            // Add check for duplicate serials on input for product serials
+            document.querySelectorAll('input[name*="products"][name*="serials"]').forEach(input => {
+                input.addEventListener('blur', function() {
+                    validateProductSerials();
+                });
             });
 
             // Initialize validation for product serials (only add event listeners, don't validate immediately)
@@ -1019,33 +1059,37 @@
             // Initialize product unit selectors
             function initializeProductUnitSelectors() {
                 const productUnitSelects = document.querySelectorAll('select[name*="[product_unit]"]');
-                
+
                 productUnitSelects.forEach(select => {
                     // Apply initial styling
                     const unitValue = select.value;
                     select.classList.add('product-unit-select', `product-unit-${unitValue}`);
-                    
+
                     // Add visual indicator of product unit
                     const productId = select.getAttribute('data-product-id');
                     if (productId) {
                         // Find product serials
-                        const productSerials = document.querySelectorAll(`input[name*="products"][name*="serials"]`);
+                        const productSerials = document.querySelectorAll(
+                            `input[name*="products"][name*="serials"]`);
                         const productSerial = getProductSerialForUnit(productSerials, unitValue);
-                        
+
                         // Add indicator after select
                         const indicator = document.createElement('div');
-                        indicator.className = `product-unit-indicator product-unit-${unitValue}-bg mt-2 text-xs`;
-                        
+                        indicator.className =
+                            `product-unit-indicator product-unit-${unitValue}-bg mt-2 text-xs`;
+
                         if (productSerial && productSerial.value.trim()) {
-                            indicator.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(unitValue) + 1} (Serial: <strong>${productSerial.value}</strong>)`;
+                            indicator.innerHTML =
+                                `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(unitValue) + 1} (Serial: <strong>${productSerial.value}</strong>)`;
                         } else {
-                            indicator.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(unitValue) + 1}`;
+                            indicator.innerHTML =
+                                `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(unitValue) + 1}`;
                         }
-                        
+
                         // Add indicator after select element
                         select.insertAdjacentElement('afterend', indicator);
                     }
-                    
+
                     // Update styling when selection changes
                     select.addEventListener('change', function() {
                         // Remove old styling
@@ -1055,14 +1099,15 @@
                                 this.classList.remove(cls);
                             }
                         });
-                        
+
                         // Add new styling based on selected value
                         const newUnitValue = this.value;
                         this.classList.add('product-unit-select', `product-unit-${newUnitValue}`);
-                        
+
                         // Update indicator
                         const nextElement = this.nextElementSibling;
-                        if (nextElement && nextElement.classList.contains('product-unit-indicator')) {
+                        if (nextElement && nextElement.classList.contains(
+                                'product-unit-indicator')) {
                             // Remove old classes
                             const indicatorClasses = Array.from(nextElement.classList);
                             indicatorClasses.forEach(cls => {
@@ -1070,45 +1115,200 @@
                                     nextElement.classList.remove(cls);
                                 }
                             });
-                            
+
                             // Add new class
                             nextElement.classList.add(`product-unit-${newUnitValue}-bg`);
-                            
+
                             // Update text
                             const productId = this.getAttribute('data-product-id');
                             if (productId) {
-                                const productSerials = document.querySelectorAll(`input[name*="products"][name*="serials"]`);
-                                const productSerial = getProductSerialForUnit(productSerials, newUnitValue);
-                                
+                                const productSerials = document.querySelectorAll(
+                                    `input[name*="products"][name*="serials"]`);
+                                const productSerial = getProductSerialForUnit(productSerials,
+                                    newUnitValue);
+
                                 if (productSerial && productSerial.value.trim()) {
-                                    nextElement.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(newUnitValue) + 1} (Serial: <strong>${productSerial.value}</strong>)`;
+                                    nextElement.innerHTML =
+                                        `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(newUnitValue) + 1} (Serial: <strong>${productSerial.value}</strong>)`;
                                 } else {
-                                    nextElement.innerHTML = `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(newUnitValue) + 1}`;
+                                    nextElement.innerHTML =
+                                        `<i class="fas fa-link mr-1"></i> Thành phẩm #${parseInt(newUnitValue) + 1}`;
                                 }
                             }
                         }
+
+                        // Update serials for this component based on product unit
+                        updateComponentSerials(this);
                     });
                 });
             }
-            
+
+            // Function to update component serials when product unit changes
+            function updateComponentSerials(productUnitSelect) {
+                const componentIndex = productUnitSelect.dataset.componentIndex;
+                const materialId = productUnitSelect.dataset.materialId;
+                const productId = productUnitSelect.dataset.productId;
+                const productUnit = productUnitSelect.value;
+
+                if (!componentIndex || !productId) return;
+
+                // Find all serial selects for this component
+                const row = productUnitSelect.closest('tr');
+                if (!row) return;
+
+                const serialContainer = row.querySelector('div[data-product-id]');
+                if (!serialContainer) return;
+
+                const serialSelects = serialContainer.querySelectorAll('.material-serial-select');
+
+                // Update product-unit attribute for all serial selects
+                serialSelects.forEach(select => {
+                    select.dataset.productUnit = productUnit;
+
+                    // Clear and reload the serial options
+                    select.innerHTML = '<option value="">-- Chọn serial --</option>';
+
+                    // Keep the current value if exists
+                    const currentSerial = select.dataset.currentSerial;
+                    if (currentSerial) {
+                        const option = document.createElement('option');
+                        option.value = currentSerial;
+                        option.textContent = currentSerial;
+                        option.selected = true;
+                        select.appendChild(option);
+                    }
+                });
+            }
+
             // Helper function to get product serial for a specific unit
             function getProductSerialForUnit(serialInputs, unitIndex) {
                 // Convert serialInputs to array
                 const inputsArray = Array.from(serialInputs);
-                
+
                 // If we have exactly the same number of serial inputs as the unit index + 1, 
                 // then we can assume they're ordered correctly
                 if (inputsArray.length > unitIndex) {
                     return inputsArray[unitIndex];
                 }
-                
+
                 // Otherwise return null
                 return null;
             }
-            
+
+            // Load and handle product serial dropdowns
+            const productSerialSelects = document.querySelectorAll('.material-serial-select');
+
+            productSerialSelects.forEach(select => {
+                // Initialize the select options when clicked
+                select.addEventListener('click', async function() {
+                    // Skip if options are already loaded (more than just the default empty option)
+                    if (this.options.length > 1) return;
+
+                    const productId = this.dataset.productId;
+                    const serialIndex = this.dataset.serialIndex;
+                    const currentSerial = this.dataset.currentSerial;
+                    const productUnit = this.dataset.productUnit || 0;
+
+                    if (!productId) {
+                        console.error('Missing product ID for serial select');
+                        return;
+                    }
+
+                    try {
+                        // Get a list of all serials already used in other dropdowns with the same product unit
+                        const usedSerials = [];
+                        const parentContainer = this.closest('div[data-product-id]');
+                        if (parentContainer) {
+                            const siblingSelects = parentContainer.querySelectorAll(
+                                '.material-serial-select');
+                            siblingSelects.forEach(sibling => {
+                                if (sibling !== this && sibling.value && sibling.dataset
+                                    .productUnit === productUnit) {
+                                    usedSerials.push(sibling.value);
+                                }
+                            });
+                        }
+
+                        // Also get serials used by other components with the same product unit
+                        document.querySelectorAll('.material-serial-select').forEach(
+                            otherSelect => {
+                                if (otherSelect !== this &&
+                                    otherSelect.dataset.productId === productId &&
+                                    otherSelect.dataset.productUnit === productUnit &&
+                                    otherSelect.value) {
+                                    usedSerials.push(otherSelect.value);
+                                }
+                            });
+
+                        // Fetch serials for this product
+                        const response = await fetch(
+                            `{{ route('assemblies.product-serials') }}?product_id=${productId}&assembly_id={{ $assembly->id }}&product_unit=${productUnit}&exclude_serials=${JSON.stringify(usedSerials)}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector(
+                                        'meta[name="csrf-token"]').getAttribute(
+                                        'content')
+                                }
+                            });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Add options to the select
+                            let hasCurrentSerial = false;
+
+                            // First, preserve the current value if it exists
+                            if (currentSerial) {
+                                const option = document.createElement('option');
+                                option.value = currentSerial;
+                                option.textContent = currentSerial;
+                                option.selected = true;
+                                this.appendChild(option);
+                                hasCurrentSerial = true;
+                            }
+
+                            // Add all available serials
+                            data.serials.forEach(serial => {
+                                // Skip if this serial is already used in another select in this container
+                                if (usedSerials.includes(serial.serial_number) && serial
+                                    .serial_number !== currentSerial) {
+                                    return;
+                                }
+
+                                const option = document.createElement('option');
+                                option.value = serial.serial_number;
+                                option.textContent = serial.serial_number;
+
+                                // Select this option if it matches the current serial and we haven't already selected something
+                                if (!hasCurrentSerial && currentSerial === serial
+                                    .serial_number) {
+                                    option.selected = true;
+                                    hasCurrentSerial = true;
+                                }
+
+                                this.appendChild(option);
+                            });
+                        } else {
+                            console.error('Error loading serials:', data.message);
+                        }
+                    } catch (error) {
+                        console.error('Error loading product serials:', error);
+                    }
+                });
+            });
+
             // Call the initialization function
             initializeProductUnitSelectors();
         });
+        
+        // Đồng bộ hóa đơn vị vật tư khi trang đã tải xong
+        setTimeout(function() {
+            console.log('Đồng bộ hóa đơn vị vật tư sau khi trang đã tải xong...');
+            document.querySelectorAll('.product-unit-select').forEach(select => {
+                window.handleProductUnitChange(select);
+            });
+        }, 1000);
     </script>
 </body>
 

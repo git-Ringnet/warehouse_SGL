@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Rental;
 use App\Models\Customer;
 use App\Models\Employee;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class RentalController extends Controller
@@ -119,6 +121,18 @@ class RentalController extends Controller
                 'notes' => $request->notes,
             ]);
 
+            // Ghi nhật ký tạo mới phiếu cho thuê
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'rentals',
+                    'Tạo mới phiếu cho thuê: ' . $rental->rental_code,
+                    null,
+                    $rental->toArray()
+                );
+            }
+
             return redirect()->route('rentals.index')
                 ->with('success', 'Phiếu cho thuê đã được thêm thành công.');
         } catch (\Exception $e) {
@@ -148,6 +162,18 @@ class RentalController extends Controller
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
             $backupItems = $backupItems->concat($items);
+        }
+
+        // Ghi nhật ký xem chi tiết phiếu cho thuê
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'rentals',
+                'Xem chi tiết phiếu cho thuê: ' . $rental->rental_code,
+                null,
+                $rental->toArray()
+            );
         }
         
         return view('rentals.show', compact('rental', 'warehouses', 'backupItems'));
@@ -203,6 +229,10 @@ class RentalController extends Controller
         try {
             // Cập nhật phiếu cho thuê
             $rental = Rental::findOrFail($id);
+
+            // Lưu dữ liệu cũ trước khi cập nhật
+            $oldData = $rental->toArray();
+
             $rental->update([
                 'rental_code' => $request->rental_code,
                 'rental_name' => $request->rental_name,
@@ -212,6 +242,18 @@ class RentalController extends Controller
                 'due_date' => $request->due_date,
                 'notes' => $request->notes,
             ]);
+
+            // Ghi nhật ký cập nhật phiếu cho thuê
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'rentals',
+                    'Cập nhật phiếu cho thuê: ' . $rental->rental_code,
+                    $oldData,
+                    $rental->toArray()
+                );
+            }
 
             return redirect()->route('rentals.show', $rental->id)
                 ->with('success', 'Phiếu cho thuê đã được cập nhật thành công.');
@@ -228,7 +270,11 @@ class RentalController extends Controller
     {
         try {
             $rental = Rental::findOrFail($id);
-            
+
+            // Lưu dữ liệu cũ trước khi xóa
+            $oldData = $rental->toArray();
+            $rentalCode = $rental->rental_code;
+
             // Kiểm tra xem phiếu cho thuê có phiếu xuất kho liên quan không
             $dispatchCount = \App\Models\Dispatch::where('dispatch_type', 'rental')
                 ->where(function($query) use ($rental) {
@@ -244,7 +290,19 @@ class RentalController extends Controller
             
             // Nếu không có phiếu xuất kho liên quan, tiến hành xóa phiếu cho thuê
             $rental->delete();
-            
+
+            // Ghi nhật ký xóa phiếu cho thuê
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'rentals',
+                    'Xóa phiếu cho thuê: ' . $rentalCode,
+                    $oldData,
+                    null
+                );
+            }
+
             return redirect()->route('rentals.index')
                 ->with('success', 'Phiếu cho thuê đã được xóa thành công.');
         } catch (\Exception $e) {
@@ -270,6 +328,9 @@ class RentalController extends Controller
 
         try {
             $rental = Rental::findOrFail($id);
+
+            // Lưu dữ liệu cũ trước khi gia hạn
+            $oldData = $rental->toArray();
             
             // Gia hạn thêm số ngày
             $newDueDate = date('Y-m-d', strtotime($rental->due_date . ' + ' . $request->extend_days . ' days'));
@@ -282,6 +343,18 @@ class RentalController extends Controller
                 'due_date' => $newDueDate,
                 'notes' => trim($notes),
             ]);
+
+            // Ghi nhật ký gia hạn phiếu cho thuê
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'extend',
+                    'rentals',
+                    'Gia hạn phiếu cho thuê: ' . $rental->rental_code,
+                    $oldData,
+                    $rental->toArray()
+                );
+            }
             
             return redirect()->route('rentals.show', $rental->id)
                 ->with('success', 'Phiếu cho thuê đã được gia hạn thành công.');

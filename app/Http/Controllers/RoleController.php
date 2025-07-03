@@ -233,6 +233,18 @@ class RoleController extends Controller
         // Lấy hợp đồng cho thuê được gán cho nhóm quyền này
         $rentals = $role->rentals;
 
+        //Lưu nhật ký xem chi tiết nhóm quyền
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'roles',
+                'Xem chi tiết nhóm quyền: ' . $role->name,
+                null,
+                $role->toArray()
+            );
+        }
+
         return view('roles.show', compact('role', 'permissions', 'rolePermissions', 'projects', 'rentals'));
     }
 

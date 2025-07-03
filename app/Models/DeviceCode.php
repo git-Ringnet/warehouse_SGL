@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class DeviceCode extends Model
+{
+    protected $fillable = [
+        'dispatch_id',
+        'product_id',
+        'serial_main',
+        'serial_components',
+        'serial_sim',
+        'access_code',
+        'iot_id',
+        'mac_4g',
+        'note'
+    ];
+
+    protected $casts = [
+        'serial_components' => 'array'
+    ];
+
+    public function dispatch()
+    {
+        return $this->belongsTo(Dispatch::class);
+    }
+} 

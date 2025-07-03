@@ -23,20 +23,16 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu lắp ráp</h1>
             </div>
             <div class="flex items-center gap-2">
-                <a href="{{ route('assemblies.edit', $assembly->id) }}">
+                {{-- <a href="{{ route('assemblies.edit', $assembly->id) }}">
                     <button
                         class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                     </button>
-                </a>
-                <button type="button"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i> Xóa
-                </button>
-                <button id="print-btn"
+                </a> --}}
+                {{-- <button id="print-btn"
                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                     <i class="fas fa-print mr-2"></i> In phiếu
-                </button>
+                </button> --}}
             </div>
         </header>
 
@@ -428,52 +424,60 @@ if ($assembly->products && $assembly->products->count() > 0) {
                     $isAdmin = $user->role === 'admin';
                 @endphp
                 <div class="flex flex-wrap gap-3">
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.edit')))
-                    <a href="{{ route('assemblies.edit', $assembly->id) }}" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
-                        <i class="fas fa-edit mr-2"></i> Chỉnh sửa
-                    </a>
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.edit')))
+                        <a href="{{ route('assemblies.edit', $assembly->id) }}"
+                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
+                            <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                        </a>
                     @endif
-                    
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.export')))
-                    <a href="{{ route('assemblies.export.excel', $assembly->id) }}" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
-                        <i class="fas fa-file-excel mr-2"></i> Xuất Excel
-                    </a>
 
-                    <a href="{{ route('assemblies.export.pdf', $assembly->id) }}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
-                        <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
-                    </a>
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.export')))
+                        <a href="{{ route('assemblies.export.excel', $assembly->id) }}"
+                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
+                            <i class="fas fa-file-excel mr-2"></i> Xuất Excel
+                        </a>
+
+                        <a href="{{ route('assemblies.export.pdf', $assembly->id) }}"
+                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                            <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+                        </a>
                     @endif
-                    
-                    <button onclick="window.print()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center">
+
+                    {{-- <button onclick="window.print()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center">
                         <i class="fas fa-print mr-2"></i> In phiếu
-                    </button>
+                    </button> --}}
 
                     @php
                         $testing = $assembly->testings->first();
                     @endphp
-                    @if($testing)
-                        <a href="{{ route('testing.show', $testing->id) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                    @if ($testing)
+                        <a href="{{ route('testing.show', $testing->id) }}"
+                            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
                             <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
                         </a>
                     @else
-                        <form action="{{ route('assemblies.create-testing', $assembly->id) }}" method="POST" style="display:inline;">
+                        <form action="{{ route('assemblies.create-testing', $assembly->id) }}" method="POST"
+                            style="display:inline;">
                             @csrf
-                            <button type="submit" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                            <button type="submit"
+                                class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
                                 <i class="fas fa-vial mr-2"></i> Tạo phiếu kiểm thử
                             </button>
                         </form>
                     @endif
-                    
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.delete')))
-                    @if ($assembly->status !== 'completed')
-                        <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
-                                <i class="fas fa-trash-alt mr-2"></i> Xóa
-                </button>
-                        </form>
-                    @endif
+
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.delete')))
+                        @if ($assembly->status !== 'completed')
+                            <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST"
+                                onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                    class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                                    <i class="fas fa-trash-alt mr-2"></i> Xóa
+                                </button>
+                            </form>
+                        @endif
                     @endif
                 </div>
             </div>

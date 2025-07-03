@@ -12,7 +12,9 @@ use App\Models\WarehouseMaterial;
 use App\Models\Product;
 use App\Models\Good;
 use App\Models\Serial;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -207,6 +209,18 @@ class InventoryImportController extends Controller
                 'notes' => $request->notes,
             ]);
 
+            // Ghi nhật ký tạo mới phiếu nhập kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'inventory_imports',
+                    'Tạo mới phiếu nhập kho: ' . $inventoryImport->import_code,
+                    null,
+                    $inventoryImport->toArray()
+                );
+            }
+
             // Thêm các vật tư vào phiếu nhập kho
             foreach ($request->materials as $material) {
                 // Xử lý danh sách số serial (nếu có)
@@ -299,7 +313,20 @@ class InventoryImportController extends Controller
     public function show(string $id)
     {
         $inventoryImport = InventoryImport::with(['supplier', 'warehouse', 'materials.material'])->findOrFail($id);
-        return view('inventory-imports.show', compact('inventoryImport'));
+
+        // Ghi nhật ký xem chi tiết phiếu nhập kho
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'inventory_imports',
+                'Xem chi tiết phiếu nhập kho: ' . $inventoryImport->import_code,
+                null,
+                $inventoryImport->toArray()
+            );
+        }
+        
+        return view('inventory-imports.show', compact('inventoryImport'));  
     }
 
     /**
@@ -457,6 +484,8 @@ class InventoryImportController extends Controller
         try {
             // Lấy phiếu nhập kho hiện tại và các vật tư liên quan
             $inventoryImport = InventoryImport::with('materials')->findOrFail($id);
+            // Lưu dữ liệu cũ trước khi cập nhật
+            $oldData = $inventoryImport->toArray();
             $oldMaterials = $inventoryImport->materials->toArray();
 
             // Trước khi cập nhật, cần giảm số lượng vật tư trong kho cũ và xóa serials cũ
@@ -588,6 +617,19 @@ class InventoryImportController extends Controller
             }
 
             DB::commit();
+            
+            // Ghi nhật ký cập nhật phiếu nhập kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'inventory_imports',
+                    'Cập nhật phiếu nhập kho: ' . $inventoryImport->import_code,
+                    $oldData,
+                    $inventoryImport->toArray()
+                );
+            }
+
             return redirect()->route('inventory-imports.show', $id)
                 ->with('success', 'Phiếu nhập kho đã được cập nhật thành công.');
         } catch (\Exception $e) {
@@ -604,7 +646,10 @@ class InventoryImportController extends Controller
         DB::beginTransaction();
         try {
             $inventoryImport = InventoryImport::with('materials')->findOrFail($id);
-            $warehouseId = $inventoryImport->warehouse_id;
+            // Lưu dữ liệu cũ trước khi xóa
+            $oldData = $inventoryImport->toArray();
+
+            $warehouseId = $inventoryImport->warehouse_id;  
 
             // Giảm số lượng vật tư trong kho và xóa serials
             foreach ($inventoryImport->materials as $material) {
@@ -645,6 +690,19 @@ class InventoryImportController extends Controller
             $inventoryImport->delete();
 
             DB::commit();
+
+            // Ghi nhật ký xóa phiếu nhập kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'inventory_imports',        
+                    'Xóa phiếu nhập kho: ' . $inventoryImport->import_code,
+                    $oldData,
+                    null
+                );
+            }
+
             return redirect()->route('inventory-imports.index')
                 ->with('success', 'Phiếu nhập kho đã được xóa thành công.');
         } catch (\Exception $e) {

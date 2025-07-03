@@ -36,7 +36,7 @@
 
     <form action="{{ route('requests.maintenance.update', $maintenanceRequest->id) }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
         @csrf
-        @method('PUT')
+        @method('PATCH')
         
         <div class="mb-6 border-b border-gray-200 pb-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin đề xuất</h2>

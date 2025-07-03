@@ -72,6 +72,18 @@ class MaintenanceRequestController extends Controller
                 
                 DB::commit();
                 
+                // Ghi nhật ký tạo phiếu bảo trì từ sao chép
+                if (Auth::check()) {
+                    \App\Models\UserLog::logActivity(
+                        Auth::id(),
+                        'create',
+                        'maintenance_requests',
+                        'Tạo phiếu bảo trì dự án (sao chép): ' . $newRequest->request_code,
+                        null,
+                        $newRequest->toArray()
+                    );
+                }
+                
                 return redirect()->route('requests.maintenance.show', $newRequest->id)
                     ->with('success', 'Phiếu bảo trì đã được sao chép thành công.');
                     
@@ -197,6 +209,18 @@ class MaintenanceRequestController extends Controller
 
             DB::commit();
             
+            // Ghi nhật ký tạo phiếu bảo trì mới
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'maintenance_requests',
+                    'Tạo phiếu bảo trì dự án: ' . $maintenanceRequest->request_code,
+                    null,
+                    $maintenanceRequest->toArray()
+                );
+            }
+            
             return redirect()->route('requests.maintenance.show', $maintenanceRequest->id)
                 ->with('success', 'Phiếu bảo trì đã được tạo thành công.');
                 
@@ -220,6 +244,18 @@ class MaintenanceRequestController extends Controller
     {
         $maintenanceRequest = MaintenanceRequest::with(['proposer', 'customer', 'products', 'warranty'])
             ->findOrFail($id);
+        
+        // Ghi nhật ký xem chi tiết phiếu bảo trì
+        if (Auth::check()) {
+            \App\Models\UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'maintenance_requests',
+                'Xem chi tiết phiếu bảo trì dự án: ' . $maintenanceRequest->request_code,
+                null,
+                ['id' => $maintenanceRequest->id, 'code' => $maintenanceRequest->request_code]
+            );
+        }
             
         return view('requests.maintenance.show', compact('maintenanceRequest'));
     }
@@ -241,6 +277,9 @@ class MaintenanceRequestController extends Controller
     public function update(Request $request, $id)
     {
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $maintenanceRequest->toArray();
         
         // Chỉ cho phép cập nhật nếu phiếu đang ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
@@ -288,6 +327,18 @@ class MaintenanceRequestController extends Controller
             
             DB::commit();
             
+            // Ghi nhật ký cập nhật phiếu bảo trì
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'maintenance_requests',
+                    'Cập nhật phiếu bảo trì dự án: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
+            
             return redirect()->route('requests.maintenance.show', $maintenanceRequest->id)
                 ->with('success', 'Phiếu bảo trì đã được cập nhật thành công.');
                 
@@ -310,6 +361,8 @@ class MaintenanceRequestController extends Controller
     public function destroy($id)
     {
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        $requestCode = $maintenanceRequest->request_code;
+        $requestData = $maintenanceRequest->toArray();
         
         // Chỉ cho phép xóa nếu phiếu đang ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
@@ -324,6 +377,18 @@ class MaintenanceRequestController extends Controller
             $maintenanceRequest->delete();
             
             DB::commit();
+            
+            // Ghi nhật ký xóa phiếu bảo trì
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'maintenance_requests',
+                    'Xóa phiếu bảo trì dự án: ' . $requestCode,
+                    $requestData,
+                    null
+                );
+            }
             
             return redirect()->route('requests.index')
                 ->with('success', 'Phiếu bảo trì đã được xóa thành công.');
@@ -346,6 +411,7 @@ class MaintenanceRequestController extends Controller
     public function approve(Request $request, $id)
     {
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        $oldData = $maintenanceRequest->toArray();
         
         // Chỉ cho phép duyệt nếu phiếu đang ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
@@ -365,6 +431,18 @@ class MaintenanceRequestController extends Controller
             $this->createRepairFromMaintenanceRequest($maintenanceRequest);
             
             DB::commit();
+            
+            // Ghi nhật ký duyệt phiếu bảo trì
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'approve',
+                    'maintenance_requests',
+                    'Duyệt phiếu bảo trì dự án: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
             
             return redirect()->route('requests.maintenance.show', $maintenanceRequest->id)
                 ->with('success', 'Phiếu bảo trì đã được duyệt thành công và đã tạo phiếu sửa chữa tương ứng.');
@@ -519,6 +597,7 @@ class MaintenanceRequestController extends Controller
         }
         
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
+        $oldData = $maintenanceRequest->toArray();
         
         // Chỉ cho phép từ chối nếu phiếu đang ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
@@ -531,6 +610,18 @@ class MaintenanceRequestController extends Controller
                 'status' => 'rejected',
                 'reject_reason' => $request->reject_reason,
             ]);
+
+            // Ghi nhật ký từ chối phiếu bảo trì
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'reject',
+                    'maintenance_requests',
+                    'Từ chối phiếu bảo trì dự án: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
             
             return redirect()->route('requests.maintenance.show', $maintenanceRequest->id)
                 ->with('success', 'Phiếu bảo trì đã bị từ chối.');

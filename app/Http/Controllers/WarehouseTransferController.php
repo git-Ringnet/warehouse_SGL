@@ -7,11 +7,13 @@ use App\Models\Employee;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Good;
+use App\Models\UserLog;
 use App\Models\Warehouse;
 use App\Models\WarehouseTransfer;
 use App\Models\WarehouseTransferMaterial;
 use App\Models\WarehouseMaterial;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -230,6 +232,19 @@ class WarehouseTransferController extends Controller
             }
 
             DB::commit();
+
+            // Ghi nhật ký tạo mới phiếu chuyển kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'warehouse_transfers',
+                    'Tạo mới phiếu chuyển kho: ' . $warehouseTransfer->transfer_code,
+                    null,
+                    $warehouseTransfer->toArray()
+                );
+            }
+
             return redirect()->route('warehouse-transfers.index')->with('success', 'Phiếu chuyển kho đã được tạo thành công');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -254,6 +269,18 @@ class WarehouseTransferController extends Controller
                 'notes' => $item->notes
             ];
         })->toArray();
+
+        // Ghi nhật ký xem chi tiết phiếu chuyển kho
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'warehouse_transfers',
+                'Xem chi tiết phiếu chuyển kho: ' . $warehouseTransfer->transfer_code,
+                null,
+                $warehouseTransfer->toArray()
+            );
+        }
 
         return view('warehouse-transfers.show', compact('warehouseTransfer', 'selectedMaterials'));
     }
@@ -318,6 +345,9 @@ class WarehouseTransferController extends Controller
             'employee_id.required' => 'Nhân viên thực hiện là bắt buộc',
         ]);
 
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $warehouseTransfer->toArray();
+
         try {
             DB::beginTransaction();
 
@@ -347,6 +377,18 @@ class WarehouseTransferController extends Controller
                 'status' => $request->status,
                 'notes' => $request->notes,
             ]);
+
+            // Ghi nhật ký cập nhật phiếu chuyển kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'warehouse_transfers',
+                    'Cập nhật phiếu chuyển kho: ' . $warehouseTransfer->transfer_code,
+                    $oldData,
+                    $warehouseTransfer->toArray()
+                );
+            }
 
             // Xóa chi tiết vật tư hiện có
             $warehouseTransfer->materials()->delete();
@@ -500,8 +542,25 @@ class WarehouseTransferController extends Controller
      */
     public function destroy(WarehouseTransfer $warehouseTransfer)
     {
+        // Lưu dữ liệu cũ trước khi xóa
+        $oldData = $warehouseTransfer->toArray();
+        $warehouseTransferCode = $warehouseTransfer->transfer_code;
+
         try {
             $warehouseTransfer->delete();
+
+            // Ghi nhật ký xóa phiếu chuyển kho
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'warehouse_transfers',  
+                    'Xóa phiếu chuyển kho: ' . $warehouseTransferCode,
+                    $oldData,
+                    null
+                );
+            }
+
             return redirect()->route('warehouse-transfers.index')->with('success', 'Phiếu chuyển kho đã được xóa thành công');
         } catch (\Exception $e) {
             Log::error('Lỗi khi xóa phiếu chuyển kho: ' . $e->getMessage());

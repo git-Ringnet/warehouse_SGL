@@ -16,6 +16,8 @@ use App\Exports\MaterialsExport;
 use App\Exports\MaterialsTemplateExport;
 use App\Imports\MaterialsImport;
 use App\Models\Supplier;
+use App\Models\UserLog;
+use Illuminate\Support\Facades\Auth;
 
 class MaterialController extends Controller
 {
@@ -175,6 +177,18 @@ class MaterialController extends Controller
             }
         }
 
+        // Ghi nhật ký tạo mới vật tư
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'materials',
+                'Tạo mới vật tư: ' . $material->name,
+                null,
+                $material->toArray()
+            );
+        }
+
         return redirect()->route('materials.index')
             ->with('success', 'Vật tư đã được thêm thành công.');
     }
@@ -204,6 +218,18 @@ class MaterialController extends Controller
         }
         
         $inventoryQuantity = $warehouseQuery->sum('quantity');
+
+        // Ghi nhật ký xem chi tiết vật tư
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'materials',
+                'Xem chi tiết vật tư: ' . $material->name,
+                null,
+                $material->toArray()
+            );
+        }
         
         return view('materials.show', compact('material', 'warehouses', 'totalQuantity', 'inventoryQuantity'));
     }
@@ -251,8 +277,23 @@ class MaterialController extends Controller
             $materialData['inventory_warehouses'] = ['all'];
         }
 
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $material->toArray();
+
         // Update the material
         $material->update($materialData);
+
+        // Ghi nhật ký cập nhật vật tư
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'materials',
+                'Cập nhật vật tư: ' . $material->name,
+                $oldData,
+                $material->toArray()
+            );
+        }
 
         // Handle suppliers relationship
         if ($request->has('supplier_ids')) {
@@ -304,6 +345,10 @@ class MaterialController extends Controller
         $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
             ->where('item_type', 'material');
 
+        // Lưu dữ liệu cũ trước khi xóa
+        $oldData = $material->toArray();
+        $materialName = $material->name;
+
         // Check inventory based on material's configuration
         if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
             $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
@@ -335,6 +380,18 @@ class MaterialController extends Controller
                 'status' => 'deleted',
                 'is_hidden' => false
             ]);
+
+            // Ghi nhật ký xóa vật tư
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'materials',
+                    'Xóa vật tư: ' . $materialName,
+                    $oldData,
+                    null
+                );
+            }
 
         return redirect()->route('materials.index')
                 ->with('success', 'Vật tư đã được đánh dấu là đã xóa.');

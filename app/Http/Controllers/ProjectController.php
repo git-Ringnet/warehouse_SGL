@@ -6,7 +6,9 @@ use App\Models\Project;
 use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Notification;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class ProjectController extends Controller
@@ -18,9 +20,9 @@ class ProjectController extends Controller
     {
         $search = $request->input('search');
         $filter = $request->input('filter');
-        
+
         $query = Project::with('customer');
-        
+
         // Xử lý tìm kiếm
         if ($search) {
             if ($filter) {
@@ -33,9 +35,9 @@ class ProjectController extends Controller
                         $query->where('project_name', 'like', "%{$search}%");
                         break;
                     case 'customer':
-                        $query->whereHas('customer', function($q) use ($search) {
+                        $query->whereHas('customer', function ($q) use ($search) {
                             $q->where('company_name', 'like', "%{$search}%")
-                              ->orWhere('name', 'like', "%{$search}%");
+                                ->orWhere('name', 'like', "%{$search}%");
                         });
                         break;
                 }
@@ -43,23 +45,23 @@ class ProjectController extends Controller
                 // Tìm kiếm tổng quát nếu không chọn bộ lọc
                 $query->where(function ($q) use ($search) {
                     $q->where('project_code', 'like', "%{$search}%")
-                      ->orWhere('project_name', 'like', "%{$search}%")
-                      ->orWhereHas('customer', function($subq) use ($search) {
-                          $subq->where('company_name', 'like', "%{$search}%")
-                               ->orWhere('name', 'like', "%{$search}%");
-                      });
+                        ->orWhere('project_name', 'like', "%{$search}%")
+                        ->orWhereHas('customer', function ($subq) use ($search) {
+                            $subq->where('company_name', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        });
                 });
             }
         }
-        
+
         $projects = $query->latest()->paginate(10);
-        
+
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
         $projects->appends([
             'search' => $search,
             'filter' => $filter
         ]);
-        
+
         return view('projects.index', compact('projects', 'search', 'filter'));
     }
 
@@ -124,6 +126,18 @@ class ProjectController extends Controller
             'description' => $request->description,
         ]);
 
+        // Ghi nhật ký tạo mới dự án
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'projects',
+                'Tạo mới dự án: ' . $project->project_code,
+                null,
+                $project->toArray()
+            );
+        }
+
         // Tạo thông báo khi tạo dự án mới
         if ($project->employee_id) {
             Notification::createNotification(
@@ -135,10 +149,10 @@ class ProjectController extends Controller
                 $project->id,
                 route('projects.show', $project->id)
             );
-            
+
             // Kiểm tra và gửi thông báo về trạng thái bảo hành
             $observer = new \App\Observers\ProjectObserver();
-            
+
             // Gọi phương thức protected thông qua Reflection API
             $reflection = new \ReflectionClass(get_class($observer));
             $method = $reflection->getMethod('checkWarrantyStatus');
@@ -157,19 +171,31 @@ class ProjectController extends Controller
     {
         $project = Project::with('customer')->findOrFail($id);
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
-        
+
         // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế
         $backupItems = collect();
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
             ->where('project_id', $project->id)
             ->whereIn('status', ['approved', 'completed'])
             ->get();
-            
+
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
             $backupItems = $backupItems->concat($items);
         }
-        
+
+        // Ghi nhật ký xem chi tiết dự án
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'projects',
+                'Xem chi tiết dự án: ' . $project->project_code,
+                null,
+                $project->toArray()
+            );
+        }
+
         return view('projects.show', compact('project', 'warehouses', 'backupItems'));
     }
 
@@ -191,7 +217,7 @@ class ProjectController extends Controller
     {
         // Validation
         $validator = Validator::make($request->all(), [
-            'project_code' => 'required|string|max:255|unique:projects,project_code,'.$id,
+            'project_code' => 'required|string|max:255|unique:projects,project_code,' . $id,
             'project_name' => 'required|string|max:255',
             'customer_id' => 'required|exists:customers,id',
             'employee_id' => 'nullable|exists:employees,id',
@@ -225,12 +251,13 @@ class ProjectController extends Controller
 
         // Cập nhật dự án
         $project = Project::findOrFail($id);
-        
+
         // Lưu thông tin cũ trước khi cập nhật
+        $oldData = $project->toArray();
         $oldEmployeeId = $project->employee_id;
         $startDateChanged = $project->start_date != $request->start_date;
         $warrantyPeriodChanged = $project->warranty_period != $request->warranty_period;
-        
+
         $project->update([
             'project_code' => $request->project_code,
             'project_name' => $request->project_name,
@@ -241,6 +268,18 @@ class ProjectController extends Controller
             'warranty_period' => $request->warranty_period,
             'description' => $request->description,
         ]);
+
+        // Ghi nhật ký cập nhật dự án
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'projects',
+                'Cập nhật dự án: ' . $project->project_code,
+                $oldData,
+                $project->toArray()
+            );
+        }
 
         // Tạo thông báo khi cập nhật dự án
         if ($project->employee_id) {
@@ -266,12 +305,12 @@ class ProjectController extends Controller
                     route('projects.show', $project->id)
                 );
             }
-            
+
             // Kiểm tra và gửi thông báo về bảo hành nếu thông tin bảo hành đã thay đổi
             if ($startDateChanged || $warrantyPeriodChanged) {
                 // Sử dụng ProjectObserver để kiểm tra và gửi thông báo
                 $observer = new \App\Observers\ProjectObserver();
-                
+
                 // Gọi phương thức protected thông qua Reflection API
                 $reflection = new \ReflectionClass(get_class($observer));
                 $method = $reflection->getMethod('checkWarrantyStatus');
@@ -290,34 +329,50 @@ class ProjectController extends Controller
     public function destroy($id)
     {
         try {
-        $project = Project::findOrFail($id);
-            
+            $project = Project::findOrFail($id);
+
+            // Lưu dữ liệu cũ trước khi xóa
+            $oldData = $project->toArray();
+            $projectCode = $project->project_code;
+
             // Kiểm tra xem dự án có phiếu xuất kho liên quan không
             $dispatchCount = \App\Models\Dispatch::where('project_id', $id)->count();
-            
+
             if ($dispatchCount > 0) {
                 return redirect()->route('projects.show', $id)
                     ->with('error', 'Không thể xóa dự án này vì có ' . $dispatchCount . ' phiếu xuất kho liên quan. Vui lòng xóa các phiếu xuất kho trước khi xóa dự án.');
             }
-            
+
             // Nếu không có phiếu xuất kho liên quan, tiến hành xóa dự án
-        $project->delete();
-        
-        // Tạo thông báo khi xóa dự án
-        if ($project->employee_id) {
-            Notification::createNotification(
-                'Dự án đã bị xóa',
-                "Dự án #{$project->project_code} - {$project->project_name} đã bị xóa.",
-                'error',
-                $project->employee_id,
-                'project',
-                null,
-                route('projects.index')
-            );
-        }
-        
-        return redirect()->route('projects.index')
-            ->with('success', 'Dự án đã được xóa thành công');
+            $project->delete();
+
+            // Ghi nhật ký xóa dự án
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'projects',
+                    'Xóa dự án: ' . $projectCode,
+                    $oldData,
+                    null
+                );
+            }
+
+            // Tạo thông báo khi xóa dự án
+            if ($project->employee_id) {
+                Notification::createNotification(
+                    'Dự án đã bị xóa',
+                    "Dự án #{$project->project_code} - {$project->project_name} đã bị xóa.",
+                    'error',
+                    $project->employee_id,
+                    'project',
+                    null,
+                    route('projects.index')
+                );
+            }
+
+            return redirect()->route('projects.index')
+                ->with('success', 'Dự án đã được xóa thành công');
         } catch (\Exception $e) {
             return redirect()->route('projects.index')
                 ->with('error', 'Có lỗi xảy ra khi xóa dự án: ' . $e->getMessage());
@@ -330,18 +385,18 @@ class ProjectController extends Controller
     public function getProjectItems($projectId)
     {
         $project = \App\Models\Project::find($projectId);
-        
+
         if (!$project) {
             return response()->json(['error' => 'Không tìm thấy dự án'], 404);
         }
-        
+
         // Lấy danh sách thiết bị từ các phiếu xuất kho của dự án
         $dispatches = \App\Models\Dispatch::where('project_id', $projectId)
             ->whereIn('status', ['approved', 'completed'])
             ->get();
-            
+
         $allItems = collect();
-        
+
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()
                 ->with(['product'])
@@ -359,10 +414,10 @@ class ProjectController extends Controller
                         'dispatch_code' => $dispatch->dispatch_code
                     ];
                 });
-                
+
             $allItems = $allItems->concat($items);
         }
-        
+
         return response()->json($allItems);
     }
 
@@ -372,7 +427,7 @@ class ProjectController extends Controller
     public function getProjectDetails($projectId)
     {
         $project = Project::with('customer')->findOrFail($projectId);
-        
+
         return response()->json([
             'success' => true,
             'project' => [
@@ -389,4 +444,4 @@ class ProjectController extends Controller
             ]
         ]);
     }
-} 
+}

@@ -162,49 +162,6 @@
                         <i class="fas fa-key mr-2"></i>Phân quyền
                     </h2>
 
-                    <!-- Template quyền nhanh -->
-                    <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h3 class="text-sm font-medium text-blue-800 mb-3">
-                            <i class="fas fa-magic mr-2"></i>Template quyền nhanh
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <button type="button"
-                                class="template-btn bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                                data-template="warehouse">
-                                <i class="fas fa-warehouse mr-2"></i>Quản lý kho
-                            </button>
-                            <button type="button"
-                                class="template-btn bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                                data-template="production">
-                                <i class="fas fa-industry mr-2"></i>Sản xuất
-                            </button>
-                            <button type="button"
-                                class="template-btn bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                                data-template="maintenance">
-                                <i class="fas fa-wrench mr-2"></i>Bảo trì
-                            </button>
-                            <button type="button"
-                                class="template-btn bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                                data-template="project">
-                                <i class="fas fa-tasks mr-2"></i>Dự án
-                            </button>
-                            <button type="button"
-                                class="template-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                                data-template="viewer">
-                                <i class="fas fa-eye mr-2"></i>Chỉ xem
-                            </button>
-                            <button type="button"
-                                class="template-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                                data-template="clear">
-                                <i class="fas fa-broom mr-2"></i>Xóa tất cả
-                            </button>
-                        </div>
-                        <p class="text-xs text-blue-600 mt-2">
-                            <i class="fas fa-info-circle mr-1"></i>Click vào template để áp dụng nhanh các quyền phổ
-                            biến
-                        </p>
-                    </div>
-
                     <div class="mb-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                         <div class="flex items-center space-x-4">
                             <div class="flex items-center">
@@ -213,13 +170,6 @@
                                 <label for="select-all-permissions"
                                     class="ml-2 block text-sm font-medium text-gray-700">
                                     Chọn tất cả
-                                </label>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="checkbox" id="select-view-only"
-                                    class="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
-                                <label for="select-view-only" class="ml-2 block text-sm font-medium text-gray-700">
-                                    Chỉ quyền xem
                                 </label>
                             </div>
                         </div>

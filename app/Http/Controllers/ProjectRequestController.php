@@ -230,6 +230,18 @@ class ProjectRequestController extends Controller
                 
                 DB::commit();
                 
+                // Ghi nhật ký tạo phiếu đề xuất từ sao chép
+                if (Auth::check()) {
+                    \App\Models\UserLog::logActivity(
+                        Auth::id(),
+                        'create',
+                        'project_requests',
+                        'Tạo phiếu đề xuất triển khai dự án (sao chép): ' . $newRequest->request_code,
+                        null,
+                        $newRequest->toArray()
+                    );
+                }
+                
                 return redirect()->route('requests.project.show', $newRequest->id)
                     ->with('success', 'Phiếu đề xuất đã được sao chép thành công.');
                     
@@ -402,6 +414,18 @@ class ProjectRequestController extends Controller
             
             DB::commit();
             
+            // Ghi nhật ký tạo phiếu đề xuất mới
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'project_requests',
+                    'Tạo phiếu đề xuất triển khai dự án: ' . $projectRequest->request_code,
+                    null,
+                    $projectRequest->toArray()
+                );
+            }
+            
             return redirect()->route('requests.project.show', $projectRequest->id)
                 ->with('success', 'Phiếu đề xuất triển khai dự án đã được tạo thành công.');
                 
@@ -429,6 +453,18 @@ class ProjectRequestController extends Controller
         $assembly = \App\Models\Assembly::where('notes', 'like', '%phiếu đề xuất dự án #' . $id . '%')
             ->with(['products.product'])
             ->first();
+        
+        // Ghi nhật ký xem chi tiết phiếu đề xuất
+        if (Auth::check()) {
+            \App\Models\UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'project_requests',
+                'Xem chi tiết phiếu đề xuất triển khai dự án: ' . $projectRequest->request_code,
+                null,
+                ['id' => $projectRequest->id, 'code' => $projectRequest->request_code]
+            );
+        }
         
         return view('requests.project.show', compact('projectRequest', 'assembly'));
     }
@@ -484,6 +520,9 @@ class ProjectRequestController extends Controller
             
             $projectRequest = ProjectRequest::findOrFail($id);
             
+            // Lưu dữ liệu cũ trước khi cập nhật
+            $oldData = $projectRequest->toArray();
+            
             // Chỉ cho phép chỉnh sửa nếu trạng thái là pending
             if ($projectRequest->status !== 'pending') {
                 return back()->withInput()
@@ -518,6 +557,18 @@ class ProjectRequestController extends Controller
             
             DB::commit();
 
+            // Ghi nhật ký cập nhật phiếu đề xuất
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'project_requests',
+                    'Cập nhật phiếu đề xuất triển khai dự án: ' . $projectRequest->request_code,
+                    $oldData,
+                    $projectRequest->toArray()
+                );
+            }
+
             return redirect()->route('requests.project.show', $projectRequest->id)
                 ->with('success', 'Phiếu đề xuất triển khai dự án đã được cập nhật thành công.');
         } catch (\Exception $e) {
@@ -534,6 +585,8 @@ class ProjectRequestController extends Controller
     {
         try {
             $projectRequest = ProjectRequest::findOrFail($id);
+            $requestCode = $projectRequest->request_code;
+            $requestData = $projectRequest->toArray();
             
             // Chỉ cho phép xóa nếu trạng thái là pending
             if ($projectRequest->status !== 'pending') {
@@ -542,6 +595,18 @@ class ProjectRequestController extends Controller
             }
             
             $projectRequest->delete();
+            
+            // Ghi nhật ký xóa phiếu đề xuất
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'project_requests',
+                    'Xóa phiếu đề xuất triển khai dự án: ' . $requestCode,
+                    $requestData,
+                    null
+                );
+            }
             
             return redirect()->route('requests.index')
                 ->with('success', 'Phiếu đề xuất triển khai dự án đã được xóa thành công.');
@@ -560,6 +625,7 @@ class ProjectRequestController extends Controller
             DB::beginTransaction();
             
             $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'items'])->findOrFail($id);
+            $oldData = $projectRequest->toArray();
             
             // Chỉ cho phép duyệt nếu trạng thái là pending
             if ($projectRequest->status !== 'pending') {
@@ -605,6 +671,18 @@ class ProjectRequestController extends Controller
             
             DB::commit();
             
+            // Ghi nhật ký duyệt phiếu đề xuất
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'approve',
+                    'project_requests',
+                    'Duyệt phiếu đề xuất triển khai dự án: ' . $projectRequest->request_code,
+                    $oldData,
+                    $projectRequest->toArray()
+                );
+            }
+            
             return redirect()->route('requests.project.show', $projectRequest->id)
                 ->with('success', $successMessage);
         } catch (\Exception $e) {
@@ -618,21 +696,18 @@ class ProjectRequestController extends Controller
      */
     public function reject(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'reject_reason' => 'required|string',
+        $request->validate([
+            'reject_reason' => 'required|string|min:5',
         ], [
-            'reject_reason.required' => 'Lý do từ chối không được để trống',
+            'reject_reason.required' => 'Vui lòng nhập lý do từ chối',
+            'reject_reason.min' => 'Lý do từ chối phải có ít nhất 5 ký tự',
         ]);
-
-        if ($validator->fails()) {
-            return redirect()
-                ->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-
+        
         try {
-            $projectRequest = ProjectRequest::findOrFail($id);
+            DB::beginTransaction();
+            
+            $projectRequest = ProjectRequest::with(['proposer'])->findOrFail($id);
+            $oldData = $projectRequest->toArray();
             
             // Chỉ cho phép từ chối nếu trạng thái là pending
             if ($projectRequest->status !== 'pending') {
@@ -649,8 +724,23 @@ class ProjectRequestController extends Controller
                 'status' => 'rejected',
             ]);
             
-            return redirect()->route('requests.project.show', $projectRequest->id)
-                ->with('success', 'Phiếu đề xuất đã bị từ chối.');
+            DB::commit();
+            
+            // Ghi nhật ký từ chối phiếu đề xuất
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'reject',
+                    'project_requests',
+                    'Từ chối phiếu đề xuất triển khai dự án: ' . $projectRequest->request_code,
+                    $oldData,
+                    $projectRequest->toArray()
+                );
+            }
+            
+            return redirect()->route('requests.project.show', $id)
+                ->with('success', 'Phiếu đề xuất đã được từ chối.');
+                
         } catch (\Exception $e) {
             return back()->with('error', 'Có lỗi xảy ra khi từ chối phiếu đề xuất: ' . $e->getMessage());
         }
@@ -808,6 +898,18 @@ class ProjectRequestController extends Controller
                 'status' => 'pending',
                 'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id . ' - ' . $projectRequest->project_name,
             ]);
+
+            // Ghi nhật ký tạo phiếu lắp ráp
+            if (Auth::check()) {
+                \App\Models\UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'assemblies',
+                    'Tạo phiếu lắp ráp tự động từ phiếu đề xuất dự án: ' . $assembly->code,
+                    null,
+                    $assembly->toArray()
+                );
+            }
             
             // Thêm các sản phẩm từ phiếu đề xuất vào phiếu lắp ráp
             $productsAdded = false;
@@ -936,6 +1038,18 @@ class ProjectRequestController extends Controller
             'warranty_period' => null, // Có thể lấy từ project nếu cần
             'rental_id' => null, // Không cần vì là xuất cho dự án
         ]);
+
+        // Ghi nhật ký tạo phiếu xuất kho
+        if (Auth::check()) {
+            \App\Models\UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'dispatches',   
+                'Tạo phiếu xuất kho tự động từ phiếu đề xuất dự án: ' . $dispatch->dispatch_code,
+                null,
+                $dispatch->toArray()
+            );
+        }
 
         // Lấy warehouse mặc định (có thể cần thêm logic để chọn warehouse phù hợp)
         $defaultWarehouse = Warehouse::query()

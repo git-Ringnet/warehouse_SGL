@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chỉnh sửa phiếu xuất kho - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -686,6 +687,14 @@
                                 </tbody>
                             </table>
                         </div>
+                        
+                        <!-- Nút cập nhật mã thiết bị hợp đồng -->
+                        <div class="mt-4 flex justify-end">
+                            <button type="button" id="update_contract_device_codes_btn"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Bảng thiết bị dự phòng (hiển thị conditional) -->
@@ -748,6 +757,14 @@
                                 </tbody>
                             </table>
                         </div>
+                        
+                        <!-- Nút cập nhật mã thiết bị dự phòng -->
+                        <div class="mt-4 flex justify-end">
+                            <button type="button" id="update_backup_device_codes_btn"
+                                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                            </button>
+                        </div>
                     </div>
                 @endif
 
@@ -776,7 +793,73 @@
         </main>
     </div>
 
+    <!-- Modal cập nhật mã thiết bị -->
+    <div id="device-code-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Cập nhật mã thiết bị</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" id="close-device-code-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
 
+            <div class="mb-4">
+                <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng bên dưới:</p>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border border-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri chính
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri vật tư
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Seri sim
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Mã truy cập
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    ID IoT
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Mac 4G
+                                </th>
+                                <th scope="col" class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-center border border-gray-200">
+                                    Chú thích
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="device-code-tbody">
+                            <!-- Dữ liệu sẽ được tạo động từ JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4 flex justify-between">
+                    <div class="flex space-x-2">
+                        <a href="{{ route('device-codes.template') }}" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-download mr-2"></i> Tải mẫu Excel
+                        </a>
+                        <button type="button" id="import-device-codes" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-file-import mr-2"></i> Import Excel
+                        </button>
+                    </div>
+                    <div>
+                        <button type="button" id="cancel-device-codes" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-colors mr-2">
+                            Hủy
+                        </button>
+                        <button type="button" id="save-device-codes" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-save mr-2"></i> Lưu thông tin
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -2574,6 +2657,468 @@
                     if (backupProductSelect) {
                         backupProductSelect.appendChild(backupOption);
                     }
+                });
+            }
+
+            // Xử lý modal cập nhật mã thiết bị
+            const updateContractDeviceCodesBtn = document.getElementById('update_contract_device_codes_btn');
+            const updateBackupDeviceCodesBtn = document.getElementById('update_backup_device_codes_btn');
+            const deviceCodeModal = document.getElementById('device-code-modal');
+            const closeDeviceCodeModalBtn = document.getElementById('close-device-code-modal');
+            const cancelDeviceCodesBtn = document.getElementById('cancel-device-codes');
+            const saveDeviceCodesBtn = document.getElementById('save-device-codes');
+            const importDeviceCodesBtn = document.getElementById('import-device-codes');
+
+            let currentDeviceCodeType = '';
+            let currentProductId = null;
+            
+            // Lấy dispatch_id từ URL hoặc từ form
+            const dispatchId = {{ $dispatch->id }};
+
+            if (updateContractDeviceCodesBtn) {
+                updateContractDeviceCodesBtn.addEventListener('click', function() {
+                    currentDeviceCodeType = 'contract';
+                    loadDeviceCodesFromDatabase('contract');
+                    deviceCodeModal.classList.remove('hidden');
+                });
+            }
+
+            if (updateBackupDeviceCodesBtn) {
+                updateBackupDeviceCodesBtn.addEventListener('click', function() {
+                    currentDeviceCodeType = 'backup';
+                    loadDeviceCodesFromDatabase('backup');
+                    deviceCodeModal.classList.remove('hidden');
+                });
+            }
+
+            // Hàm load dữ liệu mã thiết bị từ database
+            async function loadDeviceCodesFromDatabase(type) {
+                try {
+                    // Hiển thị trạng thái loading
+                    const tbody = document.getElementById('device-code-tbody');
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-3 text-center">Đang tải dữ liệu...</td></tr>';
+                    
+                    // Gọi API để lấy dữ liệu
+                    const response = await fetch(`/api/device-codes/${dispatchId}?type=${type}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        renderDeviceCodeTable(data.deviceCodes, type);
+                    } else {
+                        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-3 text-center text-red-500">${data.message || 'Không thể tải dữ liệu'}</td></tr>`;
+                    }
+                } catch (error) {
+                    console.error('Error loading device codes:', error);
+                    const tbody = document.getElementById('device-code-tbody');
+                    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-3 text-center text-red-500">Lỗi khi tải dữ liệu</td></tr>';
+                }
+            }
+
+            // Hàm hiển thị bảng mã thiết bị với dữ liệu từ database
+            function renderDeviceCodeTable(deviceCodes, type) {
+                const tbody = document.getElementById('device-code-tbody');
+                tbody.innerHTML = '';
+
+                if (!deviceCodes || deviceCodes.length === 0) {
+                    // Nếu không có dữ liệu, hiển thị thông báo và tạo UI mới dựa vào serial đã chọn
+                    renderNewDeviceCodeTable(type);
+                    return;
+                }
+
+                // Nhóm device codes theo product_id để hiển thị
+                const groupedDeviceCodes = {};
+                deviceCodes.forEach(deviceCode => {
+                    if (!groupedDeviceCodes[deviceCode.product_id]) {
+                        groupedDeviceCodes[deviceCode.product_id] = [];
+                    }
+                    groupedDeviceCodes[deviceCode.product_id].push(deviceCode);
+                });
+
+                // Render từng nhóm product
+                Object.keys(groupedDeviceCodes).forEach(productId => {
+                    const productDeviceCodes = groupedDeviceCodes[productId];
+                    
+                    productDeviceCodes.forEach(deviceCode => {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-product-id', deviceCode.product_id);
+                        row.setAttribute('data-device-code-id', deviceCode.id);
+                        
+                        row.innerHTML = `
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_serial_main[${deviceCode.product_id}]" 
+                                    value="${deviceCode.serial_main || ''}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                    ${deviceCode.serial_main ? 'readonly' : ''}>
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <div class="flex flex-col space-y-1" id="${type}-component-serials-${deviceCode.id}">
+                                    ${renderComponentSerials(deviceCode.serial_components, type, deviceCode.product_id)}
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_serial_sim[${deviceCode.product_id}]" 
+                                    value="${deviceCode.serial_sim || ''}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_access_code[${deviceCode.product_id}]" 
+                                    value="${deviceCode.access_code || ''}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_iot_id[${deviceCode.product_id}]" 
+                                    value="${deviceCode.iot_id || ''}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_mac_4g[${deviceCode.product_id}]" 
+                                    value="${deviceCode.mac_4g || ''}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_note[${deviceCode.product_id}]" 
+                                    value="${deviceCode.note || ''}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                });
+            }
+
+            // Hàm hiển thị serial components
+            function renderComponentSerials(serialComponents, type, productId) {
+                if (!serialComponents || serialComponents.length === 0) {
+                    return `<input type="text" 
+                                name="${type}_serial_components[${productId}][]" 
+                                placeholder="Nhập seri vật tư..."
+                                class="w-full border border-gray-300 rounded px-2 py-1 text-sm">`;
+                }
+
+                // Nếu là string (chuỗi comma-separated), chuyển thành array
+                if (typeof serialComponents === 'string') {
+                    serialComponents = serialComponents.split(',').map(s => s.trim()).filter(Boolean);
+                }
+
+                return serialComponents.map(serial => 
+                    `<input type="text" 
+                        name="${type}_serial_components[${productId}][]" 
+                        value="${serial}"
+                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm mb-1">`
+                ).join('');
+            }
+
+            // Hàm hiển thị bảng device code mới (khi không có dữ liệu)
+            function renderNewDeviceCodeTable(type) {
+                const tbody = document.getElementById('device-code-tbody');
+                tbody.innerHTML = '';
+
+                let productsToShow = [];
+                if (type === 'contract') {
+                    productsToShow = selectedContractProducts;
+                } else if (type === 'backup') {
+                    productsToShow = selectedBackupProducts;
+                }
+
+                if (productsToShow.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-3 text-center">Chưa có sản phẩm nào được chọn</td></tr>`;
+                    return;
+                }
+
+                productsToShow.forEach((product, index) => {
+                    // Lấy danh sách serial đã chọn cho sản phẩm này
+                    const serialContainer = document.getElementById(`${type}-serials-${index}`);
+                    if (!serialContainer) return;
+
+                    const serialSelects = serialContainer.querySelectorAll('select');
+                    const mainSerials = Array.from(serialSelects)
+                        .map(select => select.value)
+                        .filter(Boolean);
+
+                    if (mainSerials.length === 0) return;
+
+                    mainSerials.forEach(mainSerial => {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-product-id', product.id);
+                        
+                        row.innerHTML = `
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_serial_main[${product.id}][]" 
+                                    value="${mainSerial}"
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm"
+                                    readonly>
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <div class="flex flex-col space-y-1">
+                                    <input type="text" 
+                                        name="${type}_serial_components[${product.id}][]" 
+                                        placeholder="Nhập seri vật tư..."
+                                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                </div>
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_serial_sim[${product.id}]" 
+                                    placeholder="Nhập seri SIM..."
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_access_code[${product.id}]" 
+                                    placeholder="Nhập mã truy cập..."
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_iot_id[${product.id}]" 
+                                    placeholder="Nhập ID IoT..."
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_mac_4g[${product.id}]" 
+                                    placeholder="Nhập MAC 4G..."
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                            <td class="px-2 py-2 border border-gray-200">
+                                <input type="text" 
+                                    name="${type}_note[${product.id}]" 
+                                    placeholder="Nhập chú thích..."
+                                    class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                        
+                        // Lấy thông tin component serials từ API
+                        fetchComponentSerials(mainSerial, row, type, product.id);
+                    });
+                });
+            }
+
+            // Hàm fetch component serials từ API
+            async function fetchComponentSerials(mainSerial, row, type, productId) {
+                try {
+                    const response = await fetch(`/api/device-info/${mainSerial}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.data && data.data.componentSerials) {
+                        // Clear existing component serials input
+                        const componentContainer = row.querySelector(`td:nth-child(2) div`);
+                        componentContainer.innerHTML = '';
+                        
+                        // Nếu có component serials, thêm vào container
+                        const componentSerials = data.data.componentSerials;
+                        if (componentSerials.length > 0) {
+                            componentSerials.forEach(componentSerial => {
+                                // Nếu là chuỗi có dấu phẩy, tách ra
+                                const serials = componentSerial.split(',').map(s => s.trim()).filter(Boolean);
+                                
+                                serials.forEach(serial => {
+                                    const input = document.createElement('input');
+                                    input.type = 'text';
+                                    input.name = `${type}_serial_components[${productId}][]`;
+                                    input.value = serial;
+                                    input.className = 'w-full border border-gray-300 rounded px-2 py-1 text-sm mb-1';
+                                    componentContainer.appendChild(input);
+                                });
+                            });
+                        } else {
+                            // Nếu không có component serials, thêm input trống
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.name = `${type}_serial_components[${productId}][]`;
+                            input.placeholder = 'Nhập seri vật tư...';
+                            input.className = 'w-full border border-gray-300 rounded px-2 py-1 text-sm';
+                            componentContainer.appendChild(input);
+                        }
+                        
+                        // Cập nhật các trường khác nếu có
+                        if (data.data.serialSim) {
+                            row.querySelector(`input[name*="serial_sim"]`).value = data.data.serialSim;
+                        }
+                        if (data.data.accessCode) {
+                            row.querySelector(`input[name*="access_code"]`).value = data.data.accessCode;
+                        }
+                        if (data.data.iotId) {
+                            row.querySelector(`input[name*="iot_id"]`).value = data.data.iotId;
+                        }
+                        if (data.data.mac4g) {
+                            row.querySelector(`input[name*="mac_4g"]`).value = data.data.mac4g;
+                        }
+                        if (data.data.note) {
+                            row.querySelector(`input[name*="note"]`).value = data.data.note;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching component serials:', error);
+                }
+            }
+
+            // Đóng modal
+            if (closeDeviceCodeModalBtn) {
+                closeDeviceCodeModalBtn.addEventListener('click', function() {
+                    deviceCodeModal.classList.add('hidden');
+                });
+            }
+
+            if (cancelDeviceCodesBtn) {
+                cancelDeviceCodesBtn.addEventListener('click', function() {
+                    deviceCodeModal.classList.add('hidden');
+                });
+            }
+
+            // Lưu thông tin mã thiết bị
+            if (saveDeviceCodesBtn) {
+                saveDeviceCodesBtn.addEventListener('click', async function() {
+                    try {
+                        // Hiển thị trạng thái loading
+                        saveDeviceCodesBtn.disabled = true;
+                        saveDeviceCodesBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang lưu...';
+                        
+                        const tbody = document.getElementById('device-code-tbody');
+                        const rows = tbody.querySelectorAll('tr');
+                        const deviceCodes = [];
+                        
+                        rows.forEach(row => {
+                            // Skip empty message row
+                            if (row.querySelector('td[colspan]')) {
+                                return;
+                            }
+                            
+                            // Get product ID from the data attribute
+                            const productId = row.getAttribute('data-product-id');
+                            if (!productId) {
+                                console.warn('Row missing product ID, skipping...');
+                                return;
+                            }
+                            
+                            // Get device code ID if exists (for update)
+                            const deviceCodeId = row.getAttribute('data-device-code-id');
+                            
+                            // Get main serial
+                            const mainSerialInput = row.querySelector('input[name*="serial_main"]');
+                            if (!mainSerialInput || !mainSerialInput.value) {
+                                console.warn('No main serial found, skipping...');
+                                return;
+                            }
+                            
+                            // Get component serials
+                            const componentSerialInputs = row.querySelectorAll('input[name*="serial_components"]');
+                            const componentSerials = Array.from(componentSerialInputs)
+                                .map(input => input.value)
+                                .filter(Boolean);
+                            
+                            // Get other fields
+                            const simSerial = row.querySelector('input[name*="serial_sim"]')?.value || '';
+                            const accessCode = row.querySelector('input[name*="access_code"]')?.value || '';
+                            const iotId = row.querySelector('input[name*="iot_id"]')?.value || '';
+                            const mac4g = row.querySelector('input[name*="mac_4g"]')?.value || '';
+                            const note = row.querySelector('input[name*="note"]')?.value || '';
+                            
+                            // Create device code entry
+                            deviceCodes.push({
+                                id: deviceCodeId,
+                                dispatch_id: dispatchId,
+                                product_id: productId,
+                                serial_main: mainSerialInput.value,
+                                serial_components: componentSerials,
+                                serial_sim: simSerial,
+                                access_code: accessCode,
+                                iot_id: iotId,
+                                mac_4g: mac4g,
+                                note: note
+                            });
+                        });
+                        
+                        if (deviceCodes.length === 0) {
+                            throw new Error('Không có thông tin mã thiết bị nào để lưu!');
+                        }
+                        
+                        // Gửi dữ liệu lên server
+                        const response = await fetch('/api/device-codes/save', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                            },
+                            body: JSON.stringify({
+                                dispatch_id: dispatchId,
+                                device_codes: deviceCodes
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (!result.success) {
+                            throw new Error(result.message || 'Lỗi khi lưu thông tin');
+                        }
+                        
+                        alert('Đã lưu thông tin mã thiết bị thành công!');
+                        deviceCodeModal.classList.add('hidden');
+                        
+                    } catch (error) {
+                        console.error('Error saving device codes:', error);
+                        alert('Có lỗi xảy ra khi lưu thông tin: ' + error.message);
+                    } finally {
+                        // Reset button state
+                        saveDeviceCodesBtn.disabled = false;
+                        saveDeviceCodesBtn.innerHTML = '<i class="fas fa-save mr-2"></i> Lưu thông tin';
+                    }
+                });
+            }
+
+            // Import Excel
+            if (importDeviceCodesBtn) {
+                importDeviceCodesBtn.addEventListener('click', function() {
+                    const fileInput = document.createElement('input');
+                    fileInput.type = 'file';
+                    fileInput.accept = '.xlsx,.xls';
+                    fileInput.style.display = 'none';
+                    
+                    fileInput.addEventListener('change', async function(e) {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('dispatch_id', dispatchId);
+                        formData.append('type', currentDeviceCodeType);
+                        
+                        try {
+                            const response = await fetch('/api/device-codes/import', {
+                                method: 'POST',
+                                body: formData,
+                                headers: {
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                                }
+                            });
+                            
+                            const result = await response.json();
+                            
+                            if (!result.success) {
+                                throw new Error(result.message || 'Lỗi khi import file');
+                            }
+                            
+                            // Render dữ liệu mới từ import
+                            renderDeviceCodeTable(result.data, currentDeviceCodeType);
+                            alert('Import dữ liệu thành công!');
+                            
+                        } catch (error) {
+                            console.error('Error importing device codes:', error);
+                            alert('Có lỗi xảy ra khi import file: ' + error.message);
+                        }
+                    });
+                    
+                    document.body.appendChild(fileInput);
+                    fileInput.click();
+                    document.body.removeChild(fileInput);
                 });
             }
         });

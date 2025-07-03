@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Software;
+use App\Models\UserLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -109,7 +111,19 @@ class SoftwareController extends Controller
             }
             
             Software::create($data);
-            
+
+            // Ghi nhật ký tạo mới phần mềm
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'software',
+                    'Tạo mới phần mềm: ' . $data['name'],
+                    null,
+                    $data
+                );
+            }
+
             return redirect()->route('software.index')->with('success', 'Phần mềm đã được tạo thành công');
         } catch (\Exception $e) {
             Log::error('Lỗi khi tạo phần mềm: ' . $e->getMessage());
@@ -122,6 +136,18 @@ class SoftwareController extends Controller
      */
     public function show(Software $software)
     {
+        // Ghi nhật ký xem chi tiết phần mềm
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'software',
+                'Xem chi tiết phần mềm: ' . $software->name,
+                null,
+                $software->toArray()
+            );
+        }
+
         return view('software.show', compact('software'));
     }
 
@@ -152,6 +178,9 @@ class SoftwareController extends Controller
         ]);
 
         try {
+            // Lưu dữ liệu cũ trước khi cập nhật
+            $oldData = $software->toArray();
+
             $data = [
                 'name' => $request->name,
                 'version' => $request->version,
@@ -213,6 +242,18 @@ class SoftwareController extends Controller
             }
             
             $software->update($data);
+
+            // Ghi nhật ký cập nhật phần mềm
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'software',
+                    'Cập nhật phần mềm: ' . $software->name,
+                    $oldData,
+                    $software->toArray()
+                );
+            }
             
             return redirect()->route('software.show', $software)->with('success', 'Phần mềm đã được cập nhật thành công');
         } catch (\Exception $e) {
@@ -227,6 +268,10 @@ class SoftwareController extends Controller
     public function destroy(Software $software)
     {
         try {
+            // Lưu dữ liệu cũ trước khi xóa
+            $oldData = $software->toArray();
+            $softwareName = $software->name;
+
             // Xóa file phần mềm
             if (Storage::disk('public')->exists($software->file_path)) {
                 Storage::disk('public')->delete($software->file_path);
@@ -239,6 +284,18 @@ class SoftwareController extends Controller
             
             $software->delete();
             
+            // Ghi nhật ký xóa phần mềm
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'software',
+                    'Xóa phần mềm: ' . $softwareName,
+                    $oldData,
+                    null
+                );
+            }
+
             return redirect()->route('software.index')->with('success', 'Phần mềm đã được xóa thành công');
         } catch (\Exception $e) {
             Log::error('Lỗi khi xóa phần mềm: ' . $e->getMessage());
@@ -260,6 +317,18 @@ class SoftwareController extends Controller
             
             // Tăng số lượt tải xuống
             $software->incrementDownloadCount();
+
+            // Ghi nhật ký tải xuống phần mềm
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'download',
+                    'software',
+                    'Tải xuống phần mềm: ' . $software->name,
+                    null,
+                    $software->toArray()
+                );
+            }
             
             // Trả về file để tải xuống
             return response()->download($filePath, $software->file_name);

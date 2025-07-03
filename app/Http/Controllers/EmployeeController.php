@@ -162,6 +162,18 @@ class EmployeeController extends Controller
         // Lấy danh sách dự án và phiếu cho thuê liên quan đến nhân viên
         $projects = $employee->projects()->latest()->get();
         $rentals = $employee->rentals()->latest()->get();
+
+        // Ghi nhật ký xem chi tiết nhân viên
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'employees',
+                'Xem chi tiết nhân viên: ' . $employee->name,
+                null,
+                ['id' => $employee->id, 'name' => $employee->name, 'role' => $employee->role]
+            );
+        }
         
         return view('employees.show', compact('employee', 'projects', 'rentals'));
     }
@@ -281,6 +293,39 @@ class EmployeeController extends Controller
         $employee = Employee::findOrFail($id);
         $employeeName = $employee->name;
         $employeeData = $employee->toArray();
+        
+        // Kiểm tra xem nhân viên có liên quan đến dự án không
+        if ($employee->projects()->count() > 0) {
+            return redirect()->route('employees.show', $id)
+                ->with('error', 'Không thể xóa nhân viên này vì có dự án liên quan.');
+        }
+        
+        // Kiểm tra xem nhân viên có liên quan đến phiếu cho thuê không
+        if ($employee->rentals()->count() > 0) {
+            return redirect()->route('employees.show', $id)
+                ->with('error', 'Không thể xóa nhân viên này vì có phiếu cho thuê liên quan.');
+        }
+        
+        // Kiểm tra xem nhân viên có liên quan đến phiếu kiểm thử không
+        if (
+            \App\Models\Testing::where('tester_id', $id)->exists() || 
+            \App\Models\Testing::where('assigned_to', $id)->exists() || 
+            \App\Models\Testing::where('receiver_id', $id)->exists() || 
+            \App\Models\Testing::where('approved_by', $id)->exists() || 
+            \App\Models\Testing::where('received_by', $id)->exists()
+        ) {
+            return redirect()->route('employees.show', $id)
+                ->with('error', 'Không thể xóa nhân viên này vì có phiếu kiểm thử liên quan.');
+        }
+        
+        // Kiểm tra xem nhân viên có liên quan đến phiếu lắp ráp không
+        if (
+            \App\Models\Assembly::where('assigned_employee_id', $id)->exists() || 
+            \App\Models\Assembly::where('tester_id', $id)->exists()
+        ) {
+            return redirect()->route('employees.show', $id)
+                ->with('error', 'Không thể xóa nhân viên này vì có phiếu lắp ráp liên quan.');
+        }
         
         $employee->delete();
         

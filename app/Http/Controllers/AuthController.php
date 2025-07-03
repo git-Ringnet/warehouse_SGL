@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use App\Models\UserLog;
 
 class AuthController extends Controller
 {
@@ -60,6 +61,16 @@ class AuthController extends Controller
             // Lưu thông tin loại người dùng vào session
             Session::put('user_type', 'employee');
             
+            // Ghi nhật ký đăng nhập
+            UserLog::logActivity(
+                $employee->id,
+                'login',
+                'auth',
+                'Đăng nhập thành công (nhân viên)',
+                null,
+                ['username' => $employee->username, 'name' => $employee->name]
+            );
+            
             $request->session()->regenerate();
             
             // Kiểm tra quyền truy cập dashboard
@@ -79,6 +90,22 @@ class AuthController extends Controller
                 
                 // Lưu thông tin loại người dùng vào session
                 Session::put('user_type', 'customer');
+                
+                // Ghi nhật ký đăng nhập
+                $customer = Customer::find($user->customer_id);
+                UserLog::logActivity(
+                    $user->id,
+                    'login',
+                    'auth',
+                    'Đăng nhập thành công (khách hàng)',
+                    null,
+                    [
+                        'username' => $user->username, 
+                        'name' => $user->name,
+                        'customer_name' => $customer ? $customer->name : null,
+                        'customer_company' => $customer ? $customer->company_name : null
+                    ]
+                );
                 
                 $request->session()->regenerate();
                 return redirect()->intended('/customer/dashboard');
@@ -106,6 +133,19 @@ class AuthController extends Controller
     {
         // Xác định guard đang sử dụng
         $userType = Session::get('user_type');
+        
+        // Ghi nhật ký đăng xuất trước khi logout
+        if (Auth::check()) {
+            $user = Auth::user();
+            UserLog::logActivity(
+                $user->id,
+                'logout',
+                'auth',
+                'Đăng xuất thành công (' . ($userType === 'customer' ? 'khách hàng' : 'nhân viên') . ')',
+                ['username' => $user->username, 'name' => $user->name],
+                null
+            );
+        }
         
         if ($userType === 'customer') {
             Auth::guard('customer')->logout();
@@ -185,6 +225,16 @@ class AuthController extends Controller
                 DB::table('employees')
                     ->where('id', $user->id)
                     ->update(['password' => Hash::make($request->password)]);
+                
+                // Ghi nhật ký thay đổi mật khẩu
+                UserLog::logActivity(
+                    $user->id,
+                    'update',
+                    'auth',
+                    'Thay đổi mật khẩu thành công (nhân viên)',
+                    null,
+                    ['username' => $user->username]
+                );
             } else {
                 $user = Auth::guard('customer')->user();
                 if (!$user) {
@@ -208,6 +258,16 @@ class AuthController extends Controller
                         ->where('id', $user->customer_id)
                         ->update(['account_password' => $request->password]);
                 }
+                
+                // Ghi nhật ký thay đổi mật khẩu
+                UserLog::logActivity(
+                    $user->id,
+                    'update',
+                    'auth',
+                    'Thay đổi mật khẩu thành công (khách hàng)',
+                    null,
+                    ['username' => $user->username]
+                );
             }
             
             return back()->with('success', 'Mật khẩu đã được cập nhật thành công');

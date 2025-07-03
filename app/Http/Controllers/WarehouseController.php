@@ -10,6 +10,8 @@ use App\Models\WarehouseMaterial;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Auth;
+use App\Models\UserLog;
 
 class WarehouseController extends Controller
 {
@@ -188,6 +190,21 @@ class WarehouseController extends Controller
 
         Warehouse::create($data);
 
+        // Tạo đối tượng mới
+        $object = Warehouse::create($request->all());
+
+        // Ghi nhật ký
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'warehouses',
+                'Tạo mới kho hàng: ' . $object->name,
+                null,
+                $object->toArray()
+            );
+        }
+
         return redirect()->route('warehouses.index')
             ->with('success', 'Kho hàng đã được thêm thành công.');
     }
@@ -264,6 +281,18 @@ class WarehouseController extends Controller
         $totalGoods = $goods->sum('quantity');
         $grandTotal = $totalMaterials + $totalProducts + $totalGoods;
 
+        // Ghi nhật ký xem chi tiết kho hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'warehouses',
+                'Xem chi tiết kho hàng: ' . $warehouse->name,
+                null,
+                $warehouse->toArray()
+            );
+        }
+
         return view('warehouses.show', compact('warehouse', 'materials', 'products', 'goods', 'totalMaterials', 'totalProducts', 'totalGoods', 'grandTotal'));
     }
 
@@ -287,7 +316,22 @@ class WarehouseController extends Controller
             'manager' => 'required',
         ]);
 
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $warehouse->toArray();
+
         $warehouse->update($request->all());
+
+        // Ghi nhật ký cập nhật kho hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'warehouses',
+                'Cập nhật kho hàng: ' . $warehouse->name,
+                $oldData,
+                $warehouse->toArray()
+            );
+        }
 
         return redirect()->route('warehouses.index')
             ->with('success', 'Kho hàng đã được cập nhật thành công.');
@@ -325,15 +369,42 @@ class WarehouseController extends Controller
     {
         try {
             $action = $request->input('action', 'delete');
+            $oldData = $warehouse->toArray();
+            $warehouseName = $warehouse->name;
+            $warehouseCode = $warehouse->code;
 
             if ($action === 'hide') {
                 // Ẩn warehouse
                 $warehouse->update(['is_hidden' => true]);
                 $message = 'Kho hàng đã được ẩn thành công.';
+
+                // Ghi nhật ký
+                if (Auth::check()) {
+                    UserLog::logActivity(
+                        Auth::id(),
+                        'update',
+                        'warehouses',
+                        'Ẩn kho hàng: ' . $warehouseName . ' (' . $warehouseCode . ')',
+                        $oldData,
+                        array_merge($oldData, ['is_hidden' => true])
+                    );
+                }
             } else {
                 // Đánh dấu đã xóa (soft delete)
                 $warehouse->update(['status' => 'deleted']);
                 $message = 'Kho hàng đã được xóa thành công.';
+
+                // Ghi nhật ký
+                if (Auth::check()) {
+                    UserLog::logActivity(
+                        Auth::id(),
+                        'delete',
+                        'warehouses',
+                        'Xóa kho hàng: ' . $warehouseName . ' (' . $warehouseCode . ')',
+                        $oldData,
+                        array_merge($oldData, ['status' => 'deleted'])
+                    );
+                }
             }
 
             return redirect()->route('warehouses.index')

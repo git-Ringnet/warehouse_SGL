@@ -8,6 +8,8 @@ use App\Models\Good;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\SuppliersExport;
+use App\Models\UserLog;
+use Illuminate\Support\Facades\Auth;
 
 class SupplierController extends Controller
 {
@@ -94,7 +96,19 @@ class SupplierController extends Controller
             'email.max' => 'Địa chỉ email không được vượt quá 255 ký tự',
         ]);
 
-        Supplier::create($request->all());
+        $supplier = Supplier::create($request->all());
+
+        // Ghi nhật ký tạo mới nhà cung cấp
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'suppliers',
+                'Tạo mới nhà cung cấp: ' . $supplier->name,
+                null,
+                $supplier->toArray()
+            );
+        }
 
         return redirect()->route('suppliers.index')
             ->with('success', 'Nhà cung cấp đã được thêm thành công.');
@@ -112,6 +126,18 @@ class SupplierController extends Controller
         
         // Lấy các hàng hóa liên quan với nhà cung cấp này thông qua relationship
         $goods = $supplier->goods;
+        
+        // Ghi nhật ký xem chi tiết nhà cung cấp
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'suppliers',
+                'Xem chi tiết nhà cung cấp: ' . $supplier->name,
+                null,
+                $supplier->toArray()
+            );
+        }
         
         return view('suppliers.show', compact('supplier', 'materials', 'goods'));
     }
@@ -151,7 +177,23 @@ class SupplierController extends Controller
         ]);
 
         $supplier = Supplier::findOrFail($id);
+
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $supplier->toArray();
+
         $supplier->update($request->all());
+
+        // Ghi nhật ký cập nhật thông tin nhà cung cấp
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'update',
+                'suppliers',
+                'Cập nhật thông tin nhà cung cấp: ' . $supplier->name,
+                $oldData,
+                $supplier->toArray()
+            );
+        }
 
         return redirect()->route('suppliers.show', $id)
             ->with('success', 'Thông tin nhà cung cấp đã được cập nhật thành công.');
@@ -187,8 +229,24 @@ class SupplierController extends Controller
             return redirect()->route('suppliers.show', $id)
                 ->with('error', 'Không thể xóa nhà cung cấp này vì có ' . $testingItemsCount . ' mục kiểm thử liên quan. Vui lòng xóa các mục kiểm thử trước.');
         }
-        
+
+        // Lưu dữ liệu cũ trước khi xóa
+        $oldData = $supplier->toArray();
+        $supplierName = $supplier->name;
+
         $supplier->delete();
+
+        // Ghi nhật ký xóa nhà cung cấp
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'delete',
+                'suppliers',
+                'Xóa nhà cung cấp: ' . $supplierName,
+                $oldData,
+                null
+            );
+        }
 
         return redirect()->route('suppliers.index')
             ->with('success', 'Nhà cung cấp đã được xóa thành công.');

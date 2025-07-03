@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Helpers\ChangeLogHelper;
 use App\Models\Good;
 use App\Models\ProductMaterial;
+use App\Models\UserLog;
 
 class RepairController extends Controller
 {
@@ -714,6 +715,18 @@ class RepairController extends Controller
                 'created_by' => Auth::id() ?? 1,
             ]);
 
+            // Ghi nhật ký tạo mới phiếu sửa chữa
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'repairs',
+                    'Tạo mới phiếu sửa chữa: ' . $repair->repair_code,
+                    null,
+                    $repair->toArray()
+                );
+            }
+
             // Process selected devices
             if ($request->selected_devices && !empty($request->selected_devices)) {
                 Log::info('🔍 Raw selected_devices from request:', $request->selected_devices);
@@ -1026,6 +1039,19 @@ class RepairController extends Controller
             'materialReplacements.targetWarehouse',
             'materialReplacements.replacedBy'
         ]);
+
+        // Ghi nhật ký xem chi tiết phiếu sửa chữa
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'view',
+                'repairs',
+                'Xem chi tiết phiếu sửa chữa: ' . $repair->repair_code,
+                null,
+                $repair->toArray()
+            );
+        }
+
         return view('warranties.repair_detail', compact('repair'));
     }
 
@@ -1092,6 +1118,9 @@ class RepairController extends Controller
             'photos_to_delete' => 'nullable|string',
         ]);
 
+        // Lưu dữ liệu cũ trước khi cập nhật
+        $oldData = $repair->toArray();
+
         try {
             DB::beginTransaction();
 
@@ -1140,6 +1169,18 @@ class RepairController extends Controller
                 'repair_photos' => $repairPhotos,
                 'status' => $newStatus,
             ]);
+
+            // Ghi nhật ký cập nhật phiếu sửa chữa
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'update',
+                    'repairs',
+                    'Cập nhật phiếu sửa chữa: ' . $repair->repair_code,
+                    $oldData,
+                    $repair->toArray()
+                );
+            }
 
             // Update device items if provided
             if ($request->has('repair_items')) {
@@ -1568,6 +1609,10 @@ class RepairController extends Controller
      */
     public function destroy(Repair $repair)
     {
+        // Lưu dữ liệu cũ trước khi xóa
+        $oldData = $repair->toArray();
+        $repairCode = $repair->repair_code;
+
         try {
             // Delete associated files
             if ($repair->repair_photos) {
@@ -1586,6 +1631,18 @@ class RepairController extends Controller
             }
 
             $repair->delete();
+
+            // Ghi nhật ký xóa phiếu sửa chữa
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'delete',
+                    'repairs',
+                    'Xóa phiếu sửa chữa: ' . $repairCode,
+                    $oldData,
+                    null
+                );
+            }
 
             return redirect()->route('repairs.index')
                 ->with('success', 'Phiếu sửa chữa đã được xóa thành công!');
