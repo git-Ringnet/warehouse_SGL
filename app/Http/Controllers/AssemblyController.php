@@ -1597,17 +1597,27 @@ class AssemblyController extends Controller
         }
 
         // Generate test code
-        $testCode = 'QA-' . Carbon::now()->format('ymd');
-        $lastTest = \App\Models\Testing::where('test_code', 'like', $testCode . '%')
-            ->orderBy('test_code', 'desc')
-            ->first();
+        $baseTestCode = 'QA-' . Carbon::now()->format('ymd');
+        $testCode = null;
+        $maxAttempts = 999; // Giới hạn số lần thử để tránh vòng lặp vô hạn
+        $attempt = 1;
 
-        if ($lastTest) {
-            $lastNumber = (int) substr($lastTest->test_code, -3);
-            $testCode .= str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
-        } else {
-            $testCode .= '001';
-        }
+        do {
+            // Tạo mã với số thứ tự hiện tại
+            $testCode = $baseTestCode . str_pad($attempt, 3, '0', STR_PAD_LEFT);
+            
+            // Kiểm tra xem mã đã tồn tại chưa
+            $exists = \App\Models\Testing::where('test_code', $testCode)->exists();
+            
+            // Tăng số thứ tự nếu mã đã tồn tại
+            $attempt++;
+            
+            // Nếu đã thử quá nhiều lần, thêm thêm timestamp để đảm bảo unique
+            if ($attempt > $maxAttempts) {
+                $testCode = $baseTestCode . str_pad($attempt, 3, '0', STR_PAD_LEFT) . substr(time(), -4);
+                break;
+            }
+        } while ($exists);
 
         // Lấy người tạo phiếu hiện tại nếu có
         $currentUserId = null;
