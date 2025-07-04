@@ -1588,119 +1588,155 @@ class AssemblyController extends Controller
      */
     private function createTestingRecordForAssembly(Assembly $assembly)
     {
-        // Load relationships if not already loaded
-        if (!$assembly->relationLoaded('products')) {
-            $assembly->load('products.product');
-        }
-        if (!$assembly->relationLoaded('materials')) {
-            $assembly->load('materials.material');
-        }
+        return DB::transaction(function () use ($assembly) {
+            try {
+                // Load relationships if not already loaded
+                if (!$assembly->relationLoaded('products')) {
+                    $assembly->load('products.product');
+                }
+                if (!$assembly->relationLoaded('materials')) {
+                    $assembly->load('materials.material');
+                }
 
-        // Generate test code
-        $baseTestCode = 'QA-' . Carbon::now()->format('ymd');
-        $testCode = null;
-        $maxAttempts = 999; // Giới hạn số lần thử để tránh vòng lặp vô hạn
-        $attempt = 1;
+                // Generate test code
+                $baseTestCode = 'QA-' . Carbon::now()->format('ymd');
+                
+                // Tìm mã phiếu kiểm thử chưa được sử dụng
+                $testCode = null;
+                $attempt = 1;
+                $maxAttempts = 999;
 
-        do {
-            // Tạo mã với số thứ tự hiện tại
-            $testCode = $baseTestCode . str_pad($attempt, 3, '0', STR_PAD_LEFT);
-            
-            // Kiểm tra xem mã đã tồn tại chưa
-            $exists = \App\Models\Testing::where('test_code', $testCode)->exists();
-            
-            // Tăng số thứ tự nếu mã đã tồn tại
-            $attempt++;
-            
-            // Nếu đã thử quá nhiều lần, thêm thêm timestamp để đảm bảo unique
-            if ($attempt > $maxAttempts) {
-                $testCode = $baseTestCode . str_pad($attempt, 3, '0', STR_PAD_LEFT) . substr(time(), -4);
-                break;
-            }
-        } while ($exists);
+                // Lấy danh sách mã đã tồn tại trong ngày để tránh truy vấn nhiều lần
+                $existingCodes = DB::table('testings')
+                    ->where('test_code', 'like', $baseTestCode . '%')
+                    ->pluck('test_code')
+                    ->toArray();
+                
+                do {
+                    $candidateCode = $baseTestCode . str_pad($attempt, 3, '0', STR_PAD_LEFT);
+                    
+                    // Kiểm tra trong danh sách đã lấy
+                    if (!in_array($candidateCode, $existingCodes)) {
+                        // Double check với DB một lần nữa để đảm bảo
+                        if (!DB::table('testings')->where('test_code', $candidateCode)->exists()) {
+                            $testCode = $candidateCode;
+                            break;
+                        }
+                    }
+                    
+                    $attempt++;
+                    
+                    // Nếu đã thử hết các số từ 001-999
+                    if ($attempt > $maxAttempts) {
+                        // Tạo mã với timestamp
+                        do {
+                            $testCode = $baseTestCode . substr(time(), -4) . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+                            // Kiểm tra lại với DB
+                            $exists = DB::table('testings')->where('test_code', $testCode)->exists();
+                        } while ($exists);
+                        break;
+                    }
+                } while (true);
 
-        // Lấy người tạo phiếu hiện tại nếu có
-        $currentUserId = null;
-        if (Auth::check() && Auth::user() && Auth::user()->employee) {
-            $currentUserId = Auth::user()->employee->id;
-        }
+                // Kiểm tra lần cuối và insert với lock
+                $exists = DB::table('testings')
+                    ->lockForUpdate()
+                    ->where('test_code', $testCode)
+                    ->exists();
 
-        // Nếu không có người dùng hiện tại, sử dụng tester_id từ assembly
-        if (!$currentUserId) {
-            $currentUserId = $assembly->tester_id;
-        }
+                if ($exists) {
+                    throw new \Exception('Mã phiếu kiểm thử đã tồn tại. Vui lòng thử lại.');
+                }
 
-        // Create testing record linked to this assembly
-        $testing = \App\Models\Testing::create([
-            'test_code' => $testCode,
-            'test_type' => 'finished_product', // Thành phẩm
-            'tester_id' => $currentUserId, // Người tạo phiếu (người hiện tại hoặc từ assembly)
-            'assigned_to' => $assembly->assigned_employee_id, // Người phụ trách (từ phiếu lắp ráp)
-            'receiver_id' => $assembly->tester_id, // Người tiếp nhận kiểm thử (từ phiếu lắp ráp)
-            'test_date' => $assembly->date, // Sử dụng ngày lắp ráp
-            'notes' => 'Tự động tạo từ phiếu lắp ráp ' . $assembly->code,
-            'status' => 'pending',
-            'assembly_id' => $assembly->id, // Liên kết với phiếu lắp ráp
-        ]);
+                // Lấy người tạo phiếu hiện tại nếu có
+                $currentUserId = null;
+                if (Auth::check() && Auth::user() && Auth::user()->employee) {
+                    $currentUserId = Auth::user()->employee->id;
+                }
 
-        // Add testing items for all assembled products
-        if ($assembly->products && $assembly->products->count() > 0) {
-            // Multi-product assembly (new structure)
-            foreach ($assembly->products as $assemblyProduct) {
-                \App\Models\TestingItem::create([
-                    'testing_id' => $testing->id,
-                    'item_type' => 'product',
-                    'product_id' => $assemblyProduct->product_id,
-                    'quantity' => $assemblyProduct->quantity,
-                    'serial_number' => $assemblyProduct->serials,
-                    'result' => 'pending',
+                // Nếu không có người dùng hiện tại, sử dụng tester_id từ assembly
+                if (!$currentUserId) {
+                    $currentUserId = $assembly->tester_id;
+                }
+
+                // Create testing record linked to this assembly
+                $testing = \App\Models\Testing::create([
+                    'test_code' => $testCode,
+                    'test_type' => 'finished_product', // Thành phẩm
+                    'tester_id' => $currentUserId, // Người tạo phiếu (người hiện tại hoặc từ assembly)
+                    'assigned_to' => $assembly->assigned_employee_id, // Người phụ trách (từ phiếu lắp ráp)
+                    'receiver_id' => $assembly->tester_id, // Người tiếp nhận kiểm thử (từ phiếu lắp ráp)
+                    'test_date' => $assembly->date, // Sử dụng ngày lắp ráp
+                    'notes' => 'Tự động tạo từ phiếu lắp ráp ' . $assembly->code,
+                    'status' => 'pending',
+                    'assembly_id' => $assembly->id, // Liên kết với phiếu lắp ráp
                 ]);
+
+                // Add testing items for all assembled products
+                if ($assembly->products && $assembly->products->count() > 0) {
+                    // Multi-product assembly (new structure)
+                    foreach ($assembly->products as $assemblyProduct) {
+                        \App\Models\TestingItem::create([
+                            'testing_id' => $testing->id,
+                            'item_type' => 'product',
+                            'product_id' => $assemblyProduct->product_id,
+                            'quantity' => $assemblyProduct->quantity,
+                            'serial_number' => $assemblyProduct->serials,
+                            'result' => 'pending',
+                        ]);
+                    }
+                } else {
+                    // No products found - this shouldn't happen for new assemblies
+                    Log::warning("Assembly {$assembly->code} has no products in assembly_products table");
+                }
+
+                // Thêm các vật tư từ phiếu lắp ráp vào phiếu kiểm thử
+                foreach ($assembly->materials as $material) {
+                    \App\Models\TestingItem::create([
+                        'testing_id' => $testing->id,
+                        'item_type' => 'material',
+                        'material_id' => $material->material_id,
+                        'quantity' => $material->quantity,
+                        'serial_number' => $material->serial,
+                        'result' => 'pending',
+                    ]);
+                }
+
+                // Add default testing items
+                $defaultTestItems = [
+                    'Kiểm tra ngoại quan',
+                    'Kiểm tra chức năng cơ bản',
+                    'Kiểm tra hoạt động liên tục'
+                ];
+
+                foreach ($defaultTestItems as $testItem) {
+                    \App\Models\TestingDetail::create([
+                        'testing_id' => $testing->id,
+                        'test_item_name' => $testItem,
+                        'result' => 'pending',
+                    ]);
+                }
+
+                // Ghi nhật ký tạo mới phiếu kiểm thử
+                if (Auth::check()) {
+                    UserLog::logActivity(
+                        Auth::id(),
+                        'create',
+                        'testings',
+                        'Tạo mới phiếu kiểm thử: ' . $testing->test_code,
+                        null,
+                        $testing->toArray()
+                    );
+                }
+
+                return $testing;
+
+            } catch (\Exception $e) {
+                // Log lỗi và ném ngoại lệ
+                Log::error('Lỗi khi tạo phiếu kiểm thử: ' . $e->getMessage());
+                throw new \Exception('Không thể tạo phiếu kiểm thử. Vui lòng thử lại. Chi tiết: ' . $e->getMessage());
             }
-        } else {
-            // No products found - this shouldn't happen for new assemblies
-            Log::warning("Assembly {$assembly->code} has no products in assembly_products table");
-        }
-
-        // Thêm các vật tư từ phiếu lắp ráp vào phiếu kiểm thử
-        foreach ($assembly->materials as $material) {
-            \App\Models\TestingItem::create([
-                'testing_id' => $testing->id,
-                'item_type' => 'material',
-                'material_id' => $material->material_id,
-                'quantity' => $material->quantity,
-                'serial_number' => $material->serial,
-                'result' => 'pending',
-            ]);
-        }
-
-        // Add default testing items
-        $defaultTestItems = [
-            'Kiểm tra ngoại quan',
-            'Kiểm tra chức năng cơ bản',
-            'Kiểm tra hoạt động liên tục'
-        ];
-
-        foreach ($defaultTestItems as $testItem) {
-            \App\Models\TestingDetail::create([
-                'testing_id' => $testing->id,
-                'test_item_name' => $testItem,
-                'result' => 'pending',
-            ]);
-        }
-
-        // Ghi nhật ký tạo mới phiếu kiểm thử
-        if (Auth::check()) {
-            UserLog::logActivity(
-                Auth::id(),
-                'create',
-                'testings',
-                'Tạo mới phiếu kiểm thử: ' . $testing->test_code,
-                null,
-                $testing->toArray()
-            );
-        }
-
-        return $testing;
+        });
     }
 
     /**
