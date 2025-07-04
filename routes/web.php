@@ -128,6 +128,8 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/dashboard/inventory-categories-chart', [App\Http\Controllers\DashboardController::class, 'getInventoryCategoriesChart'])->name('dashboard.inventory-categories-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
     Route::get('/dashboard/warehouse-distribution-chart', [App\Http\Controllers\DashboardController::class, 'getWarehouseDistributionChart'])->name('dashboard.warehouse-distribution-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
     Route::get('/dashboard/project-growth-chart', [App\Http\Controllers\DashboardController::class, 'getProjectGrowthChart'])->name('dashboard.project-growth-chart')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::get('/dashboard/search', [App\Http\Controllers\DashboardController::class, 'search'])->name('dashboard.search')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
+    Route::post('/dashboard/search', [App\Http\Controllers\DashboardController::class, 'search'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':reports.overview');
 
     // Thay thế routes customers cũ bằng resource controller
     Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.view'], function () {

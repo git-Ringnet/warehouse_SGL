@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>SGL - Hệ thống quản lý kho</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -95,7 +96,7 @@
                 <div class="flex flex-col md:flex-row gap-3">
                     <div class="flex-grow">
                         <div class="relative">
-                            <input type="text" id="searchQuery" placeholder="Tìm kiếm theo ID hoặc Serial..." 
+                            <input type="text" id="searchQuery" placeholder="Tìm kiếm theo ID hoặc Tên..." 
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 pl-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-search text-gray-400"></i>
@@ -113,10 +114,110 @@
                             <option value="customers">Khách hàng</option>
                         </select>
                     </div>
+                    <!-- <div>
+                        <button id="advancedFilterBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors">
+                            <i class="fas fa-filter mr-1"></i> Bộ lọc
+                        </button>
+                    </div> -->
                     <button id="searchButton" 
                         class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
                         Tìm kiếm
                     </button>
+                </div>
+                
+                <!-- Advanced Filter Panel -->
+                <div id="advancedFilterPanel" class="mt-4 hidden border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Filter by Warehouse -->
+                        <div>
+                            <label for="filterWarehouse" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kho</label>
+                            <select id="filterWarehouse" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả kho</option>
+                                <!-- Warehouses will be loaded dynamically -->
+                            </select>
+                        </div>
+                        
+                        <!-- Filter by Status -->
+                        <div>
+                            <label for="filterStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái</label>
+                            <select id="filterStatus" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="active">Đang hoạt động</option>
+                                <option value="inactive">Không hoạt động</option>
+                                <option value="pending">Đang chờ xử lý</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Filter by Date Range -->
+                        <div>
+                            <label for="filterDateRange" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Thời gian</label>
+                            <select id="filterDateRange" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả thời gian</option>
+                                <option value="today">Hôm nay</option>
+                                <option value="week">Tuần này</option>
+                                <option value="month">Tháng này</option>
+                                <option value="year">Năm nay</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Include Out of Stock Checkbox -->
+                    <div class="mt-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="includeOutOfStock" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="includeOutOfStock" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                                Bao gồm cả sản phẩm ngoài kho (số lượng = 0)
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Category-specific filters -->
+                    <div id="materialFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="filterMaterialType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại vật tư</label>
+                            <select id="filterMaterialType" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả loại</option>
+                                <option value="electronic">Điện tử</option>
+                                <option value="mechanical">Cơ khí</option>
+                                <option value="chemical">Hóa chất</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="productFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="filterProductType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại thành phẩm</label>
+                            <select id="filterProductType" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả loại</option>
+                                <option value="device">Thiết bị</option>
+                                <option value="component">Linh kiện</option>
+                                <option value="system">Hệ thống</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="projectFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="filterProjectStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái dự án</label>
+                            <select id="filterProjectStatus" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="planning">Đang lập kế hoạch</option>
+                                <option value="in_progress">Đang thực hiện</option>
+                                <option value="completed">Hoàn thành</option>
+                                <option value="on_hold">Tạm dừng</option>
+                                <option value="cancelled">Đã hủy</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-end">
+                        <button id="resetFilters" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors mr-2">
+                            Đặt lại
+                        </button>
+                        <button id="applyFilters" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                            Áp dụng
+                        </button>
+                    </div>
                 </div>
                 
                 <!-- Search Results -->
@@ -129,197 +230,39 @@
                             </button>
                         </div>
                         
-                        <!-- Basic Item Details -->
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Search Results Count -->
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-4">
+                            <div class="flex justify-between items-center">
                                 <div>
-                                    <div class="mb-2">
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">Mã:</span>
-                                        <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemId"></span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">Tên:</span>
-                                        <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemName"></span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">Loại:</span>
-                                        <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemCategory"></span>
-                                    </div>
+                                    <span class="text-sm text-gray-500 dark:text-gray-400">Tìm thấy </span>
+                                    <span class="text-lg font-semibold text-gray-800 dark:text-white" id="resultCount">0</span>
+                                    <span class="text-sm text-gray-500 dark:text-gray-400"> kết quả</span>
                                 </div>
                                 <div>
-                                    <div class="mb-2">
-                                        <span class="text-sm text-gray-500 dark:text-gray-400">Serial:</span>
-                                        <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemSerial"></span>
-                                    </div>
-                                    <div>
-                                        <a href="#" id="viewDetail" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
-                                            Xem chi tiết <i class="fas fa-arrow-right ml-1"></i>
-                                        </a>
-                                    </div>
+                                    <button id="viewAllResults" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
+                                        Xem tất cả <i class="fas fa-arrow-right ml-1"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Detailed Information Tables -->
-                        <!-- Materials Info Table -->
-                        <div id="materialsInfo" class="hidden">
-                            <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin vật tư</h5>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                                    <tbody>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Nhà cung cấp</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialSupplier"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialQuantity"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Đơn vị</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialUnit"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <!-- Finished Products Info Table -->
-                        <div id="finishedInfo" class="hidden">
-                            <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin thành phẩm</h5>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                                    <tbody>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày sản xuất</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedManufactureDate"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập kho</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedQuantity"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Thuộc dự án</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedProject"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <!-- Goods Info Table -->
-                        <div id="goodsInfo" class="hidden">
-                            <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin hàng hóa</h5>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                                    <tbody>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Nhà phân phối</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsDistributor"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Giá nhập</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsPrice"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsQuantity"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <!-- Projects Info Table -->
-                        <div id="projectsInfo" class="hidden">
-                            <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin dự án</h5>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                                    <tbody>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Khách hàng</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectCustomer"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Địa điểm</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày bắt đầu</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectStartDate"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Hạn hoàn thành</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectEndDate"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        
-                        <!-- Customers Info Table -->
-                        <div id="customersInfo" class="hidden">
-                            <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin khách hàng</h5>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                                    <tbody>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số điện thoại</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerPhone"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Email</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerEmail"></td>
-                                        </tr>
-                                        <tr>
-                                            <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Địa chỉ</td>
-                                            <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerAddress"></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Related Projects Table for Customer -->
-                            <h5 class="font-semibold text-gray-800 dark:text-white mt-4 mb-3">Các dự án liên quan</h5>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden" id="customerProjectsTable">
-                                    <thead class="bg-gray-100 dark:bg-gray-700">
-                                        <tr>
-                                            <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Mã dự án</th>
-                                            <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Tên dự án</th>
-                                            <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Ngày bắt đầu</th>
-                                            <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Trạng thái</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="customerProjectsList">
-                                        <!-- Will be filled dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
+                        <!-- Search Results List -->
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                                <thead class="bg-gray-100 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Mã</th>
+                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Tên</th>
+                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Loại</th>
+                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Serial</th>
+                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Vị trí</th>
+                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="searchResultsList">
+                                    <!-- Results will be dynamically inserted here -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -491,6 +434,213 @@
         <div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center">
             <i class="fas fa-check-circle mr-2"></i>
             <span>Đã cập nhật dữ liệu thành công!</span>
+        </div>
+    </div>
+
+    <!-- Modal for viewing item details -->
+    <div id="itemDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
+                <h3 class="text-lg font-semibold text-gray-800 dark:text-white" id="modalTitle">Chi tiết</h3>
+                <button id="closeModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-4">
+                <!-- Basic Item Details -->
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <div class="mb-2">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Mã:</span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemId"></span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Tên:</span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemName"></span>
+                            </div>
+                            <div class="mb-2">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Loại:</span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemCategory"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="mb-2">
+                                <span class="text-sm text-gray-500 dark:text-gray-400">Serial:</span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemSerial"></span>
+                            </div>
+                            <div>
+                                <a href="#" id="viewDetail" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                                    Xem chi tiết <i class="fas fa-arrow-right ml-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Detailed Information Tables -->
+                <!-- Materials Info Table -->
+                <div id="materialsInfo" class="hidden">
+                    <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin vật tư</h5>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Nhà cung cấp</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialSupplier"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialQuantity"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Đơn vị</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialUnit"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Finished Products Info Table -->
+                <div id="finishedInfo" class="hidden">
+                    <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin thành phẩm</h5>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày sản xuất</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedManufactureDate"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập kho</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedQuantity"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Thuộc dự án</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedProject"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Goods Info Table -->
+                <div id="goodsInfo" class="hidden">
+                    <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin hàng hóa</h5>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Nhà phân phối</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsDistributor"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Giá nhập</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsPrice"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsQuantity"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Projects Info Table -->
+                <div id="projectsInfo" class="hidden">
+                    <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin dự án</h5>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Khách hàng</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectCustomer"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Địa điểm</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày bắt đầu</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectStartDate"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Hạn hoàn thành</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectEndDate"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Customers Info Table -->
+                <div id="customersInfo" class="hidden">
+                    <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin khách hàng</h5>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <tbody>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số điện thoại</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerPhone"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Email</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerEmail"></td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Địa chỉ</td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerAddress"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Related Projects Table for Customer -->
+                    <h5 class="font-semibold text-gray-800 dark:text-white mt-4 mb-3">Các dự án liên quan</h5>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden" id="customerProjectsTable">
+                            <thead class="bg-gray-100 dark:bg-gray-700">
+                                <tr>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Mã dự án</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Tên dự án</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Ngày bắt đầu</th>
+                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerProjectsList">
+                                <!-- Will be filled dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1193,6 +1343,10 @@
         // Show toast notifications
         function showToast(type, message) {
             const toast = document.getElementById('toast');
+            
+            // Xóa thông báo cũ nếu đang hiển thị
+            clearTimeout(window.toastTimeout);
+            
             let icon, bgColor;
             
             switch (type) {
@@ -1221,9 +1375,12 @@
             
             toast.classList.remove('hidden');
             
-            setTimeout(() => {
+            // Lưu reference đến timeout để có thể xóa nếu cần
+            window.toastTimeout = setTimeout(() => {
                 toast.classList.add('hidden');
             }, 3000);
+            
+            console.log(`Toast notification: [${type}] ${message}`);
         }
         
         // Simulate search results (in a real app, this would be an API call)
@@ -1821,6 +1978,501 @@
             // Đánh dấu biểu đồ đã được khởi tạo và cập nhật
             chartsInitialized = true;
         });
+        
+        // Thêm code xử lý tìm kiếm nâng cao
+        document.addEventListener('DOMContentLoaded', function() {
+            // Lấy các phần tử DOM
+            const searchQuery = document.getElementById('searchQuery');
+            const searchCategory = document.getElementById('searchCategory');
+            const searchButton = document.getElementById('searchButton');
+            const advancedFilterBtn = document.getElementById('advancedFilterBtn');
+            const advancedFilterPanel = document.getElementById('advancedFilterPanel');
+            const resetFiltersBtn = document.getElementById('resetFilters');
+            const applyFiltersBtn = document.getElementById('applyFilters');
+            const searchResults = document.getElementById('searchResults');
+            const closeResults = document.getElementById('closeResults');
+            const resultCount = document.getElementById('resultCount');
+            const searchResultsList = document.getElementById('searchResultsList');
+            const itemDetailsModal = document.getElementById('itemDetailsModal');
+            const closeModal = document.getElementById('closeModal');
+
+            // Biến để theo dõi trạng thái tìm kiếm
+            let isSearching = false;
+            
+            // Xử lý sự kiện tìm kiếm
+            function handleSearch() {
+                // Nếu đang trong quá trình tìm kiếm, không thực hiện tìm kiếm mới
+                if (isSearching) {
+                    console.log('Search in progress, skipping...');
+                    return;
+                }
+                
+                // Đánh dấu đang tìm kiếm
+                isSearching = true;
+                
+                // Thực hiện tìm kiếm
+                performSearch().finally(() => {
+                    // Đánh dấu đã hoàn thành tìm kiếm
+                    isSearching = false;
+                });
+            }
+            
+            // Xử lý sự kiện tìm kiếm
+            searchButton.addEventListener('click', handleSearch);
+            
+            // Xử lý sự kiện Enter trong ô tìm kiếm
+            searchQuery.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleSearch();
+                }
+            });
+            
+            // Xử lý sự kiện áp dụng bộ lọc
+            applyFiltersBtn.addEventListener('click', handleSearch);
+            
+            // Remove any existing event listeners
+            const oldSearchButton = searchButton.cloneNode(true);
+            searchButton.parentNode.replaceChild(oldSearchButton, searchButton);
+            
+            // Add the new event listener
+            oldSearchButton.addEventListener('click', handleSearch);
+            
+            // Lấy danh sách kho để hiển thị trong bộ lọc
+            fetch('/api/warehouses/search')
+                .then(response => response.json())
+                .then(data => {
+                    const filterWarehouse = document.getElementById('filterWarehouse');
+                    if (filterWarehouse) {
+                        data.forEach(warehouse => {
+                            const option = document.createElement('option');
+                            option.value = warehouse.id;
+                            option.textContent = warehouse.name;
+                            filterWarehouse.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading warehouses:', error);
+                });
+            
+            // Hiển thị/ẩn bộ lọc nâng cao
+            advancedFilterBtn.addEventListener('click', function() {
+                advancedFilterPanel.classList.toggle('hidden');
+            });
+            
+            // Đặt lại bộ lọc
+            resetFiltersBtn.addEventListener('click', function() {
+                document.getElementById('filterWarehouse').value = '';
+                document.getElementById('filterStatus').value = '';
+                document.getElementById('filterDateRange').value = '';
+                
+                // Đặt lại các bộ lọc theo loại
+                document.getElementById('filterMaterialType').value = '';
+                document.getElementById('filterProductType').value = '';
+                document.getElementById('filterProjectStatus').value = '';
+                
+                // Ẩn tất cả các bộ lọc theo loại
+                document.getElementById('materialFilters').classList.add('hidden');
+                document.getElementById('productFilters').classList.add('hidden');
+                document.getElementById('projectFilters').classList.add('hidden');
+            });
+            
+            // Hiển thị bộ lọc theo loại khi chọn loại tìm kiếm
+            searchCategory.addEventListener('change', function() {
+                const category = this.value;
+                
+                // Ẩn tất cả các bộ lọc theo loại
+                document.getElementById('materialFilters').classList.add('hidden');
+                document.getElementById('productFilters').classList.add('hidden');
+                document.getElementById('projectFilters').classList.add('hidden');
+                
+                // Hiển thị bộ lọc tương ứng
+                switch (category) {
+                    case 'materials':
+                        document.getElementById('materialFilters').classList.remove('hidden');
+                        break;
+                    case 'finished':
+                        document.getElementById('productFilters').classList.remove('hidden');
+                        break;
+                    case 'projects':
+                        document.getElementById('projectFilters').classList.remove('hidden');
+                        break;
+                }
+            });
+            
+            // Xử lý tìm kiếm
+            function performSearch() {
+                return new Promise((resolve, reject) => {
+                    const query = searchQuery.value.trim();
+                    if (!query) {
+                        showToast('warning', 'Vui lòng nhập từ khóa tìm kiếm');
+                        resolve();
+                        return;
+                    }
+                    
+                    // Hiển thị trạng thái loading
+                    showToast('info', 'Đang tìm kiếm...');
+                    
+                    // Thu thập các bộ lọc
+                    const filters = {
+                        warehouse_id: document.getElementById('filterWarehouse').value,
+                        status: document.getElementById('filterStatus').value,
+                        date_range: document.getElementById('filterDateRange').value,
+                        include_out_of_stock: document.getElementById('includeOutOfStock').checked ? 'true' : 'false'
+                    };
+                    
+                    // Thêm bộ lọc theo loại
+                    const category = searchCategory.value;
+                    switch (category) {
+                        case 'materials':
+                            filters.material_type = document.getElementById('filterMaterialType')?.value;
+                            break;
+                        case 'finished':
+                            filters.product_type = document.getElementById('filterProductType')?.value;
+                            break;
+                        case 'projects':
+                            filters.project_status = document.getElementById('filterProjectStatus')?.value;
+                            break;
+                    }
+                    
+                    // Xây dựng query string từ các bộ lọc
+                    let queryParams = new URLSearchParams();
+                    queryParams.append('query', query);
+                    queryParams.append('category', category);
+                    
+                    // Thêm các bộ lọc vào query string
+                    for (const [key, value] of Object.entries(filters)) {
+                        if (value) {
+                            queryParams.append(key, value);
+                        }
+                    }
+
+                    console.log('Performing search with query:', query);
+                    console.log('Search category:', category);
+                    console.log('Search filters:', filters);
+                    console.log('Search URL:', `/dashboard/search?${queryParams.toString()}`);
+                    
+                    // Ngăn chặn các request trùng lặp
+                    if (window.lastSearchRequest) {
+                        console.log('Aborting previous search request');
+                        window.lastSearchRequest.abort();
+                    }
+                    
+                    // Tạo controller để có thể hủy request
+                    const controller = new AbortController();
+                    window.lastSearchRequest = controller;
+                    
+                    // Gọi API tìm kiếm
+                    fetch(`/dashboard/search?${queryParams.toString()}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            // Thêm timestamp để tránh cache
+                            'Cache-Control': 'no-cache',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        signal: controller.signal,
+                        cache: 'no-store'
+                    })
+                    .then(response => {
+                        console.log('Search response status:', response.status);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Search response data:', data);
+                        
+                        // Xóa reference đến request hiện tại
+                        window.lastSearchRequest = null;
+                        
+                        if (data.success) {
+                            if (data.count > 0) {
+                                // Hiển thị kết quả
+                                displaySearchResults(data.results, data.count);
+                                showToast('success', `Tìm thấy ${data.count} kết quả`);
+                            } else {
+                                // Không tìm thấy kết quả
+                                searchResults.classList.add('hidden');
+                                showToast('info', 'Không tìm thấy kết quả phù hợp');
+                            }
+                        } else {
+                            console.error('Search error:', data.message);
+                            searchResults.classList.add('hidden');
+                            showToast('error', data.message || 'Có lỗi xảy ra khi tìm kiếm');
+                        }
+                        resolve();
+                    })
+                    .catch(error => {
+                        // Không hiển thị lỗi nếu request bị hủy
+                        if (error.name === 'AbortError') {
+                            console.log('Search request aborted');
+                            resolve();
+                            return;
+                        }
+                        
+                        console.error('Error searching:', error);
+                        searchResults.classList.add('hidden');
+                        showToast('error', 'Có lỗi xảy ra khi tìm kiếm: ' + error.message);
+                        reject(error);
+                    });
+                });
+            }
+            
+            // Hiển thị kết quả tìm kiếm
+            function displaySearchResults(results, count) {
+                // Cập nhật số lượng kết quả
+                resultCount.textContent = count;
+                
+                // Xóa kết quả cũ
+                searchResultsList.innerHTML = '';
+                
+                // Thêm kết quả mới
+                results.forEach(result => {
+                    const row = document.createElement('tr');
+                    
+                    // Mã
+                    const codeCell = document.createElement('td');
+                    codeCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                    codeCell.textContent = result.code;
+                    
+                    // Tên
+                    const nameCell = document.createElement('td');
+                    nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                    nameCell.textContent = result.name;
+                    
+                    // Loại
+                    const categoryCell = document.createElement('td');
+                    categoryCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                    
+                    const categoryBadge = document.createElement('span');
+                    categoryBadge.textContent = result.categoryName;
+                    categoryBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
+                    
+                    // Màu sắc theo loại
+                    switch (result.category) {
+                        case 'materials':
+                            categoryBadge.classList.add('bg-blue-500');
+                            break;
+                        case 'finished':
+                            categoryBadge.classList.add('bg-green-500');
+                            break;
+                        case 'goods':
+                            categoryBadge.classList.add('bg-purple-500');
+                            break;
+                        case 'projects':
+                            categoryBadge.classList.add('bg-yellow-500');
+                            break;
+                        case 'customers':
+                            categoryBadge.classList.add('bg-red-500');
+                            break;
+                        default:
+                            categoryBadge.classList.add('bg-gray-500');
+                    }
+                    
+                    categoryCell.appendChild(categoryBadge);
+                    
+                    // Serial
+                    const serialCell = document.createElement('td');
+                    serialCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                    serialCell.textContent = result.serial;
+                    
+                    // Vị trí
+                    const locationCell = document.createElement('td');
+                    locationCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                    locationCell.textContent = result.location;
+                    
+                    // Thao tác
+                    const actionCell = document.createElement('td');
+                    actionCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                    
+                    const viewButton = document.createElement('button');
+                    viewButton.className = 'text-blue-500 hover:text-blue-700 mr-2';
+                    viewButton.innerHTML = '<i class="fas fa-eye"></i>';
+                    viewButton.addEventListener('click', function() {
+                        showItemDetails(result);
+                    });
+                    
+                    const detailLink = document.createElement('a');
+                    detailLink.href = result.detailUrl;
+                    detailLink.className = 'text-green-500 hover:text-green-700';
+                    detailLink.innerHTML = '<i class="fas fa-external-link-alt"></i>';
+                    
+                    actionCell.appendChild(viewButton);
+                    actionCell.appendChild(detailLink);
+                    
+                    // Thêm các ô vào hàng
+                    row.appendChild(codeCell);
+                    row.appendChild(nameCell);
+                    row.appendChild(categoryCell);
+                    row.appendChild(serialCell);
+                    row.appendChild(locationCell);
+                    row.appendChild(actionCell);
+                    
+                    // Thêm hàng vào bảng
+                    searchResultsList.appendChild(row);
+                });
+                
+                // Hiển thị kết quả
+                searchResults.classList.remove('hidden');
+            }
+            
+            // Hiển thị chi tiết item trong modal
+            function showItemDetails(item) {
+                // Cập nhật tiêu đề modal
+                document.getElementById('modalTitle').textContent = `Chi tiết ${item.categoryName}`;
+                
+                // Cập nhật thông tin cơ bản
+                document.getElementById('itemId').textContent = item.code;
+                document.getElementById('itemName').textContent = item.name;
+                document.getElementById('itemCategory').textContent = item.categoryName;
+                document.getElementById('itemSerial').textContent = item.serial;
+                document.getElementById('viewDetail').href = item.detailUrl;
+                
+                // Ẩn tất cả các phần thông tin chi tiết
+                document.getElementById('materialsInfo').classList.add('hidden');
+                document.getElementById('finishedInfo').classList.add('hidden');
+                document.getElementById('goodsInfo').classList.add('hidden');
+                document.getElementById('projectsInfo').classList.add('hidden');
+                document.getElementById('customersInfo').classList.add('hidden');
+                
+                // Hiển thị phần thông tin chi tiết tương ứng
+                switch (item.category) {
+                    case 'materials':
+                        const materialsInfo = document.getElementById('materialsInfo');
+                        materialsInfo.classList.remove('hidden');
+                        document.getElementById('materialSupplier').textContent = item.additionalInfo.supplier;
+                        document.getElementById('materialQuantity').textContent = item.additionalInfo.quantity;
+                        document.getElementById('materialUnit').textContent = item.additionalInfo.unit;
+                        document.getElementById('itemDate').textContent = item.date;
+                        document.getElementById('itemLocation').textContent = item.location;
+                        break;
+                        
+                    case 'finished':
+                        const finishedInfo = document.getElementById('finishedInfo');
+                        finishedInfo.classList.remove('hidden');
+                        document.getElementById('finishedManufactureDate').textContent = item.additionalInfo.manufactureDate;
+                        document.getElementById('finishedQuantity').textContent = item.additionalInfo.quantity;
+                        document.getElementById('finishedProject').textContent = item.additionalInfo.project;
+                        document.getElementById('itemDate').textContent = item.date;
+                        document.getElementById('itemLocation').textContent = item.location;
+                        break;
+                        
+                    case 'goods':
+                        const goodsInfo = document.getElementById('goodsInfo');
+                        goodsInfo.classList.remove('hidden');
+                        document.getElementById('goodsDistributor').textContent = item.additionalInfo.distributor;
+                        document.getElementById('goodsPrice').textContent = item.additionalInfo.price;
+                        document.getElementById('goodsQuantity').textContent = item.additionalInfo.quantity;
+                        document.getElementById('itemDate').textContent = item.date;
+                        document.getElementById('itemLocation').textContent = item.location;
+                        break;
+                        
+                    case 'projects':
+                        const projectsInfo = document.getElementById('projectsInfo');
+                        projectsInfo.classList.remove('hidden');
+                        document.getElementById('projectCustomer').textContent = item.additionalInfo.customer;
+                        document.getElementById('projectStartDate').textContent = item.additionalInfo.startDate;
+                        document.getElementById('projectEndDate').textContent = item.additionalInfo.endDate;
+                        document.getElementById('itemLocation').textContent = item.location;
+                        break;
+                        
+                    case 'customers':
+                        const customersInfo = document.getElementById('customersInfo');
+                        customersInfo.classList.remove('hidden');
+                        document.getElementById('customerPhone').textContent = item.additionalInfo.phone;
+                        document.getElementById('customerEmail').textContent = item.additionalInfo.email;
+                        document.getElementById('customerAddress').textContent = item.additionalInfo.address;
+                        
+                        // Cập nhật bảng dự án liên quan
+                        const customerProjectsList = document.getElementById('customerProjectsList');
+                        customerProjectsList.innerHTML = '';
+                        
+                        if (item.additionalInfo.relatedProjects && item.additionalInfo.relatedProjects.length > 0) {
+                            item.additionalInfo.relatedProjects.forEach(project => {
+                                const row = document.createElement('tr');
+                                
+                                const idCell = document.createElement('td');
+                                idCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                                idCell.textContent = project.id;
+                                
+                                const nameCell = document.createElement('td');
+                                nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                                nameCell.textContent = project.name;
+                                
+                                const dateCell = document.createElement('td');
+                                dateCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                                dateCell.textContent = project.startDate;
+                                
+                                const statusCell = document.createElement('td');
+                                statusCell.className = 'py-2 px-4 border-b';
+                                
+                                const statusBadge = document.createElement('span');
+                                statusBadge.textContent = project.status;
+                                statusBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
+                                
+                                // Màu sắc theo trạng thái
+                                switch (project.status) {
+                                    case 'Hoàn thành':
+                                        statusBadge.classList.add('bg-green-500');
+                                        break;
+                                    case 'Đang thực hiện':
+                                        statusBadge.classList.add('bg-blue-500');
+                                        break;
+                                    case 'Tạm dừng':
+                                        statusBadge.classList.add('bg-orange-500');
+                                        break;
+                                    default:
+                                        statusBadge.classList.add('bg-gray-500');
+                                }
+                                
+                                statusCell.appendChild(statusBadge);
+                                
+                                row.appendChild(idCell);
+                                row.appendChild(nameCell);
+                                row.appendChild(dateCell);
+                                row.appendChild(statusCell);
+                                
+                                customerProjectsList.appendChild(row);
+                            });
+                        } else {
+                            const emptyRow = document.createElement('tr');
+                            const emptyCell = document.createElement('td');
+                            emptyCell.colSpan = 4;
+                            emptyCell.className = 'py-4 px-4 text-center text-gray-500 dark:text-gray-400';
+                            emptyCell.textContent = 'Không có dự án liên quan';
+                            emptyRow.appendChild(emptyCell);
+                            customerProjectsList.appendChild(emptyRow);
+                        }
+                        break;
+                }
+                
+                // Hiển thị modal
+                itemDetailsModal.classList.remove('hidden');
+            }
+            
+            // Đóng modal
+            closeModal.addEventListener('click', function() {
+                itemDetailsModal.classList.add('hidden');
+            });
+            
+            // Đóng modal khi click bên ngoài
+            itemDetailsModal.addEventListener('click', function(e) {
+                if (e.target === itemDetailsModal) {
+                    itemDetailsModal.classList.add('hidden');
+                }
+            });
+            
+            // Đóng kết quả tìm kiếm
+            closeResults.addEventListener('click', function() {
+                searchResults.classList.add('hidden');
+            });
+        });
+        
+        // Initialize all charts and store references
+        // ... existing code ...
     </script>
 </body>
 

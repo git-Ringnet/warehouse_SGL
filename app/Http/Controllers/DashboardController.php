@@ -9,9 +9,12 @@ use App\Models\Warehouse;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Good;
+use App\Models\Project;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -1003,5 +1006,515 @@ class DashboardController extends Controller
     public function index()
     {
         return view('dashboard');
+    }
+
+    /**
+     * Tìm kiếm thông tin trong dashboard
+     */
+    public function search(Request $request)
+    {
+        try {
+            $query = $request->input('query');
+            $category = $request->input('category', 'all');
+            $filters = $request->isMethod('post') ? $request->input('filters', []) : $request->all();
+            
+            // Thêm tùy chọn tìm kiếm cả sản phẩm ngoài kho
+            $includeOutOfStock = isset($filters['include_out_of_stock']) && $filters['include_out_of_stock'] === 'true';
+            
+            Log::info('Dashboard search request', [
+                'method' => $request->method(),
+                'query' => $query,
+                'category' => $category,
+                'filters' => $filters,
+                'includeOutOfStock' => $includeOutOfStock,
+                'ip' => $request->ip(),
+                'user_agent' => $request->header('User-Agent')
+            ]);
+            
+            if (empty($query)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vui lòng nhập từ khóa tìm kiếm',
+                    'count' => 0,
+                    'results' => []
+                ]);
+            }
+            
+            $results = [];
+            $count = 0;
+            
+            // Tìm kiếm dựa vào loại
+            switch ($category) {
+                case 'materials':
+                    $results = $this->searchMaterials($query, $filters, $includeOutOfStock);
+                    break;
+                case 'finished':
+                    $results = $this->searchProducts($query, $filters, $includeOutOfStock);
+                    break;
+                case 'goods':
+                    $results = $this->searchGoods($query, $filters, $includeOutOfStock);
+                    break;
+                case 'projects':
+                    $results = $this->searchProjects($query, $filters);
+                    break;
+                case 'customers':
+                    $results = $this->searchCustomers($query, $filters);
+                    break;
+                default:
+                    // Tìm kiếm tất cả
+                    Log::info('Searching all categories with query: ' . $query);
+                    
+                    $materialResults = $this->searchMaterials($query, $filters, $includeOutOfStock);
+                    $productResults = $this->searchProducts($query, $filters, $includeOutOfStock);
+                    $goodResults = $this->searchGoods($query, $filters, $includeOutOfStock);
+                    $projectResults = $this->searchProjects($query, $filters);
+                    $customerResults = $this->searchCustomers($query, $filters);
+                    
+                    $results = array_merge(
+                        $materialResults,
+                        $productResults,
+                        $goodResults,
+                        $projectResults,
+                        $customerResults
+                    );
+                    
+                    Log::info('Combined search results', [
+                        'materials_count' => count($materialResults),
+                        'products_count' => count($productResults),
+                        'goods_count' => count($goodResults),
+                        'projects_count' => count($projectResults),
+                        'customers_count' => count($customerResults),
+                        'total_count' => count($results)
+                    ]);
+                    
+                    // Giới hạn kết quả
+                    $results = array_slice($results, 0, 50);
+            }
+            
+            $count = count($results);
+            
+            Log::info('Search completed', [
+                'query' => $query,
+                'category' => $category,
+                'result_count' => $count
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'count' => $count,
+                'results' => $results
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in dashboard search', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'query' => $request->input('query'),
+                'category' => $request->input('category', 'all')
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi tìm kiếm: ' . $e->getMessage(),
+                'count' => 0,
+                'results' => []
+            ], 500);
+        }
+    }
+    
+    /**
+     * Tìm kiếm vật tư
+     */
+    private function searchMaterials($query, $filters = [], $includeOutOfStock = false)
+    {
+        try {
+            Log::info('Searching materials with query: ' . $query, [
+                'filters' => $filters,
+                'includeOutOfStock' => $includeOutOfStock
+            ]);
+            
+            $materials = Material::where(function($q) use ($query) {
+                    $q->where('code', 'like', "%{$query}%")
+                      ->orWhere('name', 'like', "%{$query}%");
+                      // Đã loại bỏ tìm kiếm theo notes
+                });
+                
+            // Chỉ lấy vật tư có trong kho (số lượng > 0) nếu không bao gồm hàng ngoài kho
+            if (!$includeOutOfStock) {
+                $materials->whereHas('warehouseMaterials', function($q) {
+                    $q->where('quantity', '>', 0);
+                });
+            }
+                
+            // Áp dụng các bộ lọc
+            if (!empty($filters['warehouse_id'])) {
+                $materials->whereHas('warehouseMaterials', function($q) use ($filters, $includeOutOfStock) {
+                    $q->where('warehouse_id', $filters['warehouse_id']);
+                    if (!$includeOutOfStock) {
+                        $q->where('quantity', '>', 0);
+                    }
+                });
+            }
+            
+            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng materials
+            if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('materials', 'status')) {
+                $materials->where('status', $filters['status']);
+            }
+            
+            $materials = $materials->limit(20)->get();
+            
+            Log::info('Found ' . $materials->count() . ' materials matching the query');
+            
+            return $materials->map(function($material) use ($includeOutOfStock) {
+                $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+                    ->where('item_type', 'material');
+                    
+                if (!$includeOutOfStock) {
+                    $warehouseQuery->where('quantity', '>', 0);
+                }
+                
+                $warehouseInfo = $warehouseQuery->first();
+                    
+                $warehouseName = '';
+                if ($warehouseInfo && $warehouseInfo->warehouse) {
+                    $warehouseName = $warehouseInfo->warehouse->name;
+                }
+                
+                $status = property_exists($material, 'status') ? $material->status : 'active';
+                
+                return [
+                    'id' => $material->id,
+                    'code' => $material->code,
+                    'name' => $material->name,
+                    'category' => 'materials',
+                    'categoryName' => 'Vật tư',
+                    'serial' => $material->code, // Sử dụng code làm serial
+                    'date' => $material->created_at->format('d/m/Y'),
+                    'location' => $warehouseName,
+                    'status' => $status,
+                    'detailUrl' => route('materials.show', $material->id),
+                    'additionalInfo' => [
+                        'supplier' => $material->supplier ? $material->supplier->name : 'N/A',
+                        'quantity' => WarehouseMaterial::where('material_id', $material->id)
+                            ->where('item_type', 'material')
+                            ->sum('quantity'),
+                        'unit' => $material->unit
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error in searchMaterials', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+    
+    /**
+     * Tìm kiếm thành phẩm
+     */
+    private function searchProducts($query, $filters = [], $includeOutOfStock = false)
+    {
+        try {
+            Log::info('Searching products with query: ' . $query, [
+                'filters' => $filters,
+                'includeOutOfStock' => $includeOutOfStock
+            ]);
+            
+            $products = Product::where(function($q) use ($query) {
+                    $q->where('code', 'like', "%{$query}%")
+                      ->orWhere('name', 'like', "%{$query}%");
+                      // Đã loại bỏ tìm kiếm theo description
+                });
+                
+            // Chỉ lấy thành phẩm có trong kho (số lượng > 0) nếu không bao gồm hàng ngoài kho
+            if (!$includeOutOfStock) {
+                $products->whereHas('warehouseMaterials', function($q) {
+                    $q->where('quantity', '>', 0);
+                });
+            }
+                
+            // Áp dụng các bộ lọc
+            if (!empty($filters['warehouse_id'])) {
+                $products->whereHas('warehouseMaterials', function($q) use ($filters, $includeOutOfStock) {
+                    $q->where('warehouse_id', $filters['warehouse_id']);
+                    if (!$includeOutOfStock) {
+                        $q->where('quantity', '>', 0);
+                    }
+                });
+            }
+            
+            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng products
+            if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('products', 'status')) {
+                $products->where('status', $filters['status']);
+            }
+            
+            $products = $products->limit(20)->get();
+            
+            Log::info('Found ' . $products->count() . ' products matching the query');
+            
+            return $products->map(function($product) use ($includeOutOfStock) {
+                $warehouseQuery = WarehouseMaterial::where('material_id', $product->id)
+                    ->where('item_type', 'product');
+                    
+                if (!$includeOutOfStock) {
+                    $warehouseQuery->where('quantity', '>', 0);
+                }
+                
+                $warehouseInfo = $warehouseQuery->first();
+                    
+                $warehouseName = '';
+                if ($warehouseInfo && $warehouseInfo->warehouse) {
+                    $warehouseName = $warehouseInfo->warehouse->name;
+                }
+                
+                $status = property_exists($product, 'status') ? $product->status : 'active';
+                
+                return [
+                    'id' => $product->id,
+                    'code' => $product->code,
+                    'name' => $product->name,
+                    'category' => 'finished',
+                    'categoryName' => 'Thành phẩm',
+                    'serial' => $product->code, // Sử dụng code làm serial
+                    'date' => $product->created_at->format('d/m/Y'),
+                    'location' => $warehouseName,
+                    'status' => $status,
+                    'detailUrl' => route('products.show', $product->id),
+                    'additionalInfo' => [
+                        'manufactureDate' => $product->created_at->format('d/m/Y'),
+                        'quantity' => WarehouseMaterial::where('material_id', $product->id)
+                            ->where('item_type', 'product')
+                            ->sum('quantity'),
+                        'project' => 'N/A' // Có thể cập nhật nếu có thông tin dự án
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error in searchProducts', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+    
+    /**
+     * Tìm kiếm hàng hóa
+     */
+    private function searchGoods($query, $filters = [], $includeOutOfStock = false)
+    {
+        try {
+            Log::info('Searching goods with query: ' . $query, [
+                'filters' => $filters,
+                'includeOutOfStock' => $includeOutOfStock
+            ]);
+            
+            $goods = Good::where(function($q) use ($query) {
+                    $q->where('code', 'like', "%{$query}%")
+                      ->orWhere('name', 'like', "%{$query}%");
+                      // Đã loại bỏ tìm kiếm theo serial và notes
+                });
+                
+            // Chỉ lấy hàng hóa có trong kho (số lượng > 0) nếu không bao gồm hàng ngoài kho
+            if (!$includeOutOfStock) {
+                $goods->whereHas('warehouseMaterials', function($q) {
+                    $q->where('quantity', '>', 0);
+                });
+            }
+                
+            // Áp dụng các bộ lọc
+            if (!empty($filters['warehouse_id'])) {
+                $goods->whereHas('warehouseMaterials', function($q) use ($filters, $includeOutOfStock) {
+                    $q->where('warehouse_id', $filters['warehouse_id']);
+                    if (!$includeOutOfStock) {
+                        $q->where('quantity', '>', 0);
+                    }
+                });
+            }
+            
+            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng goods
+            if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('goods', 'status')) {
+                $goods->where('status', $filters['status']);
+            }
+            
+            $goods = $goods->limit(20)->get();
+            
+            Log::info('Found ' . $goods->count() . ' goods matching the query');
+            
+            return $goods->map(function($good) use ($includeOutOfStock) {
+                $warehouseQuery = WarehouseMaterial::where('material_id', $good->id)
+                    ->where('item_type', 'good');
+                    
+                if (!$includeOutOfStock) {
+                    $warehouseQuery->where('quantity', '>', 0);
+                }
+                
+                $warehouseInfo = $warehouseQuery->first();
+                    
+                $warehouseName = '';
+                if ($warehouseInfo && $warehouseInfo->warehouse) {
+                    $warehouseName = $warehouseInfo->warehouse->name;
+                }
+                
+                $status = property_exists($good, 'status') ? $good->status : 'active';
+                
+                return [
+                    'id' => $good->id,
+                    'code' => $good->code,
+                    'name' => $good->name,
+                    'category' => 'goods',
+                    'categoryName' => 'Hàng hóa',
+                    'serial' => $good->serial ?: $good->code,
+                    'date' => $good->created_at->format('d/m/Y'),
+                    'location' => $warehouseName,
+                    'status' => $status,
+                    'detailUrl' => route('goods.show', $good->id),
+                    'additionalInfo' => [
+                        'distributor' => $good->supplier ? $good->supplier->name : 'N/A',
+                        'price' => 'Liên hệ',
+                        'quantity' => WarehouseMaterial::where('material_id', $good->id)
+                            ->where('item_type', 'good')
+                            ->sum('quantity')
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error in searchGoods', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+    
+    /**
+     * Tìm kiếm dự án
+     */
+    private function searchProjects($query, $filters = [])
+    {
+        try {
+            Log::info('Searching projects with query: ' . $query, [
+                'filters' => $filters
+            ]);
+            
+            // Escape ký tự đặc biệt trong chuỗi tìm kiếm
+            $searchQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
+            
+            $projects = Project::where(function($q) use ($searchQuery) {
+                    $q->where('project_code', 'like', "%{$searchQuery}%")
+                      ->orWhere('project_name', 'like', "%{$searchQuery}%")
+                      ->orWhere(DB::raw('LOWER(project_code)'), 'like', '%' . strtolower($searchQuery) . '%')
+                      ->orWhere(DB::raw('LOWER(project_name)'), 'like', '%' . strtolower($searchQuery) . '%');
+                });
+                
+            // Áp dụng các bộ lọc
+            if (!empty($filters['status']) && Schema::hasColumn('projects', 'status')) {
+                $projects->where('status', $filters['status']);
+            }
+            
+            if (!empty($filters['customer_id'])) {
+                $projects->where('customer_id', $filters['customer_id']);
+            }
+            
+            $projects = $projects->limit(20)->get();
+            
+            Log::info('Found ' . $projects->count() . ' projects matching the query');
+            
+            return $projects->map(function($project) {
+                return [
+                    'id' => $project->id,
+                    'code' => $project->project_code,
+                    'name' => $project->project_name,
+                    'category' => 'projects',
+                    'categoryName' => 'Dự án',
+                    'serial' => 'PRJ-' . str_pad($project->id, 4, '0', STR_PAD_LEFT),
+                    'date' => $project->created_at->format('d/m/Y'),
+                    'location' => $project->description ?? 'N/A',
+                    'status' => $project->status ?? 'active',
+                    'detailUrl' => route('projects.show', $project->id),
+                    'additionalInfo' => [
+                        'customer' => $project->customer ? $project->customer->name : 'N/A',
+                        'startDate' => $project->start_date ? date('d/m/Y', strtotime($project->start_date)) : 'N/A',
+                        'endDate' => $project->end_date ? date('d/m/Y', strtotime($project->end_date)) : 'N/A',
+                        'warrantyPeriod' => $project->warranty_period . ' tháng',
+                        'remainingWarrantyDays' => $project->remaining_warranty_days,
+                        'employee' => $project->employee ? $project->employee->name : 'N/A'
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error in searchProjects', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
+    }
+    
+    /**
+     * Tìm kiếm khách hàng
+     */
+    private function searchCustomers($query, $filters = [])
+    {
+        try {
+            Log::info('Searching customers with query: ' . $query, [
+                'filters' => $filters
+            ]);
+            
+            // Escape ký tự đặc biệt trong chuỗi tìm kiếm
+            $searchQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
+            
+            $customers = Customer::where(function($q) use ($searchQuery) {
+                    $q->where('name', 'like', "%{$searchQuery}%")
+                      ->orWhere(DB::raw('LOWER(name)'), 'like', '%' . strtolower($searchQuery) . '%')
+                      ->orWhere('phone', 'like', "%{$searchQuery}%")
+                      ->orWhere('company_phone', 'like', "%{$searchQuery}%")
+                      ->orWhere('email', 'like', "%{$searchQuery}%")
+                      ->orWhere('company_name', 'like', "%{$searchQuery}%");
+                });
+                
+            $customers = $customers->limit(20)->get();
+            
+            Log::info('Found ' . $customers->count() . ' customers matching the query');
+            
+            return $customers->map(function($customer) {
+                // Lấy danh sách dự án của khách hàng
+                $projects = $customer->projects()->limit(5)->get()->map(function($project) {
+                    return [
+                        'id' => $project->id,
+                        'name' => $project->name,
+                        'startDate' => $project->start_date ? date('d/m/Y', strtotime($project->start_date)) : 'N/A',
+                        'status' => $project->status
+                    ];
+                })->toArray();
+                
+                return [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'category' => 'customers',
+                    'categoryName' => 'Khách hàng',
+                    'serial' => 'CUS-' . str_pad($customer->id, 4, '0', STR_PAD_LEFT),
+                    'date' => $customer->created_at->format('d/m/Y'),
+                    'location' => $customer->address,
+                    'status' => $customer->has_account ? ($customer->is_locked ? 'Khóa' : 'Hoạt động') : 'Chưa có tài khoản',
+                    'detailUrl' => route('customers.show', $customer->id),
+                    'additionalInfo' => [
+                        'phone' => $customer->phone,
+                        'companyPhone' => $customer->company_phone,
+                        'email' => $customer->email,
+                        'companyName' => $customer->company_name,
+                        'address' => $customer->address,
+                        'relatedProjects' => $projects
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error in searchCustomers', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return [];
+        }
     }
 } 
