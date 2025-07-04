@@ -431,7 +431,7 @@ if ($assembly->products && $assembly->products->count() > 0) {
                         </a>
                     @endif
 
-                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.export')))
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assemblies.export')))
                         <a href="{{ route('assemblies.export.excel', $assembly->id) }}"
                             class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
                             <i class="fas fa-file-excel mr-2"></i> Xuất Excel

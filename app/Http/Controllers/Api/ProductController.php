@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,20 @@ class ProductController extends Controller
     public function createFromAssembly(Request $request)
     {
         try {
+            // Check if user is authenticated
+            if (!Auth::check()) {
+                Log::error('Unauthenticated user tried to create product from assembly');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthenticated.'
+                ], 401);
+            }
+            
+            Log::info('Creating product from assembly', [
+                'user_id' => Auth::id(),
+                'request_data' => $request->all()
+            ]);
+            
             $request->validate([
                 'original_product_id' => 'required|exists:products,id',
                 'components' => 'required|array',
@@ -35,7 +50,7 @@ class ProductController extends Controller
             // Generate new product code and name
             $timestamp = now()->format('YmdHis');
             $newCode = $originalProduct->code . "-M" . $timestamp;
-            $newName = $originalProduct->name . " Modified";
+            $newName = $originalProduct->name . " (Modified)";
 
             DB::beginTransaction();
 
@@ -52,15 +67,24 @@ class ProductController extends Controller
             // Attach materials with new quantities
             $materialsData = [];
             foreach ($request->components as $material) {
-                $materialsData[$material['id']] = [
-                    'quantity' => $material['quantity'],
-                    'notes' => $material['notes'] ?? null,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ];
+                if (!empty($material['id']) && !empty($material['quantity'])) {
+                    // Verify material exists
+                    $materialExists = Material::find($material['id']);
+                    if ($materialExists) {
+                        $materialsData[$material['id']] = [
+                            'quantity' => $material['quantity'],
+                            'notes' => $material['notes'] ?? null,
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ];
+                    }
+                }
             }
 
-            $newProduct->materials()->attach($materialsData);
+            // Attach materials to product
+            if (!empty($materialsData)) {
+                $newProduct->materials()->attach($materialsData);
+            }
 
             // Log activity
             if (Auth::check()) {
@@ -76,15 +100,22 @@ class ProductController extends Controller
 
             DB::commit();
 
+            // Load materials relationship for the response
+            $newProduct->load('materials');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Thành phẩm mới đã được tạo thành công.',
-                'product' => $newProduct->load('materials')
+                'product' => $newProduct
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Error creating product from assembly: ' . $e->getMessage());
+            Log::error('Error creating product from assembly: ' . $e->getMessage(), [
+                'exception' => $e,
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
 
             return response()->json([
                 'success' => false,

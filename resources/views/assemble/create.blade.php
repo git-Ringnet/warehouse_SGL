@@ -377,6 +377,21 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Generate unique assembly code on page load
             generateUniqueAssemblyCode();
+            
+            // Kiểm tra các sản phẩm đã tạo từ localStorage
+            try {
+                const createdProducts = JSON.parse(localStorage.getItem('createdProducts') || '{}');
+                // Đánh dấu các sản phẩm đã tạo
+                Object.keys(createdProducts).forEach(productUniqueId => {
+                    if (createdProducts[productUniqueId] === true) {
+                        setTimeout(() => {
+                            markProductAsCreated(productUniqueId);
+                        }, 1000);
+                    }
+                });
+            } catch (e) {
+                console.error('Error loading created products from localStorage:', e);
+            }
 
             const componentSearchInput = document.getElementById('component_search');
             const componentAddQuantity = document.getElementById('component_add_quantity');
@@ -2278,33 +2293,49 @@
 
             // Function to check if any components have modified quantities for a product
             function checkComponentsModified(productUniqueId) {
+                console.log(`Checking if components modified for product ${productUniqueId}`);
+                
                 const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
                 if (!product || !product.originalComponents) {
+                    console.log('No original components found, using fallback logic');
                     // Fallback to old logic if no original components available
                     const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
-                    return productComponents.some(component => component.quantity !== component.originalQuantity);
+                    const modified = productComponents.some(component => component.quantity !== component.originalQuantity);
+                    console.log(`Using fallback logic: ${modified ? 'MODIFIED' : 'not modified'}`);
+                    return modified;
                 }
 
                 const currentComponents = selectedComponents.filter(c => c.productId === productUniqueId);
                 const originalComponents = product.originalComponents;
+                
+                console.log('Component comparison:', {
+                    currentCount: currentComponents.length,
+                    originalCount: originalComponents.length,
+                    current: currentComponents,
+                    original: originalComponents
+                });
 
                 // Check if number of components changed
                 if (currentComponents.length !== originalComponents.length) {
+                    console.log('Component count changed, marking as modified');
                     return true;
                 }
 
                 // Check each component for changes
                 for (let current of currentComponents) {
-                    const original = originalComponents.find(o => o.id === current.id);
+                    const original = originalComponents.find(o => o.id == current.id);
                     if (!original) {
                         // New component added
+                        console.log(`New component added: ${current.id}`);
                         return true;
-                    } else if (original.quantity !== current.quantity) {
+                    } else if (original.quantity != current.quantity) {
                         // Quantity changed
+                        console.log(`Component ${current.id} quantity changed: ${original.quantity} -> ${current.quantity}`);
                         return true;
                     }
                 }
 
+                console.log('No modifications detected');
                 return false;
             }
 
@@ -2325,7 +2356,7 @@
                             <i class="fas fa-info-circle mr-2"></i>
                             Bạn đã thay đổi công thức gốc. Bạn có thể tạo một thành phẩm mới với công thức này.
                         </div>
-                        <button type="button" class="create-new-product-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm hidden"
+                        <button type="button" class="create-new-product-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm"
                                 data-product-id="${productId}" data-unique-id="${productUniqueId}">
                             <i class="fas fa-plus-circle mr-1"></i> Tạo thành phẩm mới
                         </button>
@@ -2337,8 +2368,15 @@
                 setTimeout(() => {
                     const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
                     if (createNewBtn) {
-                        createNewBtn.addEventListener('click', function() {
+                        // Xóa tất cả event listener cũ để tránh trùng lặp
+                        const newBtn = createNewBtn.cloneNode(true);
+                        createNewBtn.parentNode.replaceChild(newBtn, createNewBtn);
+                        
+                        // Thêm event listener mới
+                        newBtn.addEventListener('click', function() {
                             const productUniqueId = this.getAttribute('data-unique-id');
+                            const productId = this.getAttribute('data-product-id');
+                            console.log('Create new product button clicked:', { productId, productUniqueId });
                             showCreateNewProductModal(productUniqueId);
                         });
                     }
@@ -2348,56 +2386,123 @@
             // Function to check and show create new product button
             function checkAndShowCreateNewProductButton(productUniqueId) {
                 const componentBlock = document.getElementById('component_block_' + productUniqueId);
-                if (!componentBlock) return;
+                if (!componentBlock) {
+                    console.log(`Component block not found for ${productUniqueId}`);
+                    return;
+                }
 
                 const isModified = checkComponentsModified(productUniqueId);
                 const isDuplicate = selectedProducts.filter(p => p.uniqueId === productUniqueId).length > 1;
+                
+                console.log(`Product ${productUniqueId} status:`, { isModified, isDuplicate });
 
                 if (isModified || isDuplicate) {
-                    // Extract product ID from uniqueId (e.g., "product_1" -> "1")
-                    const productId = productUniqueId.split('_')[1];
+                    // Find the product object to get its actual ID
+                    const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
+                    if (!product) {
+                        console.error(`Product not found for uniqueId ${productUniqueId}`);
+                        return;
+                    }
+                    
+                    // Use the actual product ID, not just the number from the uniqueId
+                    const productId = product.id;
+                    console.log(`Adding create new product button for product ${productId} (uniqueId: ${productUniqueId})`);
                     addCreateNewProductButton(componentBlock, productId, productUniqueId);
                 } else {
                     // Remove the button if no longer modified and not duplicate
                     const existingSection = componentBlock.querySelector('.duplicate-section');
                     if (existingSection) {
+                        console.log(`Removing create new product button for ${productUniqueId}`);
                         existingSection.remove();
                     }
                 }
             }
 
             // Function to show create new product modal/alert
-            function showCreateNewProductModal(productUniqueId) {
-                const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
-                const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
+function showCreateNewProductModal(productUniqueId) {
+    // Kiểm tra nếu đang xử lý yêu cầu tạo thành phẩm
+    // Sử dụng window.isCreatingProduct để truy cập biến từ file assembly-product-unit.js
+    if (window.isCreatingProduct === true) {
+        console.log('Đang xử lý yêu cầu tạo thành phẩm, vui lòng đợi...');
+        Swal.fire({
+            icon: 'info',
+            title: 'Đang xử lý',
+            text: 'Yêu cầu tạo thành phẩm đang được xử lý, vui lòng đợi.',
+            confirmButtonText: 'Đóng'
+        });
+        return;
+    }
+    
+    const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
+    const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
 
-                if (!product || productComponents.length === 0) return;
+    if (!product || productComponents.length === 0) return;
 
-                // Create a summary of the modified formula
-                let formulaSummary = 'Công thức mới:\n';
-                productComponents.forEach(comp => {
-                    const isModified = comp.quantity !== comp.originalQuantity;
-                    const status = isModified ? ` (đã thay đổi từ ${comp.originalQuantity})` : '';
-                    formulaSummary += `- ${comp.name}: ${comp.quantity}${status}\n`;
-                });
+    // Create a summary of the modified formula
+    let formulaSummary = 'Công thức mới:\n';
+    productComponents.forEach(comp => {
+        const isModified = comp.quantity !== comp.originalQuantity;
+        const status = isModified ? ` (đã thay đổi từ ${comp.originalQuantity})` : '';
+        formulaSummary += `- ${comp.name}: ${comp.quantity}${status}\n`;
+    });
 
-                // Show confirmation dialog
-                const confirmed = confirm(
-                    `Bạn có muốn tạo thành phẩm mới "${product.name} (Modified)" với công thức sau?\n\n${formulaSummary}\n`
-                );
-
-                if (confirmed) {
-                    // Optional: You could also update the UI to show that a new product will be created
+    // Show confirmation dialog using SweetAlert2 instead of confirm
+    Swal.fire({
+        title: 'Xác nhận tạo thành phẩm mới',
+        html: `Bạn có muốn tạo thành phẩm mới <strong>"${product.name} (Modified)"</strong> với công thức sau?<br><br><pre style="text-align:left;background:#f5f5f5;padding:10px;max-height:200px;overflow-y:auto">${formulaSummary}</pre>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Tạo thành phẩm',
+        cancelButtonText: 'Hủy',
+        allowOutsideClick: false
+    }).then((result) => {
+        if (result.isConfirmed) {
+                                // Find the create new product button
                     const componentBlock = document.getElementById('component_block_' + productUniqueId);
                     if (componentBlock) {
-                        const header = componentBlock.querySelector('h4');
-                        if (header && !header.textContent.includes('(Sẽ tạo mới)')) {
-                            header.innerHTML = header.innerHTML +
-                                ' <span class="text-green-600">(Sẽ tạo mới)</span>';
+                        const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
+                        if (createNewBtn && !createNewBtn.disabled) {
+                            console.log('Calling handleCreateNewProduct from showCreateNewProductModal');
+                            // Call handleCreateNewProduct with the button element
+                            if (typeof window.handleCreateNewProduct === "function") {
+                                window.handleCreateNewProduct(createNewBtn);
+                            } else {
+                                console.error('handleCreateNewProduct function not found in window scope');
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Lỗi',
+                                    text: 'Không tìm thấy hàm xử lý tạo thành phẩm.',
+                                    confirmButtonText: 'Đóng'
+                                });
+                            }
+                        } else if (createNewBtn && createNewBtn.disabled) {
+                            console.log('Button is disabled, product already created');
+                            Swal.fire({
+                                icon: 'info',
+                                title: 'Thông báo',
+                                text: 'Thành phẩm này đã được tạo trước đó.',
+                                confirmButtonText: 'Đóng'
+                            });
+                        } else {
+                            console.error('Create new product button not found');
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Lỗi',
+                                text: 'Không tìm thấy nút tạo thành phẩm mới.',
+                                confirmButtonText: 'Đóng'
+                            });
                         }
-                    }
+                
+                // Update UI to show that a new product will be created
+                const header = componentBlock.querySelector('h4');
+                if (header && !header.textContent.includes('(Sẽ tạo mới)')) {
+                    header.innerHTML = header.innerHTML +
+                        ' <span class="text-green-600">(Sẽ tạo mới)</span>';
                 }
             }
+        }
+    });
+}
 
             // Validation trước khi submit
             document.querySelector('form').addEventListener('submit', function(e) {
@@ -3715,6 +3820,40 @@
                     }
                 }
             });
+
+            // Function to mark a product as already created
+            function markProductAsCreated(productUniqueId) {
+                // Tìm nút tạo thành phẩm mới
+                const componentBlock = document.getElementById('component_block_' + productUniqueId);
+                if (!componentBlock) return;
+                
+                const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
+                if (createNewBtn) {
+                    // Vô hiệu hóa nút
+                    createNewBtn.disabled = true;
+                    createNewBtn.classList.add('opacity-50');
+                    createNewBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Đã tạo thành phẩm';
+                    
+                    // Thêm class để đánh dấu đã tạo
+                    componentBlock.classList.add('product-already-created');
+                    
+                    // Thêm thông báo đã tạo
+                    const header = componentBlock.querySelector('h4');
+                    if (header && !header.textContent.includes('(Đã tạo)')) {
+                        header.innerHTML = header.innerHTML +
+                            ' <span class="text-green-600">(Đã tạo)</span>';
+                    }
+                    
+                    // Lưu trạng thái vào localStorage để tránh tạo lại sau khi refresh
+                    try {
+                        const createdProducts = JSON.parse(localStorage.getItem('createdProducts') || '{}');
+                        createdProducts[productUniqueId] = true;
+                        localStorage.setItem('createdProducts', JSON.stringify(createdProducts));
+                    } catch (e) {
+                        console.error('Error saving to localStorage:', e);
+                    }
+                }
+            }
         });
     </script>
 </body>

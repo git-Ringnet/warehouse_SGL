@@ -169,12 +169,14 @@
                                     @endif
 
                                     @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.delete')))
-                                        <button
-                                            onclick="openDeleteModal('{{ $employee->id }}', '{{ $employee->name }}')"
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                            title="Xóa nhân viên">
-                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                                        </button>
+                                        @if ($employee->name != "Quản trị viên")
+                                            <button
+                                                onclick="openDeleteModal('{{ $employee->id }}', '{{ $employee->name }}')"
+                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
+                                                title="Xóa nhân viên">
+                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                            </button>
+                                        @endif
                                     @endif
 
                                     @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.toggle_active')))

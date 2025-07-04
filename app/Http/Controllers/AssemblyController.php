@@ -1564,7 +1564,7 @@ class AssemblyController extends Controller
                 'warehouse_id' => $sourceWarehouseId,
                 'quantity' => $assemblyProduct->quantity
             ]);
-        }
+                }
 
         // Ghi nhật ký tạo mới phiếu xuất
         if (Auth::check()) {

@@ -35,4 +35,4 @@ Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController
 
 // Product API routes
 Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductController::class, 'createFromAssembly'])
-    ->middleware(['auth:web', \App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create']); 
+    ->middleware(['web', \App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create']); 

@@ -77,9 +77,9 @@ class InventoryImportController extends Controller
     {
         $suppliers = Supplier::all();
         $warehouses = Warehouse::all();
-        $materials = Material::all();
-        $products = Product::all();
-        $goods = Good::all();
+        $materials = Material::where('status', 'active')->get();
+        $products = Product::where('status', 'active')->get();
+        $goods = Good::where('status', 'active')->get();
 
         return view('inventory-imports.create', compact('suppliers', 'warehouses', 'materials', 'products', 'goods'));
     }

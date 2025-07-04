@@ -603,8 +603,10 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::delete('/assemblies/{assembly}', [AssemblyController::class, 'destroy'])->name('assemblies.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.delete');
 
     // Assembly export routes
-    Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])->name('assemblies.export-excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
-    Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export-pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
+    Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])
+        ->name('assemblies.export.excel')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.export');
+    Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.export');
 
     // API route for assembly code validation
     Route::post('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
@@ -720,4 +722,15 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::post('/device-codes/import', [DeviceCodeController::class, 'import'])->name('device-codes.import');
     Route::post('/device-codes', [DeviceCodeController::class, 'store'])->name('device-codes.store');
     Route::put('/device-codes/{id}', [DeviceCodeController::class, 'update'])->name('device-codes.update');
+
+    // API route for employees
+    Route::get('/api/employees/search', [EmployeeController::class, 'apiSearch'])->name('api.employees.search')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.view');
+
+    // API route for warehouses
+    Route::get('/api/warehouses/{warehouse}/materials', [WarehouseController::class, 'getMaterials'])->name('api.warehouses.materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view');
+    
+    // API route for creating products from assembly
+    Route::post('/api/products/create-from-assembly', [App\Http\Controllers\Api\ProductController::class, 'createFromAssembly'])
+        ->name('api.products.create-from-assembly')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
 });
