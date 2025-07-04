@@ -2450,7 +2450,37 @@
                 }
                 
                 // Hiển thị modal
-                itemDetailsModal.classList.remove('hidden');
+                const itemDetailsModal = document.getElementById('itemDetailsModal');
+                const closeModal = document.getElementById('closeModal');
+                
+                if (itemDetailsModal && closeModal) {
+                    // Hiển thị modal
+                    itemDetailsModal.classList.remove('hidden');
+                    
+                    // Xử lý sự kiện đóng modal
+                    const closeModalHandler = function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        itemDetailsModal.classList.add('hidden');
+                        // Gỡ bỏ event listener sau khi đóng
+                        closeModal.removeEventListener('click', closeModalHandler);
+                    };
+                    
+                    // Thêm event listener cho nút đóng
+                    closeModal.addEventListener('click', closeModalHandler);
+                    
+                    // Xử lý đóng modal khi click bên ngoài
+                    const outsideClickHandler = function(e) {
+                        if (e.target === itemDetailsModal) {
+                            itemDetailsModal.classList.add('hidden');
+                            // Gỡ bỏ event listener sau khi đóng
+                            itemDetailsModal.removeEventListener('click', outsideClickHandler);
+                        }
+                    };
+                    
+                    // Thêm event listener cho click bên ngoài
+                    itemDetailsModal.addEventListener('click', outsideClickHandler);
+                }
             }
             
             // Đóng modal
