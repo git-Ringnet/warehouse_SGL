@@ -57,7 +57,18 @@ Route::middleware(['auth:web,customer', CheckUserType::class])->group(function (
         if (Auth::guard('customer')->check()) {
             return redirect()->route('customer.dashboard');
         }
-        return redirect()->route('dashboard');
+        
+        if (Auth::guard('web')->check()) {
+            $employee = Auth::guard('web')->user();
+            if ($employee->role === 'admin' || 
+                ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
+                return redirect()->route('dashboard');
+            }
+            // Nếu nhân viên chưa có quyền, chuyển đến trang thông báo
+            return view('errors.no-permission');
+        }
+        
+        return redirect()->route('login');
     });
 });
 

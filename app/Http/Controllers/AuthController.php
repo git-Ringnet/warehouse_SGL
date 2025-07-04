@@ -78,7 +78,8 @@ class AuthController extends Controller
                 ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
                 return redirect()->intended('/dashboard');
             }
-            return redirect('/');
+            // Nếu nhân viên chưa có quyền, chuyển đến trang thông báo
+            return view('errors.no-permission');
         }
         
         // Nếu không thành công, thử đăng nhập với bảng users (khách hàng)
