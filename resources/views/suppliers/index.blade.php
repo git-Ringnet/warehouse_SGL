@@ -155,28 +155,48 @@
             <h1 class="text-xl font-bold text-gray-800">Quản lý nhà cung cấp</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <form action="{{ route('suppliers.index') }}" method="GET" class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-                    <div class="relative flex-grow">
+                    <select 
+                        name="filter" 
+                        id="filterSelect"
+                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
+                        onchange="toggleQuantityFilter()"
+                    >
+                        <option value="">Tất cả</option>
+                        <option value="name" {{ ($filter ?? '') == 'name' ? 'selected' : '' }}>Tên nhà cung cấp</option>
+                        <option value="representative" {{ ($filter ?? '') == 'representative' ? 'selected' : '' }}>Tên người đại diện</option>
+                        <option value="phone" {{ ($filter ?? '') == 'phone' ? 'selected' : '' }}>Số điện thoại</option>
+                        <option value="email" {{ ($filter ?? '') == 'email' ? 'selected' : '' }}>Email</option>
+                        <option value="address" {{ ($filter ?? '') == 'address' ? 'selected' : '' }}>Địa chỉ</option>
+                        <option value="total_items" {{ ($filter ?? '') == 'total_items' ? 'selected' : '' }}>Tổng số lượng đã nhập (lớn hơn hoặc bằng)</option>
+                    </select>
+                    
+                    <div id="normalSearchInput" class="relative flex-grow {{ ($filter ?? '') == 'total_items' ? 'hidden' : '' }}">
                         <input 
                             type="text" 
                             name="search" 
-                            placeholder="Tìm kiếm theo tên, số điện thoại..." 
+                            placeholder="Nhập từ khóa tìm kiếm..." 
                             class="border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full"
-                            value="{{ $search ?? '' }}" 
+                            value="{{ ($filter ?? '') != 'total_items' ? ($search ?? '') : '' }}" 
                         />
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                             <i class="fas fa-search text-gray-400"></i>
                         </div>
                     </div>
-                    <select 
-                        name="filter" 
-                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
-                    >
-                        <option value="">Tất cả</option>
-                        <option value="name" {{ ($filter ?? '') == 'name' ? 'selected' : '' }}>Tên nhà cung cấp</option>
-                        <option value="phone" {{ ($filter ?? '') == 'phone' ? 'selected' : '' }}>Số điện thoại</option>
-                        <option value="email" {{ ($filter ?? '') == 'email' ? 'selected' : '' }}>Email</option>
-                        <option value="address" {{ ($filter ?? '') == 'address' ? 'selected' : '' }}>Địa chỉ</option>
-                    </select>
+                    
+                    <div id="quantitySearchInput" class="relative flex-grow {{ ($filter ?? '') != 'total_items' ? 'hidden' : '' }}">
+                        <input 
+                            type="number" 
+                            name="quantity" 
+                            placeholder="Nhập số lượng tối thiểu" 
+                            min="0"
+                            class="border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full"
+                            value="{{ $quantity ?? '' }}" 
+                        />
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                            <i class="fas fa-sort-numeric-down text-gray-400"></i>
+                        </div>
+                    </div>
+                    
                     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center">
                         <i class="fas fa-search mr-2"></i> Tìm kiếm
                     </button>
@@ -355,6 +375,20 @@
             
             // Gửi form để xóa nhà cung cấp
             form.submit();
+        }
+
+        function toggleQuantityFilter() {
+            const filterSelect = document.getElementById('filterSelect');
+            const normalSearchInput = document.getElementById('normalSearchInput');
+            const quantitySearchInput = document.getElementById('quantitySearchInput');
+            
+            if (filterSelect.value === 'total_items') {
+                normalSearchInput.classList.add('hidden');
+                quantitySearchInput.classList.remove('hidden');
+            } else {
+                normalSearchInput.classList.remove('hidden');
+                quantitySearchInput.classList.add('hidden');
+            }
         }
     </script>
 </body>

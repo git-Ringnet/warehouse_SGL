@@ -20,16 +20,20 @@ class SupplierController extends Controller
     {
         $search = $request->input('search');
         $filter = $request->input('filter');
+        $quantity = $request->input('quantity');
         
         $query = Supplier::query();
         
         // Xử lý tìm kiếm
-        if ($search) {
-            if ($filter) {
+        if ($search || ($filter === 'total_items' && $quantity !== null)) {
+            if ($filter && $filter !== 'total_items') {
                 // Tìm kiếm theo trường được chọn
                 switch ($filter) {
                     case 'name':
                         $query->where('name', 'like', "%{$search}%");
+                        break;
+                    case 'representative':
+                        $query->where('representative', 'like', "%{$search}%");
                         break;
                     case 'phone':
                         $query->where('phone', 'like', "%{$search}%");
@@ -41,10 +45,11 @@ class SupplierController extends Controller
                         $query->where('address', 'like', "%{$search}%");
                         break;
                 }
-            } else {
+            } elseif (!$filter) {
                 // Tìm kiếm tổng quát nếu không chọn bộ lọc
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('representative', 'like', "%{$search}%")
                       ->orWhere('phone', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
                       ->orWhere('address', 'like', "%{$search}%");
@@ -52,15 +57,48 @@ class SupplierController extends Controller
             }
         }
         
-        $suppliers = $query->latest()->paginate(10);
+        // Lấy tất cả nhà cung cấp nếu đang lọc theo tổng số lượng
+        if ($filter === 'total_items' && $quantity !== null) {
+            $allSuppliers = $query->latest()->get();
+            
+            // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
+            foreach ($allSuppliers as $supplier) {
+                $materialsCount = $supplier->materials()->distinct()->count();
+                $goodsCount = $supplier->goods()->distinct()->count();
+                $supplier->total_items = $materialsCount + $goodsCount;
+            }
+            
+            // Lọc theo tổng số lượng đã nhập
+            $quantityValue = (int) $quantity;
+            $filteredSuppliers = $allSuppliers->filter(function ($supplier) use ($quantityValue) {
+                return $supplier->total_items >= $quantityValue;
+            })->values();
+            
+            // Tạo phân trang thủ công
+            $page = $request->input('page', 1);
+            $perPage = 10;
+            $total = $filteredSuppliers->count();
+            
+            $suppliers = new \Illuminate\Pagination\LengthAwarePaginator(
+                $filteredSuppliers->forPage($page, $perPage),
+                $total,
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            // Lấy nhà cung cấp có phân trang
+            $suppliers = $query->latest()->paginate(10);
+            
+            // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
+            foreach ($suppliers as $supplier) {
+                $materialsCount = $supplier->materials()->distinct()->count();
+                $goodsCount = $supplier->goods()->distinct()->count();
+                $supplier->total_items = $materialsCount + $goodsCount;
+            }
+        }
         
-        // Giữ lại tham số tìm kiếm và lọc khi phân trang
-        $suppliers->appends([
-            'search' => $search,
-            'filter' => $filter
-        ]);
-        
-        return view('suppliers.index', compact('suppliers', 'search', 'filter'));
+        return view('suppliers.index', compact('suppliers', 'search', 'filter', 'quantity'));
     }
 
     /**
@@ -122,10 +160,10 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
         
         // Lấy các vật tư liên quan với nhà cung cấp này thông qua relationship
-        $materials = $supplier->materials;
+        $materials = $supplier->materials()->distinct()->get();
         
         // Lấy các hàng hóa liên quan với nhà cung cấp này thông qua relationship
-        $goods = $supplier->goods;
+        $goods = $supplier->goods()->distinct()->get();
         
         // Ghi nhật ký xem chi tiết nhà cung cấp
         if (Auth::check()) {

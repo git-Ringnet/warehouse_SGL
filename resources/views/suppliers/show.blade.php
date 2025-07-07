@@ -109,18 +109,13 @@
                             </div>
                             
                             <div class="mt-4">
-                                <p class="text-sm text-gray-500 font-medium">Lần nhập hàng gần nhất</p>
-                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->last_import_date ?? 'Chưa có' }}</p>
-                            </div>
-                            
-                            <div class="mt-4">
                                 <p class="text-sm text-gray-500 font-medium">Ngày tạo</p>
-                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->created_at->format('d/m/Y H:i') }}</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->created_at->timezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}</p>
                             </div>
                             
                             <div class="mt-4">
                                 <p class="text-sm text-gray-500 font-medium">Cập nhật lần cuối</p>
-                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->updated_at->format('d/m/Y H:i') }}</p>
+                                <p class="text-base text-gray-800 font-semibold">{{ $supplier->updated_at->timezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}</p>
                             </div>
                         </div>
                     </div>
