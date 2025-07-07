@@ -23,8 +23,8 @@ class DatabaseSeeder extends Seeder
 
         // Chạy các Seeders
         $this->call([
-            // CustomerSeeder::class,
-            // SupplierSeeder::class,
+            CustomerSeeder::class,
+            SupplierSeeder::class,
             PermissionSeeder::class,
             RoleSeeder::class,
             EmployeeSeeder::class,

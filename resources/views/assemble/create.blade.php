@@ -282,6 +282,7 @@
                                     Thêm
                                 </button>
                             </div>
+
                         </div>
 
                         <!-- Component blocks container - where product component blocks will be added -->
@@ -359,7 +360,7 @@
             const component = window.selectedComponents[componentIndex];
             if (component) {
                 component.productUnit = parseInt(element.value) || 0;
-                
+
                 // Update serial inputs for this component
                 const row = element.closest('tr');
                 if (row) {
@@ -373,11 +374,11 @@
                 }
             }
         }
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             // Generate unique assembly code on page load
             generateUniqueAssemblyCode();
-            
+
             // Kiểm tra các sản phẩm đã tạo từ localStorage
             try {
                 const createdProducts = JSON.parse(localStorage.getItem('createdProducts') || '{}');
@@ -411,9 +412,10 @@
             const productList = document.getElementById('product_list');
             const noProductsRow = document.getElementById('no_products_row');
 
-            let selectedComponents = [];
-            window.selectedComponents = selectedComponents;
-            
+            // Khởi tạo mảng selectedComponents rỗng
+            window.selectedComponents = [];
+            let selectedComponents = window.selectedComponents;
+
             let selectedProducts = []; // Danh sách thành phẩm đã chọn
             window.selectedProducts = selectedProducts;
             let allMaterials = @json($materials);
@@ -498,6 +500,19 @@
                 }
             });
 
+            // Xóa selectedMaterial khi xóa nội dung input
+            componentSearchInput.addEventListener('input', function() {
+                if (this.value.trim() === '') {
+                    selectedMaterial = null;
+                    selectedComponentToAdd = null;
+
+                    // Disable add button when search input is cleared
+                    addComponentBtn.disabled = true;
+                    addComponentBtn.classList.add('opacity-50');
+                    console.log("Search input cleared - disabled add button");
+                }
+            });
+
             componentSearchInput.addEventListener('input', function() {
                 const searchTerm = this.value.trim();
 
@@ -573,8 +588,7 @@
                     actualProductId: selectedProduct.id, // Store actual product ID for backend
                     isFromProduct: false, // User added component
                     isOriginal: false, // Not from original BOM
-                    productUnit: selectedUnit ||
-                        0 // Use selected unit or default to 0 for single-unit products
+                    productUnit: 0 // Default to first product unit (0)
                 };
 
                 selectedComponents.push(newComponent);
@@ -1057,7 +1071,7 @@
                                             .fill('') : [],
                                         productId: productUniqueId,
                                         actualProductId: product
-                                        .id, // Store actual product ID for backend
+                                            .id, // Store actual product ID for backend
                                         isFromProduct: true, // Flag to indicate this came from product BOM
                                         isOriginal: true // Flag to mark original components
                                     };
@@ -1439,12 +1453,12 @@
                              data-id="${material.id}" 
                              data-code="${material.code}" 
                              data-name="${material.name}"
-                             data-category="${material.category}"
+                             data-category="${material.category || 'Không xác định'}"
                              data-unit="${material.unit || ''}">
                             <div class="flex justify-between items-center">
                                 <div>
                                     <div class="font-medium text-sm">[${material.code}] ${material.name}</div>
-                                    <div class="text-xs text-gray-500">${material.category} ${material.unit ? '- ' + material.unit : ''}</div>
+                                    <div class="text-xs text-gray-500">${material.category || 'Không xác định'} ${material.unit ? '- ' + material.unit : ''}</div>
                                 </div>
                             </div>
                         </div>
@@ -1457,17 +1471,29 @@
                 // Add click handlers for search result items
                 searchResults.querySelectorAll('.component-search-item').forEach(item => {
                     item.addEventListener('click', function() {
+                        // Create material object with all required properties
                         selectedComponentToAdd = {
                             id: parseInt(this.getAttribute('data-id')),
                             code: this.getAttribute('data-code'),
                             name: this.getAttribute('data-name'),
-                            category: this.getAttribute('data-category'),
-                            unit: this.getAttribute('data-unit')
+                            category: this.getAttribute('data-category') || 'Không xác định',
+                            unit: this.getAttribute('data-unit') || ''
                         };
+
+                        // Set both variables for consistency
+                        selectedMaterial = selectedComponentToAdd;
 
                         componentSearchInput.value =
                             `[${selectedComponentToAdd.code}] ${selectedComponentToAdd.name}`;
                         searchResults.classList.add('hidden');
+
+                        // Enable add button if product is selected
+                        if (componentProductSelect.value) {
+                            addComponentBtn.disabled = false;
+                            addComponentBtn.classList.remove('opacity-50');
+                            console.log(
+                                "Material selected from search results, enabling add button");
+                        }
                     });
                 });
             }
@@ -1708,11 +1734,18 @@
                         componentSearchInput.value = '';
                         searchResults.classList.add('hidden');
                         selectedMaterial = null;
+                        selectedComponentToAdd = null;
                     }
                 } else {
                     componentProductSelect.disabled = false;
-                    addComponentBtn.disabled = false;
-                    addComponentBtn.classList.remove('opacity-50');
+                    // Chỉ kích hoạt nút thêm nếu đã chọn vật tư
+                    const hasSelectedMaterial = selectedMaterial || selectedComponentToAdd;
+                    addComponentBtn.disabled = !hasSelectedMaterial;
+                    if (hasSelectedMaterial) {
+                        addComponentBtn.classList.remove('opacity-50');
+                    } else {
+                        addComponentBtn.classList.add('opacity-50');
+                    }
                     componentSearchInput.disabled = false;
                     componentAddQuantity.disabled = false;
 
@@ -1731,6 +1764,33 @@
                     });
                 }
             }
+
+            // Thêm sự kiện khi thay đổi dropdown thành phẩm
+            componentProductSelect.addEventListener('change', function() {
+                // Kích hoạt nút thêm nếu đã chọn vật tư
+                const hasSelectedMaterial = selectedMaterial || selectedComponentToAdd;
+                addComponentBtn.disabled = !hasSelectedMaterial || !this.value;
+
+                console.log("Product dropdown changed:", {
+                    selectedValue: this.value,
+                    hasSelectedMaterial: hasSelectedMaterial,
+                    selectedMaterial: selectedMaterial,
+                    selectedComponentToAdd: selectedComponentToAdd
+                });
+
+                if (hasSelectedMaterial && this.value) {
+                    addComponentBtn.classList.remove('opacity-50');
+                    console.log("Enabled add component button - both material and product selected");
+                } else {
+                    addComponentBtn.classList.add('opacity-50');
+                    if (!hasSelectedMaterial) {
+                        console.log("Add button disabled - no material selected");
+                    }
+                    if (!this.value) {
+                        console.log("Add button disabled - no product selected");
+                    }
+                }
+            });
 
             // Hàm lấy danh sách linh kiện theo kho
             function fetchWarehouseMaterials(warehouseId) {
@@ -1816,9 +1876,21 @@
 
                     // Handle click on search result
                     resultItem.addEventListener('click', function() {
+                        // Cập nhật cả hai biến để đảm bảo tính nhất quán
                         selectedMaterial = material;
+                        selectedComponentToAdd = material;
                         componentSearchInput.value = material.code + ' - ' + material.name;
                         searchResults.classList.add('hidden');
+
+                        // Kích hoạt nút thêm nếu đã chọn thành phẩm
+                        if (componentProductSelect.value) {
+                            addComponentBtn.disabled = false;
+                            addComponentBtn.classList.remove('opacity-50');
+                            console.log(
+                                "Enabled add component button - material and product selected");
+                        } else {
+                            console.log("Material selected but waiting for product selection");
+                        }
                     });
 
                     searchResults.appendChild(resultItem);
@@ -1828,71 +1900,118 @@
             }
 
             // Xử lý thêm linh kiện khi nhấn nút "Thêm"
-            addComponentBtn.addEventListener('click', addSelectedComponent);
+            addComponentBtn.addEventListener('click', handleAddComponent);
 
             // Thêm sự kiện Enter trong ô nhập liệu linh kiện để thêm linh kiện nhanh
             componentSearchInput.addEventListener('keypress', function(event) {
                 if (event.key === 'Enter' && selectedMaterial && componentProductSelect.value) {
                     event.preventDefault(); // Ngăn chặn hành vi mặc định của Enter
-                    addSelectedComponent(); // Gọi hàm thêm linh kiện
+                    handleAddComponent(); // Gọi hàm thêm linh kiện
                 }
             });
+            
+
 
             // Add selected component function
-            function addSelectedComponent() {
+            function handleAddComponent() {
                 if (selectedProducts.length === 0) {
                     alert('Vui lòng thêm thành phẩm trước khi thêm linh kiện!');
                     return;
                 }
-                const selectedProductId = componentProductSelect.value;
-                const selectedProduct = selectedProducts.find(p => p.uniqueId === selectedProductId);
-                if (!selectedProduct) return;
 
-                // Kiểm tra xem linh kiện đã tồn tại chưa
-                if (selectedComponents.some(c => c.id === selectedMaterial.id && c.productId ===
-                        selectedProductId)) {
-                    alert('Linh kiện này đã được thêm vào thành phẩm!');
+                // Kiểm tra cả hai biến để đảm bảo có vật tư được chọn
+                if (!selectedMaterial && !selectedComponentToAdd) {
+                    alert('Vui lòng chọn linh kiện trước khi thêm!');
                     return;
                 }
 
-                const quantity = parseInt(componentAddQuantity.value) || 1;
-
-                // Add the component using the new function
-                const newComponent = window.addSelectedComponent(selectedMaterial, selectedProduct, quantity);
-
-                // Hiển thị thông báo thành công
-                const successMessage = document.createElement('div');
-                successMessage.className =
-                    'text-green-500 text-sm p-3 text-center fixed top-4 right-4 bg-white shadow-lg rounded-lg z-50';
-                successMessage.innerHTML =
-                    '<i class="fas fa-check-circle"></i> Đã thêm "' + newComponent.name + '" vào thành phẩm "' +
-                    newComponent.productName + '"';
-                document.body.appendChild(successMessage);
-
-                // Xóa thông báo sau 2 giây
-                setTimeout(() => {
-                    if (successMessage.parentNode) {
-                        successMessage.parentNode.removeChild(successMessage);
-                    }
-                }, 2000);
-
-                // Cập nhật giao diện
-                updateComponentList();
-
-                // Tự động cuộn đến block của thành phẩm
-                const componentBlock = document.getElementById('component_block_' + selectedProductId);
-                if (componentBlock) {
-                    componentBlock.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
+                // Ưu tiên sử dụng selectedComponentToAdd nếu có
+                const materialToAdd = selectedComponentToAdd || selectedMaterial;
+                if (!materialToAdd) {
+                    alert('Vui lòng chọn linh kiện trước khi thêm!');
+                    return;
                 }
 
-                // Clear search
-                componentSearchInput.value = '';
-                componentAddQuantity.value = '1';
-                searchResults.classList.add('hidden');
-                selectedMaterial = null;
+                const selectedProductId = componentProductSelect.value;
+                if (!selectedProductId) {
+                    alert('Vui lòng chọn thành phẩm trước khi thêm!');
+                    return;
+                }
+
+                const selectedProduct = selectedProducts.find(p => p.uniqueId === selectedProductId);
+                if (!selectedProduct) {
+                    alert('Không tìm thấy thành phẩm được chọn!');
+                    return;
+                }
+
+                                // Đảm bảo số lượng là số nguyên dương
+                let quantity = parseInt(componentAddQuantity.value);
+                if (isNaN(quantity) || quantity < 1) {
+                    quantity = 1;
+                    componentAddQuantity.value = "1";
+                }
+
+                // Add the component using the global function
+                console.log("Adding component with:", {
+                    materialToAdd,
+                    selectedProduct,
+                    quantity,
+                    currentComponents: window.selectedComponents ? window.selectedComponents.length : 0
+                });
+
+                try {
+                    // Gọi hàm window.addSelectedComponent để thêm linh kiện
+                    const newComponent = window.addSelectedComponent(materialToAdd, selectedProduct, quantity);
+
+                    if (!newComponent) {
+                        console.error("Failed to add component - null returned from addSelectedComponent");
+                        alert('Có lỗi khi thêm linh kiện. Vui lòng thử lại!');
+                        return;
+                    }
+
+                    // Hiển thị thông báo thành công
+                    const successMessage = document.createElement('div');
+                    successMessage.className =
+                        'text-green-500 text-sm p-3 text-center fixed top-4 right-4 bg-white shadow-lg rounded-lg z-50';
+                    successMessage.innerHTML =
+                        '<i class="fas fa-check-circle"></i> Đã thêm "' + newComponent.name + '" vào thành phẩm "' +
+                        newComponent.productName + '"';
+                    document.body.appendChild(successMessage);
+
+                    // Xóa thông báo sau 2 giây
+                    setTimeout(() => {
+                        if (successMessage.parentNode) {
+                            successMessage.parentNode.removeChild(successMessage);
+                        }
+                    }, 2000);
+
+                    // Reset search input và selectedMaterial
+                    componentSearchInput.value = '';
+                    selectedMaterial = null;
+                    selectedComponentToAdd = null;
+                    searchResults.classList.add('hidden');
+
+                    // Vô hiệu hóa nút thêm sau khi đã thêm
+                    addComponentBtn.disabled = true;
+                    addComponentBtn.classList.add('opacity-50');
+
+                    // Cập nhật giao diện
+                    console.log("Updating UI with new component. Total components:", window.selectedComponents.length);
+                    updateProductComponentList(selectedProductId);
+                    updateComponentList();
+
+                    // Tự động cuộn đến block của thành phẩm
+                    const componentBlock = document.getElementById('component_block_' + selectedProductId);
+                    if (componentBlock) {
+                        componentBlock.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error adding component:", error);
+                    alert('Có lỗi khi thêm linh kiện: ' + error.message);
+                }
             }
 
             // Update component quantities based on product quantity
@@ -2294,20 +2413,21 @@
             // Function to check if any components have modified quantities for a product
             function checkComponentsModified(productUniqueId) {
                 console.log(`Checking if components modified for product ${productUniqueId}`);
-                
+
                 const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
                 if (!product || !product.originalComponents) {
                     console.log('No original components found, using fallback logic');
                     // Fallback to old logic if no original components available
                     const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
-                    const modified = productComponents.some(component => component.quantity !== component.originalQuantity);
+                    const modified = productComponents.some(component => component.quantity !== component
+                        .originalQuantity);
                     console.log(`Using fallback logic: ${modified ? 'MODIFIED' : 'not modified'}`);
                     return modified;
                 }
 
                 const currentComponents = selectedComponents.filter(c => c.productId === productUniqueId);
                 const originalComponents = product.originalComponents;
-                
+
                 console.log('Component comparison:', {
                     currentCount: currentComponents.length,
                     originalCount: originalComponents.length,
@@ -2330,7 +2450,9 @@
                         return true;
                     } else if (original.quantity != current.quantity) {
                         // Quantity changed
-                        console.log(`Component ${current.id} quantity changed: ${original.quantity} -> ${current.quantity}`);
+                        console.log(
+                            `Component ${current.id} quantity changed: ${original.quantity} -> ${current.quantity}`
+                            );
                         return true;
                     }
                 }
@@ -2371,12 +2493,15 @@
                         // Xóa tất cả event listener cũ để tránh trùng lặp
                         const newBtn = createNewBtn.cloneNode(true);
                         createNewBtn.parentNode.replaceChild(newBtn, createNewBtn);
-                        
+
                         // Thêm event listener mới
                         newBtn.addEventListener('click', function() {
                             const productUniqueId = this.getAttribute('data-unique-id');
                             const productId = this.getAttribute('data-product-id');
-                            console.log('Create new product button clicked:', { productId, productUniqueId });
+                            console.log('Create new product button clicked:', {
+                                productId,
+                                productUniqueId
+                            });
                             showCreateNewProductModal(productUniqueId);
                         });
                     }
@@ -2393,8 +2518,11 @@
 
                 const isModified = checkComponentsModified(productUniqueId);
                 const isDuplicate = selectedProducts.filter(p => p.uniqueId === productUniqueId).length > 1;
-                
-                console.log(`Product ${productUniqueId} status:`, { isModified, isDuplicate });
+
+                console.log(`Product ${productUniqueId} status:`, {
+                    isModified,
+                    isDuplicate
+                });
 
                 if (isModified || isDuplicate) {
                     // Find the product object to get its actual ID
@@ -2403,10 +2531,12 @@
                         console.error(`Product not found for uniqueId ${productUniqueId}`);
                         return;
                     }
-                    
+
                     // Use the actual product ID, not just the number from the uniqueId
                     const productId = product.id;
-                    console.log(`Adding create new product button for product ${productId} (uniqueId: ${productUniqueId})`);
+                    console.log(
+                        `Adding create new product button for product ${productId} (uniqueId: ${productUniqueId})`
+                        );
                     addCreateNewProductButton(componentBlock, productId, productUniqueId);
                 } else {
                     // Remove the button if no longer modified and not duplicate
@@ -2419,90 +2549,93 @@
             }
 
             // Function to show create new product modal/alert
-function showCreateNewProductModal(productUniqueId) {
-    // Kiểm tra nếu đang xử lý yêu cầu tạo thành phẩm
-    // Sử dụng window.isCreatingProduct để truy cập biến từ file assembly-product-unit.js
-    if (window.isCreatingProduct === true) {
-        console.log('Đang xử lý yêu cầu tạo thành phẩm, vui lòng đợi...');
-        Swal.fire({
-            icon: 'info',
-            title: 'Đang xử lý',
-            text: 'Yêu cầu tạo thành phẩm đang được xử lý, vui lòng đợi.',
-            confirmButtonText: 'Đóng'
-        });
-        return;
-    }
-    
-    const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
-    const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
+            function showCreateNewProductModal(productUniqueId) {
+                // Kiểm tra nếu đang xử lý yêu cầu tạo thành phẩm
+                // Sử dụng window.isCreatingProduct để truy cập biến từ file assembly-product-unit.js
+                if (window.isCreatingProduct === true) {
+                    console.log('Đang xử lý yêu cầu tạo thành phẩm, vui lòng đợi...');
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Đang xử lý',
+                        text: 'Yêu cầu tạo thành phẩm đang được xử lý, vui lòng đợi.',
+                        confirmButtonText: 'Đóng'
+                    });
+                    return;
+                }
 
-    if (!product || productComponents.length === 0) return;
+                const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
+                const productComponents = selectedComponents.filter(c => c.productId === productUniqueId);
 
-    // Create a summary of the modified formula
-    let formulaSummary = 'Công thức mới:\n';
-    productComponents.forEach(comp => {
-        const isModified = comp.quantity !== comp.originalQuantity;
-        const status = isModified ? ` (đã thay đổi từ ${comp.originalQuantity})` : '';
-        formulaSummary += `- ${comp.name}: ${comp.quantity}${status}\n`;
-    });
+                if (!product || productComponents.length === 0) return;
 
-    // Show confirmation dialog using SweetAlert2 instead of confirm
-    Swal.fire({
-        title: 'Xác nhận tạo thành phẩm mới',
-        html: `Bạn có muốn tạo thành phẩm mới <strong>"${product.name} (Modified)"</strong> với công thức sau?<br><br><pre style="text-align:left;background:#f5f5f5;padding:10px;max-height:200px;overflow-y:auto">${formulaSummary}</pre>`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Tạo thành phẩm',
-        cancelButtonText: 'Hủy',
-        allowOutsideClick: false
-    }).then((result) => {
-        if (result.isConfirmed) {
-                                // Find the create new product button
-                    const componentBlock = document.getElementById('component_block_' + productUniqueId);
-                    if (componentBlock) {
-                        const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
-                        if (createNewBtn && !createNewBtn.disabled) {
-                            console.log('Calling handleCreateNewProduct from showCreateNewProductModal');
-                            // Call handleCreateNewProduct with the button element
-                            if (typeof window.handleCreateNewProduct === "function") {
-                                window.handleCreateNewProduct(createNewBtn);
+                // Create a summary of the modified formula
+                let formulaSummary = 'Công thức mới:\n';
+                productComponents.forEach(comp => {
+                    const isModified = comp.quantity !== comp.originalQuantity;
+                    const status = isModified ? ` (đã thay đổi từ ${comp.originalQuantity})` : '';
+                    formulaSummary += `- ${comp.name}: ${comp.quantity}${status}\n`;
+                });
+
+                // Show confirmation dialog using SweetAlert2 instead of confirm
+                Swal.fire({
+                    title: 'Xác nhận tạo thành phẩm mới',
+                    html: `Bạn có muốn tạo thành phẩm mới <strong>"${product.name} (Modified)"</strong> với công thức sau?<br><br><pre style="text-align:left;background:#f5f5f5;padding:10px;max-height:200px;overflow-y:auto">${formulaSummary}</pre>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Tạo thành phẩm',
+                    cancelButtonText: 'Hủy',
+                    allowOutsideClick: false
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Find the create new product button
+                        const componentBlock = document.getElementById('component_block_' +
+                        productUniqueId);
+                        if (componentBlock) {
+                            const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
+                            if (createNewBtn && !createNewBtn.disabled) {
+                                console.log(
+                                'Calling handleCreateNewProduct from showCreateNewProductModal');
+                                // Call handleCreateNewProduct with the button element
+                                if (typeof window.handleCreateNewProduct === "function") {
+                                    window.handleCreateNewProduct(createNewBtn);
+                                } else {
+                                    console.error(
+                                        'handleCreateNewProduct function not found in window scope');
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Lỗi',
+                                        text: 'Không tìm thấy hàm xử lý tạo thành phẩm.',
+                                        confirmButtonText: 'Đóng'
+                                    });
+                                }
+                            } else if (createNewBtn && createNewBtn.disabled) {
+                                console.log('Button is disabled, product already created');
+                                Swal.fire({
+                                    icon: 'info',
+                                    title: 'Thông báo',
+                                    text: 'Thành phẩm này đã được tạo trước đó.',
+                                    confirmButtonText: 'Đóng'
+                                });
                             } else {
-                                console.error('handleCreateNewProduct function not found in window scope');
+                                console.error('Create new product button not found');
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Lỗi',
-                                    text: 'Không tìm thấy hàm xử lý tạo thành phẩm.',
+                                    text: 'Không tìm thấy nút tạo thành phẩm mới.',
                                     confirmButtonText: 'Đóng'
                                 });
                             }
-                        } else if (createNewBtn && createNewBtn.disabled) {
-                            console.log('Button is disabled, product already created');
-                            Swal.fire({
-                                icon: 'info',
-                                title: 'Thông báo',
-                                text: 'Thành phẩm này đã được tạo trước đó.',
-                                confirmButtonText: 'Đóng'
-                            });
-                        } else {
-                            console.error('Create new product button not found');
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Lỗi',
-                                text: 'Không tìm thấy nút tạo thành phẩm mới.',
-                                confirmButtonText: 'Đóng'
-                            });
+
+                            // Update UI to show that a new product will be created
+                            const header = componentBlock.querySelector('h4');
+                            if (header && !header.textContent.includes('(Sẽ tạo mới)')) {
+                                header.innerHTML = header.innerHTML +
+                                    ' <span class="text-green-600">(Sẽ tạo mới)</span>';
+                            }
                         }
-                
-                // Update UI to show that a new product will be created
-                const header = componentBlock.querySelector('h4');
-                if (header && !header.textContent.includes('(Sẽ tạo mới)')) {
-                    header.innerHTML = header.innerHTML +
-                        ' <span class="text-green-600">(Sẽ tạo mới)</span>';
-                }
+                    }
+                });
             }
-        }
-    });
-}
 
             // Validation trước khi submit
             document.querySelector('form').addEventListener('submit', function(e) {
@@ -2776,7 +2909,7 @@ function showCreateNewProductModal(productUniqueId) {
                     materialGroups[materialId].forEach(info => {
                         console.log(
                             `Instance ${info.instanceId}: Value="${info.value}", Options=${info.optionCount}`
-                            );
+                        );
                     });
                     console.groupEnd();
                 });
@@ -2921,7 +3054,7 @@ function showCreateNewProductModal(productUniqueId) {
 
             // Function to load serials for multiple select (quantity > 1)
             async function loadSerialsForMultipleSelect(selectElement, serialIdInput, component, index,
-            serialIndex) {
+                serialIndex) {
                 const warehouseId = document.getElementById('warehouse_id').value;
                 if (!warehouseId) {
                     return; // Don't load if no warehouse selected
@@ -2977,7 +3110,7 @@ function showCreateNewProductModal(productUniqueId) {
                             if ((component.serials && component.serials[serialIndex] === serial
                                     .serial_number) ||
                                 (component.serial_ids && component.serial_ids[serialIndex] == serial.id)
-                                ) {
+                            ) {
                                 option.selected = true;
                                 selectElement.value = serial.serial_number;
                                 if (!component.serials) component.serials = [];
@@ -3398,81 +3531,7 @@ function showCreateNewProductModal(productUniqueId) {
                 });
             @endif
 
-            // Function to add a new component to a product
-            function addSelectedComponent() {
-                if (!selectedMaterial || !selectedProduct) {
-                    alert('Vui lòng chọn linh kiện và sản phẩm trước khi thêm!');
-                    return;
-                }
-
-                const selectedProductId = selectedProduct.uniqueId;
-                const quantity = parseInt(componentAddQuantity.value) || 1;
-
-                // Create new component object
-                const newComponent = {
-                    id: selectedMaterial.id,
-                    code: selectedMaterial.code,
-                    name: selectedMaterial.name,
-                    category: selectedMaterial.category,
-                    quantity: quantity,
-                    originalQuantity: quantity, // Store original quantity
-                    stock_quantity: selectedMaterial.stock_quantity || 0,
-                    serial: '',
-                    serials: [],
-                    note: '',
-                    productId: selectedProductId,
-                    actualProductId: selectedProduct.id, // Store actual product ID for backend
-                    productName: selectedProduct.name,
-                    isEditable: true, // Make component quantities editable
-                    productUnit: 0 // Default to first product unit (0)
-                };
-
-                // Check if material already exists for this product
-                const existingIndex = selectedComponents.findIndex(
-                    comp => comp.id === newComponent.id && comp.productId === newComponent.productId
-                );
-
-                if (existingIndex >= 0) {
-                    // Ask user if they want to update quantity or add a duplicate
-                    const updateQuantity = confirm(
-                        `Linh kiện "${newComponent.name}" đã tồn tại cho sản phẩm "${newComponent.productName}". Bạn muốn cập nhật số lượng thay vì thêm mới?`
-                    );
-
-                    if (updateQuantity) {
-                        // Update quantity of existing component
-                        selectedComponents[existingIndex].quantity += newComponent.quantity;
-                        selectedComponents[existingIndex].manuallyAdjusted = true;
-
-                        // Update UI
-                        updateComponentList();
-                        return;
-                    }
-                }
-
-                // Add new component
-                selectedComponents.push(newComponent);
-
-                // Check stock sufficiency
-                checkStockSufficiency(newComponent);
-
-                // Cập nhật giao diện
-                updateComponentList();
-
-                // Tự động cuộn đến block của thành phẩm
-                const componentBlock = document.getElementById('component_block_' + selectedProductId);
-                if (componentBlock) {
-                    componentBlock.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
-                }
-
-                // Clear search
-                componentSearchInput.value = '';
-                componentAddQuantity.value = '1';
-                searchResults.classList.add('hidden');
-                selectedMaterial = null;
-            }
+            // Removed duplicate function - now using handleAddComponent instead
 
             // Function to add product unit selector to a cell
             window.addProductUnitSelector = function(cell, component, index) {
@@ -3493,7 +3552,7 @@ function showCreateNewProductModal(productUniqueId) {
                 selectElement.setAttribute('data-component-index', index);
                 selectElement.setAttribute('data-material-id', component.id);
                 selectElement.setAttribute('data-product-id', component.actualProductId);
-                                 selectElement.setAttribute('onchange', 'handleProductUnitChange(this)');
+                selectElement.setAttribute('onchange', 'handleProductUnitChange(this)');
 
                 // Add options for each product unit
                 for (let i = 0; i < productQuantity; i++) {
@@ -3534,10 +3593,11 @@ function showCreateNewProductModal(productUniqueId) {
                 });
 
                 cell.appendChild(selectElement);
-                
+
                 // Add a visible badge showing the current unit
                 const badge = document.createElement('div');
-                badge.className = 'mt-2 inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800';
+                badge.className =
+                    'mt-2 inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800';
                 badge.textContent = `Đơn vị ${parseInt(component.productUnit || 0) + 1}`;
                 cell.appendChild(badge);
 
@@ -3778,11 +3838,11 @@ function showCreateNewProductModal(productUniqueId) {
                     const productIndex = parseInt(e.target.getAttribute('data-index'));
                     const product = selectedProducts[productIndex];
                     const quantity = parseInt(e.target.value) || 1;
-                    
+
                     if (product) {
                         // Update product quantity in our data model
                         product.quantity = quantity;
-                        
+
                         // Call our updateProductQuantity function from assembly-product-unit.js
                         if (typeof window.updateProductQuantity === "function") {
                             window.updateProductQuantity(e.target);
@@ -3826,24 +3886,24 @@ function showCreateNewProductModal(productUniqueId) {
                 // Tìm nút tạo thành phẩm mới
                 const componentBlock = document.getElementById('component_block_' + productUniqueId);
                 if (!componentBlock) return;
-                
+
                 const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
                 if (createNewBtn) {
                     // Vô hiệu hóa nút
                     createNewBtn.disabled = true;
                     createNewBtn.classList.add('opacity-50');
                     createNewBtn.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Đã tạo thành phẩm';
-                    
+
                     // Thêm class để đánh dấu đã tạo
                     componentBlock.classList.add('product-already-created');
-                    
+
                     // Thêm thông báo đã tạo
                     const header = componentBlock.querySelector('h4');
                     if (header && !header.textContent.includes('(Đã tạo)')) {
                         header.innerHTML = header.innerHTML +
                             ' <span class="text-green-600">(Đã tạo)</span>';
                     }
-                    
+
                     // Lưu trạng thái vào localStorage để tránh tạo lại sau khi refresh
                     try {
                         const createdProducts = JSON.parse(localStorage.getItem('createdProducts') || '{}');
