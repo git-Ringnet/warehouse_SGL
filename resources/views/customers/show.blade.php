@@ -76,11 +76,11 @@
                         </div>
                         <div class="mb-4">
                             <h3 class="text-sm font-medium text-gray-500 mb-1">Ngày tạo</h3>
-                            <p class="text-base text-gray-900">{{ $customer->created_at->format('d/m/Y H:i') }}</p>
+                            <p class="text-base text-gray-900">{{ $customer->created_at->timezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}</p>
                         </div>
                         <div class="mb-4">
                             <h3 class="text-sm font-medium text-gray-500 mb-1">Cập nhật lần cuối</h3>
-                            <p class="text-base text-gray-900">{{ $customer->updated_at->format('d/m/Y H:i') }}</p>
+                            <p class="text-base text-gray-900">{{ $customer->updated_at->timezone('Asia/Ho_Chi_Minh')->format('d/m/Y H:i') }}</p>
                         </div>
                         <div class="mb-4">
                             <h3 class="text-sm font-medium text-gray-500 mb-1">Trạng thái tài khoản</h3>

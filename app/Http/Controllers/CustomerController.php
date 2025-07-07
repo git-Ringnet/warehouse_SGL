@@ -240,54 +240,79 @@ class CustomerController extends Controller
                 ->with('error', 'Khách hàng đã có tài khoản.');
         }
         
+        // Kiểm tra email
+        if (empty($customer->email)) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Khách hàng chưa có email. Vui lòng cập nhật email cho khách hàng trước khi kích hoạt tài khoản.');
+        }
+        
+        // Kiểm tra nếu email đã tồn tại trong hệ thống
+        $existingUser = User::where('email', $customer->email)->first();
+        if ($existingUser) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Email này đã được sử dụng bởi một tài khoản khác. Vui lòng cập nhật email khác cho khách hàng trước khi kích hoạt.');
+        }
+        
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $customer->toArray();
         
-        // Tạo username từ email hoặc tên công ty
-        $username = $customer->email ? explode('@', $customer->email)[0] : Str::slug($customer->company_name);
-        $username = $username . rand(100, 999); // Thêm số ngẫu nhiên để tránh trùng
+        // Tạo username từ công ty hoặc tên đại diện
+        $baseUsername = Str::slug($customer->company_name) ?: Str::slug($customer->name);
+        if (empty($baseUsername)) {
+            $baseUsername = 'customer';
+        }
+        
+        // Thêm số ngẫu nhiên để tránh trùng
+        $username = $baseUsername . rand(1000, 9999);
         
         // Tạo mật khẩu ngẫu nhiên
         $password = Str::random(10);
         
-        // Tạo tài khoản người dùng mới
-        $user = User::create([
-            'name' => $customer->name,
-            'email' => $customer->email,
-            'username' => $username,
-            'password' => Hash::make($password),
-            'role' => 'customer',
-            'customer_id' => $customer->id,
-        ]);
-        
-        // Cập nhật trạng thái tài khoản và lưu thông tin đăng nhập
-        $customer->update([
-            'has_account' => true,
-            'account_username' => $username,
-            'account_password' => $password // Lưu mật khẩu gốc (không phải đã hash)
-        ]);
-        
-        // Ghi nhật ký kích hoạt tài khoản khách hàng
-        if (Auth::check()) {
-            UserLog::logActivity(
-                Auth::id(),
-                'create',
-                'customer_account',
-                'Kích hoạt tài khoản cho khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
-                $oldData,
-                [
-                    'customer' => $customer->toArray(),
-                    'user' => [
-                        'id' => $user->id,
-                        'username' => $username,
-                        'email' => $customer->email
+        try {
+            // Tạo tài khoản người dùng mới
+            $user = User::create([
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'username' => $username,
+                'password' => Hash::make($password),
+                'role' => 'customer',
+                'customer_id' => $customer->id,
+                'active' => true
+            ]);
+            
+            // Cập nhật trạng thái tài khoản và lưu thông tin đăng nhập
+            $customer->update([
+                'has_account' => true,
+                'account_username' => $username,
+                'account_password' => $password, // Lưu mật khẩu gốc (không phải đã hash)
+                'is_locked' => false
+            ]);
+            
+            // Ghi nhật ký kích hoạt tài khoản khách hàng
+            if (Auth::check()) {
+                UserLog::logActivity(
+                    Auth::id(),
+                    'create',
+                    'customer_account',
+                    'Kích hoạt tài khoản cho khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                    $oldData,
+                    [
+                        'customer' => $customer->toArray(),
+                        'user' => [
+                            'id' => $user->id,
+                            'username' => $username,
+                            'email' => $customer->email
+                        ]
                     ]
-                ]
-            );
+                );
+            }
+            
+            return redirect()->route('customers.show', $id)
+                ->with('success', "Tài khoản khách hàng đã được kích hoạt thành công!");
+        } catch (\Exception $e) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Không thể kích hoạt tài khoản: ' . $e->getMessage());
         }
-        
-        return redirect()->route('customers.show', $id)
-            ->with('success', "Tài khoản khách hàng đã được kích hoạt thành công!");
     }
 
     /**
@@ -296,6 +321,12 @@ class CustomerController extends Controller
     public function destroy(string $id)
     {
         $customer = Customer::findOrFail($id);
+        
+        // Kiểm tra xem khách hàng có tài khoản đang hoạt động không
+        if ($customer->has_account && !$customer->is_locked) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Không thể xóa khách hàng này vì tài khoản đang hoạt động. Vui lòng khóa tài khoản trước khi xóa.');
+        }
         
         // Kiểm tra xem khách hàng có dự án liên quan không
         if ($customer->projects()->count() > 0) {
@@ -307,6 +338,12 @@ class CustomerController extends Controller
         if ($customer->rentals()->count() > 0) {
             return redirect()->route('customers.show', $id)
                 ->with('error', 'Không thể xóa khách hàng này vì có phiếu cho thuê liên quan. Vui lòng xóa phiếu cho thuê trước.');
+        }
+            
+        // Kiểm tra xem khách hàng có yêu cầu bảo trì liên quan không
+        if (\App\Models\CustomerMaintenanceRequest::where('customer_id', $id)->count() > 0) {
+            return redirect()->route('customers.show', $id)
+                ->with('error', 'Không thể xóa khách hàng này vì có yêu cầu bảo trì liên quan. Vui lòng xóa yêu cầu bảo trì trước.');
         }
         
         // Lưu thông tin khách hàng trước khi xóa để ghi nhật ký
