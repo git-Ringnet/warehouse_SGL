@@ -88,8 +88,8 @@ class SupplierController extends Controller
             );
         } else {
             // Lấy nhà cung cấp có phân trang
-            $suppliers = $query->latest()->paginate(10);
-            
+        $suppliers = $query->latest()->paginate(10);
+        
             // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
             foreach ($suppliers as $supplier) {
                 $materialsCount = $supplier->materials()->distinct()->count();

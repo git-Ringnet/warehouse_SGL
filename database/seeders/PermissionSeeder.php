@@ -22,12 +22,13 @@ class PermissionSeeder extends Seeder
         $permissions = [
             // ===== QUẢN LÝ HỆ THỐNG =====
             // Quản lý nhân viên
-            $this->createPermission('employees.view', 'Xem danh sách nhân viên', 'Xem thông tin nhân viên trong hệ thống', 'Quản lý hệ thống'),
+            $this->createPermission('employees.view', 'Xem danh sách nhân viên', 'Xem danh sách tất cả nhân viên trong hệ thống', 'Quản lý hệ thống'),
             $this->createPermission('employees.view_detail', 'Xem chi tiết nhân viên', 'Xem thông tin chi tiết của nhân viên', 'Quản lý hệ thống'),
-            $this->createPermission('employees.create', 'Thêm nhân viên', 'Tạo nhân viên mới', 'Quản lý hệ thống'),
-            $this->createPermission('employees.edit', 'Sửa nhân viên', 'Chỉnh sửa thông tin nhân viên', 'Quản lý hệ thống'),
+            $this->createPermission('employees.create', 'Thêm nhân viên', 'Thêm nhân viên mới vào hệ thống', 'Quản lý hệ thống'),
+            $this->createPermission('employees.edit', 'Sửa thông tin nhân viên', 'Chỉnh sửa thông tin nhân viên', 'Quản lý hệ thống'),
             $this->createPermission('employees.delete', 'Xóa nhân viên', 'Xóa nhân viên khỏi hệ thống', 'Quản lý hệ thống'),
-            $this->createPermission('employees.toggle_active', 'Khóa và mở khóa nhân viên', 'Khóa hoặc mở khóa tài khoản nhân viên', 'Quản lý hệ thống'),
+            $this->createPermission('employees.toggle_status', 'Khóa/mở khóa tài khoản', 'Khóa hoặc mở khóa tài khoản nhân viên', 'Quản lý hệ thống'),
+            $this->createPermission('employees.export', 'Xuất dữ liệu nhân viên', 'Xuất danh sách nhân viên ra file Excel/PDF', 'Quản lý hệ thống'),
 
             // Quản lý khách hàng
             $this->createPermission('customers.view', 'Xem danh sách khách hàng', 'Xem thông tin khách hàng', 'Quản lý hệ thống'),
@@ -250,7 +251,7 @@ class PermissionSeeder extends Seeder
         $this->createPermissionIfNotExists('customers.manage', 'Quản lý khách hàng', 'Quản lý khách hàng', 'Quản lý hệ thống');
         $this->createPermissionIfNotExists('suppliers.view', 'Xem nhà cung cấp', 'Xem nhà cung cấp', 'Quản lý hệ thống');
         $this->createPermissionIfNotExists('employees.view', 'Xem nhân viên', 'Xem nhân viên', 'Quản lý hệ thống');
-        $this->createPermissionIfNotExists('employees.toggle_active', 'Khóa và mở khóa nhân viên', 'Khóa hoặc mở khóa tài khoản nhân viên', 'Quản lý hệ thống');
+        $this->createPermissionIfNotExists('employees.toggle_status', 'Khóa/mở khóa tài khoản', 'Khóa hoặc mở khóa tài khoản nhân viên', 'Quản lý hệ thống');
         $this->createPermissionIfNotExists('goods.view', 'Xem hàng hóa', 'Xem hàng hóa', 'Quản lý tài sản');
     }
 

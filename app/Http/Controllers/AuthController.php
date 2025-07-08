@@ -54,37 +54,56 @@ class AuthController extends Controller
         
         // Thử đăng nhập với bảng employees (nhân viên)
         $employee = Employee::where('username', $credentials['username'])->first();
-        if ($employee && Hash::check($credentials['password'], $employee->password)) {
-            Auth::guard('web')->login($employee);
-            Log::info('Đăng nhập thành công với nhân viên: ' . $credentials['username']);
-            
-            // Lưu thông tin loại người dùng vào session
-            Session::put('user_type', 'employee');
-            
-            // Ghi nhật ký đăng nhập
-            UserLog::logActivity(
-                $employee->id,
-                'login',
-                'auth',
-                'Đăng nhập thành công (nhân viên)',
-                null,
-                ['username' => $employee->username, 'name' => $employee->name]
-            );
-            
-            $request->session()->regenerate();
-            
-            // Kiểm tra quyền truy cập dashboard
-            if ($employee->role === 'admin' || 
-                ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
-                return redirect()->intended('/dashboard');
+        if ($employee) {
+            // Kiểm tra trạng thái tài khoản
+            if (!$employee->is_active) {
+                Log::warning('Tài khoản đã bị khóa: ' . $credentials['username']);
+                return back()->withErrors([
+                    'login_error' => 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
+                ])->withInput($request->only('username'));
             }
-            // Nếu nhân viên chưa có quyền, chuyển đến trang thông báo
-            return view('errors.no-permission');
+
+            if (Hash::check($credentials['password'], $employee->password)) {
+                Auth::guard('web')->login($employee);
+                Log::info('Đăng nhập thành công với nhân viên: ' . $credentials['username']);
+                
+                // Lưu thông tin loại người dùng vào session
+                Session::put('user_type', 'employee');
+                
+                // Ghi nhật ký đăng nhập
+                UserLog::logActivity(
+                    $employee->id,
+                    'login',
+                    'auth',
+                    'Đăng nhập thành công (nhân viên)',
+                    null,
+                    ['username' => $employee->username, 'name' => $employee->name]
+                );
+                
+                $request->session()->regenerate();
+                
+                // Kiểm tra quyền truy cập dashboard
+                if ($employee->role === 'admin' || 
+                    ($employee->roleGroup && $employee->roleGroup->hasPermission('reports.overview'))) {
+                    return redirect()->intended('/dashboard');
+                }
+                // Nếu nhân viên chưa có quyền, chuyển đến trang thông báo
+                return view('errors.no-permission');
+            }
         }
         
         // Nếu không thành công, thử đăng nhập với bảng users (khách hàng)
         $user = User::where('username', $credentials['username'])->first();
         if ($user && $user->role === 'customer') {
+            // Kiểm tra trạng thái tài khoản khách hàng
+            $customer = Customer::find($user->customer_id);
+            if ($customer && !$customer->is_active) {
+                Log::warning('Tài khoản khách hàng đã bị khóa: ' . $credentials['username']);
+                return back()->withErrors([
+                    'login_error' => 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
+                ])->withInput($request->only('username'));
+            }
+
             if (Hash::check($credentials['password'], $user->password)) {
                 Auth::guard('customer')->login($user);
                 Log::info('Đăng nhập thành công với khách hàng: ' . $credentials['username']);
@@ -93,7 +112,6 @@ class AuthController extends Controller
                 Session::put('user_type', 'customer');
                 
                 // Ghi nhật ký đăng nhập
-                $customer = Customer::find($user->customer_id);
                 UserLog::logActivity(
                     $user->id,
                     'login',

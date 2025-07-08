@@ -490,10 +490,16 @@
         <div class="relative">
             <button id="userMenuToggle" class="flex items-center focus:outline-none">
                 @if (session('user_type') === 'customer')
-                    {{-- <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
-                        class="w-8 h-8 rounded-full mr-2" /> --}}
-                    <img src="https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png"
-                        alt="User" class="w-[3rem] h-8 rounded-full mr-2">
+                    @if (Auth::guard('customer')->check() && Auth::guard('customer')->user()->avatar)
+                        <img src="{{ asset('storage/' . Auth::guard('customer')->user()->avatar) }}"
+                            alt="{{ Auth::guard('customer')->user()->name }}" class="w-8 h-8 rounded-full object-cover mr-2">
+                    @else
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                            <span class="text-gray-500 font-medium">
+                                {{ Auth::guard('customer')->check() ? substr(Auth::guard('customer')->user()->name, 0, 1) : 'K' }}
+                            </span>
+                        </div>
+                    @endif
                     <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
                         @if (Auth::guard('customer')->check())
                             {{ Auth::guard('customer')->user()->name }} (Khách hàng)
@@ -502,13 +508,24 @@
                         @endif
                     </span>
                 @else
-                    {{-- <img src="https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg" alt="User"
-                        class="w-8 h-8 rounded-full mr-2" /> --}}
-                    <img src="https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png"
-                        alt="User" class="w-[3rem] h-8 rounded-full mr-2">
+                    @php
+                        $user = Auth::guard('web')->user();
+                        $avatarPath = $user && $user->avatar ? asset('storage/' . $user->avatar) : null;
+                    @endphp
+                    
+                    @if ($user && $user->avatar && Storage::disk('public')->exists($user->avatar))
+                        <img src="{{ $avatarPath }}"
+                            alt="{{ $user->name }}" class="w-8 h-8 rounded-full object-cover mr-2">
+                    @else
+                        <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                            <span class="text-gray-500 font-medium">
+                                {{ $user ? substr($user->name, 0, 1) : 'N' }}
+                            </span>
+                        </div>
+                    @endif
                     <span class="text-gray-700 dark:text-gray-300 hidden md:inline">
-                        @if (Auth::guard('web')->check())
-                            {{ Auth::guard('web')->user()->name }} (Nhân viên)
+                        @if ($user)
+                            {{ $user->name }} (Nhân viên)
                         @else
                             Nhân viên
                         @endif

@@ -51,8 +51,14 @@
 
                 <div class="relative">
                     <button id="userMenuToggle" class="flex items-center focus:outline-none">
-                        <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://randomuser.me/api/portraits/men/32.jpg' }}"
-                            alt="User" class="w-8 h-8 rounded-full mr-2" />
+                        @if ($employee->avatar)
+                            <img src="{{ asset('storage/' . $employee->avatar) }}"
+                                alt="{{ $employee->name }}" class="w-8 h-8 rounded-full object-cover mr-2">
+                        @else
+                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mr-2">
+                                <span class="text-gray-500 font-medium">{{ substr($employee->name, 0, 1) }}</span>
+                            </div>
+                        @endif
                         <span class="text-gray-700 dark:text-gray-300 hidden md:inline">{{ $employee->name }}</span>
                     </button>
                     <div
@@ -82,15 +88,28 @@
                     <div class="flex flex-col md:flex-row">
                         <div class="md:w-1/3 flex flex-col items-center mb-6 md:mb-0">
                             <div class="relative">
-                                {{-- <img src="{{ $employee->avatar ? asset($employee->avatar) : 'https://jbagy.me/wp-content/uploads/2025/04/Hinh-meme-meo-cuoi-deu-2.jpg' }}" 
-                                    alt="{{ $employee->name }}" 
-                                    class="w-40 h-40 rounded-full object-cover border-4 border-blue-100 dark:border-blue-900"> --}}
-                                <img src="https://static.vecteezy.com/system/resources/previews/019/879/186/non_2x/user-icon-on-transparent-background-free-png.png"
-                                    alt="User"
-                                    class="w-40 h-40 rounded-full object-cover border-4 border-blue-100 dark:border-blue-900">
+                                @if ($employee->avatar)
+                                    <img src="{{ asset('storage/' . $employee->avatar) }}" 
+                                        alt="{{ $employee->name }}" 
+                                        class="w-40 h-40 rounded-full object-cover border-4 border-blue-100 dark:border-blue-900">
+                                @else
+                                    <div class="w-40 h-40 rounded-full bg-gray-200 flex items-center justify-center border-4 border-blue-100 dark:border-blue-900">
+                                        <span class="text-gray-500 font-medium text-6xl">{{ substr($employee->name, 0, 1) }}</span>
+                                    </div>
+                                @endif
                             </div>
                             <h2 class="text-xl font-bold text-gray-800 dark:text-white mt-4">{{ $employee->name }}</h2>
-                            <p class="text-blue-600 dark:text-blue-400 font-medium">{{ $employee->role }}</p>
+                            <p class="text-blue-600 dark:text-blue-400 font-medium">
+                                @if ($employee->roleGroup)
+                                    <span class="px-2 py-1 {{ $employee->roleGroup->name === 'Super Admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }} rounded-full text-sm font-semibold">
+                                        {{ $employee->roleGroup->name }}
+                                    </span>
+                                @else
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-semibold">
+                                        Chưa phân quyền
+                                    </span>
+                                @endif
+                            </p>
                         </div>
 
                         <div class="md:w-2/3 md:pl-8">

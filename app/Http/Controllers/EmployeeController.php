@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\PDF;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\EmployeesExport;
 
 class EmployeeController extends Controller
 {
@@ -39,6 +45,9 @@ class EmployeeController extends Controller
                     case 'email':
                         $query->where('email', 'like', "%{$search}%");
                         break;
+                    case 'department':
+                        $query->where('department', 'like', "%{$search}%");
+                        break;
                     case 'role':
                         $query->where('role', 'like', "%{$search}%");
                         break;
@@ -53,6 +62,7 @@ class EmployeeController extends Controller
                       ->orWhere('name', 'like', "%{$search}%")
                       ->orWhere('phone', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('department', 'like', "%{$search}%")
                       ->orWhere('role', 'like', "%{$search}%")
                       ->orWhere('status', 'like', "%{$search}%");
                 });
@@ -369,5 +379,139 @@ class EmployeeController extends Controller
 
         return redirect()->route('employees.index')
             ->with('success', 'Đã ' . $statusText . ' tài khoản nhân viên thành công.');
+    }
+
+    /**
+     * Khóa/mở khóa tài khoản nhân viên và đăng xuất khỏi tất cả thiết bị
+     */
+    public function toggleStatus(string $id)
+    {
+        $employee = Employee::findOrFail($id);
+        
+        // Lưu trạng thái cũ để ghi log
+        $oldStatus = $employee->is_active;
+        
+        // Đổi trạng thái
+        $employee->is_active = !$employee->is_active;
+        $employee->save();
+        
+        // Nếu khóa tài khoản, xóa tất cả session của user đó
+        if (!$employee->is_active) {
+            // Xóa tất cả session của user này
+            DB::table('sessions')
+                ->where('user_id', $employee->id)
+                ->delete();
+        }
+        
+        // Ghi log
+        if (Auth::check()) {
+            $action = $employee->is_active ? 'unlock' : 'lock';
+            $message = $employee->is_active ? 
+                'Mở khóa tài khoản nhân viên: ' . $employee->name :
+                'Khóa tài khoản nhân viên: ' . $employee->name;
+                
+            UserLog::logActivity(
+                Auth::id(),
+                $action,
+                'employees',
+                $message,
+                ['is_active' => $oldStatus],
+                ['is_active' => $employee->is_active]
+            );
+        }
+        
+        $message = $employee->is_active ? 
+            'Tài khoản đã được mở khóa thành công.' :
+            'Tài khoản đã được khóa thành công và người dùng đã bị đăng xuất khỏi tất cả thiết bị.';
+            
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Export employees list to PDF
+     */
+    public function exportPDF(Request $request)
+    {
+        try {
+            $query = Employee::query();
+
+            // Apply filters if provided
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                
+                if ($request->filled('filter')) {
+                    switch ($request->filter) {
+                        case 'username':
+                            $query->where('username', 'like', "%{$searchTerm}%");
+                            break;
+                        case 'name':
+                            $query->where('name', 'like', "%{$searchTerm}%");
+                            break;
+                        case 'phone':
+                            $query->where('phone', 'like', "%{$searchTerm}%");
+                            break;
+                        case 'email':
+                            $query->where('email', 'like', "%{$searchTerm}%");
+                            break;
+                        case 'department':
+                            $query->where('department', 'like', "%{$searchTerm}%");
+                            break;
+                        case 'role':
+                            $query->whereHas('roleGroup', function($q) use ($searchTerm) {
+                                $q->where('name', 'like', "%{$searchTerm}%");
+                            });
+                            break;
+                        case 'status':
+                            if (strtolower($searchTerm) === 'active' || strtolower($searchTerm) === 'hoạt động') {
+                                $query->where('is_active', true);
+                            } else {
+                                $query->where('is_active', false);
+                            }
+                            break;
+                    }
+                } else {
+                    $query->where(function($q) use ($searchTerm) {
+                        $q->where('username', 'like', "%{$searchTerm}%")
+                          ->orWhere('name', 'like', "%{$searchTerm}%")
+                          ->orWhere('phone', 'like', "%{$searchTerm}%")
+                          ->orWhere('email', 'like', "%{$searchTerm}%")
+                          ->orWhere('department', 'like', "%{$searchTerm}%")
+                          ->orWhereHas('roleGroup', function($q) use ($searchTerm) {
+                              $q->where('name', 'like', "%{$searchTerm}%");
+                          });
+                    });
+                }
+            }
+
+            $employees = $query->with('roleGroup')->get();
+
+            $pdf = PDF::loadView('employees.pdf', compact('employees'));
+
+            return $pdf->download('danh-sach-nhan-vien-' . date('Y-m-d') . '.pdf');
+        } catch (\Exception $e) {
+            Log::error('Export PDF error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export employees list to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        try {
+            // Get current filters from request
+            $filters = [
+                'search' => $request->get('search'),
+                'filter' => $request->get('filter')
+            ];
+
+            return Excel::download(new EmployeesExport($filters), 'danh-sach-nhan-vien-' . date('Y-m-d') . '.xlsx');
+        } catch (\Exception $e) {
+            Log::error('Export Excel error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
+        }
     }
 } 

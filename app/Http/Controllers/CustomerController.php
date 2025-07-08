@@ -269,46 +269,46 @@ class CustomerController extends Controller
         $password = Str::random(10);
         
         try {
-            // Tạo tài khoản người dùng mới
-            $user = User::create([
-                'name' => $customer->name,
-                'email' => $customer->email,
-                'username' => $username,
-                'password' => Hash::make($password),
-                'role' => 'customer',
-                'customer_id' => $customer->id,
+        // Tạo tài khoản người dùng mới
+        $user = User::create([
+            'name' => $customer->name,
+            'email' => $customer->email,
+            'username' => $username,
+            'password' => Hash::make($password),
+            'role' => 'customer',
+            'customer_id' => $customer->id,
                 'active' => true
-            ]);
-            
-            // Cập nhật trạng thái tài khoản và lưu thông tin đăng nhập
-            $customer->update([
-                'has_account' => true,
-                'account_username' => $username,
+        ]);
+        
+        // Cập nhật trạng thái tài khoản và lưu thông tin đăng nhập
+        $customer->update([
+            'has_account' => true,
+            'account_username' => $username,
                 'account_password' => $password, // Lưu mật khẩu gốc (không phải đã hash)
                 'is_locked' => false
-            ]);
-            
-            // Ghi nhật ký kích hoạt tài khoản khách hàng
-            if (Auth::check()) {
-                UserLog::logActivity(
-                    Auth::id(),
-                    'create',
-                    'customer_account',
-                    'Kích hoạt tài khoản cho khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
-                    $oldData,
-                    [
-                        'customer' => $customer->toArray(),
-                        'user' => [
-                            'id' => $user->id,
-                            'username' => $username,
-                            'email' => $customer->email
-                        ]
+        ]);
+        
+        // Ghi nhật ký kích hoạt tài khoản khách hàng
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'customer_account',
+                'Kích hoạt tài khoản cho khách hàng: ' . $customer->name . ' - ' . $customer->company_name,
+                $oldData,
+                [
+                    'customer' => $customer->toArray(),
+                    'user' => [
+                        'id' => $user->id,
+                        'username' => $username,
+                        'email' => $customer->email
                     ]
-                );
-            }
-            
-            return redirect()->route('customers.show', $id)
-                ->with('success', "Tài khoản khách hàng đã được kích hoạt thành công!");
+                ]
+            );
+        }
+        
+        return redirect()->route('customers.show', $id)
+            ->with('success', "Tài khoản khách hàng đã được kích hoạt thành công!");
         } catch (\Exception $e) {
             return redirect()->route('customers.show', $id)
                 ->with('error', 'Không thể kích hoạt tài khoản: ' . $e->getMessage());

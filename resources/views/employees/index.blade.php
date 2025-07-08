@@ -21,7 +21,7 @@
             <h1 class="text-xl font-bold text-gray-800">Quản lý nhân viên</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <form action="{{ route('employees.index') }}" method="GET"
-                    class="flex flex-col md:flex-row gap-2 w-full">
+                    class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
                     <div class="flex gap-2 w-full md:w-auto">
                         <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Tìm kiếm..."
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64" />
@@ -32,6 +32,7 @@
                             <option value="name" {{ $filter == 'name' ? 'selected' : '' }}>Họ và tên</option>
                             <option value="phone" {{ $filter == 'phone' ? 'selected' : '' }}>Số điện thoại</option>
                             <option value="email" {{ $filter == 'email' ? 'selected' : '' }}>Email</option>
+                            <option value="department" {{ $filter == 'department' ? 'selected' : '' }}>Phòng ban</option>
                             <option value="role" {{ $filter == 'role' ? 'selected' : '' }}>Vai trò</option>
                             <option value="status" {{ $filter == 'status' ? 'selected' : '' }}>Trạng thái</option>
                         </select>
@@ -41,16 +42,32 @@
                         </button>
                     </div>
                 </form>
-                @php
-                    $user = Auth::guard('web')->user();
-                    $isAdmin = $user && $user->role === 'admin';
-                @endphp
-                @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.create')))
-                    <a href="{{ route('employees.create') }}"
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors w-full">
-                        <i class="fas fa-user-plus mr-2"></i> Thêm nhân viên
-                    </a>
-                @endif
+	                <div class="flex gap-2">
+                    @php
+                        $user = Auth::guard('web')->user();
+                        $isAdmin = $user && $user->role === 'admin';
+                        $canExport = $isAdmin || ($user && $user->roleGroup && $user->roleGroup->hasPermission('employees.export'));
+                    @endphp
+                    
+                    @if ($canExport)
+                        <button id="exportExcelButton"
+                            class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-file-excel mr-2"></i>Xuất Excel
+                        </button>
+                        
+                        <button id="exportPdfButton"
+                            class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-file-pdf mr-2"></i>Xuất PDF
+                        </button>
+                    @endif
+                    
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.create')))
+                        <a href="{{ route('employees.create') }}"
+                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-user-plus mr-2"></i> Thêm nhân viên
+                        </a>
+                    @endif
+                </div>
             </div>
         </header>
         @if (session('success'))
@@ -152,56 +169,39 @@
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.view_detail')))
-                                        <a href="{{ route('employees.show', $employee->id) }}"
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                            title="Xem chi tiết">
+                                    @php
+                                        $user = Auth::guard('web')->user();
+                                        $canViewDetail = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('employees.view_detail')));
+                                        $canEdit = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('employees.edit')));
+                                        $canDelete = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('employees.delete')));
+                                        $canToggleStatus = $user && ($user->role === 'admin' || ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('employees.toggle_status')));
+                                    @endphp
+
+                                    @if ($canViewDetail)
+                                        <a href="{{ route('employees.show', $employee->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
                                             <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                         </a>
                                     @endif
 
-                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.edit')))
-                                        <a href="{{ route('employees.edit', $employee->id) }}"
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                            title="Chỉnh sửa">
+                                    @if ($canEdit)
+                                        <a href="{{ route('employees.edit', $employee->id) }}" class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
                                             <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                         </a>
                                     @endif
 
-                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.delete')))
-                                        @if ($employee->name != "Quản trị viên")
-                                            <button
-                                                onclick="openDeleteModal('{{ $employee->id }}', '{{ $employee->name }}')"
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                                title="Xóa nhân viên">
-                                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                    @if ($canToggleStatus && $employee->id !== Auth::id())
+                                        <form action="{{ route('employees.toggle-status', $employee->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('PUT')
+                                            <button type="submit" class="w-8 h-8 flex items-center justify-center rounded-full {{ $employee->is_active ? 'bg-red-100 hover:bg-red-500' : 'bg-green-100 hover:bg-green-500' }} transition-colors group" title="{{ $employee->is_active ? 'Khóa tài khoản' : 'Mở khóa tài khoản' }}" onclick="return confirm('{{ $employee->is_active ? 'Bạn có chắc chắn muốn khóa tài khoản này? Người dùng sẽ bị đăng xuất khỏi tất cả thiết bị.' : 'Bạn có chắc chắn muốn mở khóa tài khoản này?' }}')">
+                                                <i class="fas {{ $employee->is_active ? 'fa-lock' : 'fa-unlock' }} {{ $employee->is_active ? 'text-red-500 group-hover:text-white' : 'text-green-500 group-hover:text-white' }}"></i>
                                             </button>
-                                        @endif
+                                        </form>
                                     @endif
 
-                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('employees.toggle_active')))
-                                        <!-- Nút khóa/mở khóa tài khoản với icon hover mô tả -->
-                                        <form id="toggle-form-{{ $employee->id }}"
-                                            action="{{ route('employees.toggle-active', $employee->id) }}"
-                                            method="POST" class="hidden">
-                                            @csrf
-                                            @method('PATCH')
-                                        </form>
-                                        <button
-                                            onclick="document.getElementById('toggle-form-{{ $employee->id }}').submit()"
-                                            class="w-8 h-8 flex items-center justify-center rounded-full {{ $employee->is_active ? 'bg-purple-100 hover:bg-purple-500' : 'bg-green-100 hover:bg-green-500' }} transition-colors group relative"
-                                            title="{{ $employee->is_active ? 'Khóa tài khoản nhân viên' : 'Mở khóa tài khoản nhân viên' }}"
-                                            data-tooltip="{{ $employee->is_active ? 'Khóa tài khoản nhân viên' : 'Mở khóa tài khoản nhân viên' }}">
-                                            <i
-                                                class="fas {{ $employee->is_active ? 'fa-user-lock' : 'fa-user-check' }} {{ $employee->is_active ? 'text-purple-500' : 'text-green-500' }} group-hover:text-white"></i>
-                                            <!-- Tooltip hover -->
-                                            <div
-                                                class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-10">
-                                                {{ $employee->is_active ? 'Khóa tài khoản nhân viên' : 'Mở khóa tài khoản nhân viên' }}
-                                                <div
-                                                    class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800">
-                                                </div>
-                                            </div>
+                                    @if ($canDelete)
+                                        <button onclick="openDeleteModal('{{ $employee->id }}', '{{ $employee->name }}')" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
+                                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                         </button>
                                     @endif
 
@@ -232,6 +232,32 @@
         // Khởi tạo modal khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
             initDeleteModal();
+            
+            // Export Excel button
+            const exportExcelButton = document.getElementById('exportExcelButton');
+            if (exportExcelButton) {
+                exportExcelButton.addEventListener('click', function() {
+                    // Get current search parameters
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const params = urlParams.toString();
+                    
+                    // Navigate to export URL with current filters
+                    window.location.href = `{{ route('employees.export.excel') }}${params ? '?' + params : ''}`;
+                });
+            }
+            
+            // Export PDF button
+            const exportPdfButton = document.getElementById('exportPdfButton');
+            if (exportPdfButton) {
+                exportPdfButton.addEventListener('click', function() {
+                    // Get current search parameters
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const params = urlParams.toString();
+                    
+                    // Navigate to export URL with current filters
+                    window.location.href = `{{ route('employees.export.pdf') }}${params ? '?' + params : ''}`;
+                });
+            }
         });
 
         // Mở modal xác nhận xóa

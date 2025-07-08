@@ -434,7 +434,11 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.edit');
     Route::patch('/employees/{employee}', [EmployeeController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.edit');
     Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.delete');
-    Route::patch('employees/{employee}/toggle-active', [EmployeeController::class, 'toggleActive'])->name('employees.toggle-active')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.toggle_active');
+    Route::put('/employees/{employee}/toggle-status', [EmployeeController::class, 'toggleStatus'])->name('employees.toggle-status')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.toggle_status');
+
+    // Export routes for employees
+    Route::get('/employees/export/pdf', [EmployeeController::class, 'exportPDF'])->name('employees.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.export');
+    Route::get('/employees/export/excel', [EmployeeController::class, 'exportExcel'])->name('employees.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.export');
 
     // Routes cho Nhập kho với middleware bảo vệ từng quyền cụ thể
     Route::get('/inventory-imports', [InventoryImportController::class, 'index'])->name('inventory-imports.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view');
