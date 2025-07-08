@@ -55,7 +55,8 @@ class MaterialController extends Controller
             $query->where('unit', $request->unit);
         }
 
-        $materials = $query->get();
+        // Get paginated results
+        $materials = $query->orderBy('created_at', 'desc')->paginate(10);
         
         // Initialize grand totals
         $grandTotalQuantity = 0;

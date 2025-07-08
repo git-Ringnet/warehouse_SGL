@@ -325,8 +325,15 @@ $warehouseTooltip = '';
                         @endforeach
                     </tbody>
                 </table>
+
+                <!-- Pagination -->
+                <div class="px-6 py-4">
+                    {{ $materials->links() }}
+                </div>
             </div>
-        </main>
+    </div>
+    </div>
+    </main>
     </div>
 
     <!-- Modal xác nhận xóa -->
@@ -992,7 +999,7 @@ $warehouseTooltip = '';
                 filterDropdown.classList.toggle('hidden');
             });
 
-            // Apply filters button  
+            // Apply filters button
             applyFilters.addEventListener('click', function() {
                 filterDropdown.classList.add('hidden');
                 updateFilterButtonText();

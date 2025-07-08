@@ -230,7 +230,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn
                                 kho</label>
                             <div class="space-y-2">
-                                @foreach (App\Models\Warehouse::orderBy('name')->get() as $warehouse)
+                                @foreach (App\Models\Warehouse::orderBy('name')->where('status','active')->where('is_hidden', 0)->get() as $warehouse)
                                     @php
                                         $isSelected =
                                             isset($good) &&

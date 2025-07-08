@@ -67,18 +67,20 @@
                             </div>
 
                             <div>
-                                <label for="category" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
-                                    vật tư <span class="text-red-500">*</span></label>
-                                <div class="flex">
+                                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư
+                                    <span class="text-red-500">*</span></label>
+                                <div class="flex relative">
                                     <select id="category" name="category" required
                                         class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">Chọn loại vật tư</option>
                                         @foreach ($categories as $category)
-                                            <option value="{{ $category }}"
-                                                {{ $material->category == $category ? 'selected' : '' }}>
+                                            <option value="{{ $category }}" {{ $material->category == $category ? 'selected' : '' }}>
                                                 {{ $category }}</option>
                                         @endforeach
                                     </select>
+                                    <button type="button" id="clearCategoryBtn" class="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden mx-2">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                     <button type="button" id="addCategoryBtn"
                                         class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
                                         <i class="fas fa-plus"></i>
@@ -189,7 +191,7 @@
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn kho</label>
                             <div class="space-y-2">
-                                @foreach(App\Models\Warehouse::orderBy('name')->get() as $warehouse)
+                                @foreach(App\Models\Warehouse::orderBy('name')->where('status','active')->where('is_hidden', 0)->get() as $warehouse)
                                 <div class="flex items-center">
                                     <input type="checkbox" id="warehouse_{{ $warehouse->id }}" name="inventory_warehouses[]" 
                                         value="{{ $warehouse->id }}" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -325,6 +327,28 @@
                 console.log('Supplier added (edit):', supplierId);
             }
             
+            // Handle category clear button
+            const categorySelect = document.getElementById('category');
+            const clearCategoryBtn = document.getElementById('clearCategoryBtn');
+
+            // Show clear button initially if category is selected
+            if (categorySelect.value) {
+                clearCategoryBtn.classList.remove('hidden');
+            }
+
+            categorySelect.addEventListener('change', function() {
+                if (this.value) {
+                    clearCategoryBtn.classList.remove('hidden');
+                } else {
+                    clearCategoryBtn.classList.add('hidden');
+                }
+            });
+
+            clearCategoryBtn.addEventListener('click', function() {
+                categorySelect.value = '';
+                clearCategoryBtn.classList.add('hidden');
+            });
+
             // Handle warehouse checkboxes
             const allWarehouseCheckbox = document.getElementById('warehouse_all');
             const warehouseCheckboxes = document.querySelectorAll('input[name="inventory_warehouses[]"]:not([value="all"])');
