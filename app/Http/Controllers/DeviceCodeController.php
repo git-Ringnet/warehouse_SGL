@@ -149,20 +149,10 @@ class DeviceCodeController extends Controller
     public function getByDispatch(Request $request, $dispatch_id)
     {
         try {
-            $type = $request->query('type', 'all');
+            $type = $request->query('type', 'contract'); // Default to contract type
             
-            $query = DeviceCode::where('dispatch_id', $dispatch_id);
-            
-            // Lọc theo loại sản phẩm nếu được chỉ định
-            if ($type !== 'all') {
-                // Lấy các sản phẩm thuộc loại đã chọn
-                $productIds = \App\Models\DispatchItem::where('dispatch_id', $dispatch_id)
-                    ->where('category', $type)
-                    ->pluck('item_id')
-                    ->toArray();
-                
-                $query->whereIn('product_id', $productIds);
-            }
+            $query = DeviceCode::where('dispatch_id', $dispatch_id)
+                              ->where('type', $type);
             
             $deviceCodes = $query->get();
             
@@ -189,35 +179,32 @@ class DeviceCodeController extends Controller
             
             $dispatch_id = $request->input('dispatch_id');
             $device_codes = $request->input('device_codes', []);
+            $type = $request->input('type', 'contract'); // Get type from request
             
+            // Delete existing device codes for this dispatch and type
+            DeviceCode::where('dispatch_id', $dispatch_id)
+                     ->where('type', $type)
+                     ->delete();
+            
+            // Create new device codes
             foreach ($device_codes as $deviceCode) {
-                // Nếu có ID, cập nhật, ngược lại tạo mới
-                if (!empty($deviceCode['id'])) {
-                    $existingCode = DeviceCode::find($deviceCode['id']);
-                    if ($existingCode) {
-                        $existingCode->update([
-                            'serial_main' => $deviceCode['serial_main'],
-                            'serial_components' => $deviceCode['serial_components'] ?? [],
-                            'serial_sim' => $deviceCode['serial_sim'] ?? null,
-                            'access_code' => $deviceCode['access_code'] ?? null,
-                            'iot_id' => $deviceCode['iot_id'] ?? null,
-                            'mac_4g' => $deviceCode['mac_4g'] ?? null,
-                            'note' => $deviceCode['note'] ?? null
-                        ]);
-                    }
-                } else {
-                    DeviceCode::create([
-                        'dispatch_id' => $dispatch_id,
-                        'product_id' => $deviceCode['product_id'],
-                        'serial_main' => $deviceCode['serial_main'],
-                        'serial_components' => $deviceCode['serial_components'] ?? [],
-                        'serial_sim' => $deviceCode['serial_sim'] ?? null,
-                        'access_code' => $deviceCode['access_code'] ?? null,
-                        'iot_id' => $deviceCode['iot_id'] ?? null,
-                        'mac_4g' => $deviceCode['mac_4g'] ?? null,
-                        'note' => $deviceCode['note'] ?? null
-                    ]);
+                // Skip empty records
+                if (empty($deviceCode['serial_main'])) {
+                    continue;
                 }
+
+                DeviceCode::create([
+                    'dispatch_id' => $dispatch_id,
+                    'product_id' => $deviceCode['product_id'],
+                    'serial_main' => $deviceCode['serial_main'],
+                    'serial_components' => $deviceCode['serial_components'] ?? [],
+                    'serial_sim' => $deviceCode['serial_sim'] ?? null,
+                    'access_code' => $deviceCode['access_code'] ?? null,
+                    'iot_id' => $deviceCode['iot_id'] ?? null,
+                    'mac_4g' => $deviceCode['mac_4g'] ?? null,
+                    'note' => $deviceCode['note'] ?? null,
+                    'type' => $type
+                ]);
             }
             
             DB::commit();
@@ -268,7 +255,8 @@ class DeviceCodeController extends Controller
                     'access_code' => $row[3] ?? null,
                     'iot_id' => $row[4] ?? null,
                     'mac_4g' => $row[5] ?? null,
-                    'note' => $row[6] ?? null
+                    'note' => $row[6] ?? null,
+                    'dispatch_id' => $dispatch_id
                 ];
             }
             

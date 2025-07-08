@@ -295,7 +295,12 @@ class AssemblyController extends Controller
                 ]);
 
                 // Create serial records for each product serial
-                $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $request->warehouse_id);
+                // Use target_warehouse_id if available, otherwise use source warehouse_id
+                $targetWarehouseId = $assembly->target_warehouse_id;
+                if ($assembly->purpose === 'project' && !$targetWarehouseId) {
+                    $targetWarehouseId = $assembly->warehouse_id;
+                }
+                $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $targetWarehouseId);
 
                 // Update product inventory in target warehouse or source warehouse
                 $targetWarehouseId = $assembly->target_warehouse_id;
@@ -747,8 +752,14 @@ class AssemblyController extends Controller
                     if ($assemblyProduct) {
                         $assemblyProduct->update(['serials' => $productSerialsStr]);
 
-                        // Create new serial records
-                        $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $request->warehouse_id);
+                        // Use target_warehouse_id if available, otherwise use source warehouse_id
+                        $targetWarehouseId = $assembly->target_warehouse_id;
+                        if ($assembly->purpose === 'project' && !$targetWarehouseId) {
+                            $targetWarehouseId = $assembly->warehouse_id;
+                        }
+                        
+                        // Create new serial records with correct warehouse
+                        $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $targetWarehouseId);
                     }
                 }
             }

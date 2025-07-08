@@ -188,10 +188,8 @@ class WarehouseController extends Controller
         $data['status'] = 'active';
         $data['is_hidden'] = false;
 
-        Warehouse::create($data);
-
         // Tạo đối tượng mới
-        $object = Warehouse::create($request->all());
+        $object = Warehouse::create($data);
 
         // Ghi nhật ký
         if (Auth::check()) {

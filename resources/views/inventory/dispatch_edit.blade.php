@@ -3005,7 +3005,6 @@
                             // Get main serial
                             const mainSerialInput = row.querySelector('input[name*="serial_main"]');
                             if (!mainSerialInput || !mainSerialInput.value) {
-                                console.warn('No main serial found, skipping...');
                                 return;
                             }
                             
@@ -3050,7 +3049,8 @@
                             },
                             body: JSON.stringify({
                                 dispatch_id: dispatchId,
-                                device_codes: deviceCodes
+                                device_codes: deviceCodes,
+                                type: currentDeviceCodeType // Add type to request
                             })
                         });
                         
@@ -3106,8 +3106,59 @@
                                 throw new Error(result.message || 'Lỗi khi import file');
                             }
                             
-                            // Render dữ liệu mới từ import
-                            renderDeviceCodeTable(result.data, currentDeviceCodeType);
+                            // Get all rows in the table
+                            const tbody = document.getElementById('device-code-tbody');
+                            const rows = tbody.querySelectorAll('tr');
+                            
+                            // Clear all input values in existing rows first
+                            rows.forEach(row => {
+                                const inputs = row.querySelectorAll('input');
+                                inputs.forEach(input => {
+                                    input.value = '';
+                                });
+                            });
+
+                            // Map imported data to rows
+                            result.data.forEach((item, index) => {
+                                if (index < rows.length) { // Only process if we have a row for this data
+                                    const row = rows[index];
+                                    
+                                    // Get product_id from the row
+                                    const productId = row.getAttribute('data-product-id');
+                                    if (!productId) return;
+                                    
+                                    // Update main serial
+                                    const mainSerialInput = row.querySelector('input[name*="serial_main"]');
+                                    if (mainSerialInput) mainSerialInput.value = item.serial_main || '';
+                                    
+                                    // Update component serials
+                                    const componentContainer = row.querySelector('.flex.flex-col');
+                                    if (componentContainer) {
+                                        const componentInputs = componentContainer.querySelectorAll('input[name*="serial_components"]');
+                                        const componentSerials = item.serial_components || [];
+                                        componentInputs.forEach((input, i) => {
+                                            input.value = componentSerials[i] || '';
+                                        });
+                                    }
+                                    
+                                    // Update other fields
+                                    const simInput = row.querySelector('input[name*="serial_sim"]');
+                                    if (simInput) simInput.value = item.serial_sim || '';
+                                    
+                                    const accessInput = row.querySelector('input[name*="access_code"]');
+                                    if (accessInput) accessInput.value = item.access_code || '';
+                                    
+                                    const iotInput = row.querySelector('input[name*="iot_id"]');
+                                    if (iotInput) iotInput.value = item.iot_id || '';
+                                    
+                                    const macInput = row.querySelector('input[name*="mac_4g"]');
+                                    if (macInput) macInput.value = item.mac_4g || '';
+                                    
+                                    const noteInput = row.querySelector('input[name*="note"]');
+                                    if (noteInput) noteInput.value = item.note || '';
+                                }
+                            });
+                            
                             alert('Import dữ liệu thành công!');
                             
                         } catch (error) {

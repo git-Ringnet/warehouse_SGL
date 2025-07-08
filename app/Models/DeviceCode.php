@@ -15,7 +15,8 @@ class DeviceCode extends Model
         'access_code',
         'iot_id',
         'mac_4g',
-        'note'
+        'note',
+        'type'
     ];
 
     protected $casts = [
