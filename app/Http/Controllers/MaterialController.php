@@ -802,7 +802,7 @@ class MaterialController extends Controller
     public function showHidden()
     {
         $materials = Material::where('is_hidden', true)
-            ->get();
+            ->paginate(10);
 
         // Calculate quantities for each material
         foreach ($materials as $material) {
@@ -832,7 +832,7 @@ class MaterialController extends Controller
     public function showDeleted()
     {
         $materials = Material::where('status', 'deleted')
-            ->get();
+            ->paginate(10);
 
         // Calculate quantities for each material
         foreach ($materials as $material) {

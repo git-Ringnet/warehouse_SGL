@@ -626,26 +626,8 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // Assembly export routes
     Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])
         ->name('assemblies.export.excel')
-        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.export');
-    Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.export');
-
-    // API route for assembly code validation
-    Route::post('/assemblies/check-code', [AssemblyController::class, 'checkAssemblyCode'])->name('assemblies.check-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
-
-    // API route for assembly code generation
-    Route::get('/assemblies/generate-code', [AssemblyController::class, 'generateAssemblyCode'])->name('assemblies.generate-code')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
-
-    // API route for product materials
-    Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
-
-    // API route for employees
-    Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
-    
-    // API route for product serials
-    Route::get('/assemblies/product-serials', [AssemblyController::class, 'getProductSerials'])->name('assemblies.product-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
-
-    // API route for warehouse materials stock
-    Route::get('/assemblies/warehouse-materials-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assemblies.create');
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
+    Route::get('/assemblies/{assembly}/export/pdf', [AssemblyController::class, 'exportPdf'])->name('assemblies.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.export');
 
     // API route for checking serial
     Route::post('/api/check-serial', [AssemblyController::class, 'checkSerial'])->name('api.check-serial');

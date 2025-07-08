@@ -95,6 +95,9 @@
                             @endforeach
                         </tbody>
                     </table>
+                    <div class="px-6 py-4">
+                        {{ $materials->links() }}
+                    </div>
                 </div>
             @else
                 <div class="bg-white rounded-xl shadow-md p-8 text-center">

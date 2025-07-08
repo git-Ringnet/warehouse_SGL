@@ -137,9 +137,18 @@ class AssemblyController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'username']);
 
-        // Get all active projects
-        $projects = Project::orderBy('project_name')
-            ->get(['id', 'project_name', 'project_code']);
+        // Get projects based on user's role
+        $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
+        $projectsQuery = Project::orderBy('project_name');
+        
+        if ($user->role !== 'admin') {
+            // If user is not admin, get only projects assigned to their role
+            $projectsQuery->whereHas('roles', function($query) use ($user) {
+                $query->where('roles.id', $user->role_id);
+            });
+        }
+        
+        $projects = $projectsQuery->get(['id', 'project_name', 'project_code']);
 
         return view('assemble.create', compact('products', 'materials', 'warehouses', 'employees', 'projects'));
     }
