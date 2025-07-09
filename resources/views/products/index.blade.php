@@ -247,6 +247,9 @@
                     <p class="text-gray-500">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
                 </div>
             </div>
+            <div class="mt-4">
+                {{ $products->links() }}
+            </div>
         </main>
     </div>
 
