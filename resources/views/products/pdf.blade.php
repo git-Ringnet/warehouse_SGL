@@ -63,7 +63,6 @@
                 <th>STT</th>
                 <th>Mã thành phẩm</th>
                 <th>Tên thành phẩm</th>
-                <th>Mô tả</th>
                 <th>Tổng tồn kho</th>
             </tr>
         </thead>
@@ -73,7 +72,6 @@
                 <td class="text-center">{{ $index + 1 }}</td>
                 <td>{{ $product->code }}</td>
                 <td>{{ $product->name }}</td>
-                <td>{{ $product->description ?? '' }}</td>
                 <td class="text-right">{{ number_format($product->inventory_quantity, 0, ',', '.') }}</td>
             </tr>
             @endforeach

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade\PDF;
+use Barryvdh\DomPDF\Facade\Pdf as FacadePdf;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\ProductsExport;
 use App\Exports\ProductsTemplateExport;
@@ -589,7 +590,7 @@ class ProductController extends Controller
                 });
             }
 
-            $pdf = PDF::loadView('products.pdf', compact('products'));
+            $pdf = FacadePdf::loadView('products.pdf', compact('products'));
 
             return $pdf->download('danh-sach-thanh-pham-' . date('Y-m-d') . '.pdf');
         } catch (\Exception $e) {
