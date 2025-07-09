@@ -80,14 +80,10 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng tồn
-                                        kho</label>
-                                    <select id="stockFilter"
-                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                                        <option value="">Tất cả trạng thái</option>
-                                        <option value="in_stock">Còn tồn kho</option>
-                                        <option value="out_of_stock">Hết tồn kho</option>
-                                    </select>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn hoặc bằng)</label>
+                                    <input type="number" id="stockFilter" min="0"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
+                                        placeholder="Nhập số lượng">
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
                                     <button id="clearFiltersInDropdown"
@@ -781,8 +777,16 @@ $warehouseTooltip = '';
             const clearFiltersInDropdown = document.getElementById('clearFiltersInDropdown');
             const applyFilters = document.getElementById('applyFilters');
 
+            // Function to remove Vietnamese accents
+            function removeVietnameseAccents(str) {
+                return str.normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/đ/g, 'd')
+                    .replace(/Đ/g, 'D');
+            }
+
             function performSearch() {
-                const searchTerm = searchInput.value;
+                const searchTerm = searchInput.value.toLowerCase().trim();
                 const category = categoryFilter.value;
                 const unit = unitFilter.value;
                 const stock = stockFilter.value;
@@ -792,7 +796,18 @@ $warehouseTooltip = '';
 
                 // Build query parameters
                 const params = new URLSearchParams();
-                if (searchTerm) params.append('search', searchTerm);
+                
+                // Check if search term is a valid positive integer
+                const isPositiveInteger = /^\d+$/.test(searchTerm);
+                
+                // If it's a positive integer, use it as stock filter
+                if (isPositiveInteger) {
+                    params.append('stock', searchTerm);
+                } else if (searchTerm) {
+                    // Otherwise use as text search
+                    params.append('search', searchTerm);
+                }
+                
                 if (category) params.append('category', category);
                 if (unit) params.append('unit', unit);
                 if (stock) params.append('stock', stock);
@@ -801,8 +816,63 @@ $warehouseTooltip = '';
                 fetch(`{{ route('materials.search.api') }}?${params.toString()}`)
                     .then(response => response.json())
                     .then(data => {
-                        updateTable(data.materials);
-                        updateResultCount(data.count);
+                        console.log(data);
+                        
+                        let filteredMaterials = data.materials;
+                        
+                        // Only apply client-side text filtering if not searching by stock
+                        if (searchTerm && !isPositiveInteger) {
+                            // Split search terms by space for multi-word search
+                            const searchTerms = searchTerm.split(/\s+/).filter(term => term.length > 0);
+                            // Remove accents from search terms
+                            const normalizedSearchTerms = searchTerms.map(term => removeVietnameseAccents(term));
+                            
+                            filteredMaterials = filteredMaterials.filter(material => {
+                                // Get all searchable text fields and normalize them
+                                const code = removeVietnameseAccents((material.code || '').toLowerCase());
+                                const name = removeVietnameseAccents((material.name || '').toLowerCase());
+                                const category = removeVietnameseAccents((material.category || '').toLowerCase());
+                                const unit = removeVietnameseAccents((material.unit || '').toLowerCase());
+                                
+                                // Also keep original text for searching
+                                const originalCode = (material.code || '').toLowerCase();
+                                const originalName = (material.name || '').toLowerCase();
+                                const originalCategory = (material.category || '').toLowerCase();
+                                const originalUnit = (material.unit || '').toLowerCase();
+                                
+                                // Check if all search terms are found in any of the fields
+                                return normalizedSearchTerms.every(term => {
+                                    // Try matching both original and normalized text
+                                    const directMatch = 
+                                        code.includes(term) ||
+                                        name.includes(term) ||
+                                        category.includes(term) ||
+                                        unit.includes(term) ||
+                                        originalCode.includes(term) ||
+                                        originalName.includes(term) ||
+                                        originalCategory.includes(term) ||
+                                        originalUnit.includes(term);
+                                    
+                                    if (directMatch) return true;
+                                    
+                                    // For each term, try fuzzy search on both original and normalized text
+                                    let lastIndex = -1;
+                                    const fuzzyMatch = Array.from(term).every(char => {
+                                        const index = code.indexOf(char, lastIndex + 1);
+                                        if (index > lastIndex) {
+                                            lastIndex = index;
+                                            return true;
+                                        }
+                                        return false;
+                                    });
+                                    
+                                    return fuzzyMatch;
+                                });
+                            });
+                        }
+
+                        updateTable(filteredMaterials);
+                        updateResultCount(filteredMaterials.length);
                         updateFilterTags();
                         updateURL(params);
                         hideLoadingIndicator();
@@ -839,7 +909,28 @@ $warehouseTooltip = '';
                 const tbody = document.querySelector('table tbody');
                 tbody.innerHTML = '';
 
-                if (materials.length === 0) {
+                // Get current stock filter value and search input value
+                const stockFilter = document.getElementById('stockFilter').value;
+                const searchInput = document.getElementById('searchInput').value;
+                
+                // Filter materials based on stock quantity if filter is set
+                let displayedMaterials = materials;
+                if (stockFilter !== '') {
+                    const maxStock = parseInt(stockFilter);
+                    displayedMaterials = materials.filter(material => {
+                        const inventoryQty = parseInt(material.inventory_quantity);
+                        return inventoryQty <= maxStock;
+                    });
+                } else if (!isNaN(searchInput) && searchInput !== '') {
+                    // If search input is a number, use it as stock filter
+                    const maxStock = parseInt(searchInput);
+                    displayedMaterials = materials.filter(material => {
+                        const inventoryQty = parseInt(material.inventory_quantity);
+                        return inventoryQty <= maxStock;
+                    });
+                }
+
+                if (displayedMaterials.length === 0) {
                     tbody.innerHTML = `
                         <tr>
                             <td colspan="7" class="px-6 py-4 text-center text-gray-500 italic">
@@ -850,7 +941,7 @@ $warehouseTooltip = '';
                     return;
                 }
 
-                materials.forEach((material, index) => {
+                displayedMaterials.forEach((material, index) => {
                     const warehouseTooltip = getWarehouseTooltip(material.inventory_warehouses);
                     const stockClass = material.inventory_quantity > 0 ? 'bg-green-100 text-green-800' :
                         'bg-gray-100 text-gray-800';
@@ -959,9 +1050,8 @@ $warehouseTooltip = '';
                     }
 
                     if (stock) {
-                        const stockText = stock === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho';
                         tagsHTML +=
-                            ` <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">Tồn kho: ${stockText}</span>`;
+                            ` <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">Tổng tồn kho ≤ ${stock}</span>`;
                     }
                 }
 
@@ -1036,7 +1126,7 @@ $warehouseTooltip = '';
             if (urlParams.get('search')) searchInput.value = urlParams.get('search');
             if (urlParams.get('category')) categoryFilter.value = urlParams.get('category');
             if (urlParams.get('unit')) unitFilter.value = urlParams.get('unit');
-            if (urlParams.get('stock')) stockFilter.value = urlParams.get('stock');
+            if (urlParams.get('stock')) stockFilter.value = parseInt(urlParams.get('stock'));
 
             // Update filter button text on load
             updateFilterButtonText();

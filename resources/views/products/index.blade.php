@@ -122,10 +122,10 @@
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
                                     </button>
-                                    <button id="exportFdfButton"
+                                    {{-- <button id="exportFdfButton"
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-code text-blue-500 mr-2"></i> Xuất FDF
-                                    </button>
+                                    </button> --}}
                                 </div>
                             </div>
                         </div>
@@ -737,17 +737,17 @@
                 exportDropdown.classList.add('hidden');
             });
 
-            document.getElementById('exportFdfButton').addEventListener('click', function() {
-                const params = new URLSearchParams();
-                const searchValue = document.getElementById('searchInput').value;
-                const stockValue = document.getElementById('stockFilter').value;
+            // document.getElementById('exportFdfButton').addEventListener('click', function() {
+            //     const params = new URLSearchParams();
+            //     const searchValue = document.getElementById('searchInput').value;
+            //     const stockValue = document.getElementById('stockFilter').value;
                 
-                if (searchValue) params.append('search', searchValue);
-                if (stockValue) params.append('stock_filter', stockValue);
+            //     if (searchValue) params.append('search', searchValue);
+            //     if (stockValue) params.append('stock_filter', stockValue);
                 
-                window.location.href = `{{ route('products.export.fdf') }}?${params.toString()}`;
-                exportDropdown.classList.add('hidden');
-            });
+            //     window.location.href = `{{ route('products.export.fdf') }}?${params.toString()}`;
+            //     exportDropdown.classList.add('hidden');
+            // });
         });
 
         // Import Data button functionality
