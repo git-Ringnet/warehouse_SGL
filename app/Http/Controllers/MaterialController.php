@@ -10,13 +10,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Barryvdh\DomPDF\Facade\PDF;
+use Barryvdh\DomPDF\Facade as PDF;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MaterialsExport;
 use App\Exports\MaterialsTemplateExport;
 use App\Imports\MaterialsImport;
 use App\Models\Supplier;
 use App\Models\UserLog;
+use Barryvdh\DomPDF\Facade\Pdf as FacadePdf;
 use Illuminate\Support\Facades\Auth;
 
 class MaterialController extends Controller
@@ -634,7 +635,7 @@ class MaterialController extends Controller
         ];
 
         // Generate PDF
-        $pdf = PDF::loadView('exports.materials-pdf', [
+        $pdf = FacadePdf::loadView('exports.materials-pdf', [
             'materials' => $materials,
             'filters' => array_filter($filters) // Only pass non-empty filters
         ]);
