@@ -653,18 +653,57 @@ class MaterialController extends Controller
     public function exportExcel(Request $request)
     {
         try {
-            // Get current filters from request
-            $filters = [
-                'search' => $request->get('search'),
-                'category' => $request->get('category'),
-                'unit' => $request->get('unit'),
-                'stock' => $request->get('stock')
-            ];
+            $query = Material::query();
 
-            return Excel::download(new MaterialsExport($filters), 'danh-sach-vat-tu-' . date('Y-m-d') . '.xlsx');
+            // Apply filters
+            if ($request->has('search')) {
+                $search = $request->get('search');
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('code', 'like', "%{$search}%")
+                      ->orWhere('category', 'like', "%{$search}%");
+                });
+            }
+
+            if ($request->has('category') && $request->get('category')) {
+                $query->where('category', $request->get('category'));
+            }
+
+            if ($request->has('unit') && $request->get('unit')) {
+                $query->where('unit', $request->get('unit'));
+            }
+
+            if ($request->has('stock')) {
+                if ($request->get('stock') === 'in_stock') {
+                    $query->where('inventory_quantity', '>', 0);
+                } elseif ($request->get('stock') === 'out_of_stock') {
+                    $query->where('inventory_quantity', '<=', 0);
+                }
+            }
+
+            // Get filtered materials
+            $materials = $query->where('is_hidden', 0)
+                ->where('status', 'active')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Calculate inventory quantities for each material
+            foreach ($materials as $material) {
+                $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
+                    ->where('item_type', 'material');
+
+                // Check if specific warehouses are configured for this material
+                if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+                    $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
+                }
+
+                // Update inventory quantity
+                $material->inventory_quantity = $warehouseQuery->sum('quantity');
+            }
+
+            return Excel::download(new MaterialsExport($materials), 'danh-sach-vat-tu-' . date('Y-m-d-His') . '.xlsx');
         } catch (\Exception $e) {
             Log::error('Export Excel error: ' . $e->getMessage());
-
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
         }
     }

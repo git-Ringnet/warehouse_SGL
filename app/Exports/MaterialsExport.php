@@ -16,80 +16,18 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class MaterialsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
-    protected $filters;
-    
-    public function __construct($filters = [])
+    protected $materials;
+
+    public function __construct($materials)
     {
-        $this->filters = $filters;
+        $this->materials = $materials;
     }
-    
-    /**
-     * @return \Illuminate\Support\Collection
-     */
+
     public function collection()
     {
-        // Start with base query for active materials that are not hidden
-        $query = Material::where('status', 'active')
-            ->where('is_hidden', 0);
-
-        // Apply filters if provided
-        if (!empty($this->filters['search'])) {
-            $searchTerm = $this->filters['search'];
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('category', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%");
-            });
-        }
-
-        if (!empty($this->filters['category'])) {
-            $query->where('category', $this->filters['category']);
-        }
-
-        if (!empty($this->filters['unit'])) {
-            $query->where('unit', $this->filters['unit']);
-        }
-
-        $materials = $query->orderBy('created_at', 'desc')->get();
-        
-        // Calculate quantities for each material
-        foreach ($materials as $material) {
-            // Total quantity across all locations
-            $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
-                ->where('item_type', 'material')
-                ->sum('quantity');
-            
-            // Total quantity only in warehouses based on inventory_warehouses setting
-            $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
-                ->where('item_type', 'material');
-                
-            if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
-                $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
-            }
-            
-            $material->inventory_quantity = $warehouseQuery->sum('quantity');
-        }
-
-        // Apply stock filter after calculating quantities
-        if (!empty($this->filters['stock'])) {
-            if ($this->filters['stock'] === 'in_stock') {
-                $materials = $materials->filter(function($material) {
-                    return $material->inventory_quantity > 0;
-                });
-            } elseif ($this->filters['stock'] === 'out_of_stock') {
-                $materials = $materials->filter(function($material) {
-                    return $material->inventory_quantity == 0;
-                });
-            }
-        }
-        
-        return $materials;
+        return $this->materials;
     }
-    
-    /**
-     * @return array
-     */
+
     public function headings(): array
     {
         return [
@@ -98,90 +36,73 @@ class MaterialsExport implements FromCollection, WithHeadings, WithMapping, With
             'Tên vật tư',
             'Loại',
             'Đơn vị',
-            'Tổng tồn kho',
+            'Tổng tồn kho'
         ];
     }
-    
-    /**
-     * @param mixed $material
-     * @return array
-     */
+
     public function map($material): array
     {
-        static $counter = 0;
-        $counter++;
+        static $stt = 0;
+        $stt++;
         
         return [
-            $counter,
+            $stt,
             $material->code,
             $material->name,
             $material->category,
             $material->unit,
-            number_format($material->inventory_quantity, 0, ',', '.')
+            (int)$material->inventory_quantity // Đảm bảo là số nguyên
         ];
     }
-    
-    /**
-     * @param Worksheet $sheet
-     * @return array
-     */
+
     public function styles(Worksheet $sheet)
     {
-        // Get the highest row and column
-        $highestRow = $sheet->getHighestRow();
-        $highestColumn = $sheet->getHighestColumn();
-        
-        return [
-            // Header row styling
-            1 => [
-                'font' => [
-                    'bold' => true,
-                    'color' => ['argb' => 'FFFFFF'],
-                ],
-                'fill' => [
-                    'fillType' => Fill::FILL_SOLID,
-                    'color' => ['argb' => '4F46E5']
-                ],
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical' => Alignment::VERTICAL_CENTER,
-                ]
+        // Style cho header
+        $sheet->getStyle('A1:F1')->applyFromArray([
+            'font' => [
+                'bold' => true,
             ],
-            
-            // All cells border and alignment
-            "A1:{$highestColumn}{$highestRow}" => [
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['argb' => '000000'],
-                    ],
-                ],
-                'alignment' => [
-                    'vertical' => Alignment::VERTICAL_CENTER,
-                    'wrapText' => true,
-                ]
-            ],
-            
-            // STT column center alignment
-            "A:A" => [
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
-                ]
-            ],
-            
-            // Quantity column right alignment
-            "G:G" => [
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_RIGHT,
-                ]
-            ],
-            
-            // Date columns center alignment
-            "H:I" => [
-                'alignment' => [
-                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => [
+                    'rgb' => 'E4E6EF',
                 ]
             ]
+        ]);
+
+        // Căn giữa header
+        $sheet->getStyle('A1:F1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        // Lấy số hàng có dữ liệu
+        $lastRow = $sheet->getHighestRow();
+
+        // Căn trái cho các cột text (Mã vật tư, Tên vật tư, Loại, Đơn vị)
+        $sheet->getStyle('B2:E'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+        // Căn phải cho các cột số (STT và Tổng tồn kho)
+        $sheet->getStyle('A2:A'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle('F2:F'.$lastRow)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        // Thêm border cho toàn bộ bảng
+        $sheet->getStyle('A1:F'.$lastRow)->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => '000000'],
+                ],
+            ],
+        ]);
+
+        // Set column width
+        $sheet->getColumnDimension('A')->setWidth(10); // STT
+        $sheet->getColumnDimension('B')->setWidth(20); // Mã vật tư
+        $sheet->getColumnDimension('C')->setWidth(40); // Tên vật tư
+        $sheet->getColumnDimension('D')->setWidth(20); // Loại
+        $sheet->getColumnDimension('E')->setWidth(15); // Đơn vị
+        $sheet->getColumnDimension('F')->setWidth(15); // Tổng tồn kho
+
+        return [
+            1 => ['font' => ['bold' => true]],
         ];
     }
 } 
