@@ -2,6 +2,7 @@
 class NotificationManager {
     constructor() {
         this.notificationCheckInterval = null;
+        this.eventListenersInitialized = false;
         this.init();
     }
 
@@ -122,14 +123,28 @@ class NotificationManager {
 
     // Mark notification as read
     markNotificationAsRead(notificationId) {
+        const csrfToken = this.getCsrfToken();
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            return;
+        }
+        
         fetch(`/notifications/${notificationId}/mark-read`, {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
-            }
+            },
+            credentials: 'same-origin'
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 // Reload notifications to update count
@@ -141,16 +156,57 @@ class NotificationManager {
         });
     }
 
+    // Get CSRF token from various sources
+    getCsrfToken() {
+        // Try to get from meta tag
+        let token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        // If not found, try to get from form
+        if (!token) {
+            token = document.querySelector('input[name="_token"]')?.value;
+        }
+        
+        // If still not found and we have jQuery, try Laravel's $.ajaxSetup
+        if (!token && typeof $ !== 'undefined' && $.ajaxSettings && $.ajaxSettings.headers) {
+            token = $.ajaxSettings.headers['X-CSRF-TOKEN'];
+        }
+        
+        return token || '';
+    }
+
     // Mark all notifications as read
     markAllAsRead() {
+        const csrfToken = this.getCsrfToken();
+        
+        if (!csrfToken) {
+            console.error('CSRF token not found');
+            
+            // Thêm thông báo lỗi nếu không tìm thấy CSRF token
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Lỗi!',
+                    text: 'Không tìm thấy CSRF token. Vui lòng tải lại trang và thử lại.'
+                });
+            }
+            return;
+        }
+        
         fetch('/notifications/mark-all-read', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                'X-CSRF-TOKEN': csrfToken,
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
-            }
+            },
+            credentials: 'same-origin'
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 // Show success message with SweetAlert2
@@ -174,7 +230,7 @@ class NotificationManager {
                 Swal.fire({
                     icon: 'error',
                     title: 'Lỗi!',
-                    text: 'Có lỗi xảy ra khi đánh dấu thông báo'
+                    text: 'Có lỗi xảy ra khi đánh dấu thông báo: ' + error.message
                 });
             }
         });
@@ -200,6 +256,11 @@ class NotificationManager {
 
     // Setup event listeners
     setupEventListeners() {
+        // Prevent multiple event listeners
+        if (this.eventListenersInitialized) {
+            return;
+        }
+        
         // Mark all as read button
         const markAllReadBtn = document.getElementById('markAllReadBtn');
         if (markAllReadBtn) {
@@ -214,12 +275,17 @@ class NotificationManager {
         window.addEventListener('beforeunload', () => {
             this.stopNotificationChecking();
         });
+        
+        this.eventListenersInitialized = true;
     }
 }
 
 // Initialize notification manager when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    window.notificationManager = new NotificationManager();
+    // Ensure we only create one instance
+    if (!window.notificationManager) {
+        window.notificationManager = new NotificationManager();
+    }
 });
 
 // Export for use in other modules

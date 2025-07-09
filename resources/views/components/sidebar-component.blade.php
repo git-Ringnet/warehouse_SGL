@@ -1,4 +1,5 @@
 <!-- Sidebar -->
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <div class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50"
     style="bottom: 0; background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);">
     <div class="p-4 flex items-center justify-between border-b border-gray-700">
