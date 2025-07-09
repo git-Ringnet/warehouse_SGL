@@ -152,6 +152,10 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/customers/create', [CustomerController::class, 'create'])->name('customers.create');
         Route::post('/customers', [CustomerController::class, 'store'])->name('customers.store');
     });
+    
+    // Export routes for customers
+    Route::get('/customers/export', [CustomerController::class, 'export'])->name('customers.export')
+        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.export');
 
     Route::group(['middleware' => \App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.edit'], function () {
         Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])->name('customers.edit');

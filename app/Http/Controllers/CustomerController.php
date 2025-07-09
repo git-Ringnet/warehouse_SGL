@@ -458,4 +458,50 @@ class CustomerController extends Controller
         return redirect()->back()
             ->with('success', $message);
     }
+
+    /**
+     * Export all customers data as JSON
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function export()
+    {
+        try {
+            // Lấy tất cả khách hàng từ database
+            $customers = Customer::select('id', 'name', 'company_name', 'phone', 'email', 'address', 'created_at')
+                ->orderBy('id', 'asc')
+                ->get();
+            
+            // Format lại ngày tạo để hiển thị đẹp hơn
+            $formattedCustomers = [];
+            foreach ($customers as $customer) {
+                $formattedCustomer = [
+                    'id' => $customer->id,
+                    'name' => $customer->name,
+                    'company_name' => $customer->company_name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'address' => $customer->address,
+                    'created_at' => $customer->created_at ? $customer->created_at->format('d/m/Y H:i') : ''
+                ];
+                $formattedCustomers[] = $formattedCustomer;
+            }
+            
+            // Trả về dữ liệu dưới dạng JSON
+            return response()->json([
+                'success' => true,
+                'customers' => $formattedCustomers
+            ]);
+        } catch (\Exception $e) {
+            // Log lỗi để debug
+            \Illuminate\Support\Facades\Log::error('Export customers error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error($e->getTraceAsString());
+            
+            // Trả về thông báo lỗi
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi xuất dữ liệu: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

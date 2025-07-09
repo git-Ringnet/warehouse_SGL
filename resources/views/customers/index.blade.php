@@ -14,6 +14,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Thay thế thư viện xlsx cũ bằng phiên bản hoạt động -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -289,7 +291,7 @@
                                 Công ty</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                SĐT công ty</th>
+                                SĐT người đại diện</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Email</th>
@@ -504,88 +506,186 @@
 
         // Hàm xuất dữ liệu sang Excel
         document.getElementById('exportExcelButton').addEventListener('click', function() {
-            // Tạo một bảng HTML tạm thời
-            const tempTable = document.createElement('table');
-            tempTable.style.borderCollapse = 'collapse';
-            tempTable.style.width = '100%';
+            // Hiển thị thông báo đang xử lý
+            alert('Đang xử lý Excel, vui lòng đợi trong giây lát...');
 
-            // Tạo header row
-            const headerRow = document.createElement('tr');
-            const headings = Array.from(document.querySelectorAll('table thead th'));
-
-            // Thêm header cells (bỏ qua cột hành động)
-            for (let i = 0; i < headings.length - 1; i++) {
-                const th = document.createElement('th');
-                th.textContent = headings[i].textContent.trim();
-                th.style.backgroundColor = '#4b90e2';
-                th.style.color = 'white';
-                th.style.padding = '8px';
-                th.style.fontWeight = 'bold';
-                th.style.border = '1px solid #ddd';
-                headerRow.appendChild(th);
-            }
-
-            // Thêm header row vào table
-            const thead = document.createElement('thead');
-            thead.appendChild(headerRow);
-            tempTable.appendChild(thead);
-
-            // Tạo body
-            const tbody = document.createElement('tbody');
-            const rows = document.querySelectorAll('table tbody tr');
-
-            // Thêm data rows
-            rows.forEach(row => {
-                if (!row.querySelector('td[colspan]')) { // Bỏ qua hàng "Không có dữ liệu"
-                    const tr = document.createElement('tr');
-                    const cells = row.querySelectorAll('td');
-
-                    // Thêm cell data (bỏ qua cột hành động)
-                    for (let i = 0; i < cells.length - 1; i++) {
-                        const td = document.createElement('td');
-                        td.textContent = cells[i].textContent.trim();
-                        td.style.padding = '5px';
-                        td.style.border = '1px solid #ddd';
-                        tr.appendChild(td);
+            // Gửi yêu cầu AJAX để lấy toàn bộ dữ liệu
+            fetch('{{ route("customers.export") }}')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Lỗi khi tải dữ liệu: ' + response.status);
                     }
-
-                    tbody.appendChild(tr);
-                }
-            });
-
-            tempTable.appendChild(tbody);
-
-            // Tạo temp div chứa table
-            const tempDiv = document.createElement('div');
-
-            // Thêm tiêu đề
-            const header = document.createElement('div');
-            header.textContent = 'DANH SÁCH KHÁCH HÀNG';
-            header.style.fontWeight = 'bold';
-            header.style.fontSize = '16px';
-            header.style.marginBottom = '10px';
-            header.style.textAlign = 'center';
-
-            tempDiv.appendChild(header);
-            tempDiv.appendChild(tempTable);
-
-            // Tạo và tải xuống Excel
-            let tableHTML = tempDiv.outerHTML.replace(/ /g, '%20');
-
-            // Tạo data URI cho Excel
-            let uri = 'data:application/vnd.ms-excel;charset=utf-8,' + tableHTML;
-
-            // Tạo link tải về
-            let downloadLink = document.createElement('a');
-            downloadLink.href = uri;
-            downloadLink.download = 'danh-sach-khach-hang.xls';
-
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-
-            // Đóng dropdown
-            exportDropdown.classList.add('hidden');
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'Có lỗi xảy ra khi tải dữ liệu');
+                    }
+                    
+                    try {
+                        // Tạo workbook mới và worksheet
+                        const wb = XLSX.utils.book_new();
+                        
+                        // Chuẩn bị dữ liệu cho Excel với định dạng phù hợp
+                        const excelData = [
+                            ['ID', 'Tên khách hàng', 'Tên công ty', 'SĐT', 'Email', 'Địa chỉ', 'Ngày tạo']
+                        ];
+                        
+                        data.customers.forEach(customer => {
+                            excelData.push([
+                                customer.id,
+                                customer.name,
+                                customer.company_name,
+                                // Thêm dấu ' để đảm bảo Excel coi số điện thoại là text
+                                "'" + customer.phone,
+                                customer.email || '',
+                                customer.address || '',
+                                customer.created_at || ''
+                            ]);
+                        });
+                        
+                        // Tạo worksheet từ dữ liệu
+                        const ws = XLSX.utils.aoa_to_sheet(excelData);
+                        
+                        // Điều chỉnh độ rộng cột
+                        const wscols = [
+                            {wch: 5},  // ID
+                            {wch: 20}, // Tên khách hàng
+                            {wch: 25}, // Tên công ty
+                            {wch: 15}, // SĐT
+                            {wch: 25}, // Email
+                            {wch: 30}, // Địa chỉ
+                            {wch: 15}  // Ngày tạo
+                        ];
+                        ws['!cols'] = wscols;
+                        
+                        // Định dạng tiêu đề - Tạo style cho header
+                        const headerStyle = {
+                            font: { bold: true, color: { rgb: "FFFFFF" } },
+                            fill: { fgColor: { rgb: "4B90E2" } },
+                            alignment: { horizontal: "center", vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: "000000" } },
+                                bottom: { style: "thin", color: { rgb: "000000" } },
+                                left: { style: "thin", color: { rgb: "000000" } },
+                                right: { style: "thin", color: { rgb: "000000" } }
+                            }
+                        };
+                        
+                        // Định dạng nội dung
+                        const dataStyle = {
+                            border: {
+                                top: { style: "thin", color: { rgb: "D3D3D3" } },
+                                bottom: { style: "thin", color: { rgb: "D3D3D3" } },
+                                left: { style: "thin", color: { rgb: "D3D3D3" } },
+                                right: { style: "thin", color: { rgb: "D3D3D3" } }
+                            },
+                            alignment: { vertical: "center" }
+                        };
+                        
+                        // Định dạng hàng chẵn/lẻ
+                        const evenRowStyle = {
+                            ...dataStyle,
+                            fill: { fgColor: { rgb: "F9F9F9" } }
+                        };
+                        
+                        // Áp dụng style cho header (hàng đầu tiên)
+                        const range = XLSX.utils.decode_range(ws['!ref']);
+                        for (let col = range.s.c; col <= range.e.c; col++) {
+                            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+                            if (!ws[cellAddress]) continue;
+                            ws[cellAddress].s = headerStyle;
+                        }
+                        
+                        // Áp dụng style cho data (các hàng còn lại)
+                        for (let row = 1; row <= range.e.r; row++) {
+                            const rowStyle = row % 2 === 0 ? evenRowStyle : dataStyle;
+                            for (let col = range.s.c; col <= range.e.c; col++) {
+                                const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+                                if (!ws[cellAddress]) continue;
+                                
+                                // Style riêng cho cột ID
+                                if (col === 0) {
+                                    ws[cellAddress].s = { 
+                                        ...rowStyle, 
+                                        alignment: { horizontal: "center", vertical: "center" } 
+                                    };
+                                }
+                                // Style riêng cho cột Ngày tạo
+                                else if (col === 6) {
+                                    ws[cellAddress].s = { 
+                                        ...rowStyle, 
+                                        alignment: { horizontal: "center", vertical: "center" } 
+                                    };
+                                } 
+                                else {
+                                    ws[cellAddress].s = rowStyle;
+                                }
+                            }
+                        }
+                        
+                        // Thêm tiêu đề chính ở trên cùng
+                        const titleWs = XLSX.utils.aoa_to_sheet([
+                            ['DANH SÁCH KHÁCH HÀNG'],
+                            ['Công ty: SGL - Hệ thống quản lý kho'],
+                            [`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
+                            ['']  // Dòng trống
+                        ]);
+                        
+                        // Style cho tiêu đề
+                        const titleStyle = {
+                            font: { bold: true, size: 16, color: { rgb: "000000" } },
+                            alignment: { horizontal: "center" }
+                        };
+                        
+                        const subTitleStyle = {
+                            font: { size: 12, color: { rgb: "555555" } },
+                            alignment: { horizontal: "center" }
+                        };
+                        
+                        const dateStyle = {
+                            font: { italic: true, size: 11, color: { rgb: "555555" } },
+                            alignment: { horizontal: "center" }
+                        };
+                        
+                        // Áp dụng style cho tiêu đề
+                        titleWs['A1'].s = titleStyle;
+                        titleWs['A2'].s = subTitleStyle;
+                        titleWs['A3'].s = dateStyle;
+                        
+                        // Merge cells cho tiêu đề
+                        titleWs['!merges'] = [
+                            { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+                            { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+                            { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } }
+                        ];
+                        
+                        // Kết hợp 2 worksheet
+                        const finalWs = XLSX.utils.sheet_add_json(titleWs, XLSX.utils.sheet_to_json(ws), {
+                            origin: 'A5',
+                            skipHeader: false
+                        });
+                        
+                        // Cập nhật lại độ rộng cột
+                        finalWs['!cols'] = wscols;
+                        
+                        // Thêm worksheet vào workbook
+                        XLSX.utils.book_append_sheet(wb, finalWs, "Khách hàng");
+                        
+                        // Xuất file Excel
+                        XLSX.writeFile(wb, 'danh_sach_khach_hang.xlsx');
+                        
+                        // Đóng dropdown
+                        exportDropdown.classList.add('hidden');
+                    } catch (err) {
+                        console.error('Lỗi khi tạo Excel: ', err);
+                        alert('Có lỗi xảy ra khi tạo file Excel. Vui lòng thử lại sau.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Lỗi khi tải dữ liệu: ', error);
+                    alert('Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại sau.');
+                });
         });
 
         // Hàm xuất dữ liệu sang PDF bằng html2canvas
@@ -606,7 +706,8 @@
             tempDiv.style.position = 'absolute';
             tempDiv.style.left = '-9999px';
             tempDiv.style.top = '-9999px';
-            tempDiv.style.width = '1000px'; // Đủ rộng để hiển thị toàn bộ bảng
+            tempDiv.style.width = '1500px'; // Tăng kích thước để đảm bảo tất cả cột hiển thị
+            tempDiv.style.maxWidth = 'none'; // Đảm bảo không bị giới hạn bởi max-width 
 
             // Loại bỏ cột hành động
             const headerRow = tempTable.querySelector('thead tr');
@@ -621,24 +722,38 @@
 
             // Thêm CSS
             tempTable.style.width = '100%';
+            tempTable.style.tableLayout = 'fixed'; // Đảm bảo bảng có kích thước cố định
             tempTable.style.borderCollapse = 'collapse';
-            tempTable.style.fontSize = '14px';
+            tempTable.style.fontSize = '14px'; // Giảm kích thước font để vừa với trang
             tempTable.style.color = '#333';
 
-            // Thiết lập màu cho header
-            tempTable.querySelectorAll('thead th').forEach(th => {
+            // Thiết lập độ rộng cho từng cột
+            const columnWidths = ['5%', '15%', '15%', '15%', '15%', '20%', '15%'];
+            tempTable.querySelectorAll('thead th').forEach((th, index) => {
+                if (index < columnWidths.length) {
+                    th.style.width = columnWidths[index];
+                }
                 th.style.backgroundColor = '#4b90e2';
                 th.style.color = 'white';
                 th.style.padding = '8px';
                 th.style.textAlign = 'left';
                 th.style.fontWeight = 'bold';
                 th.style.border = '1px solid #ddd';
+                th.style.overflow = 'hidden';
+                th.style.whiteSpace = 'normal'; // Cho phép text xuống dòng
+                th.style.wordWrap = 'break-word';
             });
 
             // Thiết lập CSS cho cells
-            tempTable.querySelectorAll('tbody td').forEach(td => {
+            tempTable.querySelectorAll('tbody td').forEach((td, index) => {
+                if (index % 7 < columnWidths.length) {
+                    td.style.width = columnWidths[index % 7];
+                }
                 td.style.padding = '8px';
                 td.style.border = '1px solid #ddd';
+                td.style.overflow = 'hidden';
+                td.style.whiteSpace = 'normal'; // Cho phép text xuống dòng
+                td.style.wordWrap = 'break-word';
                 if (td.parentElement.rowIndex % 2 === 0) {
                     td.style.backgroundColor = '#f9f9f9';
                 }
@@ -660,17 +775,40 @@
             dateDiv.style.textAlign = 'right';
             dateDiv.style.margin = '10px 0';
 
+            // Tạo footer
+            const footerDiv = document.createElement('div');
+            footerDiv.style.borderTop = '1px solid #ddd';
+            footerDiv.style.marginTop = '20px';
+            footerDiv.style.paddingTop = '10px';
+            footerDiv.style.display = 'flex';
+            footerDiv.style.justifyContent = 'space-between';
+            
+            const footerLeft = document.createElement('div');
+            footerLeft.textContent = 'SGL - Hệ thống quản lý kho';
+            footerLeft.style.fontSize = '10px';
+            
+            const footerRight = document.createElement('div');
+            footerRight.textContent = 'Trang 1 / 1';
+            footerRight.style.fontSize = '10px';
+            
+            footerDiv.appendChild(footerLeft);
+            footerDiv.appendChild(footerRight);
+
             // Thêm tất cả vào div tạm thời
             tempDiv.appendChild(header);
             tempDiv.appendChild(dateDiv);
             tempDiv.appendChild(tempTable);
+            tempDiv.appendChild(footerDiv);
             document.body.appendChild(tempDiv);
 
             // Sử dụng html2canvas để chụp bảng
             html2canvas(tempDiv, {
-                scale: 1,
+                scale: 2, // Tăng scale để cải thiện chất lượng
                 useCORS: true,
-                logging: false
+                logging: false,
+                allowTaint: true,
+                width: tempDiv.offsetWidth,
+                height: tempDiv.offsetHeight
             }).then(canvas => {
                 // Xóa div tạm thời
                 document.body.removeChild(tempDiv);
@@ -682,12 +820,6 @@
                 // Thêm ảnh vào PDF
                 const imgData = canvas.toDataURL('image/png');
                 doc.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
-
-                // Thêm footer
-                doc.setFontSize(10);
-                doc.text('SGL - Hệ thống quản lý kho', 10, doc.internal.pageSize.height - 10);
-                doc.text(`Trang 1 / 1`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height -
-                10);
 
                 // Tải xuống PDF
                 doc.save('danh-sach-khach-hang.pdf');
