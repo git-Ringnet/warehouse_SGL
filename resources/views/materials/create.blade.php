@@ -317,6 +317,14 @@
             });
 
             clearCategoryBtn.addEventListener('click', function() {
+                const selectedValue = categorySelect.value;
+
+                // Tìm option có value tương ứng và ẩn nó
+                const selectedOption = categorySelect.querySelector(`option[value="${selectedValue}"]`);
+                if (selectedOption) {
+                    selectedOption.style.display = 'none'; // hoặc dùng hidden = true
+                }
+
                 categorySelect.value = '';
                 clearCategoryBtn.classList.add('hidden');
             });

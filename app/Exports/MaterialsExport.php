@@ -30,7 +30,7 @@ class MaterialsExport implements FromCollection, WithHeadings, WithMapping, With
     {
         // Start with base query for active materials that are not hidden
         $query = Material::where('status', 'active')
-            ->where('is_hidden', false);
+            ->where('is_hidden', 0);
 
         // Apply filters if provided
         if (!empty($this->filters['search'])) {
@@ -39,8 +39,7 @@ class MaterialsExport implements FromCollection, WithHeadings, WithMapping, With
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('name', 'LIKE', "%{$searchTerm}%")
                   ->orWhere('category', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+                  ->orWhere('unit', 'LIKE', "%{$searchTerm}%");
             });
         }
 
@@ -52,7 +51,7 @@ class MaterialsExport implements FromCollection, WithHeadings, WithMapping, With
             $query->where('unit', $this->filters['unit']);
         }
 
-        $materials = $query->get();
+        $materials = $query->orderBy('created_at', 'desc')->get();
         
         // Calculate quantities for each material
         foreach ($materials as $material) {
@@ -97,12 +96,9 @@ class MaterialsExport implements FromCollection, WithHeadings, WithMapping, With
             'STT',
             'Mã vật tư',
             'Tên vật tư',
-            'Loại vật tư',
+            'Loại',
             'Đơn vị',
-            'Ghi chú',
             'Tổng tồn kho',
-            'Ngày tạo',
-            'Cập nhật lần cuối'
         ];
     }
     
@@ -121,10 +117,7 @@ class MaterialsExport implements FromCollection, WithHeadings, WithMapping, With
             $material->name,
             $material->category,
             $material->unit,
-            $material->notes ?? '',
-            number_format($material->inventory_quantity, 0, ',', '.'),
-            $material->created_at ? $material->created_at->format('d/m/Y H:i') : '',
-            $material->updated_at ? $material->updated_at->format('d/m/Y H:i') : ''
+            number_format($material->inventory_quantity, 0, ',', '.')
         ];
     }
     

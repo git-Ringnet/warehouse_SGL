@@ -576,37 +576,74 @@ class MaterialController extends Controller
     /**
      * Export materials list to PDF
      */
-    public function exportPDF()
+    public function exportPDF(Request $request)
     {
-        try {
-            $materials = Material::all();
+        $query = Material::query();
 
-            // Calculate quantities for each material
-            foreach ($materials as $material) {
-                // Total quantity across all locations
-                $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
-                    ->where('item_type', 'material')
-                    ->sum('quantity');
+        // Apply filters
+        if ($request->has('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('code', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
 
-                // Total inventory based on configuration
-                $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
-                    ->where('item_type', 'material');
+        if ($request->has('category') && $request->get('category')) {
+            $query->where('category', $request->get('category'));
+        }
 
-                if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
-                    $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
-                }
+        if ($request->has('unit') && $request->get('unit')) {
+            $query->where('unit', $request->get('unit'));
+        }
 
-                $material->inventory_quantity = $warehouseQuery->sum('quantity');
+        if ($request->has('stock')) {
+            if ($request->get('stock') === 'in_stock') {
+                $query->where('inventory_quantity', '>', 0);
+            } elseif ($request->get('stock') === 'out_of_stock') {
+                $query->where('inventory_quantity', '<=', 0);
+            }
+        }
+
+        // Get filtered materials
+        $materials = $query->where('is_hidden', 0)
+            ->where('status', 'active')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Calculate inventory quantities for each material
+        foreach ($materials as $material) {
+            $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)->where('item_type', 'material');
+
+            // Check if specific warehouses are configured for this material
+            if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
+                $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);
             }
 
-            $pdf = PDF::loadView('materials.pdf', compact('materials'));
-
-            return $pdf->download('danh-sach-vat-tu-' . date('Y-m-d') . '.pdf');
-        } catch (\Exception $e) {
-            Log::error('Export PDF error: ' . $e->getMessage());
-
-            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
+            // Update inventory quantity
+            $material->inventory_quantity = $warehouseQuery->sum('quantity');
         }
+
+        // Prepare filters for view
+        $filters = [
+            'search' => $request->get('search'),
+            'category' => $request->get('category'),
+            'unit' => $request->get('unit'),
+            'stock' => $request->get('stock')
+        ];
+
+        // Generate PDF
+        $pdf = PDF::loadView('exports.materials-pdf', [
+            'materials' => $materials,
+            'filters' => array_filter($filters) // Only pass non-empty filters
+        ]);
+
+        // Set paper size and orientation
+        $pdf->setPaper('a4', 'landscape');
+
+        // Return the PDF for download
+        return $pdf->download('danh-sach-vat-tu-' . date('Y-m-d-His') . '.pdf');
     }
 
     /**

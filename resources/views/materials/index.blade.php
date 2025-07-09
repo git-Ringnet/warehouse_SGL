@@ -156,10 +156,14 @@
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-excel text-green-500 mr-2"></i> Xuất Excel
                                     </button>
-                                    <button id="exportFDFButton"
+                                    <button id="exportPDFButton"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
+                                    </button>
+                                    {{-- <button id="exportFDFButton"
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-code text-blue-500 mr-2"></i> Xuất FDF
-                                    </button>
+                                    </button> --}}
                                 </div>
                             </div>
                         </div>
@@ -1104,6 +1108,7 @@ $warehouseTooltip = '';
             const exportDropdownButton = document.getElementById('exportDropdownButton');
             const exportDropdown = document.getElementById('exportDropdown');
             const exportExcelButton = document.getElementById('exportExcelButton');
+            const exportPDFButton = document.getElementById('exportPDFButton');
             const exportFDFButton = document.getElementById('exportFDFButton');
 
             // Toggle dropdown on button click
@@ -1173,12 +1178,19 @@ $warehouseTooltip = '';
                 exportDropdown.classList.add('hidden');
             });
 
-            exportFDFButton.addEventListener('click', function() {
+            exportPDFButton.addEventListener('click', function() {
                 const params = getCurrentFiltersParams();
-                const url = '/materials/export/fdf' + (params ? '?' + params : '');
+                const url = '/materials/export/pdf' + (params ? '?' + params : '');
                 window.location.href = url;
                 exportDropdown.classList.add('hidden');
             });
+
+            // exportFDFButton.addEventListener('click', function() {
+            //     const params = getCurrentFiltersParams();
+            //     const url = '/materials/export/fdf' + (params ? '?' + params : '');
+            //     window.location.href = url;
+            //     exportDropdown.classList.add('hidden');
+            // });
         });
 
         // Import form functionality

@@ -186,6 +186,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
 
     // Materials export routes
     Route::get('materials/export/excel', [MaterialController::class, 'exportExcel'])->name('materials.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.export');
+    Route::get('materials/export/pdf', [MaterialController::class, 'exportPDF'])->name('materials.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.export');
     Route::get('materials/export/fdf', [MaterialController::class, 'exportFDF'])->name('materials.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.export');
 
     // Materials image management
