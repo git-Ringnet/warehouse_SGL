@@ -45,7 +45,7 @@ return [
          * Times-Roman, Times-Bold, Times-BoldItalic, Times-Italic,
          * Symbol, ZapfDingbats.
          */
-        'font_dir' => storage_path('fonts'), // advised by dompdf (https://github.com/dompdf/dompdf/pull/782)
+        'font_dir' => storage_path('fonts'),
 
         /**
          * The location of the DOMPDF font cache directory
@@ -110,7 +110,7 @@ return [
         /**
          * Whether to enable font subsetting or not.
          */
-        'enable_font_subsetting' => false,
+        'enable_font_subsetting' => true,
 
         /**
          * The PDF rendering backend to use
@@ -179,7 +179,7 @@ return [
          *
          * @var string
          */
-        'default_font' => 'serif',
+        'default_font' => 'DejaVu Sans',
 
         /**
          * Image DPI setting
@@ -267,7 +267,7 @@ return [
          *
          * @var bool
          */
-        'enable_remote' => false,
+        'enable_remote' => true,
 
         /**
          * List of allowed remote hosts
@@ -295,7 +295,62 @@ return [
          *
          * @var bool
          */
-        'enable_html5_parser' => true,
+        'is_html5_parser_enabled' => true,
+
+        /**
+         * Enable embedded PHP
+         *
+         * If this setting is set to true then DOMPDF will automatically evaluate embedded PHP contained
+         * within <script type="text/php"> ... </script> tags.
+         *
+         * ==== IMPORTANT ==== Enabling this for documents you do not trust (e.g. arbitrary remote html pages)
+         * is a security risk.
+         * Embedded scripts are run with the same level of system access available to dompdf.
+         * Set this option to false (recommended) if you wish to process untrusted documents.
+         * This setting may increase the risk of system exploit.
+         * Do not change this settings without understanding the consequences.
+         * Additional documentation is available on the dompdf wiki at:
+         * https://github.com/dompdf/dompdf/wiki
+         *
+         * @var bool
+         */
+        'is_php_enabled' => true,
+
+        /**
+         * Enable remote file access
+         *
+         *  If this setting is set to true, DOMPDF will access remote sites for
+         *  images and CSS files as required.
+         *
+         *  ==== IMPORTANT ====
+         *  This can be a security risk, in particular in combination with isPhpEnabled and
+         *  allowing remote html code to be passed to $dompdf = new DOMPDF(); $dompdf->load_html(...);
+         *  This allows anonymous users to download legally doubtful internet content which on
+         *  tracing back appears to being downloaded by your server, or allows malicious php code
+         *  in remote html pages to be executed by your server with your account privileges.
+         *
+         *  This setting may increase the risk of system exploit. Do not change
+         *  this settings without understanding the consequences. Additional
+         *  documentation is available on the dompdf wiki at:
+         *  https://github.com/dompdf/dompdf/wiki
+         *
+         * @var bool
+         */
+        'is_remote_enabled' => true,
+
+        /**
+         * Whether to enable font subsetting or not.
+         */
+        'isFontSubsettingEnabled' => true,
+
+        /**
+         * The default font family
+         *
+         * Used if no suitable fonts can be found. This must exist in the font folder.
+         *
+         * @var string
+         */
+        'defaultFont' => 'DejaVu Sans',
     ],
 
 ];

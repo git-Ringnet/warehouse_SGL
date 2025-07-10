@@ -81,7 +81,7 @@
                                         <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
                                             Đang hoạt động
                                         </span>
-                                        @if (Auth::id() !== $employee->id)
+                                        @if (Auth::id() !== $employee->id && !$employee->roleGroup->is_super_admin)
                                         <form action="{{ route('employees.toggle-status', $employee->id) }}" method="POST" class="ml-2">
                                             @csrf
                                             @method('PUT')
@@ -98,7 +98,7 @@
                                         <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
                                             Đã khóa
                                         </span>
-                                        @if (Auth::id() !== $employee->id)
+                                        @if (Auth::id() !== $employee->id && !$employee->roleGroup->is_super_admin)
                                         <form action="{{ route('employees.toggle-status', $employee->id) }}" method="POST" class="ml-2">
                                             @csrf
                                             @method('PUT')

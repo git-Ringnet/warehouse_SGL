@@ -189,7 +189,7 @@
                                         </a>
                                     @endif
 
-                                    @if ($canToggleStatus && $employee->id !== Auth::id())
+                                    @if ($canToggleStatus && $employee->id !== Auth::id() && (!$employee->roleGroup || !$employee->roleGroup->is_super_admin))
                                         <form action="{{ route('employees.toggle-status', $employee->id) }}" method="POST" class="inline">
                                             @csrf
                                             @method('PUT')
