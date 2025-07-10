@@ -61,7 +61,7 @@
                             <div>
                                 <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại hàng hóa
                                     <span class="text-red-500">*</span></label>
-                                <div class="flex">
+                                <div class="flex relative">
                                     <select id="category" name="category" required
                                         class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">Chọn loại hàng hóa</option>
@@ -69,6 +69,10 @@
                                             <option value="{{ $category }}">{{ $category }}</option>
                                         @endforeach
                                     </select>
+                                    <button type="button" id="clearCategoryBtn"
+                                        class="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden mx-2">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                     <button type="button" id="addCategoryBtn"
                                         class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
                                         <i class="fas fa-plus"></i>
@@ -161,7 +165,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn
                                 kho</label>
                             <div class="space-y-2">
-                                @foreach (App\Models\Warehouse::orderBy('name')->where('status','active')->where('is_hidden', 0)->get() as $warehouse)
+                                @foreach (App\Models\Warehouse::orderBy('name')->where('status', 'active')->where('is_hidden', 0)->get() as $warehouse)
                                     <div class="flex items-center">
                                         <input type="checkbox" id="warehouse_{{ $warehouse->id }}"
                                             name="inventory_warehouses[]" value="{{ $warehouse->id }}"
@@ -322,58 +326,61 @@
                 });
             });
 
-                        // Auto-add supplier from dropdown when form is submitted
+            // Auto-add supplier from dropdown when form is submitted
             const form = document.querySelector('form');
             form.addEventListener('submit', function(e) {
                 // First, check if we have any suppliers selected
                 const existingSuppliers = document.querySelectorAll('input[name="supplier_ids[]"]');
                 const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
-                
+
                 let hasSupplier = existingSuppliers.length > 0 || selectedOption.value !== '';
-                
+
                 // If no suppliers at all, prevent submission and show error
                 if (!hasSupplier) {
                     e.preventDefault();
-                    
+
                     // Remove any existing error message
                     const existingError = document.getElementById('supplier-error');
                     if (existingError) {
                         existingError.remove();
                     }
-                    
+
                     // Show error message
                     const errorDiv = document.createElement('div');
                     errorDiv.id = 'supplier-error';
                     errorDiv.className = 'text-red-500 text-sm mt-1';
                     errorDiv.textContent = 'Vui lòng chọn ít nhất một nhà cung cấp';
-                    
+
                     // Insert error message after supplier section
                     const supplierSection = document.querySelector('label[for="supplier"]').parentElement;
                     supplierSection.appendChild(errorDiv);
-                    
+
                     // Scroll to supplier section
-                    supplierSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    supplierSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
                     return false;
                 }
-                
+
                 // Remove error message if validation passes
                 const existingError = document.getElementById('supplier-error');
                 if (existingError) {
                     existingError.remove();
                 }
-                
+
                 // Auto-add supplier from dropdown if selected
                 if (selectedOption.value !== '') {
                     // Check if this supplier is already added
                     let alreadyExists = false;
-                    
+
                     for (const existingSupplier of existingSuppliers) {
                         if (existingSupplier.value === selectedOption.value) {
                             alreadyExists = true;
                             break;
                         }
                     }
-                    
+
                     // If not already added, create hidden input to include in form submission
                     if (!alreadyExists) {
                         const hiddenInput = document.createElement('input');
@@ -383,6 +390,31 @@
                         form.appendChild(hiddenInput);
                     }
                 }
+            });
+
+            // Handle category clear button
+            const categorySelect = document.getElementById('category');
+            const clearCategoryBtn = document.getElementById('clearCategoryBtn');
+
+            categorySelect.addEventListener('change', function() {
+                if (this.value) {
+                    clearCategoryBtn.classList.remove('hidden');
+                } else {
+                    clearCategoryBtn.classList.add('hidden');
+                }
+            });
+
+            clearCategoryBtn.addEventListener('click', function() {
+                const selectedValue = categorySelect.value;
+
+                // Tìm option có value tương ứng và ẩn nó
+                const selectedOption = categorySelect.querySelector(`option[value="${selectedValue}"]`);
+                if (selectedOption) {
+                    selectedOption.style.display = 'none'; // hoặc dùng hidden = true
+                }
+
+                categorySelect.value = '';
+                clearCategoryBtn.classList.add('hidden');
             });
         });
     </script>

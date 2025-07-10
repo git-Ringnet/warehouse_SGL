@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class GoodController extends Controller
 {
@@ -53,7 +54,7 @@ class GoodController extends Controller
         }
 
         // Get goods
-        $goods = $query->get();
+        $goods = $query->orderBy('id', 'desc')->paginate(10);
 
         // Initialize grand totals
         $grandTotalQuantity = 0;
@@ -125,14 +126,31 @@ class GoodController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'code' => 'required|unique:goods,code',
-            'name' => 'required',
-            'category' => 'required',
-            'unit' => 'required',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'inventory_warehouses' => 'nullable',
-        ]);
+        $request->validate(
+            [
+                'code' => [
+                    'required',
+                    \Illuminate\Validation\Rule::unique('goods')->where(function ($query) {
+                        return $query->where('status', '!=', 'deleted');
+                    })
+                ],
+                'name' => 'required',
+                'category' => 'required',
+                'unit' => 'required',
+                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'inventory_warehouses' => 'nullable',
+            ],
+            [
+                'code.required' => 'Mã hàng hóa không được để trống.',
+                'code.unique' => 'Mã hàng hóa đã tồn tại.',
+                'name.required' => 'Tên hàng hóa không được để trống.',
+                'category.required' => 'Vui lòng chọn loại hàng hóa.',
+                'unit.required' => 'Vui lòng chọn đơn vị tính.',
+                'images.*.image' => 'Tệp không hợp lệ. Vui lòng chọn ảnh.',
+                'images.*.mimes' => 'Tệp không hợp lệ. Vui lòng chọn ảnh JPEG, PNG, JPG hoặc GIF.',
+                'images.*.max' => 'Tệp không hợp lệ. Vui lòng chọn ảnh có kích thước nhỏ hơn 2MB.',
+            ]
+        );
 
         $goodData = $request->except(['images', 'image', 'supplier_ids']);
 
@@ -235,16 +253,33 @@ class GoodController extends Controller
      */
     public function update(Request $request, Good $good)
     {
-        $request->validate([
-            'code' => 'required|unique:goods,code,' . $good->id,
-            'name' => 'required',
-            'category' => 'required',
-            'unit' => 'required',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'inventory_warehouses' => 'nullable',
-            'supplier_ids' => 'nullable|array',
-            'supplier_ids.*' => 'exists:suppliers,id'
-        ]);
+        $request->validate(
+            [
+                'code' => [
+                    'required',
+                    \Illuminate\Validation\Rule::unique('goods')->where(function ($query) {
+                        return $query->where('status', '!=', 'deleted');
+                    })->ignore($good->id)
+                ],
+                'name' => 'required',
+                'category' => 'required',
+                'unit' => 'required',
+                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'inventory_warehouses' => 'nullable',
+                'supplier_ids' => 'nullable|array',
+                'supplier_ids.*' => 'exists:suppliers,id'
+            ],
+            [
+                'code.required' => 'Mã hàng hóa không được để trống.',
+                'code.unique' => 'Mã hàng hóa đã tồn tại.',
+                'name.required' => 'Tên hàng hóa không được để trống.',
+                'category.required' => 'Vui lòng chọn loại hàng hóa.',
+                'unit.required' => 'Vui lòng chọn đơn vị tính.',
+                'images.*.image' => 'Tệp không hợp lệ. Vui lòng chọn ảnh.',
+                'images.*.mimes' => 'Tệp không hợp lệ. Vui lòng chọn ảnh JPEG, PNG, JPG hoặc GIF.',
+                'images.*.max' => 'Tệp không hợp lệ. Vui lòng chọn ảnh có kích thước nhỏ hơn 2MB.',
+            ]
+        );
 
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $good->toArray();
@@ -431,7 +466,7 @@ class GoodController extends Controller
      */
     public function showHidden()
     {
-        $goods = Good::where('is_hidden', true)->get();
+        $goods = Good::where('is_hidden', true)->paginate(10);
 
         // For each good, calculate quantities from warehouse_materials
         foreach ($goods as $good) {
@@ -450,7 +485,7 @@ class GoodController extends Controller
      */
     public function showDeleted()
     {
-        $goods = Good::where('status', 'deleted')->get();
+        $goods = Good::where('status', 'deleted')->paginate(10);
 
         // For each good, calculate quantities from warehouse_materials
         foreach ($goods as $good) {
@@ -598,6 +633,94 @@ trailer
         return response($fdf)
             ->header('Content-Type', 'application/vnd.fdf')
             ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+    }
+
+    /**
+     * Export goods to PDF
+     */
+    public function exportPDF(Request $request)
+    {
+        // Build the query with filters
+        $query = Good::where('status', 'active')
+            ->where('is_hidden', false);
+
+        // Apply filters
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('code', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        if ($request->has('category') && !empty($request->category)) {
+            $query->where('category', $request->category);
+        }
+
+        if ($request->has('unit') && !empty($request->unit)) {
+            $query->where('unit', $request->unit);
+        }
+
+        // Get goods with supplier relationship
+        $goods = $query->with('suppliers')->get();
+
+        // Filter by stock status if needed
+        if ($request->has('stock')) {
+            $filteredGoods = collect();
+
+            foreach ($goods as $good) {
+                $inventoryQuantity = $good->getInventoryQuantity();
+                $good->inventory_quantity = $inventoryQuantity;
+
+                if ($request->stock === 'in_stock' && $inventoryQuantity > 0) {
+                    $filteredGoods->push($good);
+                } else if ($request->stock === 'out_of_stock' && $inventoryQuantity <= 0) {
+                    $filteredGoods->push($good);
+                }
+            }
+
+            $goods = $filteredGoods;
+        } else {
+            // Calculate inventory quantity for each good
+            foreach ($goods as $good) {
+                $inventoryQuantity = $good->getInventoryQuantity();
+                $good->inventory_quantity = $inventoryQuantity;
+            }
+        }
+
+        // Get filter information to display on the PDF
+        $filterInfo = [];
+        if ($request->has('search') && !empty($request->search)) {
+            $filterInfo[] = 'Từ khóa: "' . $request->search . '"';
+        }
+        if ($request->has('category') && !empty($request->category)) {
+            $filterInfo[] = 'Loại: ' . $request->category;
+        }
+        if ($request->has('unit') && !empty($request->unit)) {
+            $filterInfo[] = 'Đơn vị: ' . $request->unit;
+        }
+        if ($request->has('stock')) {
+            $filterInfo[] = 'Tồn kho: ' . ($request->stock === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho');
+        }
+
+        // Generate PDF
+        $pdf = Pdf::loadView('goods.pdf', [
+            'goods' => $goods,
+            'filterInfo' => $filterInfo,
+            'totalCount' => $goods->count()
+        ]);
+        
+        // Custom PDF settings
+        $pdf->setPaper('a4', 'landscape');
+        
+        // Generate file name
+        $fileName = 'danh_sach_hang_hoa_' . date('YmdHis') . '.pdf';
+        
+        // Download the file
+        return $pdf->download($fileName);
     }
 
     /**

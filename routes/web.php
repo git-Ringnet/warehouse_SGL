@@ -693,6 +693,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
 
     Route::get('/goods/export/excel', [GoodController::class, 'exportExcel'])->name('goods.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.export');
     Route::get('/goods/export/fdf', [GoodController::class, 'exportFDF'])->name('goods.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.export');
+    Route::get('/goods/export/pdf', [GoodController::class, 'exportPDF'])->name('goods.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.export');
     Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate'])->name('goods.template.download')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
     Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
     Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');

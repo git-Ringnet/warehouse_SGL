@@ -668,7 +668,7 @@
         </div>
 
         <!-- Modal xem hình ảnh -->
-        <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 z-[9999] hidden flex items-center justify-center">
             <div class="bg-white rounded-lg max-w-3xl max-h-[90%] overflow-auto">
                 <div class="flex justify-between items-center p-4 border-b">
                     <h3 class="text-lg font-semibold">Xem hình ảnh</h3>

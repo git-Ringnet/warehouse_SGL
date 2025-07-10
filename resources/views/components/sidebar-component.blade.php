@@ -449,7 +449,7 @@
 <!-- Top Header Bar -->
 <header
     class="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center fixed top-0 right-0 left-0 z-40"
-    style="left: 256px; z-index: 9999 !important;">
+    style="left: 256px; z-index: 45 !important;">
     <div class="flex items-center">
         <h1 class="text-xl font-bold text-gray-800 dark:text-white opacity-0" id="page-title">
         </h1>

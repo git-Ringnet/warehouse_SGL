@@ -159,10 +159,14 @@
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-excel text-green-500 mr-2"></i> Xuất Excel
                                     </button>
-                                    <button id="exportFDFButton"
+                                    <button id="exportPDFButton"
+                                        class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
+                                        <i class="fas fa-file-pdf text-red-500 mr-2"></i> Xuất PDF
+                                    </button>
+                                    {{-- <button id="exportFDFButton"
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-code text-blue-500 mr-2"></i> Xuất FDF
-                                    </button>
+                                    </button> --}}
                                 </div>
                             </div>
                         </div>
@@ -318,6 +322,9 @@
                         @endif
                     </tbody>
                 </table>
+            </div>
+            <div class="mt-4">
+                {{ $goods->links() }}
             </div>
         </main>
     </div>
@@ -931,12 +938,21 @@
 
             // Export functionality
             const exportExcelButton = document.getElementById('exportExcelButton');
+            const exportPDFButton = document.getElementById('exportPDFButton');
             const exportFDFButton = document.getElementById('exportFDFButton');
 
             if (exportExcelButton) {
                 exportExcelButton.addEventListener('click', function() {
                     // Add current filters to the export URL
                     let exportUrl = new URL("{{ route('goods.export.excel') }}", window.location.origin);
+                    addFiltersToUrl(exportUrl);
+                    window.location.href = exportUrl.toString();
+                });
+            }
+
+            if (exportPDFButton) {
+                exportPDFButton.addEventListener('click', function() {
+                    let exportUrl = new URL("{{ route('goods.export.pdf') }}", window.location.origin);
                     addFiltersToUrl(exportUrl);
                     window.location.href = exportUrl.toString();
                 });

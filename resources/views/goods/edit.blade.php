@@ -68,7 +68,7 @@
                             <div>
                                 <label for="category" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
                                     hàng hóa <span class="text-red-500">*</span></label>
-                                <div class="flex">
+                                <div class="flex relative">
                                     <select id="category" name="category" required
                                         class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                         <option value="">Chọn loại hàng hóa</option>
@@ -78,6 +78,10 @@
                                                 {{ $category }}</option>
                                         @endforeach
                                     </select>
+                                    <button type="button" id="clearCategoryBtn"
+                                        class="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden mx-2">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                     <button type="button" id="addCategoryBtn"
                                         class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
                                         <i class="fas fa-plus"></i>
@@ -154,7 +158,8 @@
                                     </option>
                                     <option value="Bộ" {{ ($good->unit ?? '') == 'Bộ' ? 'selected' : '' }}>Bộ
                                     </option>
-                                    <option value="Chiếc" {{ ($good->unit ?? '') == 'Chiếc' ? 'selected' : '' }}>Chiếc
+                                    <option value="Chiếc" {{ ($good->unit ?? '') == 'Chiếc' ? 'selected' : '' }}>
+                                        Chiếc
                                     </option>
                                     <option value="Mét" {{ ($good->unit ?? '') == 'Mét' ? 'selected' : '' }}>Mét
                                     </option>
@@ -230,7 +235,7 @@
                             <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn
                                 kho</label>
                             <div class="space-y-2">
-                                @foreach (App\Models\Warehouse::orderBy('name')->where('status','active')->where('is_hidden', 0)->get() as $warehouse)
+                                @foreach (App\Models\Warehouse::orderBy('name')->where('status', 'active')->where('is_hidden', 0)->get() as $warehouse)
                                     @php
                                         $isSelected =
                                             isset($good) &&
@@ -486,6 +491,36 @@
                         form.appendChild(hiddenInput);
                     }
                 }
+            });
+
+            // Handle category clear button
+            const categorySelect = document.getElementById('category');
+            const clearCategoryBtn = document.getElementById('clearCategoryBtn');
+
+            // Show clear button initially if category is selected
+            if (categorySelect.value) {
+                clearCategoryBtn.classList.remove('hidden');
+            }
+
+            categorySelect.addEventListener('change', function() {
+                if (this.value) {
+                    clearCategoryBtn.classList.remove('hidden');
+                } else {
+                    clearCategoryBtn.classList.add('hidden');
+                }
+            });
+
+            clearCategoryBtn.addEventListener('click', function() {
+                const selectedValue = categorySelect.value;
+
+                // Tìm option có value tương ứng và ẩn nó
+                const selectedOption = categorySelect.querySelector(`option[value="${selectedValue}"]`);
+                if (selectedOption) {
+                    selectedOption.style.display = 'none'; // hoặc dùng hidden = true
+                }
+
+                categorySelect.value = '';
+                clearCategoryBtn.classList.add('hidden');
             });
         });
     </script>

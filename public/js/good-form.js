@@ -61,8 +61,15 @@ function initializeCategoryManagement() {
             if (!categoryExists) {
                 const newOption = document.createElement('option');
                 newOption.value = newCategoryName;
-                newOption.textContent = newCategoryName;
-                categorySelect.appendChild(newOption);
+                newOption.text = newCategoryName;
+                categorySelect.add(newOption);
+
+                // Select the new/existing category
+                categorySelect.value = newCategoryName;
+
+                // Reset form and close modal
+                document.getElementById('newCategoryName').value = '';
+                addCategoryModal.classList.add('hidden');
             }
             
             // Select the new/existing category

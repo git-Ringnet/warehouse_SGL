@@ -20,11 +20,11 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết vật tư</h1>
             </div>
             <div class="flex space-x-2">
-                @if($material->status !== 'deleted' && !$material->is_hidden)
-                <a href="{{ route('materials.edit', $material->id) }}"
-                    class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-edit mr-2"></i> Chỉnh sửa
-                </a>
+                @if ($material->status !== 'deleted' && !$material->is_hidden)
+                    <a href="{{ route('materials.edit', $material->id) }}"
+                        class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <i class="fas fa-edit mr-2"></i> Chỉnh sửa
+                    </a>
                 @endif
                 <a href="{{ route('materials.index') }}"
                     class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
@@ -46,10 +46,13 @@
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
                                 <h2 class="text-2xl font-bold text-gray-800">{{ $material->name }}
-                                    @if($material->status === 'deleted')
-                                        <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Đã xóa</span>
+                                    @if ($material->status === 'deleted')
+                                        <span class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Đã
+                                            xóa</span>
                                     @elseif($material->is_hidden)
-                                        <span class="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Đã ẩn</span>
+                                        <span
+                                            class="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">Đã
+                                            ẩn</span>
                                     @endif
                                 </h2>
                                 <p class="text-gray-600 mt-1">Mã vật tư: {{ $material->code }}</p>
@@ -97,11 +100,12 @@
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>
                         <div class="text-gray-900">
-                            @if($material->suppliers->count() > 0)
-                                @foreach($material->suppliers as $supplier)
+                            @if ($material->suppliers->count() > 0)
+                                @foreach ($material->suppliers as $supplier)
                                     <div class="flex items-center mb-1">
                                         <i class="fas fa-building text-gray-400 mr-2"></i>
-                                        <a href="{{ route('suppliers.show', $supplier->id) }}" class="text-blue-600 hover:underline">
+                                        <a href="{{ route('suppliers.show', $supplier->id) }}"
+                                            class="text-blue-600 hover:underline">
                                             {{ $supplier->name }}
                                         </a>
                                     </div>
@@ -159,8 +163,9 @@
                             @foreach ($material->images as $image)
                                 <div class="w-32 h-32">
                                     <img src="{{ asset('storage/' . $image->image_path) }}"
+                                        onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}')"
                                         alt="{{ $material->name }}"
-                                        class="w-full h-full object-cover rounded-lg border border-gray-200">
+                                        class="w-full h-full object-cover rounded-lg border border-gray-200 cursor-pointer">
                                 </div>
                             @endforeach
                         </div>
@@ -174,13 +179,14 @@
                     </div>
                 @endif
 
-                @if($material->status !== 'deleted' && !$material->is_hidden)
-                <div class="mt-6 flex justify-end">
-                    <button onclick="openDeleteModal('{{ $material->id }}', '{{ $material->code }}', {{ $inventoryQuantity }})"
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
-                        <i class="fas fa-trash mr-2"></i> Xóa vật tư
-                    </button>
-                </div>
+                @if ($material->status !== 'deleted' && !$material->is_hidden)
+                    <div class="mt-6 flex justify-end">
+                        <button
+                            onclick="openDeleteModal('{{ $material->id }}', '{{ $material->code }}', {{ $inventoryQuantity }})"
+                            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
+                            <i class="fas fa-trash mr-2"></i> Xóa vật tư
+                        </button>
+                    </div>
                 @endif
             </div>
         </main>
@@ -190,7 +196,8 @@
     <div id="deleteModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
             <h3 class="text-lg font-bold text-gray-900 mb-4">Không thể xóa</h3>
-            <p class="text-red-700 mb-6">Không thể xóa vật tư <span id="materialCode" class="font-semibold"></span> vì còn tồn kho: <span id="inventoryQuantity" class="font-semibold"></span></p>
+            <p class="text-red-700 mb-6">Không thể xóa vật tư <span id="materialCode" class="font-semibold"></span> vì
+                còn tồn kho: <span id="inventoryQuantity" class="font-semibold"></span></p>
             <div class="flex justify-end">
                 <button type="button"
                     class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
@@ -202,17 +209,20 @@
     </div>
 
     <!-- Modal xóa khi inventory = 0 -->
-    <div id="deleteZeroInventoryModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div id="deleteZeroInventoryModal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-lg w-full">
             <h3 class="text-lg font-bold text-gray-900 mb-4">Xác nhận thao tác</h3>
-            <p class="text-gray-700 mb-6">Thao tác xóa có thể làm mất dữ liệu. Bạn muốn xác nhận ngừng sử dụng và ẩn hạng mục này thay cho việc xóa?</p>
+            <p class="text-gray-700 mb-6">Thao tác xóa có thể làm mất dữ liệu. Bạn muốn xác nhận ngừng sử dụng và ẩn
+                hạng mục này thay cho việc xóa?</p>
             <div class="flex justify-end space-x-3">
                 <button type="button"
                     class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
                     onclick="closeDeleteZeroInventoryModal()">
                     Hủy
                 </button>
-                <form id="hideForm" action="{{ route('materials.destroy', $material->id) }}" method="POST" class="inline">
+                <form id="hideForm" action="{{ route('materials.destroy', $material->id) }}" method="POST"
+                    class="inline">
                     @csrf
                     @method('DELETE')
                     <input type="hidden" name="action" value="hide">
@@ -221,7 +231,8 @@
                         Có (Ẩn hạng mục)
                     </button>
                 </form>
-                <form id="deleteForm" action="{{ route('materials.destroy', $material->id) }}" method="POST" class="inline">
+                <form id="deleteForm" action="{{ route('materials.destroy', $material->id) }}" method="POST"
+                    class="inline">
                     @csrf
                     @method('DELETE')
                     <input type="hidden" name="action" value="delete">
@@ -234,13 +245,23 @@
         </div>
     </div>
 
+    <!-- Modal xem ảnh lớn -->
+    <div id="imageModal"
+        class="fixed inset-0 bg-black bg-opacity-90 z-[9999] hidden flex items-center justify-center">
+        <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="largeImage" src="" alt="Ảnh lớn" class="max-w-4xl max-h-[80vh] object-contain">
+    </div>
+
     <script>
         function openDeleteModal(materialId, materialCode, inventoryQuantity) {
             if (inventoryQuantity > 0) {
                 // Show inventory warning modal
                 document.getElementById('materialCode').textContent = materialCode;
-                document.getElementById('inventoryQuantity').textContent = new Intl.NumberFormat('vi-VN').format(inventoryQuantity);
-            document.getElementById('deleteModal').classList.remove('hidden');
+                document.getElementById('inventoryQuantity').textContent = new Intl.NumberFormat('vi-VN').format(
+                    inventoryQuantity);
+                document.getElementById('deleteModal').classList.remove('hidden');
             } else {
                 // Show confirmation modal for zero inventory
                 document.getElementById('deleteZeroInventoryModal').classList.remove('hidden');
@@ -254,6 +275,27 @@
         function closeDeleteZeroInventoryModal() {
             document.getElementById('deleteZeroInventoryModal').classList.add('hidden');
         }
+
+        function openImageModal(imageUrl) {
+            const modal = document.getElementById('imageModal');
+            const largeImage = document.getElementById('largeImage');
+
+            largeImage.src = imageUrl;
+            modal.classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+        }
+
+        // Add escape key listener for modals
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDeleteModal();
+                closeDeleteZeroInventoryModal();
+                closeImageModal();
+            }
+        });
     </script>
 </body>
 

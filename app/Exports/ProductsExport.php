@@ -17,12 +17,12 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
     protected $filters;
-    
+
     public function __construct($filters = [])
     {
         $this->filters = $filters;
     }
-    
+
     /**
      * @return \Illuminate\Support\Collection
      */
@@ -30,15 +30,15 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
     {
         // Start with base query for active products that are not hidden
         $query = Product::where('status', 'active')
-            ->where('is_hidden', false);
+            ->where('is_hidden', 0);
 
         // Apply filters if provided
         if (!empty($this->filters['search'])) {
             $searchTerm = $this->filters['search'];
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
             });
         }
 
@@ -46,8 +46,8 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
             // We'll filter by stock after calculating quantities
         }
 
-        $products = $query->get();
-        
+        $products = $query->orderBy('id', 'desc')->get();
+
         // Calculate quantities for each product
         foreach ($products as $product) {
             // Get inventory quantity from warehouse_materials table
@@ -59,19 +59,19 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
         // Apply stock filter after calculating quantities
         if (!empty($this->filters['stock'])) {
             if ($this->filters['stock'] === 'in_stock') {
-                $products = $products->filter(function($product) {
+                $products = $products->filter(function ($product) {
                     return $product->inventory_quantity > 0;
                 });
             } elseif ($this->filters['stock'] === 'out_of_stock') {
-                $products = $products->filter(function($product) {
+                $products = $products->filter(function ($product) {
                     return $product->inventory_quantity == 0;
                 });
             }
         }
-        
+
         return $products;
     }
-    
+
     /**
      * @return array
      */
@@ -81,13 +81,10 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
             'STT',
             'Mã thành phẩm',
             'Tên thành phẩm',
-            'Mô tả',
             'Tổng tồn kho',
-            'Ngày tạo',
-            'Cập nhật lần cuối'
         ];
     }
-    
+
     /**
      * @param mixed $product
      * @return array
@@ -96,18 +93,15 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
     {
         static $counter = 0;
         $counter++;
-        
+
         return [
             $counter,
             $product->code,
             $product->name,
-            $product->description ?? '',
             number_format($product->inventory_quantity, 0, ',', '.'),
-            $product->created_at ? $product->created_at->format('d/m/Y H:i') : '',
-            $product->updated_at ? $product->updated_at->format('d/m/Y H:i') : ''
         ];
     }
-    
+
     /**
      * @param Worksheet $sheet
      * @return array
@@ -117,7 +111,7 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
         // Get the highest row and column
         $highestRow = $sheet->getHighestRow();
         $highestColumn = $sheet->getHighestColumn();
-        
+
         return [
             // Header row styling
             1 => [
@@ -134,7 +128,7 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
                     'vertical' => Alignment::VERTICAL_CENTER,
                 ]
             ],
-            
+
             // All cells border and alignment
             "A1:{$highestColumn}{$highestRow}" => [
                 'borders' => [
@@ -148,21 +142,21 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
                     'wrapText' => true,
                 ]
             ],
-            
+
             // STT column center alignment
             "A:A" => [
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                 ]
             ],
-            
+
             // Quantity column right alignment
             "E:E" => [
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_RIGHT,
                 ]
             ],
-            
+
             // Date columns center alignment
             "F:G" => [
                 'alignment' => [
@@ -171,4 +165,4 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
             ]
         ];
     }
-} 
+}

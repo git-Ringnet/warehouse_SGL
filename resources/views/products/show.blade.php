@@ -249,7 +249,7 @@
     </div>
 
     <!-- Image Modal -->
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] hidden">
         <div class="max-w-4xl max-h-full p-4">
             <div class="relative">
                 <img id="modalImage" src="" alt="" class="max-w-full max-h-full rounded-lg">

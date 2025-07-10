@@ -37,7 +37,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        $products = $query->orderBy('id', 'desc')->paginate(10);
 
         // Add inventory quantity to each product
         foreach ($products as $product) {

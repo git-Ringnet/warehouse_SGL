@@ -127,6 +127,9 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="mt-4">
+                    {{ $goods->links() }}
+                </div>
             @else
                 <div class="bg-white rounded-xl shadow-md p-8 text-center">
                     <i class="fas fa-trash text-6xl text-gray-300 mb-4"></i>
