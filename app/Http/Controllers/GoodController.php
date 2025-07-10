@@ -665,7 +665,7 @@ trailer
         }
 
         // Get goods with supplier relationship
-        $goods = $query->with('suppliers')->get();
+        $goods = $query->with('suppliers')->orderBy('id', 'desc')->get();
 
         // Filter by stock status if needed
         if ($request->has('stock')) {
