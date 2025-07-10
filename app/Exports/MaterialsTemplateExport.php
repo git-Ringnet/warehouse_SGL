@@ -24,6 +24,7 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
                 'Linh kiện',
                 'Cái',
                 'Ghi chú mẫu',
+                'all',
                 'all'
             ],
             [
@@ -32,7 +33,8 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
                 'Vật tư',
                 'Mét',
                 'Ống nhựa chất lượng cao',
-                'all'
+                '1',
+                'WH001'
             ],
             [
                 'VT003',
@@ -40,7 +42,8 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
                 'Điện',
                 'Mét', 
                 'Dây điện chất lượng cao',
-                'all'
+                '2,3',
+                'WH001,WH002'
             ]
         ];
     }
@@ -53,6 +56,7 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
             'Loại vật tư (*)',
             'Đơn vị (*)',
             'Ghi chú',
+            'Nhà cung cấp',
             'Kho tính tồn kho'
         ];
     }
@@ -60,7 +64,7 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
     public function styles(Worksheet $sheet)
     {
         // Style for header row
-        $sheet->getStyle('A1:F1')->applyFromArray([
+        $sheet->getStyle('A1:G1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF']
@@ -82,7 +86,7 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
         ]);
 
         // Style for data rows
-        $sheet->getStyle('A2:F4')->applyFromArray([
+        $sheet->getStyle('A2:G4')->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
@@ -101,8 +105,9 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
         $sheet->setCellValue('A9', '• Tên vật tư: Tối đa 255 ký tự');
         $sheet->setCellValue('A10', '• Loại vật tư: Ví dụ: Linh kiện, Vật tư, Điện, Hóa chất...');
         $sheet->setCellValue('A11', '• Đơn vị: Ví dụ: Cái, Bộ, Chiếc, Mét, Cuộn, Kg...');
-        $sheet->setCellValue('A12', '• Kho tính tồn kho: Để "all" để tính tất cả kho hoặc để trống');
-        $sheet->setCellValue('A13', '• Xóa các dòng mẫu này trước khi import');
+        $sheet->setCellValue('A12', '• Nhà cung cấp: Nhập STT nhà cung cấp (VD: 1,2,3), "all" cho tất cả, để trống nếu không chọn');
+        $sheet->setCellValue('A13', '• Kho tính tồn kho: Nhập mã kho (VD: WH001,WH002) hoặc "all" cho tất cả kho');
+        $sheet->setCellValue('A14', '• Xóa các dòng mẫu này trước khi import');
 
         // Style instructions
         $sheet->getStyle('A6')->applyFromArray([
@@ -113,7 +118,7 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
             ]
         ]);
 
-        $sheet->getStyle('A7:A13')->applyFromArray([
+        $sheet->getStyle('A7:A14')->applyFromArray([
             'font' => [
                 'color' => ['rgb' => '666666'],
                 'size' => 10
@@ -131,7 +136,8 @@ class MaterialsTemplateExport implements FromArray, WithHeadings, WithStyles, Wi
             'C' => 15,  // Loại vật tư
             'D' => 12,  // Đơn vị
             'E' => 25,  // Ghi chú
-            'F' => 15,  // Kho tính tồn kho
+            'F' => 15,  // Nhà cung cấp
+            'G' => 15,  // Kho tính tồn kho
         ];
     }
 
