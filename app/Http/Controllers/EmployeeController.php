@@ -433,64 +433,56 @@ class EmployeeController extends Controller
     public function exportPDF(Request $request)
     {
         try {
+            // Build the query with filters
             $query = Employee::query();
 
-            // Apply filters if provided
-            if ($request->filled('search')) {
+            // Apply filters
+            if ($request->has('search') && !empty($request->search)) {
                 $searchTerm = $request->search;
-                
-                if ($request->filled('filter')) {
-                    switch ($request->filter) {
-                        case 'username':
-                            $query->where('username', 'like', "%{$searchTerm}%");
-                            break;
-                        case 'name':
-                            $query->where('name', 'like', "%{$searchTerm}%");
-                            break;
-                        case 'phone':
-                            $query->where('phone', 'like', "%{$searchTerm}%");
-                            break;
-                        case 'email':
-                            $query->where('email', 'like', "%{$searchTerm}%");
-                            break;
-                        case 'department':
-                            $query->where('department', 'like', "%{$searchTerm}%");
-                            break;
-                        case 'role':
-                            $query->whereHas('roleGroup', function($q) use ($searchTerm) {
-                                $q->where('name', 'like', "%{$searchTerm}%");
-                            });
-                            break;
-                        case 'status':
-                            if (strtolower($searchTerm) === 'active' || strtolower($searchTerm) === 'hoạt động') {
-                                $query->where('is_active', true);
-                            } else {
-                                $query->where('is_active', false);
-                            }
-                            break;
-                    }
-                } else {
-                    $query->where(function($q) use ($searchTerm) {
-                        $q->where('username', 'like', "%{$searchTerm}%")
-                          ->orWhere('name', 'like', "%{$searchTerm}%")
-                          ->orWhere('phone', 'like', "%{$searchTerm}%")
-                          ->orWhere('email', 'like', "%{$searchTerm}%")
-                          ->orWhere('department', 'like', "%{$searchTerm}%")
-                          ->orWhereHas('roleGroup', function($q) use ($searchTerm) {
-                              $q->where('name', 'like', "%{$searchTerm}%");
-                          });
-                    });
-                }
+                $query->where(function($q) use ($searchTerm) {
+                    $q->where('username', 'like', "%{$searchTerm}%")
+                        ->orWhere('name', 'like', "%{$searchTerm}%")
+                        ->orWhere('phone', 'like', "%{$searchTerm}%")
+                        ->orWhere('email', 'like', "%{$searchTerm}%")
+                        ->orWhere('department', 'like', "%{$searchTerm}%")
+                        ->orWhereHas('roleGroup', function($q) use ($searchTerm) {
+                            $q->where('name', 'like', "%{$searchTerm}%");
+                        });
+                });
             }
 
             $employees = $query->with('roleGroup')->get();
 
+            // Generate PDF using DomPDF
             $pdf = PDF::loadView('employees.pdf', compact('employees'));
 
-            return $pdf->download('danh-sach-nhan-vien-' . date('Y-m-d') . '.pdf');
+            // Set paper size and orientation
+            $pdf->setPaper('a4', 'landscape');
+
+            // Set PDF options
+            $pdf->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isPhpEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
+                'debugKeepTemp' => false,
+                'debugCss' => false,
+                'debugLayout' => false,
+                'debugLayoutLines' => false,
+                'debugLayoutBlocks' => false,
+                'debugLayoutInline' => false,
+                'debugLayoutPaddingBox' => false,
+                'chroot' => public_path(),
+                'isFontSubsettingEnabled' => true,
+                'isRemoteEnabled' => true
+            ]);
+
+            // Generate filename
+            $filename = 'danh-sach-nhan-vien-' . date('Y-m-d-His') . '.pdf';
+
+            // Download the file
+            return $pdf->download($filename);
         } catch (\Exception $e) {
             Log::error('Export PDF error: ' . $e->getMessage());
-
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
         }
     }

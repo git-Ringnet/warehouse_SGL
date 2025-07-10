@@ -1,165 +1,112 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Danh sách Nhân viên</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <style>
-        @page {
-            margin: 10px;
-            padding: 0px;
-        }
-        
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 11px;
-            margin: 0;
-            padding: 10px;
+            font-size: 13px;
+            line-height: 1.4;
             color: #333;
-            width: 100%;
+            margin: 0;
+            padding: 0;
         }
-        
+        .container {
+            padding: 20px;
+        }
         .header {
             text-align: center;
             margin-bottom: 20px;
-            border-bottom: 2px solid #333;
             padding-bottom: 10px;
-            width: 100%;
+            border-bottom: 1px solid #ddd;
         }
-        
-        .header h1 {
+        .title {
             font-size: 18px;
             font-weight: bold;
-            margin: 0 0 5px 0;
-            color: #333;
-            text-transform: uppercase;
+            margin-bottom: 5px;
         }
-        
-        .header p {
-            margin: 0;
-            font-size: 11px;
+        .subtitle {
+            font-size: 13px;
             color: #666;
         }
-        
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            background-color: #fff;
+            margin-bottom: 20px;
         }
-        
         th, td {
             border: 1px solid #ddd;
-            padding: 5px;
-            font-size: 10px;
-            word-wrap: break-word;
-            max-width: 150px;
-        }
-        
-        th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            text-align: center;
-            text-transform: uppercase;
-            color: #333;
-            padding: 8px 4px;
-            white-space: nowrap;
-        }
-        
-        td {
+            padding: 8px;
             text-align: left;
-            vertical-align: middle;
         }
-        
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
         }
-        
         .text-center {
             text-align: center;
         }
-        
-        .text-right {
-            text-align: right;
-        }
-        
-        .status-active {
-            color: #28a745;
-            font-weight: bold;
-            background-color: #e3fcec;
-            padding: 3px 6px;
-            border-radius: 3px;
-            display: inline-block;
-            font-size: 10px;
-        }
-        
-        .status-inactive {
-            color: #dc3545;
-            font-weight: bold;
-            background-color: #fce3e3;
-            padding: 3px 6px;
-            border-radius: 3px;
-            display: inline-block;
-            font-size: 10px;
-        }
-        
         .footer {
             margin-top: 20px;
-            text-align: center;
-            font-size: 10px;
-            color: #666;
-            border-top: 1px solid #eee;
             padding-top: 10px;
-            width: 100%;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
         }
-        
-        .footer p {
-            margin: 0;
+        .status-active {
+            color: #155724;
+        }
+        .status-inactive {
+            color: #721c24;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>DANH SÁCH NHÂN VIÊN</h1>
-        <p>Xuất ngày: {{ date('d/m/Y H:i:s') }}</p>
-    </div>
-    
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 4%;">STT</th>
-                <th style="width: 10%;">Username</th>
-                <th style="width: 13%;">Họ và tên</th>
-                <th style="width: 15%;">Email</th>
-                <th style="width: 10%;">Số điện thoại</th>
-                <th style="width: 12%;">Vai trò</th>
-                <th style="width: 12%;">Phòng ban</th>
-                <th style="width: 14%;">Trạng thái</th>
-                <th style="width: 10%;">Ngày tạo</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($employees as $index => $employee)
-            <tr>
-                <td class="text-center">{{ $index + 1 }}</td>
-                <td>{{ $employee->username }}</td>
-                <td>{{ $employee->name }}</td>
-                <td>{{ $employee->email ?? 'N/A' }}</td>
-                <td class="text-center">{{ $employee->phone }}</td>
-                <td class="text-center">{{ $employee->roleGroup ? $employee->roleGroup->name : 'Chưa phân quyền' }}</td>
-                <td class="text-center">{{ $employee->department ?? 'Chưa phân công' }}</td>
-                <td class="text-center">
-                    <span class="{{ $employee->is_active ? 'status-active' : 'status-inactive' }}">
-                        {{ $employee->is_active ? 'Đang hoạt động' : 'Đã khóa' }}
-                    </span>
-                </td>
-                <td class="text-center">{{ $employee->created_at ? $employee->created_at->format('d/m/Y') : 'N/A' }}</td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
-    
-    <div class="footer">
-        <p>Báo cáo được tạo từ hệ thống quản lý kho SGL</p>
+    <div class="container">
+        <div class="header">
+            <div class="title">DANH SÁCH NHÂN VIÊN</div>
+            <div class="subtitle">Hệ thống quản lý kho SGL</div>
+            <div class="subtitle">Ngày xuất: {{ date('d/m/Y H:i:s') }}</div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 5%;">STT</th>
+                    <th style="width: 15%;">Tên đăng nhập</th>
+                    <th style="width: 20%;">Họ và tên</th>
+                    <th style="width: 15%;">Số điện thoại</th>
+                    <th style="width: 20%;">Email</th>
+                    <th style="width: 15%;">Phòng ban</th>
+                    <th style="width: 10%;">Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($employees as $index => $employee)
+                    <tr>
+                        <td class="text-center">{{ $index + 1 }}</td>
+                        <td>{{ $employee->username }}</td>
+                        <td>{{ $employee->name }}</td>
+                        <td>{{ $employee->phone }}</td>
+                        <td>{{ $employee->email }}</td>
+                        <td>{{ $employee->department }}</td>
+                        <td class="text-center {{ $employee->is_active ? 'status-active' : 'status-inactive' }}">
+                            {{ $employee->is_active ? 'Hoạt động' : 'Khóa' }}
+                        </td>
+                    </tr>
+                @endforeach
+
+                @if (count($employees) === 0)
+                    <tr>
+                        <td colspan="7" class="text-center" style="font-style: italic;">Không tìm thấy nhân viên nào</td>
+                    </tr>
+                @endif
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Người xuất: {{ auth()->user()->name ?? 'Admin' }}</p>
+        </div>
     </div>
 </body>
 </html> 
