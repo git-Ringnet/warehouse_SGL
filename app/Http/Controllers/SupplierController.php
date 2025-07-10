@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\SuppliersExport;
 use App\Models\Supplier;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf as FacadePdf;
 use App\Models\Material;
 use App\Models\Good;
-use Illuminate\Http\Request;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\SuppliersExport;
 use App\Models\UserLog;
 use Illuminate\Support\Facades\Auth;
 
@@ -398,14 +400,115 @@ class SupplierController extends Controller
     public function exportExcel(Request $request)
     {
         try {
-            $filters = [
-                'search' => $request->get('search'),
-                'filter' => $request->get('filter')
-            ];
+            $query = Supplier::query();
+            
+            // Apply search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                if ($request->filled('filter')) {
+                    switch ($request->filter) {
+                        case 'name':
+                            $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'phone':
+                            $query->where('phone', 'like', "%{$search}%");
+                            break;
+                        case 'email':
+                            $query->where('email', 'like', "%{$search}%");
+                            break;
+                        case 'address':
+                            $query->where('address', 'like', "%{$search}%");
+                            break;
+                    }
+                } else {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%");
+                    });
+                }
+            }
+            
+            // Get suppliers with counts of related materials and goods
+            $suppliers = $query->withCount(['materials', 'goods'])->latest()->get();
+            
+            // Calculate total items for each supplier
+            foreach ($suppliers as $supplier) {
+                $supplier->total_items = $supplier->materials_count + $supplier->goods_count;
+            }
 
-            return Excel::download(new SuppliersExport($filters), 'danh-sach-nha-cung-cap-' . date('Y-m-d') . '.xlsx');
+            return Excel::download(new SuppliersExport([
+                'search' => $request->get('search'),
+                'filter' => $request->get('filter'),
+                'suppliers' => $suppliers
+            ]), 'danh-sach-nha-cung-cap-' . date('Y-m-d') . '.xlsx');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất Excel: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export suppliers list to PDF
+     */
+    public function exportPDF(Request $request)
+    {
+        try {
+            $query = Supplier::query();
+            
+            // Apply search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                if ($request->filled('filter')) {
+                    switch ($request->filter) {
+                        case 'name':
+                            $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'phone':
+                            $query->where('phone', 'like', "%{$search}%");
+                            break;
+                        case 'email':
+                            $query->where('email', 'like', "%{$search}%");
+                            break;
+                        case 'address':
+                            $query->where('address', 'like', "%{$search}%");
+                            break;
+                    }
+                } else {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%");
+                    });
+                }
+            }
+            
+            // Get suppliers with counts of related materials and goods
+            $suppliers = $query->withCount(['materials', 'goods'])->latest()->get();
+            
+            // Calculate total items for each supplier
+            foreach ($suppliers as $supplier) {
+                $supplier->total_items = $supplier->materials_count + $supplier->goods_count;
+            }
+
+            // Generate PDF
+            $pdf = FacadePdf::loadView('exports.suppliers-pdf', [
+                'suppliers' => $suppliers,
+                'filters' => [
+                    'search' => $request->get('search'),
+                    'filter' => $request->get('filter')
+                ]
+            ]);
+
+            // Set paper size and orientation
+            $pdf->setPaper('a4', 'landscape');
+
+            // Return the PDF for download
+            return $pdf->download('danh-sach-nha-cung-cap-' . date('Y-m-d-His') . '.pdf');
+                
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Có lỗi xảy ra khi xuất PDF: ' . $e->getMessage());
         }
     }
 }

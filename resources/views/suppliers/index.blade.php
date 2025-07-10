@@ -214,8 +214,8 @@
                     @endphp
 
                     @if ($canExport)
-                        <a href="{{ route('suppliers.export.fdf', request()->query()) }}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-file-pdf mr-2"></i> Xuất FDF
+                        <a href="{{ route('suppliers.export.pdf', request()->query()) }}" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
                         </a>
                         <a href="{{ route('suppliers.export.excel', request()->query()) }}" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg flex items-center transition-colors">
                             <i class="fas fa-file-excel mr-2"></i> Xuất Excel

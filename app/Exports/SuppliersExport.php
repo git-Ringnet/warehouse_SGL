@@ -12,14 +12,20 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use Illuminate\Support\Collection;
 
 class SuppliersExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
     protected $filters;
+    protected $suppliers;
     
-    public function __construct($filters = [])
+    public function __construct($params = [])
     {
-        $this->filters = $filters;
+        $this->filters = [
+            'search' => $params['search'] ?? null,
+            'filter' => $params['filter'] ?? null
+        ];
+        $this->suppliers = $params['suppliers'] ?? null;
     }
     
     /**
@@ -27,6 +33,12 @@ class SuppliersExport implements FromCollection, WithHeadings, WithMapping, With
      */
     public function collection()
     {
+        // Nếu suppliers đã được truyền từ controller, sử dụng nó
+        if ($this->suppliers instanceof Collection) {
+            return $this->suppliers;
+        }
+        
+        // Nếu không, thực hiện query như trước đây
         $query = Supplier::query();
         
         // Apply search filter
@@ -72,9 +84,9 @@ class SuppliersExport implements FromCollection, WithHeadings, WithMapping, With
             'Số điện thoại',
             'Email',
             'Địa chỉ',
-            'Ghi chú',
-            'Ngày tạo',
-            'Cập nhật lần cuối'
+            'Tổng SL đã nhập',
+            // 'Ngày tạo',
+            // 'Cập nhật lần cuối'
         ];
     }
     
@@ -90,13 +102,13 @@ class SuppliersExport implements FromCollection, WithHeadings, WithMapping, With
         return [
             $counter,
             $supplier->name,
-            $supplier->representative ?? '',
+            $supplier->representative ?? 'N/A',
             $supplier->phone,
-            $supplier->email ?? '',
-            $supplier->address ?? '',
-            $supplier->notes ?? '',
-            $supplier->created_at ? $supplier->created_at->format('d/m/Y H:i') : '',
-            $supplier->updated_at ? $supplier->updated_at->format('d/m/Y H:i') : ''
+            $supplier->email ?? 'N/A',
+            $supplier->address ?? 'N/A',
+            $supplier->total_items ?? 0,
+            // $supplier->created_at ? $supplier->created_at->format('d/m/Y H:i') : '',
+            // $supplier->updated_at ? $supplier->updated_at->format('d/m/Y H:i') : ''
         ];
     }
     
@@ -142,6 +154,13 @@ class SuppliersExport implements FromCollection, WithHeadings, WithMapping, With
             
             // STT column center alignment
             "A:A" => [
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                ]
+            ],
+            
+            // Total items column center alignment
+            "G:G" => [
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                 ]

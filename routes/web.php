@@ -429,6 +429,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // Export routes for suppliers
     Route::get('/suppliers/export/fdf', [SupplierController::class, 'exportFDF'])->name('suppliers.export.fdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.export');
     Route::get('/suppliers/export/excel', [SupplierController::class, 'exportExcel'])->name('suppliers.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.export');
+    Route::get('/suppliers/export/pdf', [SupplierController::class, 'exportPDF'])->name('suppliers.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':suppliers.export');
 
     // Employees routes với middleware bảo vệ từng quyền cụ thể
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':employees.view');
