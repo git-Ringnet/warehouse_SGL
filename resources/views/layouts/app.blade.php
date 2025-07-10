@@ -12,31 +12,26 @@
     <style>
         body {
             font-family: 'Roboto', sans-serif;
-            display: flex;
         }
         .sidebar {
             background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);
             transition: all 0.3s ease;
-            position: fixed;
-            height: 100vh;
-            z-index: 1000;
         }
         .content-area {
-            flex: 1;
             margin-left: 256px;
             min-height: 100vh;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+          
             transition: margin-left 0.3s ease;
         }
         @media (max-width: 768px) {
             .sidebar {
+                position: fixed;
+                z-index: 1000;
+                height: 100vh;
                 width: 70px;
             }
             .content-area {
-                margin-left: 70px;
+                margin-left: 0 !important;
             }
         }
     </style>
