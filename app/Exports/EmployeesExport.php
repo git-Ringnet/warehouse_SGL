@@ -94,8 +94,7 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping, With
             'Vai trò',
             'Phòng ban',
             'Trạng thái',
-            'Ngày tạo',
-            'Cập nhật lần cuối'
+            'Ngày tạo'
         ];
     }
     
@@ -117,8 +116,7 @@ class EmployeesExport implements FromCollection, WithHeadings, WithMapping, With
             $employee->roleGroup ? $employee->roleGroup->name : 'Chưa phân quyền',
             $employee->department ?? 'Chưa phân công',
             $employee->is_active ? 'Đang hoạt động' : 'Đã khóa',
-            $employee->created_at ? $employee->created_at->format('d/m/Y') : 'N/A',
-            $employee->updated_at ? $employee->updated_at->format('d/m/Y') : 'N/A'
+            $employee->created_at ? $employee->created_at->format('d/m/Y') : 'N/A'
         ];
     }
     

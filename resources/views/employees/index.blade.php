@@ -109,9 +109,9 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        @forelse($employees as $employee)
+                        @forelse($employees as $key => $employee)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $employee->id }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ ($employees->currentPage() - 1) * $employees->perPage() + $key + 1 }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-10 w-10">
@@ -139,7 +139,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $employee->email }} /
                                     {{ $employee->phone }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <td class="px-6 py-4 whitespace-nowrap">
                                     @if ($employee->roleGroup)
                                         <span
                                             class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {{ $employee->roleGroup->is_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600' }}">
@@ -222,8 +222,17 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-6">
-                {{ $employees->links() }}
+            <div class="mt-6 flex justify-between items-center">
+                    <div class="text-sm text-gray-500">
+                        Hiển thị {{ $employees->firstItem() ?? 0 }}-{{ $employees->lastItem() ?? 0 }} của
+                        {{ $employees->total() ?? 0 }} mục
+                    </div>
+                <div class="flex space-x-1">
+                    {{ $employees->links() }}
+                </div>
+            </div>
+            <div class="mt-2 text-sm text-gray-600">
+                Tổng cộng: <span class="font-medium">{{ $employees->total() }}</span> nhân viên
             </div>
         </main>
     </div>

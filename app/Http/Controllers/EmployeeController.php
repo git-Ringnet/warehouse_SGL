@@ -69,7 +69,7 @@ class EmployeeController extends Controller
             }
         }
         
-        $employees = $query->latest()->paginate(10);
+        $employees = $query->oldest()->paginate(10);
         
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
         $employees->appends([

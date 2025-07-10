@@ -76,7 +76,7 @@
                             <input type="email" id="email" name="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('email', $employee->email) }}">
                         </div>
                         
-                        <div>
+                        <div id="password_confirmation_container" style="display: none;">
                             <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">Xác nhận mật khẩu mới</label>
                             <input type="password" id="password_confirmation" name="password_confirmation" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập lại mật khẩu mới">
                         </div>
@@ -85,7 +85,6 @@
                             <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại <span class="text-red-500">*</span></label>
                             <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('phone', $employee->phone) }}" required>
                         </div>
-                        
                         <div>
                             <label for="role_id" class="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
                             <select id="role_id" name="role_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -105,7 +104,6 @@
                                 </p>
                             </div>
                         </div>
-
                         <div>
                             <label for="department" class="block text-sm font-medium text-gray-700 mb-1">Phòng ban</label>
                             <div class="relative">
@@ -147,11 +145,16 @@
                         </div>
                         
                         <div>
-                            <label for="is_active" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái <span class="text-red-500">*</span></label>
-                            <select id="is_active" name="is_active" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                                <option value="1" {{ old('is_active', $employee->is_active) == '1' ? 'selected' : '' }}>Hoạt động</option>
-                                <option value="0" {{ old('is_active', $employee->is_active) == '0' ? 'selected' : '' }}>Khóa</option>
-                            </select>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái tài khoản</label>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-1 {{ $employee->is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }} rounded-full text-xs font-semibold">
+                                    {{ $employee->is_active ? 'Đang hoạt động' : 'Đã khóa' }}
+                                </span>
+                                <span class="text-xs text-gray-500">
+                                    (Để thay đổi trạng thái, vui lòng sử dụng chức năng khóa/mở khóa tài khoản)
+                                </span>
+                            </div>
+                            <input type="hidden" name="is_active" value="{{ $employee->is_active }}">
                         </div>
                         
                         <div>
@@ -369,6 +372,22 @@
             if (selectedOption.getAttribute('data-inactive')) {
                 warningDiv.classList.remove('hidden');
             }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Xử lý hiển thị trường xác nhận mật khẩu
+            const passwordField = document.getElementById('password');
+            const passwordConfirmationContainer = document.getElementById('password_confirmation_container');
+            
+            passwordField.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    passwordConfirmationContainer.style.display = 'block';
+                } else {
+                    passwordConfirmationContainer.style.display = 'none';
+                }
+            });
         });
     </script>
 </body>

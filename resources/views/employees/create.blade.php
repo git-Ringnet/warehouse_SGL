@@ -69,7 +69,7 @@
                             <input type="email" id="email" name="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập địa chỉ email" value="{{ old('email') }}">
                         </div>
                         
-                        <div>
+                        <div id="password_confirmation_container" style="display: none;">
                             <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1 required">Xác nhận mật khẩu <span class="text-red-500">*</span></label>
                             <input type="password" id="password_confirmation" name="password_confirmation" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập lại mật khẩu" required>
                         </div>
@@ -77,26 +77,6 @@
                         <div>
                             <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại <span class="text-red-500">*</span></label>
                             <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập số điện thoại" value="{{ old('phone') }}" required>
-                        </div>
-                        
-                        <div>
-                            <label for="role_id" class="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
-                            <select id="role_id" name="role_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Chọn vai trò --</option>
-                                @foreach($roles as $role)
-                                <option value="{{ $role->id }}" {{ old('role_id') == $role->id ? 'selected' : '' }}
-                                    {{ !$role->is_active ? 'data-inactive=true' : '' }}>
-                                    {{ $role->name }} {{ !$role->is_active ? '(Vô hiệu hóa)' : '' }}
-                                </option>
-                                @endforeach
-                            </select>
-                            <p class="text-xs text-gray-500 mt-1">Vai trò xác định các quyền cụ thể mà nhân viên được phép thực hiện</p>
-                            <div id="role-warning" class="hidden mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <p class="text-sm text-yellow-700">
-                                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-1"></i>
-                                    Nhóm quyền này đang bị vô hiệu hóa. Nhân viên sẽ không thể sử dụng các quyền của nhóm cho đến khi nhóm được kích hoạt lại.
-                                </p>
-                            </div>
                         </div>
                         
                         <div>
@@ -329,6 +309,25 @@
             } else {
                 warningDiv.classList.add('hidden');
             }
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Xử lý hiển thị trường xác nhận mật khẩu
+            const passwordField = document.getElementById('password');
+            const passwordConfirmationContainer = document.getElementById('password_confirmation_container');
+            
+            // Hiển thị trường xác nhận mật khẩu ngay từ đầu vì đây là form tạo mới
+            passwordConfirmationContainer.style.display = 'block';
+            
+            passwordField.addEventListener('input', function() {
+                if (this.value.trim() !== '') {
+                    passwordConfirmationContainer.style.display = 'block';
+                } else {
+                    passwordConfirmationContainer.style.display = 'none';
+                }
+            });
         });
     </script>
 </body>

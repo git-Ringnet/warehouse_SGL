@@ -76,22 +76,12 @@
                             <div>
                                 <h2 class="text-2xl font-bold text-gray-800">{{ $employee->name }}</h2>
                                 <div class="mt-2 flex items-center text-sm text-gray-600">
-                                    @if ($employee->roleGroup)
-                                    <div class="px-2 py-1 {{ $employee->roleGroup->name === 'Super Admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' }} rounded-full text-xs font-semibold mr-2">
-                                        {{ $employee->roleGroup->name }}
-                                    </div>
-                                    @else
-                                    <div class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold mr-2">
-                                        Chưa phân quyền
-                                    </div>
-                                    @endif
-
                                     @if ($employee->is_active)
                                     <div class="flex items-center">
                                         <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
                                             Đang hoạt động
                                         </span>
-                                        @if ($employee->roleGroup && $employee->roleGroup->name !== 'Super Admin' && Auth::id() !== $employee->id)
+                                        @if (Auth::id() !== $employee->id)
                                         <form action="{{ route('employees.toggle-status', $employee->id) }}" method="POST" class="ml-2">
                                             @csrf
                                             @method('PUT')
@@ -108,7 +98,7 @@
                                         <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
                                             Đã khóa
                                         </span>
-                                        @if ($employee->roleGroup && $employee->roleGroup->name !== 'Super Admin' && Auth::id() !== $employee->id)
+                                        @if (Auth::id() !== $employee->id)
                                         <form action="{{ route('employees.toggle-status', $employee->id) }}" method="POST" class="ml-2">
                                             @csrf
                                             @method('PUT')
@@ -190,36 +180,16 @@
 
                 <div class="space-y-4">
                     <div>
-                        <p class="text-sm text-gray-500">Vai trò</p>
-                        <p class="font-medium text-gray-800">
-                            @if ($employee->roleGroup)
-                            <span
-                                class="px-2 py-1 {{ $employee->roleGroup->is_active ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600' }} rounded-full text-xs font-semibold">
-                                {{ $employee->roleGroup->name }}
-                            </span>
-                            @else
-                            <span class="text-gray-500">Chưa được gán vai trò</span>
-                            @endif
-                        </p>
-                    </div>
-                    <div>
                         <p class="text-sm text-gray-500">Phòng ban</p>
-                        <p class="font-medium text-gray-800">
-                            {{ $employee->department ?? 'Chưa phân công' }}
-                        </p>
+                        <p class="font-medium text-gray-800">{{ $employee->department ?: 'Không có' }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Trạng thái</p>
                         <p class="font-medium text-gray-800">
                             @if ($employee->is_active)
-                            <span
-                                class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
-                                Đang hoạt động
-                            </span>
+                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">Đang hoạt động</span>
                             @else
-                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">
-                                Đã khóa
-                            </span>
+                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">Đã khóa</span>
                             @endif
                         </p>
                     </div>
@@ -267,7 +237,6 @@
         @endif
 
         <!-- Dự án liên quan -->
-        @if ($projects && $projects->count() > 0)
         <div class="mt-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                 <div class="p-6">
@@ -300,40 +269,46 @@
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($projects as $project)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $project->project_code }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $project->project_name }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $project->customer ? $project->customer->name : 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $project->start_date ? \Carbon\Carbon::parse($project->start_date)->format('d/m/Y') : 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $project->end_date ? \Carbon\Carbon::parse($project->end_date)->format('d/m/Y') : 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <a href="{{ route('projects.show', $project->id) }}" class="text-blue-600 hover:text-blue-900">
-                                            Xem chi tiết
-                                        </a>
-                                    </td>
-                                </tr>
-                                @endforeach
+                                @if ($projects && $projects->count() > 0)
+                                    @foreach($projects as $project)
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $project->project_code }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $project->project_name }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $project->customer ? $project->customer->name : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $project->start_date ? \Carbon\Carbon::parse($project->start_date)->format('d/m/Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $project->end_date ? \Carbon\Carbon::parse($project->end_date)->format('d/m/Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a href="{{ route('projects.show', $project->id) }}" class="text-blue-600 hover:text-blue-900">
+                                                Xem chi tiết
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                @else
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                                            Nhân viên chưa có dự án nào
+                                        </td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
-        @endif
 
         <!-- Phiếu cho thuê liên quan -->
-        @if ($rentals && $rentals->count() > 0)
         <div class="mt-6">
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                 <div class="p-6">
@@ -366,48 +341,51 @@
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($rentals as $rental)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $rental->rental_code }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $rental->rental_name }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $rental->customer ? $rental->customer->name : 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $rental->rental_date ? \Carbon\Carbon::parse($rental->rental_date)->format('d/m/Y') : 'N/A' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        <span class="{{ $rental->isOverdue() ? 'text-red-600 font-medium' : '' }}">
-                                            {{ \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y') }}
-                                            @if ($rental->isOverdue())
-                                            <span
-                                                class="ml-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Quá
-                                                hạn</span>
-                                            @elseif($rental->daysRemaining() <= 7)
-                                                <span
-                                                class="ml-1 text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">{{ $rental->daysRemaining() }}
-                                                ngày</span>
-                                        @endif
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <a href="{{ route('rentals.show', $rental->id) }}" class="text-blue-600 hover:text-blue-900">
-                                            Xem chi tiết
-                                        </a>
-                                    </td>
-                                </tr>
-                                @endforeach
+                                @if ($rentals && $rentals->count() > 0)
+                                    @foreach($rentals as $rental)
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $rental->rental_code }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $rental->rental_name }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $rental->customer ? $rental->customer->name : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {{ $rental->rental_date ? \Carbon\Carbon::parse($rental->rental_date)->format('d/m/Y') : 'N/A' }}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            <span class="{{ $rental->isOverdue() ? 'text-red-600 font-medium' : '' }}">
+                                                {{ \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y') }}
+                                                @if ($rental->isOverdue())
+                                                <span class="ml-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Quá hạn</span>
+                                                @elseif($rental->daysRemaining() <= 7)
+                                                <span class="ml-1 text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">{{ $rental->daysRemaining() }} ngày</span>
+                                                @endif
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a href="{{ route('rentals.show', $rental->id) }}" class="text-blue-600 hover:text-blue-900">
+                                                Xem chi tiết
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                @else
+                                    <tr>
+                                        <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                                            Nhân viên chưa có phiếu cho thuê nào
+                                        </td>
+                                    </tr>
+                                @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
-        @endif
 
     </main>
 </div>
