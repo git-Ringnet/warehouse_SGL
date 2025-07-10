@@ -52,7 +52,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
         }
 
         // Get goods with supplier relationship
-        $goods = $query->with('suppliers')->get();
+        $goods = $query->with('suppliers')->orderBy('id', 'desc')->get();
 
         // Filter by stock status (must be done after getting inventory quantities)
         if ($this->request && $this->request->has('stock')) {
@@ -85,10 +85,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             'Tên hàng hóa',
             'Loại',
             'Đơn vị',
-            'Ghi chú',
             'Tổng tồn kho',
-            'Ngày tạo',
-            'Cập nhật lần cuối'
         ];
     }
 
@@ -111,10 +108,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             $good->name,
             $good->category,
             $good->unit,
-            $good->notes, // Ghi chú
             $inventoryQuantity,
-            $good->created_at ? $good->created_at->format('d/m/Y H:i') : '',
-            $good->updated_at ? $good->updated_at->format('d/m/Y H:i') : ''
         ];
     }
 
@@ -125,7 +119,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
     public function styles(Worksheet $sheet)
     {
         // Auto size columns
-        foreach (range('A', 'I') as $column) {
+        foreach (range('A', 'F') as $column) {
             $sheet->getColumnDimension($column)->setAutoSize(true);
         }
 
@@ -133,7 +127,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
         $totalRows = $sheet->getHighestRow();
 
         // Style tất cả cells với border
-        $sheet->getStyle('A1:I' . $totalRows)->applyFromArray([
+        $sheet->getStyle('A1:F' . $totalRows)->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
@@ -144,7 +138,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
 
         // Style cho các dòng chẵn
         for ($i = 2; $i <= $totalRows; $i += 2) {
-            $sheet->getStyle('A' . $i . ':I' . $i)->applyFromArray([
+            $sheet->getStyle('A' . $i . ':F' . $i)->applyFromArray([
                 'fill' => [
                     'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
                     'startColor' => ['rgb' => 'F2F2F2'], // Light gray for even rows
@@ -165,7 +159,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
                 ]
             ],
             // Style for all data rows
-            'A2:I' . $totalRows => [
+            'A2:F' . $totalRows => [
                 'alignment' => [
                     'vertical' => \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
                 ]
@@ -174,10 +168,7 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
             'A2:A' . $totalRows => [
                 'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
             ],
-            'G2:G' . $totalRows => [
-                'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
-            ],
-            'H2:I' . $totalRows => [
+            'F2:F' . $totalRows => [
                 'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
             ],
         ];
