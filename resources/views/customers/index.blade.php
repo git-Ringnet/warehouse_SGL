@@ -528,12 +528,12 @@
                         
                         // Chuẩn bị dữ liệu cho Excel với định dạng phù hợp
                         const excelData = [
-                            ['ID', 'Tên khách hàng', 'Tên công ty', 'SĐT', 'Email', 'Địa chỉ', 'Ngày tạo']
+                            ['STT', 'Tên người đại diện', 'Công ty', 'SĐT người đại diện', 'Email', 'Địa chỉ công ty', 'Ngày tạo']
                         ];
                         
-                        data.customers.forEach(customer => {
+                        data.customers.forEach((customer, index) => {
                             excelData.push([
-                                customer.id,
+                                index + 1,
                                 customer.name,
                                 customer.company_name,
                                 // Thêm dấu ' để đảm bảo Excel coi số điện thoại là text
@@ -549,12 +549,12 @@
                         
                         // Điều chỉnh độ rộng cột
                         const wscols = [
-                            {wch: 5},  // ID
-                            {wch: 20}, // Tên khách hàng
-                            {wch: 25}, // Tên công ty
-                            {wch: 15}, // SĐT
+                            {wch: 5},  // STT
+                            {wch: 20}, // Tên người đại diện
+                            {wch: 25}, // Công ty
+                            {wch: 15}, // SĐT người đại diện
                             {wch: 25}, // Email
-                            {wch: 30}, // Địa chỉ
+                            {wch: 30}, // Địa chỉ công ty
                             {wch: 15}  // Ngày tạo
                         ];
                         ws['!cols'] = wscols;
@@ -626,7 +626,7 @@
                         
                         // Thêm tiêu đề chính ở trên cùng
                         const titleWs = XLSX.utils.aoa_to_sheet([
-                            ['DANH SÁCH KHÁCH HÀNG'],
+                            ['DANH SÁCH KHÁCH HÀNG - SGL'],
                             ['Công ty: SGL - Hệ thống quản lý kho'],
                             [`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
                             ['']  // Dòng trống
