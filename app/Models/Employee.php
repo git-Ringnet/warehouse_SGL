@@ -147,4 +147,12 @@ class Employee extends Authenticatable
         $this->save();
         return $this->is_active;
     }
+
+    /**
+     * Lấy danh sách kho mà nhân viên quản lý
+     */
+    public function warehouses()
+    {
+        return $this->hasMany(Warehouse::class, 'manager');
+    }
 } 

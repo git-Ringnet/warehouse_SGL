@@ -167,11 +167,17 @@ class EmployeeController extends Controller
      */
     public function show(string $id)
     {
-        $employee = Employee::with(['roleGroup', 'projects', 'rentals'])->findOrFail($id);
+        $employee = Employee::with(['roleGroup', 'projects', 'rentals', 'warehouses'])->findOrFail($id);
         
         // Lấy danh sách dự án và phiếu cho thuê liên quan đến nhân viên
         $projects = $employee->projects()->latest()->get();
         $rentals = $employee->rentals()->latest()->get();
+        
+        // Debug thông tin kho
+        Log::info('Employee warehouses:', [
+            'employee_id' => $employee->id,
+            'warehouses' => $employee->warehouses()->get()
+        ]);
 
         // Ghi nhật ký xem chi tiết nhân viên
         if (Auth::check()) {
@@ -314,6 +320,12 @@ class EmployeeController extends Controller
         if ($employee->rentals()->count() > 0) {
             return redirect()->route('employees.show', $id)
                 ->with('error', 'Không thể xóa nhân viên này vì có phiếu cho thuê liên quan.');
+        }
+
+        // Kiểm tra xem nhân viên có đang quản lý kho nào không
+        if ($employee->warehouses()->count() > 0) {
+            return redirect()->route('employees.show', $id)
+                ->with('error', 'Không thể xóa nhân viên này vì đang quản lý kho.');
         }
         
         // Kiểm tra xem nhân viên có liên quan đến phiếu kiểm thử không

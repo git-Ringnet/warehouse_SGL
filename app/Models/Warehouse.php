@@ -43,4 +43,12 @@ class Warehouse extends Model
     {
         return $this->hasMany(WarehouseMaterial::class, 'warehouse_id');
     }
+
+    /**
+     * Get the employee that manages the warehouse.
+     */
+    public function managerEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'manager', 'id');
+    }
 } 
