@@ -80,14 +80,10 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng tồn
-                                        kho</label>
-                                    <select id="stockFilter"
-                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                                        <option value="">Tất cả trạng thái</option>
-                                        <option value="in_stock">Còn tồn kho</option>
-                                        <option value="out_of_stock">Hết tồn kho</option>
-                                    </select>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn
+                                        hoặc bằng)</label>
+                                    <input type="number" id="stockFilter" min="0" placeholder="Nhập số lượng..."
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700" />
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
                                     <button id="clearFiltersInDropdown"
@@ -119,7 +115,7 @@
                                     $user = Auth::guard('web')->user();
                                     $isAdmin = $user && $user->role === 'admin';
                                 @endphp
-                                @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.create')))
+                                @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.create')))
                                     <button id="importDataButton"
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-file-import text-green-500 mr-2"></i> Import Data
@@ -130,7 +126,7 @@
                                     </a>
                                 @endif
                                 <div class="border-t border-gray-200 my-1"></div>
-                                @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view')))
+                                @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view')))
                                     <a href="{{ route('goodshidden') }}"
                                         class="block w-full text-left px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors">
                                         <i class="fas fa-eye-slash text-yellow-500 mr-2"></i> Hàng hóa ẩn
@@ -144,7 +140,7 @@
                         </div>
                     </div>
 
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.export')))
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.export')))
                         <div class="relative inline-block text-left">
                             <button id="exportDropdownButton" type="button"
                                 class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors group">
@@ -172,7 +168,7 @@
                         </div>
                     @endif
 
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.create')))
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.create')))
                         <a href="{{ route('goods.create') }}">
                             <button
                                 class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
@@ -215,9 +211,9 @@
                                     Đơn vị: {{ request('unit') }}
                                 </span>
                             @endif
-                            @if (request('stock'))
+                            @if (request('stock') !== null && request('stock') !== '')
                                 <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">
-                                    Tồn kho: {{ request('stock') === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho' }}
+                                    Tổng tồn kho ≤ {{ request('stock') }}
                                 </span>
                             @endif
                         @endif
@@ -273,7 +269,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view_detail')))
+                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view_detail')))
                                         <a href="{{ route('goods.show', $good->id) }}">
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
@@ -283,7 +279,7 @@
                                         </a>
                                     @endif
                                     @if ($good->status !== 'deleted' && !$good->is_hidden)
-                                        @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.edit')))
+                                        @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.edit')))
                                             <a href="{{ route('goods.edit', $good->id) }}">
                                                 <button
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
@@ -293,7 +289,7 @@
                                             </a>
                                         @endif
                                     @endif
-                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view_detail')))
+                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.view_detail')))
                                         <button type="button"
                                             onclick="showImagesModal('{{ $good->id }}', '{{ $good->name }}')"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
@@ -301,7 +297,7 @@
                                             <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
                                         </button>
                                     @endif
-                                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.delete')))
+                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('goods.delete')))
                                         <button
                                             onclick="openDeleteModal('{{ $good->id }}', '{{ $good->code }}', {{ $good->inventory_quantity }})"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
@@ -323,9 +319,9 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4">
+            {{-- <div class="mt-4">
                 {{ $goods->links() }}
-            </div>
+            </div> --}}
         </main>
     </div>
 
@@ -911,7 +907,12 @@
 
             if (applyFilters) {
                 applyFilters.addEventListener('click', function() {
-                    performAjaxSearch();
+                    const params = new URLSearchParams();
+                    if (categoryFilter.value) params.set('category', categoryFilter.value);
+                    if (unitFilter.value) params.set('unit', unitFilter.value);
+                    if (stockFilter.value !== '') params.set('stock', stockFilter.value);
+                    // Reload page with filters
+                    window.location.search = params.toString();
                 });
             }
 
@@ -974,6 +975,7 @@
                     if (urlParams.has(filter)) {
                         url.searchParams.set(filter, urlParams.get(filter));
                     }
+
                 });
             }
 
@@ -1086,3 +1088,4 @@
 </body>
 
 </html>
+

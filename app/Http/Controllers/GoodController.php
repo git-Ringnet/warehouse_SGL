@@ -31,8 +31,8 @@ class GoodController extends Controller
         $query = Good::where('status', 'active')
             ->where('is_hidden', false);
 
-        // Apply search filter
-        if ($request->has('search') && !empty($request->search)) {
+        // Apply search filter (textual)
+        if ($request->has('search') && !empty($request->search) && !is_numeric($request->search)) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -67,19 +67,19 @@ class GoodController extends Controller
 
             // For total quantity, we can use a slightly higher number for demo
             // In production, this should come from a proper calculation including all locations
-            $totalQuantity = $inventoryQuantity + rand(0, 10); // Demo: add some random units for items outside warehouses
+            $totalQuantity = $inventoryQuantity; // Tổng tồn kho chính là tồn kho thực tế
 
             $good->total_quantity = $totalQuantity;
             $good->inventory_quantity = $inventoryQuantity;
 
-            // Apply stock filter (must be done after calculating inventory)
-            if ($request->has('stock')) {
-                if ($request->stock === 'in_stock' && $inventoryQuantity <= 0) {
+            // Áp dụng filter tổng tồn kho (bé hơn hoặc bằng)
+            if ($request->has('stock') && is_numeric($request->stock)) {
+                if ($good->total_quantity > (int) $request->stock) {
                     $goods = $goods->reject(function ($item) use ($good) {
                         return $item->id === $good->id;
                     });
                     continue;
-                } else if ($request->stock === 'out_of_stock' && $inventoryQuantity > 0) {
+                } else if (false) {
                     $goods = $goods->reject(function ($item) use ($good) {
                         return $item->id === $good->id;
                     });
@@ -91,6 +91,24 @@ class GoodController extends Controller
             $grandTotalQuantity += $good->total_quantity;
             $grandInventoryQuantity += $good->inventory_quantity;
         }
+
+        // Nếu từ khóa tìm kiếm là số, lọc thêm theo tổng tồn kho chính xác
+        if ($request->has('search') && is_numeric($request->search)) {
+            $goods = $goods->filter(function ($g) use ($request) {
+                return $g->total_quantity == (int)$request->search;
+            });
+        }
+
+        // Lọc theo tổng tồn kho sau khi đã tính toán xong
+        if ($request->has('stock') && is_numeric($request->stock)) {
+            $goods = $goods->filter(function ($g) use ($request) {
+                return $g->inventory_quantity <= (int)$request->stock;
+            });
+        }
+
+        // Tính lại tổng sau khi lọc
+        $grandTotalQuantity = $goods->sum('total_quantity');
+        $grandInventoryQuantity = $goods->sum('inventory_quantity');
 
         // Get unique categories and units for filters
         $categories = Good::select('category')->distinct()->pluck('category')->toArray();
@@ -552,7 +570,7 @@ class GoodController extends Controller
             ->where('is_hidden', false);
 
         // Apply filters
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && !empty($request->search) && !is_numeric($request->search)) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -575,7 +593,7 @@ class GoodController extends Controller
         $goods = $query->with('suppliers')->get();
 
         // Filter by stock status if needed
-        if ($request->has('stock')) {
+        if ($request->has('stock') && is_numeric($request->stock)) {
             $filteredGoods = collect();
 
             foreach ($goods as $good) {
@@ -645,7 +663,7 @@ trailer
             ->where('is_hidden', false);
 
         // Apply filters
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && !empty($request->search) && !is_numeric($request->search)) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -668,7 +686,7 @@ trailer
         $goods = $query->with('suppliers')->orderBy('id', 'desc')->get();
 
         // Filter by stock status if needed
-        if ($request->has('stock')) {
+        if ($request->has('stock') && is_numeric($request->stock)) {
             $filteredGoods = collect();
 
             foreach ($goods as $good) {
@@ -693,7 +711,7 @@ trailer
 
         // Get filter information to display on the PDF
         $filterInfo = [];
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && !empty($request->search) && !is_numeric($request->search)) {
             $filterInfo[] = 'Từ khóa: "' . $request->search . '"';
         }
         if ($request->has('category') && !empty($request->category)) {
@@ -702,13 +720,13 @@ trailer
         if ($request->has('unit') && !empty($request->unit)) {
             $filterInfo[] = 'Đơn vị: ' . $request->unit;
         }
-        if ($request->has('stock')) {
+        if ($request->has('stock') && is_numeric($request->stock)) {
             $filterInfo[] = 'Tồn kho: ' . ($request->stock === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho');
         }
 
         // Generate PDF
         $pdf = Pdf::loadView('goods.pdf', [
-            'goods' => $goods,
+            'goods' => $goods->values(),
             'filterInfo' => $filterInfo,
             'totalCount' => $goods->count()
         ]);
@@ -919,8 +937,8 @@ trailer
         $query = Good::where('status', 'active')
             ->where('is_hidden', false);
 
-        // Apply search filter
-        if ($request->has('search') && !empty($request->search)) {
+        // Apply search filter (textual)
+        if ($request->has('search') && !empty($request->search) && !is_numeric($request->search)) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -955,19 +973,19 @@ trailer
 
             // For total quantity, we can use a slightly higher number for demo
             // In production, this should come from a proper calculation including all locations
-            $totalQuantity = $inventoryQuantity + rand(0, 10); // Demo: add some random units for items outside warehouses
+            $totalQuantity = $inventoryQuantity; // Tổng tồn kho chính là tồn kho thực tế
 
             $good->total_quantity = $totalQuantity;
             $good->inventory_quantity = $inventoryQuantity;
 
-            // Apply stock filter (must be done after calculating inventory)
-            if ($request->has('stock')) {
-                if ($request->stock === 'in_stock' && $inventoryQuantity <= 0) {
+            // Áp dụng filter tổng tồn kho (bé hơn hoặc bằng)
+            if ($request->has('stock') && is_numeric($request->stock)) {
+                if ($good->total_quantity > (int) $request->stock) {
                     $goods = $goods->reject(function ($item) use ($good) {
                         return $item->id === $good->id;
                     });
                     continue;
-                } else if ($request->stock === 'out_of_stock' && $inventoryQuantity > 0) {
+                } else if (false) {
                     $goods = $goods->reject(function ($item) use ($good) {
                         return $item->id === $good->id;
                     });
@@ -980,11 +998,22 @@ trailer
             $grandInventoryQuantity += $good->inventory_quantity;
         }
 
+        // Lọc theo tổng tồn kho
+        if ($request->has('stock') && is_numeric($request->stock)) {
+            $goods = $goods->filter(function ($g) use ($request) {
+                return $g->inventory_quantity <= (int)$request->stock;
+            })->values();
+        }
+
+        // Tính lại tổng
+        $grandTotalQuantity = $goods->sum('total_quantity');
+        $grandInventoryQuantity = $goods->sum('inventory_quantity');
+
         // Return JSON response
         return response()->json([
             'success' => true,
             'data' => [
-                'goods' => $goods,
+                'goods' => $goods->values(),
                 'grandTotalQuantity' => $grandTotalQuantity,
                 'grandInventoryQuantity' => $grandInventoryQuantity,
                 'totalCount' => $goods->count()
