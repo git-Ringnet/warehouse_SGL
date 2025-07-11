@@ -93,6 +93,9 @@
                                 Người quản lý</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Tình trạng tồn kho</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Thao tác</th>
                         </tr>
                     </thead>
@@ -104,9 +107,25 @@
                                     {{ $warehouse->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->name }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->address }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $warehouse->address ?? 'N/A' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->manager }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ optional($warehouse->managerEmployee)->name ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @php
+                                        $totalQuantity = $warehouse->warehouseMaterials()->sum('quantity');
+                                    @endphp
+                                    @if($totalQuantity > 0)
+                                        <span class="px-2 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">
+                                            Còn tồn kho
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-1 text-sm font-medium bg-red-100 text-red-800 rounded-full">
+                                            Hết tồn kho
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                     @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('warehouses.view_detail')))

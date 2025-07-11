@@ -21,11 +21,12 @@ class Warehouse extends Model
         'name',
         'address',
         'manager',
-        'phone',
-        'email',
         'description',
         'status',
         'is_hidden',
+        'deleted_at',
+        'deleted_by',
+        'delete_reason'
     ];
 
     /**
@@ -50,6 +51,11 @@ class Warehouse extends Model
      */
     public function managerEmployee()
     {
-        return $this->belongsTo(Employee::class, 'manager', 'id');
+        return $this->belongsTo(Employee::class, 'manager');
+    }
+
+    public function deletedByUser()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 } 

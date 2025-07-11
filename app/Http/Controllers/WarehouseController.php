@@ -185,6 +185,20 @@ class WarehouseController extends Controller
             'manager' => 'required',
         ]);
 
+        // Check if warehouse code exists in active or hidden warehouses
+        $existingWarehouse = Warehouse::where('code', $request->code)
+            ->where(function($query) {
+                $query->where('status', 'active')
+                    ->orWhere('is_hidden', true);
+            })
+            ->first();
+
+        if ($existingWarehouse) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['code' => 'Mã kho hàng đã tồn tại']);
+        }
+
         $data = $request->all();
         $data['status'] = 'active';
         $data['is_hidden'] = false;
@@ -315,6 +329,21 @@ class WarehouseController extends Controller
             'manager' => 'required',
         ]);
 
+        // Check if warehouse code exists in other warehouses (active or hidden)
+        $existingWarehouse = Warehouse::where('code', $request->code)
+            ->where('id', '!=', $warehouse->id)
+            ->where(function($query) {
+                $query->where('status', 'active')
+                    ->orWhere('is_hidden', true);
+            })
+            ->first();
+
+        if ($existingWarehouse) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['code' => 'Mã kho hàng đã tồn tại']);
+        }
+
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $warehouse->toArray();
 
@@ -332,7 +361,7 @@ class WarehouseController extends Controller
             );
         }
 
-        return redirect()->route('warehouses.index')
+        return redirect()->route('warehouses.show', $warehouse->id)
             ->with('success', 'Kho hàng đã được cập nhật thành công.');
     }
 
@@ -395,8 +424,16 @@ class WarehouseController extends Controller
                         ->with('error', 'Không thể xóa kho này vì còn vật tư tồn kho.');
                 }
 
-                // Xóa hoàn toàn khỏi database
-                $warehouse->forceDelete();
+                // Cập nhật thông tin xóa
+                $warehouse->update([
+                    'status' => 'deleted',
+                    'deleted_by' => Auth::id(),
+                    'delete_reason' => $request->input('delete_reason', 'Xóa bởi người dùng')
+                ]);
+
+                // Thực hiện soft delete
+                $warehouse->delete();
+
                 $message = 'Kho hàng đã được xóa thành công.';
 
                 // Ghi nhật ký
@@ -407,7 +444,7 @@ class WarehouseController extends Controller
                         'warehouses',
                         'Xóa kho hàng: ' . $warehouseName . ' (' . $warehouseCode . ')',
                         $oldData,
-                        null
+                        $warehouse->toArray()
                     );
                 }
             }
@@ -508,6 +545,11 @@ class WarehouseController extends Controller
         }
 
         $warehouses = $query->get();
+
+        // Calculate total quantity for each warehouse
+        $warehouses->each(function ($warehouse) {
+            $warehouse->total_quantity = $warehouse->warehouseMaterials()->sum('quantity');
+        });
 
         // Get unique managers for filter dropdown
         $managers = Warehouse::where('is_hidden', false)

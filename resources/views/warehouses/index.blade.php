@@ -137,6 +137,9 @@
                                 Người quản lý</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Tình trạng tồn kho</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Thao tác</th>
                         </tr>
                     </thead>
@@ -148,9 +151,25 @@
                                     {{ $warehouse->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->name }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->address }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $warehouse->address ?? 'N/A' }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ optional($warehouse->managerEmployee)->name ?? 'N/A' }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ optional($warehouse->managerEmployee)->name ?? 'N/A' }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @php
+                                        $totalQuantity = $warehouse->warehouseMaterials()->sum('quantity');
+                                    @endphp
+                                    @if($totalQuantity > 0)
+                                        <span class="px-2 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">
+                                            Còn tồn kho
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-1 text-sm font-medium bg-red-100 text-red-800 rounded-full">
+                                            Hết tồn kho
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                     @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('warehouses.view_detail')))
@@ -381,13 +400,29 @@
                                     </tr>
                                 `;
                             } else {
-                                warehouseTableBody.innerHTML = data.data.warehouses.map((warehouse, index) => `
+                                warehouseTableBody.innerHTML = data.data.warehouses.map((warehouse, index) => {
+                                    // Calculate inventory status
+                                    let inventoryStatus = '';
+                                    if (warehouse.total_quantity > 0) {
+                                        inventoryStatus = `
+                                            <span class="px-2 py-1 text-sm font-medium bg-green-100 text-green-800 rounded-full">
+                                                Còn tồn kho
+                                            </span>`;
+                                    } else {
+                                        inventoryStatus = `
+                                            <span class="px-2 py-1 text-sm font-medium bg-red-100 text-red-800 rounded-full">
+                                                Hết tồn kho
+                                            </span>`;
+                                    }
+
+                                    return `
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${index + 1}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${warehouse.code}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.name}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.address}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.address ?? ''}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.manager}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap">${inventoryStatus}</td>
                                         <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                             <a href="/warehouses/${warehouse.id}">
                                                 <button
@@ -410,7 +445,8 @@
                                             </button>
                                         </td>
                                     </tr>
-                                `).join('');
+                                    `;
+                                }).join('');
                             }
 
                             // Update pagination info
