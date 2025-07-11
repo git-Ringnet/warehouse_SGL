@@ -91,11 +91,11 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">{{ $material->created_at->format('d/m/Y H:i') }}</p>
+                        <p class="text-gray-900">{{ $material->created_at->format('H:i d/m/Y') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
-                        <p class="text-gray-900">{{ $material->updated_at->format('d/m/Y H:i') }}</p>
+                        <p class="text-gray-900">{{ $material->updated_at->format('H:i d/m/Y') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Nhà cung cấp</p>

@@ -727,7 +727,7 @@ trailer
      * Download import template
      */
     public function downloadTemplate()
-    {
+    {   
         // Tạo mẫu Excel với dữ liệu mẫu
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

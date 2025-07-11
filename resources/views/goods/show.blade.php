@@ -99,7 +99,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">{{ $good->created_at->format('d/m/Y') }}</p>
+                        <p class="text-gray-900">{{ $good->created_at->format('H:i d/m/Y') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
