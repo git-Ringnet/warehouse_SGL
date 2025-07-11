@@ -150,7 +150,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->address }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->manager }}
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ optional($warehouse->managerEmployee)->name ?? 'N/A' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                     @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('warehouses.view_detail')))

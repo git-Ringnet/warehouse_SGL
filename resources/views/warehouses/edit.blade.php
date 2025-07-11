@@ -67,8 +67,8 @@
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <option value="">-- Chọn người quản lý --</option>
                                     @foreach($employees as $employee)
-                                    <option value="{{ $employee->name }}" 
-                                        {{ $warehouse->manager == $employee->name ? 'selected' : '' }}>
+                                    <option value="{{ $employee->id }}" 
+                                        {{ $warehouse->manager == $employee->id ? 'selected' : '' }}>
                                         {{ $employee->name }}
                                     </option>
                                     @endforeach

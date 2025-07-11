@@ -153,6 +153,6 @@ class Employee extends Authenticatable
      */
     public function warehouses()
     {
-        return $this->hasMany(Warehouse::class, 'manager');
+        return $this->hasMany(Warehouse::class, 'manager')->whereNull('deleted_at');
     }
 } 

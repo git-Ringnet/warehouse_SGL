@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
 use App\Models\UserLog;
+use Illuminate\Support\Facades\DB;
 
 class WarehouseController extends Controller
 {
@@ -388,8 +389,14 @@ class WarehouseController extends Controller
                     );
                 }
             } else {
-                // Đánh dấu đã xóa (soft delete)
-                $warehouse->update(['status' => 'deleted']);
+                // Kiểm tra xem kho có vật tư không
+                if ($warehouse->warehouseMaterials()->exists()) {
+                    return redirect()->back()
+                        ->with('error', 'Không thể xóa kho này vì còn vật tư tồn kho.');
+                }
+
+                // Xóa hoàn toàn khỏi database
+                $warehouse->forceDelete();
                 $message = 'Kho hàng đã được xóa thành công.';
 
                 // Ghi nhật ký
@@ -400,7 +407,7 @@ class WarehouseController extends Controller
                         'warehouses',
                         'Xóa kho hàng: ' . $warehouseName . ' (' . $warehouseCode . ')',
                         $oldData,
-                        array_merge($oldData, ['status' => 'deleted'])
+                        null
                     );
                 }
             }
