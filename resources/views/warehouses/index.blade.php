@@ -57,6 +57,15 @@
                                         @endforeach
                                     </select>
                                 </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng tồn kho</label>
+                                    <select id="inventoryStatusFilter"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                        <option value="">Tất cả tình trạng</option>
+                                        <option value="has_inventory" {{ request('inventory_status') == 'has_inventory' ? 'selected' : '' }}>Còn tồn kho</option>
+                                        <option value="no_inventory" {{ request('inventory_status') == 'no_inventory' ? 'selected' : '' }}>Hết tồn kho</option>
+                                    </select>
+                                </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
                                     <button id="clearFiltersInDropdown"
                                         class="text-gray-500 hover:text-gray-700 text-sm">
@@ -353,6 +362,7 @@
             const filterDropdownButton = document.getElementById('filterDropdownButton');
             const filterDropdown = document.getElementById('filterDropdown');
             const managerFilter = document.getElementById('managerFilter');
+            const inventoryStatusFilter = document.getElementById('inventoryStatusFilter');
             const applyFilters = document.getElementById('applyFilters');
             const clearFiltersInDropdown = document.getElementById('clearFiltersInDropdown');
             const warehouseTableBody = document.querySelector('tbody');
@@ -366,6 +376,9 @@
                 }
                 if (managerFilter.value) {
                     params.append('manager', managerFilter.value);
+                }
+                if (inventoryStatusFilter.value) {
+                    params.append('inventory_status', inventoryStatusFilter.value);
                 }
 
                 // Show loading state
@@ -420,8 +433,8 @@
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${index + 1}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${warehouse.code}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.name}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.address ?? ''}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.manager}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.address ?? 'N/A'}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${warehouse.manager_name ?? 'N/A'}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">${inventoryStatus}</td>
                                         <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                             <a href="/warehouses/${warehouse.id}">
@@ -482,6 +495,7 @@
             function updateFilterButtonText() {
                 const activeFilters = [];
                 if (managerFilter.value) activeFilters.push('manager');
+                if (inventoryStatusFilter.value) activeFilters.push('inventory_status');
 
                 if (activeFilters.length > 0) {
                     filterDropdownButton.innerHTML =
@@ -522,6 +536,7 @@
             // Clear filters in dropdown
             clearFiltersInDropdown.addEventListener('click', function() {
                 managerFilter.value = '';
+                inventoryStatusFilter.value = '';
                 searchInput.value = '';
                 updateFilterButtonText();
                 performAjaxSearch();

@@ -47,7 +47,7 @@
                             <div>
                                 <h2 class="text-2xl font-bold text-gray-800">{{ $warehouse->name }}</h2>
                                 <p class="text-gray-600 mt-1">Mã kho: {{ $warehouse->code }}</p>
-                                <p class="text-gray-600 mt-1">{{ $warehouse->address }}</p>
+                                <p class="text-gray-600 mt-1">{{ $warehouse->address ?? 'Không có' }}</p>
                             </div>
                             <div class="mt-4 md:mt-0 flex flex-col items-start md:items-end">
                                 <div class="flex items-center mt-1">
@@ -82,7 +82,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Địa chỉ</p>
-                        <p class="text-gray-900">{{ $warehouse->address }}</p>
+                        <p class="text-gray-900">{{ $warehouse->address ?? 'Không có' }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Người quản lý</p>
@@ -90,20 +90,18 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">{{ $warehouse->created_at->format('d/m/Y') }}</p>
+                        <p class="text-gray-900">{{ now()->setTimezone('Asia/Ho_Chi_Minh')->parse($warehouse->created_at)->format('H:i d/m/Y') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
-                        <p class="text-gray-900">{{ $warehouse->updated_at->format('d/m/Y') }}</p>
+                        <p class="text-gray-900">{{ now()->setTimezone('Asia/Ho_Chi_Minh')->parse($warehouse->updated_at)->format('H:i d/m/Y') }}</p>
                     </div>
                 </div>
 
-                @if ($warehouse->description)
-                    <div class="border-t border-gray-200 pt-4 mb-6">
-                        <p class="text-sm text-gray-500">Mô tả kho hàng</p>
-                        <p class="text-gray-900 mt-1">{{ $warehouse->description }}</p>
-                    </div>
-                @endif
+                <div class="border-t border-gray-200 pt-4 mb-6">
+                    <p class="text-sm text-gray-500">Mô tả kho hàng</p>
+                    <p class="text-gray-900 mt-1">{{ $warehouse->description ?? 'Không có' }}</p>
+                </div>
 
                 <!-- Bảng hiển thị linh kiện và thành phẩm -->
                 <div class="border-t border-gray-200 pt-4 mb-6">
@@ -169,10 +167,6 @@
                                             </th>
                                             <th scope="col"
                                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Vị trí
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Thao tác
                                             </th>
                                         </tr>
@@ -190,8 +184,6 @@
                                                     {{ number_format($material['quantity']) }}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                     {{ $material['unit'] }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {{ $material['location'] ?? '-' }}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
                                                     <a href="{{ route('materials.show', $material['id']) }}"
                                                         class="hover:text-blue-800">
@@ -201,7 +193,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7"
+                                                <td colspan="6"
                                                     class="px-6 py-4 text-center text-sm text-gray-500">
                                                     Không có vật tư nào trong kho này
                                                 </td>
@@ -236,10 +228,6 @@
                                             </th>
                                             <th scope="col"
                                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Vị trí
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Thao tác
                                             </th>
                                         </tr>
@@ -255,8 +243,6 @@
                                                     {{ Str::limit($product['description'] ?? '', 50) }}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                     {{ number_format($product['quantity']) }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {{ $product['location'] ?? '-' }}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
                                                     <a href="{{ route('products.show', $product['id']) }}"
                                                         class="hover:text-blue-800">
@@ -266,7 +252,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6"
+                                                <td colspan="5"
                                                     class="px-6 py-4 text-center text-sm text-gray-500">
                                                     Không có thành phẩm nào trong kho này
                                                 </td>
@@ -305,10 +291,6 @@
                                             </th>
                                             <th scope="col"
                                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Vị trí
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Thao tác
                                             </th>
                                         </tr>
@@ -326,8 +308,6 @@
                                                     {{ number_format($good['quantity']) }}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                     {{ $good['unit'] }}</td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {{ $good['location'] ?? '-' }}</td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
                                                     <a href="{{ route('goods.show', $good['id']) }}"
                                                         class="hover:text-blue-800">
@@ -337,7 +317,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7"
+                                                <td colspan="6"
                                                     class="px-6 py-4 text-center text-sm text-gray-500">
                                                     Không có hàng hóa nào trong kho này
                                                 </td>

@@ -32,25 +32,45 @@ class WarehouseController extends Controller
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('name', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('address', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('manager', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('managerEmployee', function ($q) use ($searchTerm) {
+                        $q->where('name', 'LIKE', "%{$searchTerm}%");
+                    })
                     ->orWhere('description', 'LIKE', "%{$searchTerm}%");
             });
         }
 
         // Apply manager filter
         if ($request->filled('manager')) {
-            $query->where('manager', $request->manager);
+            $query->whereHas('managerEmployee', function ($q) use ($request) {
+                $q->where('name', $request->manager);
+            });
         }
 
-        $warehouses = $query->get();
+        $warehouses = $query->with('managerEmployee')->get();
+
+        // Calculate total quantity and apply inventory status filter if needed
+        if ($request->filled('inventory_status')) {
+            // Calculate total quantity for each warehouse
+            $warehouses->each(function ($warehouse) {
+                $warehouse->total_quantity = $warehouse->warehouseMaterials()->sum('quantity');
+            });
+
+            if ($request->inventory_status === 'has_inventory') {
+                $warehouses = $warehouses->filter(function ($warehouse) {
+                    return $warehouse->total_quantity > 0;
+                })->values();
+            } elseif ($request->inventory_status === 'no_inventory') {
+                $warehouses = $warehouses->filter(function ($warehouse) {
+                    return $warehouse->total_quantity <= 0;
+                })->values();
+            }
+        }
 
         // Get unique managers for filter dropdown
-        $managers = Warehouse::where('is_hidden', false)
-            ->where('status', 'active')
-            ->select('manager')
-            ->distinct()
-            ->pluck('manager')
-            ->toArray();
+        $managers = \App\Models\Employee::whereHas('warehouses', function($q) {
+            $q->where('is_hidden', false)
+              ->where('status', 'active');
+        })->pluck('name')->toArray();
 
         return view('warehouses.index', compact('warehouses', 'managers'));
     }
@@ -534,35 +554,52 @@ class WarehouseController extends Controller
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('name', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('address', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('manager', 'LIKE', "%{$searchTerm}%")
+                    ->orWhereHas('managerEmployee', function ($q) use ($searchTerm) {
+                        $q->where('name', 'LIKE', "%{$searchTerm}%");
+                    })
                     ->orWhere('description', 'LIKE', "%{$searchTerm}%");
             });
         }
 
         // Apply manager filter
         if ($request->filled('manager')) {
-            $query->where('manager', $request->manager);
+            $query->whereHas('managerEmployee', function ($q) use ($request) {
+                $q->where('name', $request->manager);
+            });
         }
 
-        $warehouses = $query->get();
+        $warehouses = $query->with('managerEmployee')->get();
 
         // Calculate total quantity for each warehouse
         $warehouses->each(function ($warehouse) {
             $warehouse->total_quantity = $warehouse->warehouseMaterials()->sum('quantity');
+            // Thêm tên người quản lý vào dữ liệu trả về
+            $warehouse->manager_name = optional($warehouse->managerEmployee)->name ?? 'N/A';
         });
 
+        // Apply inventory status filter
+        if ($request->filled('inventory_status')) {
+            if ($request->inventory_status === 'has_inventory') {
+                $warehouses = $warehouses->filter(function ($warehouse) {
+                    return $warehouse->total_quantity > 0;
+                });
+            } elseif ($request->inventory_status === 'no_inventory') {
+                $warehouses = $warehouses->filter(function ($warehouse) {
+                    return $warehouse->total_quantity <= 0;
+                });
+            }
+        }
+
         // Get unique managers for filter dropdown
-        $managers = Warehouse::where('is_hidden', false)
-            ->where('status', 'active')
-            ->select('manager')
-            ->distinct()
-            ->pluck('manager')
-            ->toArray();
+        $managers = \App\Models\Employee::whereHas('warehouses', function($q) {
+            $q->where('is_hidden', false)
+              ->where('status', 'active');
+        })->pluck('name')->toArray();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'warehouses' => $warehouses,
+                'warehouses' => $warehouses->values(),
                 'managers' => $managers,
                 'totalCount' => $warehouses->count()
             ]
