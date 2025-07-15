@@ -6,6 +6,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Employee;
+use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 
 class EmployeeSeeder extends Seeder
@@ -25,6 +26,9 @@ class EmployeeSeeder extends Seeder
             Employee::where('username', 'nhanvien')->delete();
         }
         
+        // Lấy vai trò Super Admin
+        $superAdminRole = Role::where('name', 'Super Admin')->first();
+        
         // Tạo tài khoản admin - sử dụng DB::table để tránh trigger setPasswordAttribute
         DB::table('employees')->insert([
             'username' => 'admin',
@@ -34,6 +38,7 @@ class EmployeeSeeder extends Seeder
             'phone' => '0123456789',
             'address' => 'Hà Nội, Việt Nam',
             'role' => 'admin',
+            'role_id' => $superAdminRole ? $superAdminRole->id : null,
             'status' => 'active',
             'is_active' => 1,
             'created_at' => now(),
@@ -55,4 +60,4 @@ class EmployeeSeeder extends Seeder
             'updated_at' => now(),
         ]);
     }
-} 
+}           
