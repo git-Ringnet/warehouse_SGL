@@ -755,7 +755,7 @@ trailer
             ->setCellValue('B1', 'Tên hàng hóa (*)')
             ->setCellValue('C1', 'Loại hàng hóa (*)')
             ->setCellValue('D1', 'Đơn vị (*)')
-            ->setCellValue('E1', 'Ghi chú')
+            ->setCellValue('E1', 'Nhà cung cấp')
             ->setCellValue('F1', 'Kho tính tồn kho');
 
         // Dữ liệu mẫu
@@ -763,22 +763,22 @@ trailer
             ->setCellValue('B2', 'Ốc vít thông dụng M6')
             ->setCellValue('C2', 'Linh kiện')
             ->setCellValue('D2', 'Cái')
-            ->setCellValue('E2', 'Ghi chú mẫu')
+            ->setCellValue('E2', '1,2,3')
             ->setCellValue('F2', 'all');
 
         $sheet->setCellValue('A3', 'HH002')
             ->setCellValue('B3', 'Ống nhựa PVC 20mm')
             ->setCellValue('C3', 'Vật tư')
             ->setCellValue('D3', 'Mét')
-            ->setCellValue('E3', 'Ống nhựa chất lượng cao')
-            ->setCellValue('F3', 'all');
+            ->setCellValue('E3', 'all')
+            ->setCellValue('F3', 'KHO01');
 
         $sheet->setCellValue('A4', 'HH003')
             ->setCellValue('B4', 'Dây điện 2.5mm')
             ->setCellValue('C4', 'Điện')
             ->setCellValue('D4', 'Mét')
-            ->setCellValue('E4', 'Dây điện chất lượng cao')
-            ->setCellValue('F4', 'all');
+            ->setCellValue('E4', '1')
+            ->setCellValue('F4', 'KHO01,KHO02');
 
         // Style cho header row
         $sheet->getStyle('A1:F1')->applyFromArray([
@@ -822,8 +822,9 @@ trailer
         $sheet->setCellValue('A9', '• Tên hàng hóa: Tối đa 255 ký tự');
         $sheet->setCellValue('A10', '• Loại hàng hóa: Ví dụ: Linh kiện, Vật tư, Điện, Hóa chất...');
         $sheet->setCellValue('A11', '• Đơn vị: Ví dụ: Cái, Bộ, Chiếc, Mét, Cuộn, Kg...');
-        $sheet->setCellValue('A12', '• Kho tính tồn kho: Để "all" để tính tất cả kho hoặc để trống');
-        $sheet->setCellValue('A13', '• Xóa các dòng mẫu này trước khi import');
+        $sheet->setCellValue('A12', '• Nhà cung cấp: Để "all" để chọn tất cả, hoặc nhập STT nhà cung cấp (nhiều STT cách nhau bởi dấu phẩy), hoặc để trống');
+        $sheet->setCellValue('A13', '• Kho tính tồn kho: Để "all" để tính tất cả kho, hoặc nhập mã kho (nhiều kho cách nhau bởi dấu phẩy), hoặc để trống');
+        $sheet->setCellValue('A14', '• Xóa các dòng mẫu này trước khi import');
 
         // Style cho hướng dẫn
         $sheet->getStyle('A6')->applyFromArray([
@@ -834,7 +835,22 @@ trailer
             ]
         ]);
 
-        $sheet->getStyle('A7:A13')->applyFromArray([
+        $sheet->getStyle('A7:A14')->applyFromArray([
+            'font' => [
+                'color' => ['rgb' => '666666'],
+                'size' => 10
+            ]
+        ]);
+
+        $sheet->getStyle('A16')->applyFromArray([
+            'font' => [
+                'bold' => true,
+                'size' => 12,
+                'color' => ['rgb' => '4472C4']
+            ]
+        ]);
+
+        $sheet->getStyle('A17')->applyFromArray([
             'font' => [
                 'color' => ['rgb' => '666666'],
                 'size' => 10
@@ -846,7 +862,7 @@ trailer
         $sheet->getColumnDimension('B')->setWidth(30);  // Tên hàng hóa
         $sheet->getColumnDimension('C')->setWidth(15);  // Loại hàng hóa
         $sheet->getColumnDimension('D')->setWidth(12);  // Đơn vị
-        $sheet->getColumnDimension('E')->setWidth(25);  // Ghi chú
+        $sheet->getColumnDimension('E')->setWidth(25);  // Nhà cung cấp
         $sheet->getColumnDimension('F')->setWidth(15);  // Kho tính tồn kho
 
         // Tạo tên file

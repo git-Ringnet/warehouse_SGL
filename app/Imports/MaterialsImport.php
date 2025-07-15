@@ -136,7 +136,24 @@ class MaterialsImport implements ToCollection, WithHeadingRow
         $warehouseCodes = array_map('trim', $warehouseCodes);
         $warehouseCodes = array_filter($warehouseCodes);
 
-        return empty($warehouseCodes) ? ['all'] : $warehouseCodes;
+        if (empty($warehouseCodes)) {
+            return ['all'];
+        }
+
+        // Lấy danh sách kho theo mã và chưa bị xóa
+        $warehouses = \App\Models\Warehouse::whereIn('code', $warehouseCodes)
+            ->where('status', '!=', 'deleted')
+            ->get();
+
+        // Kiểm tra các mã kho không hợp lệ
+        $existingCodes = $warehouses->pluck('code')->toArray();
+        $invalidCodes = array_diff($warehouseCodes, $existingCodes);
+        if (!empty($invalidCodes)) {
+            throw new \Exception('Mã kho không tồn tại hoặc đã bị xóa: ' . implode(', ', $invalidCodes));
+        }
+
+        // Trả về mảng ID của các kho
+        return $warehouses->pluck('id')->toArray();
     }
 
     protected function parseSupplierIds($value)
@@ -151,9 +168,6 @@ class MaterialsImport implements ToCollection, WithHeadingRow
             return ['all'];
         }
         
-        // Lấy danh sách tất cả nhà cung cấp, sắp xếp theo ID
-        $allSuppliers = Supplier::orderBy('id')->get();
-        
         // Chuyển STT thành mảng
         $supplierNumbers = explode(',', $value);
         $supplierNumbers = array_map('trim', $supplierNumbers);
@@ -166,12 +180,23 @@ class MaterialsImport implements ToCollection, WithHeadingRow
             return [];
         }
         
-        // Lấy ID của nhà cung cấp dựa trên STT (STT bắt đầu từ 1)
+        // Lấy danh sách nhà cung cấp và sắp xếp theo thứ tự hiển thị trên giao diện
+        $suppliers = Supplier::query()
+            ->orderByRaw("CASE WHEN name = 'Kho Bảo Hành' THEN 0 ELSE 1 END")
+            ->orderBy('id', 'asc')
+            ->get()
+            ->values()
+            ->map(function ($supplier, $index) {
+                $supplier->display_number = $index + 1;
+                return $supplier;
+            });
+            
+        // Lấy ID của nhà cung cấp dựa trên STT hiển thị
         $supplierIds = [];
         foreach ($supplierNumbers as $number) {
-            $index = (int)$number - 1; // STT bắt đầu từ 1, index bắt đầu từ 0
-            if (isset($allSuppliers[$index])) {
-                $supplierIds[] = $allSuppliers[$index]->id;
+            $supplier = $suppliers->firstWhere('display_number', (int)$number);
+            if ($supplier) {
+                $supplierIds[] = $supplier->id;
             }
         }
         

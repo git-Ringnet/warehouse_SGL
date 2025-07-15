@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Good;
+use App\Models\Supplier;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -18,7 +19,7 @@ class GoodsImport implements ToCollection, WithHeadingRow
         'duplicates' => [],
         'created_goods' => []
     ];
-    
+
     public function collection(Collection $rows)
     {
         // Reset results at the beginning to ensure clean state
@@ -29,32 +30,54 @@ class GoodsImport implements ToCollection, WithHeadingRow
         foreach ($rows as $index => $row) {
             $rowNumber = $index + 2; // +2 because Excel starts from 1 and has header
             
-            // Skip empty rows
-            if (empty($row['ma_hang_hoa']) && empty($row['ten_hang_hoa'])) {
-                continue;
-            }
-            
             try {
                 // Validate required fields
-                if (empty($row['ma_hang_hoa']) || empty($row['ten_hang_hoa']) || empty($row['loai_hang_hoa']) || empty($row['don_vi'])) {
-                    throw new \Exception('Thiếu thông tin bắt buộc: Mã hàng hóa, Tên hàng hóa, Loại hàng hóa, Đơn vị là bắt buộc.');
+                $errors = [];
+                if (empty($row['ma_hang_hoa'])) {
+                    $errors[] = 'Mã hàng hóa là bắt buộc';
                 }
-                
-                // Check for duplicate code
-                $existingGood = Good::where('code', $row['ma_hang_hoa'])->first();
+                if (empty($row['ten_hang_hoa'])) {
+                    $errors[] = 'Tên hàng hóa là bắt buộc';
+                }
+                if (empty($row['loai_hang_hoa'])) {
+                    $errors[] = 'Loại hàng hóa là bắt buộc';
+                }
+                if (empty($row['don_vi'])) {
+                    $errors[] = 'Đơn vị là bắt buộc';
+                }
+
+                if (!empty($errors)) {
+                    $this->importResults['error_count']++;
+                    $this->importResults['errors'][] = [
+                        'row' => $rowNumber,
+                        'code' => $row['ma_hang_hoa'] ?? 'N/A',
+                        'name' => $row['ten_hang_hoa'] ?? 'N/A',
+                        'message' => implode(', ', $errors)
+                    ];
+                    continue;
+                }
+
+                // Check for duplicate code - only check goods that are not deleted
+                $existingGood = Good::where('code', $row['ma_hang_hoa'])
+                    ->where('status', '!=', 'deleted')
+                    ->first();
+
                 if ($existingGood) {
                     $this->importResults['duplicate_count']++;
                     $this->importResults['duplicates'][] = [
                         'row' => $rowNumber,
                         'code' => $row['ma_hang_hoa'],
-                        'name' => $row['ten_hang_hoa'] ?? 'N/A',
-                        'message' => 'Mã hàng hóa đã tồn tại. Loại hàng hóa là bắt buộc. Đơn vị là bắt buộc.'
+                        'name' => $row['ten_hang_hoa'],
+                        'message' => 'Mã hàng hóa đã tồn tại'
                     ];
                     continue;
                 }
-                
+
                 // Parse inventory warehouses
                 $inventoryWarehouses = $this->parseInventoryWarehouses($row['kho_tinh_ton_kho'] ?? 'all');
+
+                // Parse supplier IDs
+                $supplierIds = $this->parseSupplierIds($row['nha_cung_cap'] ?? '');
                 
                 // Create new good
                 $good = Good::create([
@@ -62,12 +85,26 @@ class GoodsImport implements ToCollection, WithHeadingRow
                     'name' => $row['ten_hang_hoa'],
                     'category' => $row['loai_hang_hoa'],
                     'unit' => $row['don_vi'],
-                    'description' => $row['ghi_chu'] ?? null,
                     'inventory_warehouses' => $inventoryWarehouses,
                     'status' => 'active',
                     'is_hidden' => false
                 ]);
-                
+
+                // Associate with suppliers using the pivot table
+                if (is_array($supplierIds) && !empty($supplierIds)) {
+                    if (in_array('all', $supplierIds)) {
+                        // If "all" is specified, get all supplier IDs and attach them
+                        $allSupplierIds = Supplier::pluck('id')->toArray();
+                        if (!empty($allSupplierIds)) {
+                            $good->suppliers()->attach($allSupplierIds);
+                        }
+                    } else {
+                        // Create relationships in pivot table for specific suppliers
+                        $good->suppliers()->attach($supplierIds);
+                    }
+                }
+                // Nếu mảng rỗng: không liên kết với nhà cung cấp nào
+
                 $this->importResults['success_count']++;
                 $this->importResults['created_goods'][] = [
                     'row' => $rowNumber,
@@ -75,7 +112,6 @@ class GoodsImport implements ToCollection, WithHeadingRow
                     'name' => $good->name,
                     'id' => $good->id
                 ];
-                
             } catch (\Exception $e) {
                 $this->importResults['error_count']++;
                 $this->importResults['errors'][] = [
@@ -87,26 +123,90 @@ class GoodsImport implements ToCollection, WithHeadingRow
             }
         }
     }
-    
+
     protected function parseInventoryWarehouses($value)
     {
         if (empty($value) || strtolower($value) === 'all') {
             return ['all'];
         }
-        
-        // If specific warehouse IDs are provided (comma separated)
-        $warehouseIds = explode(',', $value);
-        $warehouseIds = array_map('trim', $warehouseIds);
-        $warehouseIds = array_filter($warehouseIds);
-        
-        return empty($warehouseIds) ? ['all'] : $warehouseIds;
+
+        // If specific warehouse codes are provided (comma separated)
+        $warehouseCodes = explode(',', $value);
+        $warehouseCodes = array_map('trim', $warehouseCodes);
+        $warehouseCodes = array_filter($warehouseCodes);
+
+        if (empty($warehouseCodes)) {
+            return ['all'];
+        }
+
+        // Lấy danh sách kho theo mã và chưa bị xóa
+        $warehouses = \App\Models\Warehouse::whereIn('code', $warehouseCodes)
+            ->where('status', '!=', 'deleted')
+            ->get();
+
+        // Kiểm tra các mã kho không hợp lệ
+        $existingCodes = $warehouses->pluck('code')->toArray();
+        $invalidCodes = array_diff($warehouseCodes, $existingCodes);
+        if (!empty($invalidCodes)) {
+            throw new \Exception('Mã kho không tồn tại hoặc đã bị xóa: ' . implode(', ', $invalidCodes));
+        }
+
+        // Trả về mảng ID của các kho
+        return $warehouses->pluck('id')->toArray();
     }
-    
+
+    protected function parseSupplierIds($value)
+    {
+        // Nếu trống (không phải "all"), trả về mảng rỗng
+        if (empty($value)) {
+            return [];
+        }
+        
+        // Nếu là "all", trả về ['all']
+        if (strtolower($value) === 'all') {
+            return ['all'];
+        }
+        
+        // Chuyển STT thành mảng
+        $supplierNumbers = explode(',', $value);
+        $supplierNumbers = array_map('trim', $supplierNumbers);
+        $supplierNumbers = array_filter($supplierNumbers, function($num) {
+            return is_numeric($num) && $num > 0;
+        });
+        
+        // Nếu không có STT hợp lệ, trả về mảng rỗng
+        if (empty($supplierNumbers)) {
+            return [];
+        }
+        
+        // Lấy danh sách nhà cung cấp và sắp xếp theo thứ tự hiển thị trên giao diện
+        $suppliers = Supplier::query()
+            ->orderByRaw("CASE WHEN name = 'Kho Bảo Hành' THEN 0 ELSE 1 END")
+            ->orderBy('id', 'asc')
+            ->get()
+            ->values()
+            ->map(function ($supplier, $index) {
+                $supplier->display_number = $index + 1;
+                return $supplier;
+            });
+            
+        // Lấy ID của nhà cung cấp dựa trên STT hiển thị
+        $supplierIds = [];
+        foreach ($supplierNumbers as $number) {
+            $supplier = $suppliers->firstWhere('display_number', (int)$number);
+            if ($supplier) {
+                $supplierIds[] = $supplier->id;
+            }
+        }
+        
+        return $supplierIds;
+    }
+
     public function getImportResults()
     {
         return $this->importResults;
     }
-    
+
     protected function resetResults()
     {
         $this->importResults = [
