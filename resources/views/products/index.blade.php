@@ -488,6 +488,15 @@
                         </a>
                     `;
                 }
+
+                // Thêm nút xem hình ảnh
+                actionButtons += `
+                    <button onclick="openProductImages('${product.id}', '${product.name}')" 
+                        class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" 
+                        title="Xem hình ảnh">
+                        <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
+                    </button>
+                `;
                 
                 if (isAdmin || canEdit) {
                     actionButtons += `
@@ -873,7 +882,7 @@
                 .then(data => {
                     productImagesContainer.innerHTML = '';
                     
-                    if (data.images && data.images.length > 0) {
+                    if (data.success && data.images && data.images.length > 0) {
                         noImagesMessage.classList.add('hidden');
                         productImagesContainer.classList.remove('hidden');
                         
@@ -885,7 +894,7 @@
                                     <img src="/storage/${image.image_path}" 
                                          alt="${image.alt_text || productName}" 
                                          class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 cursor-pointer"
-                                         onclick="handleImageClick('/storage/${image.image_path}', '${image.alt_text || productName}')">
+                                         onclick="openFullImageModal('/storage/${image.image_path}', '${image.alt_text || productName}')">
                                 </div>
                             `;
                             productImagesContainer.appendChild(imageDiv);
