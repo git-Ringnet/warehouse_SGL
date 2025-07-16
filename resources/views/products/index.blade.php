@@ -41,12 +41,9 @@
                             class="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-30 hidden border border-gray-200">
                             <div class="p-4 space-y-3">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tình trạng tồn kho</label>
-                                    <select id="stockFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                                        <option value="">Tất cả trạng thái</option>
-                                        <option value="in_stock">Còn tồn kho</option>
-                                        <option value="out_of_stock">Hết tồn kho</option>
-                                    </select>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn hoặc bằng)</label>
+                                    <input type="number" id="stockQuantityFilter" min="0" placeholder="Nhập số lượng" 
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
                                     <button id="clearFiltersInDropdown"
@@ -210,6 +207,12 @@
                                                 </button>
                                             </a>
                                         @endif
+                                        <button
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
+                                            title="Xem hình ảnh"
+                                            onclick="openProductImages('{{ $product->id }}', '{{ $product->name }}')">
+                                            <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
+                                        </button>
                                         @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('products.edit')))
                                             <a href="{{ route('products.edit', $product->id) }}">
                                                 <button
@@ -379,11 +382,24 @@
         </div>
     </div>
 
+    <!-- Image Modal -->
+    <div id="fullImageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] hidden">
+        <div class="max-w-4xl max-h-full p-4">
+            <div class="relative">
+                <img id="fullModalImage" src="" alt="" class="max-w-full max-h-[80vh] rounded-lg">
+                <button onclick="closeFullImageModal()"
+                    class="absolute top-2 right-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <p id="fullModalImageCaption" class="text-white text-center mt-2"></p>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('searchInput');
             const searchButton = document.getElementById('searchButton');
-            const stockFilter = document.getElementById('stockFilter');
             const filterDropdownButton = document.getElementById('filterDropdownButton');
             const filterDropdown = document.getElementById('filterDropdown');
             const clearFiltersInDropdown = document.getElementById('clearFiltersInDropdown');
@@ -393,25 +409,26 @@
             const filterTags = document.getElementById('filterTags');
             const loadingState = document.getElementById('loadingState');
             const noResultsState = document.getElementById('noResultsState');
+            const stockQuantityFilter = document.getElementById('stockQuantityFilter'); // New input for stock quantity
 
             let currentFilters = {
                 search: '',
-                stock: ''
+                stockQuantity: '' // Changed from 'stock' to 'stockQuantity'
             };
 
             function performSearch() {
                 const searchTerm = searchInput.value.trim();
-                const stock = stockFilter.value;
+                const stockQuantity = stockQuantityFilter.value.trim(); // Use new input
                 
                 currentFilters.search = searchTerm;
-                currentFilters.stock = stock;
+                currentFilters.stockQuantity = stockQuantity; // Update current filters
                 
                 showLoading();
                 updateFilterTags();
 
                 const params = new URLSearchParams();
                 if (searchTerm) params.append('search', searchTerm);
-                if (stock) params.append('stock_filter', stock);
+                if (stockQuantity) params.append('stock_quantity', stockQuantity); // Append new parameter
 
                 fetch(`{{ route('products.search.api') }}?${params.toString()}`)
                     .then(response => response.json())
@@ -518,15 +535,14 @@
             function updateFilterTags() {
                 let tagsHtml = '';
 
-                if (currentFilters.search || currentFilters.stock) {
+                if (currentFilters.search || currentFilters.stockQuantity) {
                     tagsHtml += ' | Đang lọc ';
 
                     if (currentFilters.search) {
                         tagsHtml += `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs ml-1">Từ khóa: "${currentFilters.search}"</span>`;
                     }
-                    if (currentFilters.stock) {
-                        const stockText = currentFilters.stock === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho';
-                        tagsHtml += `<span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">Tồn kho: ${stockText}</span>`;
+                    if (currentFilters.stockQuantity) {
+                        tagsHtml += `<span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">Tồn kho ≤ ${currentFilters.stockQuantity}</span>`;
                     }
                 }
 
@@ -535,7 +551,7 @@
 
             function updateFilterButtonText() {
                 const activeFilters = [];
-                if (stockFilter.value) activeFilters.push('Tồn kho');
+                if (stockQuantityFilter.value) activeFilters.push('Tồn kho');
                 
                 if (activeFilters.length > 0) {
                     filterDropdownButton.innerHTML = `<i class="fas fa-filter mr-2"></i> Bộ lọc (${activeFilters.length}) <i class="fas fa-chevron-down ml-auto"></i>`;
@@ -594,9 +610,10 @@
             
             // Clear filters in dropdown
             clearFiltersInDropdown.addEventListener('click', function() {
-                stockFilter.value = '';
+                stockQuantityFilter.value = ''; // This will now be 'Tồn kho'
                 searchInput.value = '';
-                currentFilters = { search: '', stock: '' };
+                stockQuantityFilter.value = ''; // Clear new input
+                currentFilters = { search: '', stockQuantity: '' }; // Update current filters
                 updateFilterButtonText();
                 updateFilterTags();
                 performSearch();
@@ -614,6 +631,24 @@
             
             // Initialize
             updateFilterButtonText();
+            updateFilterTags();
+
+            // Load current values from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchFromUrl = urlParams.get('search');
+            const stockQuantityFromUrl = urlParams.get('stock_quantity');
+            
+            if (searchFromUrl) {
+                searchInput.value = searchFromUrl;
+                currentFilters.search = searchFromUrl;
+            }
+            
+            if (stockQuantityFromUrl) {
+                document.getElementById('stockQuantityFilter').value = stockQuantityFromUrl;
+                currentFilters.stockQuantity = stockQuantityFromUrl;
+            }
+            
+            // Update filter tags
             updateFilterTags();
         });
 
@@ -716,10 +751,10 @@
             document.getElementById('exportExcelButton').addEventListener('click', function() {
                 const params = new URLSearchParams();
                 const searchValue = document.getElementById('searchInput').value;
-                const stockValue = document.getElementById('stockFilter').value;
+                const stockQuantityValue = document.getElementById('stockQuantityFilter').value;
                 
                 if (searchValue) params.append('search', searchValue);
-                if (stockValue) params.append('stock_filter', stockValue);
+                if (stockQuantityValue) params.append('stock_quantity', stockQuantityValue);
                 
                 window.location.href = `{{ route('products.export.excel') }}?${params.toString()}`;
                 exportDropdown.classList.add('hidden');
@@ -728,10 +763,10 @@
             document.getElementById('exportPdfButton').addEventListener('click', function() {
                 const params = new URLSearchParams();
                 const searchValue = document.getElementById('searchInput').value;
-                const stockValue = document.getElementById('stockFilter').value;
+                const stockQuantityValue = document.getElementById('stockQuantityFilter').value;
                 
                 if (searchValue) params.append('search', searchValue);
-                if (stockValue) params.append('stock_filter', stockValue);
+                if (stockQuantityValue) params.append('stock_quantity', stockQuantityValue);
                 
                 window.location.href = `{{ route('products.export.pdf') }}?${params.toString()}`;
                 exportDropdown.classList.add('hidden');
@@ -797,6 +832,150 @@
 
         function closeDeleteZeroInventoryModal() {
             document.getElementById('deleteZeroInventoryModal').classList.add('hidden');
+        }
+    </script>
+
+    <!-- Xem hình ảnh thành phẩm -->
+    <script>
+        // Xem hình ảnh thành phẩm
+        function openProductImages(productId, productName) {
+            const imagesModal = document.getElementById('imagesModal');
+            const imagesModalContent = document.getElementById('imagesModalContent');
+            const productImagesContainer = document.getElementById('productImagesContainer');
+            const noImagesMessage = document.getElementById('noImagesMessage');
+            const productNameInModal = document.getElementById('productNameInModal');
+            
+            // Set product name
+            productNameInModal.textContent = productName;
+            
+            // Show modal first
+            imagesModal.classList.remove('hidden');
+            
+            // Clear previous images
+            productImagesContainer.innerHTML = '';
+            
+            // Show loading
+            productImagesContainer.innerHTML = `
+                <div class="col-span-full flex justify-center items-center py-8">
+                    <i class="fas fa-spinner fa-spin text-gray-400 text-2xl"></i>
+                </div>
+            `;
+            
+            // Animate modal in
+            setTimeout(() => {
+                imagesModalContent.classList.remove('scale-95', 'opacity-0');
+                imagesModalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            // Fetch images
+            fetch(`/api/products/${productId}/images`)
+                .then(response => response.json())
+                .then(data => {
+                    productImagesContainer.innerHTML = '';
+                    
+                    if (data.images && data.images.length > 0) {
+                        noImagesMessage.classList.add('hidden');
+                        productImagesContainer.classList.remove('hidden');
+                        
+                        data.images.forEach(image => {
+                            const imageDiv = document.createElement('div');
+                            imageDiv.className = 'relative group';
+                            imageDiv.innerHTML = `
+                                <div class="w-full h-32 border border-gray-200 rounded-lg overflow-hidden">
+                                    <img src="/storage/${image.image_path}" 
+                                         alt="${image.alt_text || productName}" 
+                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 cursor-pointer"
+                                         onclick="handleImageClick('/storage/${image.image_path}', '${image.alt_text || productName}')">
+                                </div>
+                            `;
+                            productImagesContainer.appendChild(imageDiv);
+                        });
+                    } else {
+                        noImagesMessage.classList.remove('hidden');
+                        productImagesContainer.classList.add('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching images:', error);
+                    productImagesContainer.innerHTML = `
+                        <div class="col-span-full text-center py-4">
+                            <p class="text-red-500">Có lỗi xảy ra khi tải hình ảnh</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Close images modal
+        document.getElementById('closeImagesModal').addEventListener('click', function() {
+            const imagesModal = document.getElementById('imagesModal');
+            const imagesModalContent = document.getElementById('imagesModalContent');
+            
+            imagesModalContent.classList.add('scale-95', 'opacity-0');
+            imagesModalContent.classList.remove('scale-100', 'opacity-100');
+            
+            setTimeout(() => {
+                imagesModal.classList.add('hidden');
+            }, 200);
+        });
+
+        // Also close on background click
+        document.getElementById('imagesModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                document.getElementById('closeImagesModal').click();
+            }
+        });
+
+        // Image viewing functions
+        function openFullImageModal(src, alt) {
+            document.getElementById('fullModalImage').src = src;
+            document.getElementById('fullModalImage').alt = alt;
+            document.getElementById('fullModalImageCaption').textContent = alt;
+            document.getElementById('fullImageModal').classList.remove('hidden');
+        }
+
+        function closeFullImageModal() {
+            document.getElementById('fullImageModal').classList.add('hidden');
+        }
+
+        // Close modal when clicking outside the image
+        document.getElementById('fullImageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeFullImageModal();
+            }
+        });
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFullImageModal();
+            }
+        });
+
+        // Function to handle image click in product images modal
+        function handleImageClick(imagePath, altText) {
+            openFullImageModal('/storage/' + imagePath, altText);
+        }
+
+        // Update the product images container to handle image clicks
+        function updateProductImagesContainer(images, productName) {
+            const container = document.getElementById('productImagesContainer');
+            container.innerHTML = '';
+            
+            if (images && images.length > 0) {
+                images.forEach(image => {
+                    const imageDiv = document.createElement('div');
+                    imageDiv.className = 'relative group';
+                    imageDiv.innerHTML = `
+                        <div class="w-full h-32 border border-gray-200 rounded-lg overflow-hidden">
+                            <img src="/storage/${image.image_path}" 
+                                 alt="${image.alt_text || productName}" 
+                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 cursor-pointer"
+                                 onclick="handleImageClick('${image.image_path}', '${image.alt_text || productName}')">
+                        </div>
+                    `;
+                    container.appendChild(imageDiv);
+                });
+            }
         }
     </script>
 </body>

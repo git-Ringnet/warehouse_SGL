@@ -21,6 +21,7 @@ class Product extends Model
         'code',
         'name',
         'description',
+        'category',
         'status',
         'is_hidden',
         'inventory_warehouses'

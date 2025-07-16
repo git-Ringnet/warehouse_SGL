@@ -587,12 +587,12 @@ class TestingController extends Controller
         DB::beginTransaction();
 
         try {
-            // Delete related records
-            $testing->details()->delete();
-            $testing->items()->delete();
+            // Delete related records completely
+            $testing->details()->forceDelete();
+            $testing->items()->forceDelete();
 
-            // Delete the testing record
-            $testing->delete();
+            // Delete the testing record completely
+            $testing->forceDelete();
 
             DB::commit();
 
@@ -602,14 +602,14 @@ class TestingController extends Controller
                     Auth::id(),
                     'delete',
                     'testings',
-                    'Xóa phiếu kiểm thử: ' . $testingCode,
+                    'Xóa hoàn toàn phiếu kiểm thử: ' . $testingCode,
                     $oldData,
                     null
                 );
             }
 
             return redirect()->route('testing.index')
-                ->with('success', 'Phiếu kiểm thử đã được xóa thành công.');
+                ->with('success', 'Phiếu kiểm thử đã được xóa hoàn toàn thành công.');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()

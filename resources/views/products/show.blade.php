@@ -87,13 +87,40 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
-                        <p class="text-gray-900">{{ $product->created_at->format('d/m/Y') }}</p>
+                        <p class="text-gray-900">{{ $product->created_at->format('H:i d/m/Y') }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Cập nhật lần cuối</p>
-                        <p class="text-gray-900">{{ $product->updated_at->format('d/m/Y H:i') }}</p>
+                        <p class="text-gray-900">{{ $product->updated_at->format('H:i d/m/Y') }}</p>
                     </div>
                 </div>
+
+                <!-- Mô tả -->
+                @if ($product->description)
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <h4 class="text-md font-semibold text-gray-700 mb-3">Mô tả</h4>
+                        <p class="text-gray-700 leading-relaxed">{{ $product->description }}</p>
+                    </div>
+                @endif
+
+                <!-- Hình ảnh thành phẩm -->
+                @if (isset($product->images) && count($product->images) > 0)
+                    <div class="border-t border-gray-200 pt-4 mt-4">
+                        <h4 class="text-md font-semibold text-gray-700 mb-3">Hình ảnh thành phẩm</h4>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            @foreach ($product->images as $image)
+                                <div class="relative group">
+                                    <div class="w-full h-32 border border-gray-200 rounded-lg overflow-hidden">
+                                        <img src="{{ asset('storage/' . $image->image_path) }}"
+                                            alt="{{ $image->alt_text ?? $product->name }}"
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 cursor-pointer"
+                                            onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}', '{{ $image->alt_text ?? $product->name }}')">
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 <!-- Thông tin số lượng -->
                 <div class="border-t border-gray-200 pt-4 mt-4">
@@ -152,9 +179,6 @@
                                             Đơn vị</th>
                                         <th
                                             class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                            Nhà cung cấp</th>
-                                        <th
-                                            class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                             Ghi chú</th>
                                         <th
                                             class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -176,18 +200,6 @@
                                             </td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                                                 {{ $material->unit ?? 'N/A' }}</td>
-                                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
-                                                @if ($material->suppliers && count($material->suppliers) > 0)
-                                                    @foreach ($material->suppliers as $supplier)
-                                                        <span
-                                                            class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-1 mb-1">
-                                                            {{ $supplier->name }}
-                                                        </span>
-                                                    @endforeach
-                                                @else
-                                                    <span class="text-gray-400">Chưa có</span>
-                                                @endif
-                                            </td>
                                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700">
                                                 {{ $material->pivot->notes ?? '-' }}
                                             </td>
@@ -217,33 +229,6 @@
                         </div>
                     @endif
                 </div>
-
-                <!-- Hình ảnh thành phẩm -->
-                @if (isset($product->images) && count($product->images) > 0)
-                    <div class="border-t border-gray-200 pt-4 mt-4">
-                        <h4 class="text-md font-semibold text-gray-700 mb-3">Hình ảnh thành phẩm</h4>
-                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            @foreach ($product->images as $image)
-                                <div class="relative group">
-                                    <div class="w-full h-32 border border-gray-200 rounded-lg overflow-hidden">
-                                        <img src="{{ asset('storage/' . $image->image_path) }}"
-                                            alt="{{ $image->alt_text ?? $product->name }}"
-                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200 cursor-pointer"
-                                            onclick="openImageModal('{{ asset('storage/' . $image->image_path) }}', '{{ $image->alt_text ?? $product->name }}')">
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                <!-- Mô tả -->
-                @if ($product->description)
-                    <div class="border-t border-gray-200 pt-4 mt-4">
-                        <h4 class="text-md font-semibold text-gray-700 mb-3">Mô tả</h4>
-                        <p class="text-gray-700 leading-relaxed">{{ $product->description }}</p>
-                    </div>
-                @endif
             </div>
         </main>
     </div>

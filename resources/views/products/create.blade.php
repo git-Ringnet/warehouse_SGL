@@ -63,6 +63,35 @@
                                     required value="{{ old('name') }}"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             </div>
+                            
+                            <div>
+                                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Loại thành phẩm</label>
+                                <div class="relative">
+                                    <div class="flex">
+                                        <select id="category" name="category" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10">
+                                            <option value="">-- Chọn loại thành phẩm --</option>
+                                            @foreach(\App\Models\Product::where('category', '!=', '')->whereNotNull('category')->distinct()->pluck('category')->toArray() as $cat)
+                                                <option value="{{ $cat }}" {{ old('category') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="button" id="addCategoryBtn" class="ml-2 bg-green-500 hover:bg-green-600 text-white w-10 rounded-lg flex items-center justify-center">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Modal thêm loại thành phẩm mới -->
+                                <div id="categoryModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50">
+                                    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                                        <h3 class="text-lg font-semibold mb-4">Thêm loại thành phẩm mới</h3>
+                                        <input type="text" id="newCategory" class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập tên loại thành phẩm mới">
+                                        <div class="flex justify-end space-x-3">
+                                            <button type="button" id="cancelAddCategory" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">Hủy</button>
+                                            <button type="button" id="confirmAddCategory" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Thêm</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="space-y-4">
@@ -146,7 +175,7 @@
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn kho</label>
                         <div class="space-y-2">
-                            @foreach (App\Models\Warehouse::orderBy('name')->where('status','active')->where('is_hidden', 0)->get() as $warehouse)
+                            @foreach (App\Models\Warehouse::orderBy('name')->get() as $warehouse)
                                 <div class="flex items-center">
                                     <input type="checkbox" id="warehouse_{{ $warehouse->id }}"
                                         name="inventory_warehouses[]" value="{{ $warehouse->id }}"
@@ -154,6 +183,9 @@
                                     <label for="warehouse_{{ $warehouse->id }}"
                                         class="ml-2 block text-sm text-gray-700">
                                         {{ $warehouse->name }}
+                                        @if($warehouse->is_hidden || $warehouse->status !== 'active')
+                                            <span class="text-xs text-gray-500 italic">({{ $warehouse->is_hidden ? 'Đã ẩn' : 'Đã xóa' }})</span>
+                                        @endif
                                     </label>
                                 </div>
                             @endforeach
@@ -192,6 +224,98 @@
     
     <!-- JavaScript for UI functionality -->
     <script src="{{ asset('js/product-form.js') }}"></script>
+
+    <!-- JavaScript for category management -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Lấy các phần tử
+            const categorySelect = document.getElementById('category');
+            const addCategoryBtn = document.getElementById('addCategoryBtn');
+            const categoryModal = document.getElementById('categoryModal');
+            const newCategoryInput = document.getElementById('newCategory');
+            const confirmAddCategory = document.getElementById('confirmAddCategory');
+            const cancelAddCategory = document.getElementById('cancelAddCategory');
+            
+            // Mở modal thêm loại thành phẩm
+            addCategoryBtn.addEventListener('click', function() {
+                categoryModal.classList.remove('hidden');
+                newCategoryInput.focus();
+            });
+            
+            // Đóng modal khi nhấn Hủy
+            cancelAddCategory.addEventListener('click', function() {
+                categoryModal.classList.add('hidden');
+                newCategoryInput.value = '';
+            });
+            
+            // Xử lý thêm loại thành phẩm mới
+            confirmAddCategory.addEventListener('click', function() {
+                const newCategoryName = newCategoryInput.value.trim();
+                if (newCategoryName) {
+                    // Kiểm tra xem loại thành phẩm đã tồn tại chưa
+                    let exists = false;
+                    for (let i = 0; i < categorySelect.options.length; i++) {
+                        if (categorySelect.options[i].text === newCategoryName) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!exists) {
+                        // Thêm option mới
+                        const newOption = document.createElement('option');
+                        newOption.value = newCategoryName;
+                        newOption.text = newCategoryName;
+                        newOption.selected = true;
+                        categorySelect.appendChild(newOption);
+                        
+                        // Lưu danh sách loại thành phẩm vào localStorage
+                        saveCategories();
+                    }
+                    
+                    // Đóng modal
+                    categoryModal.classList.add('hidden');
+                    newCategoryInput.value = '';
+                }
+            });
+            
+            // Lưu danh sách loại thành phẩm vào localStorage
+            function saveCategories() {
+                const categories = [];
+                for (let i = 1; i < categorySelect.options.length; i++) { // Bỏ qua option đầu tiên
+                    categories.push(categorySelect.options[i].text);
+                }
+                localStorage.setItem('productCategories', JSON.stringify(categories));
+            }
+            
+            // Tải danh sách loại thành phẩm từ localStorage
+            function loadCategories() {
+                const savedCategories = localStorage.getItem('productCategories');
+                if (savedCategories) {
+                    const categories = JSON.parse(savedCategories);
+                    // Xem nếu có loại nào chưa có trong select thì thêm vào
+                    categories.forEach(category => {
+                        let exists = false;
+                        for (let i = 0; i < categorySelect.options.length; i++) {
+                            if (categorySelect.options[i].text === category) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            const option = document.createElement('option');
+                            option.value = category;
+                            option.text = category;
+                            categorySelect.appendChild(option);
+                        }
+                    });
+                }
+            }
+            
+            // Tải danh sách loại thành phẩm khi trang tải xong
+            loadCategories();
+        });
+    </script>
 </body>
 
 </html>

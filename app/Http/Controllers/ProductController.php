@@ -25,6 +25,7 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $search = $request->get('search');
+        $stockQuantity = $request->get('stock_quantity');
 
         $query = Product::where('status', 'active')
             ->where('is_hidden', false);
@@ -37,11 +38,18 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->orderBy('id', 'desc')->paginate(10);
+        $products = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
 
         // Add inventory quantity to each product
         foreach ($products as $product) {
             $product->inventory_quantity = $product->getInventoryQuantity();
+        }
+
+        // Lọc theo số lượng tồn kho nếu có
+        if (!empty($stockQuantity) && $stockQuantity >= 0) {
+            $products = $products->filter(function ($product) use ($stockQuantity) {
+                return $product->inventory_quantity <= $stockQuantity;
+            });
         }
 
         return view('products.index', compact('products'));
@@ -67,7 +75,21 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'code' => 'required',
+            'code' => [
+                'required',
+                function ($attribute, $value, $fail) {
+                    // Kiểm tra mã trùng lặp (cả sản phẩm active/hidden nhưng không xóa)
+                    $exists = Product::where('code', $value)
+                        ->where(function($query) {
+                            $query->where('status', 'active');
+                        })
+                        ->exists();
+                    
+                    if ($exists) {
+                        $fail('Mã thành phẩm đã tồn tại.');
+                    }
+                },
+            ],
             'name' => 'required',
             'description' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -203,7 +225,22 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $request->validate([
-            'code' => 'required',
+            'code' => [
+                'required',
+                function ($attribute, $value, $fail) use ($product) {
+                    // Kiểm tra mã trùng lặp (cả sản phẩm active/hidden nhưng không xóa)
+                    $exists = Product::where('code', $value)
+                        ->where('id', '!=', $product->id)
+                        ->where(function($query) {
+                            $query->where('status', 'active');
+                        })
+                        ->exists();
+                    
+                    if ($exists) {
+                        $fail('Mã thành phẩm đã tồn tại.');
+                    }
+                },
+            ],
             'name' => 'required',
             'description' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -217,6 +254,41 @@ class ProductController extends Controller
 
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $product->toArray();
+
+        // Kiểm tra xem có đang cố gắng thay đổi vật tư không khi còn tồn kho
+        if ($request->has('materials') && $product->hasInventory()) {
+            // Kiểm tra xem danh sách vật tư mới có khác với danh sách cũ không
+            $currentMaterials = $product->materials()->pluck('material_id')->toArray();
+            $newMaterials = collect($request->materials)->pluck('id')->filter()->toArray();
+            
+            // Nếu số lượng vật tư khác nhau hoặc có vật tư mới khác vật tư cũ
+            if (count($currentMaterials) != count($newMaterials) || 
+                array_diff($currentMaterials, $newMaterials) || 
+                array_diff($newMaterials, $currentMaterials)) {
+                
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Không thể chỉnh sửa công thức Vật tư sử dụng do thành phẩm vẫn còn tồn kho.');
+            }
+            
+            // Kiểm tra số lượng và ghi chú của từng vật tư đã thay đổi không
+            foreach ($request->materials as $material) {
+                if (!empty($material['id'])) {
+                    $existingMaterial = $product->materials()
+                        ->where('material_id', $material['id'])
+                        ->first();
+                    
+                    if ($existingMaterial && 
+                        ($existingMaterial->pivot->quantity != $material['quantity'] || 
+                         $existingMaterial->pivot->notes != ($material['notes'] ?? null))) {
+                        
+                        return redirect()->back()
+                            ->withInput()
+                            ->with('error', 'Không thể chỉnh sửa công thức Vật tư sử dụng do thành phẩm vẫn còn tồn kho.');
+                    }
+                }
+            }
+        }
 
         try {
             DB::beginTransaction();
@@ -375,7 +447,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        $products = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         // Add inventory quantity to each product
         foreach ($products as $product) {
@@ -402,7 +474,7 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->orderBy('created_at', 'desc')->paginate(10);
+        $products = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         // Add inventory quantity to each product
         foreach ($products as $product) {
@@ -502,12 +574,33 @@ class ProductController extends Controller
     }
 
     /**
+     * API endpoint để lấy hình ảnh sản phẩm
+     */
+    public function getProductImages($id)
+    {
+        try {
+            $product = Product::findOrFail($id);
+            $images = $product->images;
+            
+            return response()->json([
+                'success' => true,
+                'images' => $images
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không thể lấy hình ảnh: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Search products via API for AJAX requests
      */
     public function searchProductsApi(Request $request)
     {
         $search = $request->get('search', '');
-        $stockFilter = $request->get('stock_filter', '');
+        $stockQuantity = $request->get('stock_quantity', '');
 
         $query = Product::where('status', 'active')
             ->where('is_hidden', false);
@@ -528,17 +621,10 @@ class ProductController extends Controller
             $product->inventory_quantity = $product->getInventoryQuantity();
         }
 
-        // Apply stock filter after getting inventory quantities
-        if (!empty($stockFilter)) {
-            $products = $products->filter(function ($product) use ($stockFilter) {
-                switch ($stockFilter) {
-                    case 'in_stock':
-                        return $product->inventory_quantity > 0;
-                    case 'out_of_stock':
-                        return $product->inventory_quantity == 0;
-                    default:
-                        return true;
-                }
+        // Apply stock quantity filter after getting inventory quantities
+        if (!empty($stockQuantity) && $stockQuantity >= 0) {
+            $products = $products->filter(function ($product) use ($stockQuantity) {
+                return $product->inventory_quantity <= $stockQuantity;
             });
         }
 
