@@ -66,17 +66,29 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'code' => 'required',
-            'name' => 'required',
-            'description' => 'nullable|string',
-            'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'inventory_warehouses' => 'nullable',
-            'materials' => 'nullable|array',
-            'materials.*.id' => 'nullable|exists:materials,id',
-            'materials.*.quantity' => 'nullable|numeric|min:0.01',
-            'materials.*.notes' => 'nullable|string',
-        ]);
+        $request->validate(
+            [
+                'code' => 'required|unique:products,code',
+                'name' => 'required',
+                'description' => 'nullable|string',
+                'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'inventory_warehouses' => 'nullable',
+                'materials' => 'nullable|array',
+                'materials.*.id' => 'nullable|exists:materials,id',
+                'materials.*.quantity' => 'nullable|numeric|min:0.01',
+                'materials.*.notes' => 'nullable|string',
+            ],
+            [
+                'code.unique' => 'Mã thành phẩm đã tồn tại',
+                'name.required' => 'Tên thành phẩm là bắt buộc',
+                'description.string' => 'Mô tả phải là chuỗi',
+                'images.*.image' => 'Ảnh phải là định dạng ảnh',
+                'images.*.mimes' => 'Ảnh phải là định dạng jpeg, png, jpg, gif',
+                'images.*.max' => 'Ảnh phải có dung lượng nhỏ hơn 2MB',
+                'inventory_warehouses.nullable' => 'Kho lưu trữ là bắt buộc',
+                'materials.nullable' => 'Vật tư là bắt buộc',
+            ]
+        );
 
         try {
             DB::beginTransaction();
