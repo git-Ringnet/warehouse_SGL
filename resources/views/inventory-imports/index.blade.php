@@ -82,6 +82,8 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Ghi chú</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Trạng thái</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Thao tác</th>
                         </tr>
                     </thead>
@@ -100,10 +102,19 @@
                                     {{ $import->order_code ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $import->notes ?? '-' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                    @if($import->status === 'approved')
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <i class="fas fa-check-circle mr-1"></i> Đã duyệt
+                                        </span>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            <i class="fas fa-clock mr-1"></i> Chờ xử lý
+                                        </span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                                    @if (
-                                        $isAdmin ||
-                                            (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.view_detail')))
+                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.view_detail')))
                                         <a href="{{ route('inventory-imports.show', $import->id) }}"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
                                             title="Xem">
@@ -111,7 +122,7 @@
                                         </a>
                                     @endif
 
-                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.edit')))
+                                    @if ($import->status !== 'approved' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.edit'))))
                                         <a href="{{ route('inventory-imports.edit', $import->id) }}"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
                                             title="Sửa">
@@ -119,7 +130,20 @@
                                         </a>
                                     @endif
 
-                                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.delete')))
+                                    @if ($import->status !== 'approved' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.approve'))))
+                                        <form action="{{ route('inventory-imports.approve', $import->id) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit" 
+                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
+                                                title="Duyệt"
+                                                onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu nhập này?')">
+                                                <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if ($import->status !== 'approved' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory_imports.delete'))))
                                         <button
                                             onclick="openDeleteModal('{{ $import->id }}', '{{ $import->import_code }}')"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
@@ -137,7 +161,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu
+                                <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ liệu
                                     phiếu nhập kho</td>
                             </tr>
                         @endforelse
@@ -162,6 +186,24 @@
         </main>
     </div>
 
+    <!-- Modal xác nhận xóa -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h2 class="text-xl font-bold mb-4">Xác nhận xóa</h2>
+            <p class="text-gray-700 mb-6">
+                Bạn có chắc chắn muốn xóa <span id="customerNameToDelete" class="font-semibold"></span>?
+            </p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
+                    Hủy
+                </button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                    Xác nhận
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Khởi tạo modal khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
@@ -180,8 +222,16 @@
             };
 
             // Hiển thị modal
-            document.getElementById('deleteModal').classList.add('show');
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.add('flex');
             document.body.style.overflow = 'hidden';
+        }
+
+        // Đóng modal
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('flex');
+            document.getElementById('deleteModal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
         }
     </script>
 </body>

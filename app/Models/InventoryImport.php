@@ -20,7 +20,8 @@ class InventoryImport extends Model
         'import_code',
         'import_date',
         'order_code',
-        'notes'
+        'notes',
+        'status'
     ];
 
     /**

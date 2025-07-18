@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\RequestExportController;
 use App\Http\Controllers\DeviceCodeController;
+use App\Http\Controllers\InventoryImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -39,3 +40,8 @@ Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductC
     
 // Lấy hình ảnh sản phẩm
 Route::get('/products/{id}/images', [App\Http\Controllers\ProductController::class, 'getProductImages']); 
+
+// Route cho phiếu nhập kho
+Route::prefix('inventory-imports')->group(function () {
+    Route::get('generate-code', [InventoryImportController::class, 'generateCode']);
+}); 

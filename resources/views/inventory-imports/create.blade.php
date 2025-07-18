@@ -9,6 +9,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <!-- Thêm style cho dấu * -->
+    <style>
+        .required::after {
+            content: " *";
+            color: #dc2626;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <x-sidebar-component />
@@ -49,11 +57,19 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Cột 1 -->
                         <div class="space-y-4">
+                            <!-- Cập nhật phần input mã phiếu -->
                             <div>
                                 <label for="import_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã phiếu nhập</label>
-                                <input type="text" id="import_code" name="import_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã phiếu nhập" required value="{{ old('import_code') }}">
+                                <div class="flex space-x-2">
+                                    <input type="text" id="import_code" name="import_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $generated_import_code }}" required>
+                                    <button type="button" onclick="generateNewCode()" class="h-10 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg flex items-center justify-center transition-colors">
+                                        <i class="fas fa-sync-alt mr-2"></i> Tạo mã mới
+                                    </button>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Mã phiếu nhập có thể chỉnh sửa hoặc tạo mới</p>
                             </div>
                             
+                            <!-- Cập nhật các label bắt buộc -->
                             <div>
                                 <label for="import_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày nhập kho</label>
                                 <input type="date" id="import_date" name="import_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required value="{{ old('import_date', date('Y-m-d')) }}">
@@ -91,7 +107,7 @@
                     
                     <!-- Phần vật tư -->
                     <div class="mt-8 pt-6 border-t border-gray-200">
-                        <h3 class="text-md font-semibold text-gray-800 mb-4">Danh sách vật tư nhập kho</h3>
+                        <h3 class="text-md font-semibold text-gray-800 mb-4">Danh sách nhập kho</h3>
                         
                         <div id="materials-container">
                             <!-- Template cho hàng vật tư đầu tiên -->
@@ -102,12 +118,11 @@
                                         <select name="materials[0][item_type]" class="item-type-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="updateItemOptions(this, 0)">
                                             <option value="">-- Chọn loại --</option>
                                             <option value="material">Vật tư</option>
-                                            <option value="product">Thành phẩm</option>
                                             <option value="good">Hàng hóa</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ hàng hoá</label>
                                         <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                             <option value="">-- Chọn sản phẩm --</option>
                                         </select>
@@ -130,8 +145,9 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">List số seri</label>
-                                        <textarea name="materials[0][serial_numbers]" class="serial-input w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" rows="2" placeholder="Nhập danh sách số seri, mỗi số seri trên một dòng hoặc ngăn cách bằng dấu phẩy"></textarea>
+                                        <textarea name="materials[0][serial_numbers]" class="serial-input w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" rows="2" placeholder="Nhập danh sách số seri, mỗi số seri trên một dòng hoặc ngăn cách bằng dấu phẩy" onchange="validateSerialNumbers(this)"></textarea>
                                         <p class="text-xs text-gray-500 mt-1">Số seri không bắt buộc. Nếu nhập, số lượng seri nên trùng khớp với số lượng.</p>
+                                        <div class="serial-error text-red-500 text-xs mt-1" style="display: none;"></div>
                                     </div>
                                 </div>
 
@@ -195,82 +211,153 @@
     <!-- Dữ liệu JSON từ Laravel -->
     <script id="app-data" type="application/json">
         {
-            "materials": {!! json_encode($materials->map(function($material) {
-                return [
-                    'id' => $material->id,
-                    'name' => $material->code . ' - ' . $material->name,
-                    'type' => 'material',
-                    'unit' => $material->unit ?? '',
-                    'category' => $material->category ?? 'other'
-                ];
-            })) !!},
-            "products": {!! json_encode($products->map(function($product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->code . ' - ' . $product->name,
-                    'type' => 'product',
-                    'unit' => '',
-                    'category' => 'product'
-                ];
-            })) !!},
-            "goods": {!! json_encode($goods->map(function($good) {
-                return [
-                    'id' => $good->id,
-                    'name' => $good->code . ' - ' . $good->name,
-                    'type' => 'good',
-                    'unit' => $good->unit ?? '',
-                    'category' => $good->category ?? 'other'
-                ];
-            })) !!}
+            "materials": {!! json_encode($materials) !!},
+            "goods": {!! json_encode($goods) !!}
         }
     </script>
 
     <script>
-        // Tự động điền ngày hiện tại vào ô ngày nhập kho
+        // Khởi tạo biến để lưu trữ dữ liệu
+        let itemsData = {};
+        
         document.addEventListener('DOMContentLoaded', function() {
-            // Lấy dữ liệu từ thẻ script JSON
+            // Parse dữ liệu JSON
             const appDataElement = document.getElementById('app-data');
-            const appData = JSON.parse(appDataElement.textContent);
-            
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            
-            document.getElementById('import_date').value = `${year}-${month}-${day}`;
-            
-            // Thêm xử lý cho nút "Thêm vật tư"
-            document.getElementById('add-material').addEventListener('click', addMaterial);
-            
-            // Hiển thị nút xóa nếu có nhiều hơn 1 hàng
-            updateRemoveButtons();
-            
-            // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
-            initializeItemLists(appData);
+            if (appDataElement) {
+                try {
+                    itemsData = JSON.parse(appDataElement.textContent);
+                    console.log('Loaded items data:', itemsData);
+                } catch (error) {
+                    console.error('Error parsing JSON data:', error);
+                }
+            }
+
+            // Khởi tạo các event listeners
+            initializeEventListeners();
             
             // Cập nhật bảng tổng hợp ban đầu
             updateSummaryTable();
-            
-            // Đăng ký sự kiện change cho các input để cập nhật bảng tổng hợp
-            registerChangeEvents();
         });
+
+        // Khởi tạo các event listeners
+        function initializeEventListeners() {
+            // Thêm sự kiện cho nút "Thêm vật tư"
+            const addButton = document.getElementById('add-material');
+            if (addButton) {
+                addButton.addEventListener('click', addMaterial);
+            }
+
+            // Khởi tạo các event listeners cho hàng đầu tiên
+            const firstRow = document.querySelector('.material-row');
+            if (firstRow) {
+                initializeRowEventListeners(firstRow);
+            }
+
+            // Cập nhật hiển thị các nút xóa
+            updateRemoveButtons();
+        }
+
+        // Khởi tạo event listeners cho một hàng
+        function initializeRowEventListeners(row) {
+            // Lắng nghe sự thay đổi của dropdown loại sản phẩm
+            const typeSelect = row.querySelector('.item-type-select');
+            if (typeSelect) {
+                typeSelect.addEventListener('change', function() {
+                    updateItemOptions(this);
+                });
+            }
+
+            // Lắng nghe sự thay đổi của tất cả các trường input trong hàng
+            const inputs = row.querySelectorAll('select, input, textarea');
+            inputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    updateSummaryTable();
+                });
+            });
+        }
+
+        // Function tạo mã mới
+        async function generateNewCode() {
+            try {
+                console.log('Generating new code...');
+                const response = await fetch('/api/inventory-imports/generate-code', {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (data.success) {
+                    document.getElementById('import_code').value = data.code;
+                } else {
+                    alert('Không thể tạo mã mới: ' + (data.message || 'Lỗi không xác định'));
+                }
+            } catch (error) {
+                console.error('Error generating code:', error);
+                alert('Có lỗi xảy ra khi tạo mã mới: ' + error.message);
+            }
+        }
+
+        // Cập nhật danh sách sản phẩm khi chọn loại
+        function updateItemOptions(selectElement) {
+            console.log('Updating item options...');
+            const itemType = selectElement.value;
+            const row = selectElement.closest('.material-row');
+            const materialSelect = row.querySelector('.material-select');
+            
+            // Xóa tất cả các option hiện tại (trừ option đầu tiên)
+            while (materialSelect.options.length > 1) {
+                materialSelect.remove(1);
+            }
+            
+            // Nếu không có loại sản phẩm được chọn, không thêm các option
+            if (!itemType) {
+                return;
+            }
+            
+            // Lấy danh sách items theo loại
+            const items = itemsData[itemType + 's'] || [];
+            console.log('Available items:', items);
+            
+            // Thêm các option mới
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = item.code + ' - ' + item.name;
+                option.dataset.unit = item.unit;
+                option.dataset.type = item.type;
+                materialSelect.appendChild(option);
+            });
+            
+            // Cập nhật bảng tổng hợp
+            updateSummaryTable();
+        }
         
         // Biến đếm số lượng hàng vật tư
         let materialCount = 1;
         
         // Dữ liệu các sản phẩm từ cả 3 bảng
-        let itemsData = {
-            material: [],
-            product: [],
-            good: []
-        };
+        // let itemsData = {
+        //     material: [],
+        //     product: [],
+        //     good: []
+        // };
         
         // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
-        function initializeItemLists(appData) {
-            itemsData.material = appData.materials;
-            itemsData.product = appData.products;
-            itemsData.good = appData.goods;
-        }
+        // function initializeItemLists(appData) {
+        //     itemsData.material = appData.materials;
+        //     itemsData.product = appData.products;
+        //     itemsData.good = appData.goods;
+        // }
         
         // Hàm thêm hàng vật tư mới
         function addMaterial() {
@@ -302,16 +389,8 @@
             // Thêm hàng mới vào container
             container.appendChild(template);
             
-            // Đăng ký sự kiện cho dropdown loại sản phẩm mới
-            const typeSelect = template.querySelector('.item-type-select');
-            if(typeSelect) {
-                typeSelect.addEventListener('change', function() {
-                    updateItemOptions(this, materialCount);
-                });
-            }
-            
-            // Đăng ký sự kiện cho các input khác để cập nhật bảng tổng hợp
-            registerChangeEventsForRow(template);
+            // Khởi tạo event listeners cho hàng mới
+            initializeRowEventListeners(template);
             
             materialCount++;
             
@@ -347,52 +426,21 @@
             }
         }
         
-        // Cập nhật danh sách sản phẩm khi chọn loại
-        function updateItemOptions(selectElement, rowIndex) {
-            const itemType = selectElement.value;
-            const row = selectElement.closest('.material-row');
-            const materialSelect = row.querySelector('.material-select');
-            
-            // Xóa tất cả các option hiện tại (trừ option đầu tiên)
-            while (materialSelect.options.length > 1) {
-                materialSelect.remove(1);
-            }
-            
-            // Nếu không có loại sản phẩm được chọn, không thêm các option
-            if (!itemType) {
-                return;
-            }
-            
-            // Thêm các option mới dựa trên loại sản phẩm
-            const items = itemsData[itemType] || [];
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.text = item.name;
-                option.dataset.unit = item.unit;
-                option.dataset.type = item.type;
-                materialSelect.add(option);
-            });
-            
-            // Cập nhật bảng tổng hợp
-            updateSummaryTable();
-        }
-        
         // Đăng ký sự kiện change cho tất cả các input để cập nhật bảng tổng hợp
-        function registerChangeEvents() {
-            const rows = document.querySelectorAll('.material-row');
-            rows.forEach(row => {
-                registerChangeEventsForRow(row);
-            });
-        }
+        // function registerChangeEvents() {
+        //     const rows = document.querySelectorAll('.material-row');
+        //     rows.forEach(row => {
+        //         registerChangeEventsForRow(row);
+        //     });
+        // }
         
         // Đăng ký sự kiện change cho một hàng
-        function registerChangeEventsForRow(row) {
-            const inputs = row.querySelectorAll('select, input, textarea');
-            inputs.forEach(input => {
-                input.addEventListener('change', updateSummaryTable);
-            });
-        }
+        // function registerChangeEventsForRow(row) {
+        //     const inputs = row.querySelectorAll('select, input, textarea');
+        //     inputs.forEach(input => {
+        //         input.addEventListener('change', updateSummaryTable);
+        //     });
+        // }
         
         // Cập nhật bảng tổng hợp
         function updateSummaryTable() {
@@ -430,7 +478,6 @@
                 validRows++;
                 
                 const itemType = itemTypeSelect.value;
-                const itemTypeText = itemTypeSelect.options[itemTypeSelect.selectedIndex].text;
                 const selectedOption = materialSelect.options[materialSelect.selectedIndex];
                 const materialText = selectedOption ? selectedOption.text : 'Chưa chọn';
                 
@@ -447,20 +494,7 @@
                 }
                 
                 // Xác định loại hiển thị
-                let typeDisplay = '';
-                switch(itemType) {
-                    case 'material':
-                        typeDisplay = 'Vật tư';
-                        break;
-                    case 'product':
-                        typeDisplay = 'Thành phẩm';
-                        break;
-                    case 'good':
-                        typeDisplay = 'Hàng hóa';
-                        break;
-                    default:
-                        typeDisplay = 'Chưa chọn';
-                }
+                let typeDisplay = itemType === 'material' ? 'Vật tư' : 'Hàng hóa';
                 
                 const summaryRow = document.createElement('tr');
                 summaryRow.innerHTML = `
@@ -482,6 +516,53 @@
                 tbody.appendChild(emptyRow);
             }
         }
+
+        // Thêm function kiểm tra serial trùng
+        function validateSerialNumbers(textarea) {
+            const serialNumbers = textarea.value.split(/[\n,]+/).map(s => s.trim()).filter(s => s);
+            const errorDiv = textarea.parentElement.querySelector('.serial-error');
+            
+            // Kiểm tra trùng lặp
+            const duplicates = serialNumbers.filter((item, index) => serialNumbers.indexOf(item) !== index);
+            
+            if (duplicates.length > 0) {
+                errorDiv.textContent = `Số serial ${duplicates.join(', ')} bị trùng lặp`;
+                errorDiv.style.display = 'block';
+                textarea.classList.add('border-red-500');
+            } else {
+                errorDiv.style.display = 'none';
+                textarea.classList.remove('border-red-500');
+            }
+            
+            // Kiểm tra số lượng serial với số lượng nhập
+            const quantityInput = textarea.closest('.material-row').querySelector('.quantity-input');
+            const quantity = parseInt(quantityInput.value) || 0;
+            
+            if (serialNumbers.length > 0 && serialNumbers.length !== quantity) {
+                errorDiv.textContent = `Số lượng serial (${serialNumbers.length}) không khớp với số lượng nhập (${quantity})`;
+                errorDiv.style.display = 'block';
+                textarea.classList.add('border-red-500');
+            }
+        }
+
+        // Thêm validation khi submit form
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // Kiểm tra tất cả các serial input
+            const serialInputs = document.querySelectorAll('.serial-input');
+            let hasError = false;
+            
+            serialInputs.forEach(input => {
+                validateSerialNumbers(input);
+                if (input.classList.contains('border-red-500')) {
+                    hasError = true;
+                }
+            });
+            
+            if (hasError) {
+                e.preventDefault();
+                alert('Vui lòng kiểm tra lại các số serial đã nhập');
+            }
+        });
     </script>
 </body>
 </html> 

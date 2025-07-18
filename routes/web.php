@@ -455,6 +455,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::put('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'update'])->name('inventory-imports.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
     Route::patch('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.edit');
     Route::delete('/inventory-imports/{inventory_import}', [InventoryImportController::class, 'destroy'])->name('inventory-imports.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.delete');
+    Route::patch('inventory-imports/{inventory_import}/approve', [InventoryImportController::class, 'approve'])->name('inventory-imports.approve');
 
     // API route cho thông tin vật tư
     Route::get('api/materials/{id}', [InventoryImportController::class, 'getMaterialInfo'])->name('api.material.info')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory_imports.view');
@@ -744,3 +745,13 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         ->name('api.products.create-from-assembly')
         ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':products.create');
 });
+
+// Testing routes
+Route::prefix('api/testing')->group(function () {
+    Route::get('materials/{type}', [TestingController::class, 'getMaterialsByType']);
+    Route::get('inventory/{type}/{id}/{warehouseId}', [TestingController::class, 'getInventoryInfo']);
+    Route::get('check-code', [TestingController::class, 'checkTestCode']);
+});
+
+// API route for inventory check
+Route::get('/api/inventory/{type}/{id}/{warehouseId}', [TestingController::class, 'getInventoryInfo']);

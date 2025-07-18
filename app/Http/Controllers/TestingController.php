@@ -65,6 +65,7 @@ class TestingController extends Controller
         $products = Product::where('is_hidden', false)->get();
         $goods = Good::where('status', 'active')->get();
         $suppliers = Supplier::all();
+        $warehouses = Warehouse::where('status', 'active')->get(); // Thêm dòng này
 
         // Get pending assemblies without testing records for selection
         $pendingAssemblies = Assembly::whereDoesntHave('testings')
@@ -87,6 +88,7 @@ class TestingController extends Controller
             'products',
             'goods',
             'suppliers',
+            'warehouses', // Thêm dòng này
             'pendingAssemblies',
             'selectedAssembly'
         ));
@@ -98,21 +100,19 @@ class TestingController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'test_type' => 'required|in:material,finished_product',
-            'assigned_to' => 'required|exists:employees,id',
-            'receiver_id' => 'required|exists:employees,id',
+            'test_code' => 'required|string|unique:testings,test_code',
+            'test_type' => 'required|in:material',
             'test_date' => 'required|date',
+            'receiver_id' => 'required|exists:employees,id',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.item_type' => 'required|in:material,product,finished_product',
+            'items.*.item_type' => 'required|in:material,product',
             'items.*.id' => 'required',
-            'items.*.serial_number' => 'nullable|string',
-            'items.*.supplier_id' => 'nullable|exists:suppliers,id',
-            'items.*.batch_number' => 'nullable|string',
+            'items.*.warehouse_id' => 'required|exists:warehouses,id',
             'items.*.quantity' => 'required|integer|min:1',
-            'test_items' => 'required|array|min:1',
-            'test_items.*' => 'required|string',
-            'assembly_id' => 'nullable|exists:assemblies,id',
+            'items.*.serial_numbers' => 'nullable|array',
+            'test_items' => 'nullable|array',
+            'test_items.*' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -124,180 +124,88 @@ class TestingController extends Controller
         DB::beginTransaction();
 
         try {
-            // Generate test code
-            $testCode = 'QA-' . Carbon::now()->format('ymd');
-            $lastTest = Testing::where('test_code', 'like', $testCode . '%')
-                ->orderBy('test_code', 'desc')
-                ->first();
-
-            if ($lastTest) {
-                $lastNumber = (int) substr($lastTest->test_code, -3);
-                $testCode .= str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
-            } else {
-                $testCode .= '001';
-            }
-
-            // Lấy ID của người dùng đang đăng nhập
-            $testerId = null;
-            if (Auth::check() && Auth::user()->employee) {
-                $testerId = Auth::user()->employee->id;
-            }
-
-            // Nếu không có người đăng nhập, sử dụng người phụ trách
-            if (!$testerId) {
-                $testerId = $request->assigned_to;
-            }
-
             // Create testing record
             $testing = Testing::create([
-                'test_code' => $testCode,
+                'test_code' => $request->test_code,
                 'test_type' => $request->test_type,
-                'tester_id' => $testerId,
-                'assigned_to' => $request->assigned_to,
+                'tester_id' => $request->receiver_id, // Sử dụng receiver_id làm tester_id
                 'receiver_id' => $request->receiver_id,
                 'test_date' => $request->test_date,
                 'notes' => $request->notes,
                 'status' => 'pending',
-                'assembly_id' => $request->assembly_id,
             ]);
 
-            // Add testing items from request
+            // Add testing items
             foreach ($request->items as $item) {
+                // Check inventory
+                $inventory = WarehouseMaterial::where([
+                    'material_id' => $item['id'],
+                    'warehouse_id' => $item['warehouse_id'],
+                    'item_type' => $item['item_type'] === 'product' ? 'good' : $item['item_type']
+                ])->first();
+
+                if (!$inventory || $inventory->quantity < $item['quantity']) {
+                    throw new \Exception('Số lượng vượt quá tồn kho');
+                }
+
                 $itemData = [
                     'testing_id' => $testing->id,
                     'item_type' => $item['item_type'],
-                    'serial_number' => $item['serial_number'] ?? null,
-                    'supplier_id' => $item['supplier_id'] ?? null,
-                    'batch_number' => $item['batch_number'] ?? null,
+                    'warehouse_id' => $item['warehouse_id'],
                     'quantity' => $item['quantity'],
                     'result' => 'pending',
                 ];
 
                 // Set the appropriate ID based on item type
-                switch ($item['item_type']) {
-                    case 'material':
-                        $itemData['material_id'] = $item['id'];
-                        break;
-                    case 'product':
-                        $itemData['product_id'] = $item['id'];
-                        break;
-                    case 'finished_product':
-                        $itemData['good_id'] = $item['id'];
-                        break;
+                if ($item['item_type'] === 'material') {
+                    $itemData['material_id'] = $item['id'];
+                } else {
+                    $itemData['good_id'] = $item['id']; // Thay đổi từ product_id thành good_id
+                }
+
+                // Add serial numbers if provided
+                if (!empty($item['serial_numbers'])) {
+                    $itemData['serial_numbers'] = implode(',', $item['serial_numbers']);
                 }
 
                 TestingItem::create($itemData);
             }
 
-            // If this testing is created from assembly, add all materials from assembly
-            if ($request->assembly_id) {
-                $assembly = Assembly::with(['materials.material', 'products.product'])->find($request->assembly_id);
-
-                if ($assembly) {
-                    // Add all materials from assembly
-                    foreach ($assembly->materials as $assemblyMaterial) {
-                        // Check if this material is already added
-                        $existingItem = TestingItem::where('testing_id', $testing->id)
-                            ->where('material_id', $assemblyMaterial->material_id)
-                            ->first();
-
-                        if (!$existingItem) {
-                            TestingItem::create([
-                                'testing_id' => $testing->id,
-                                'item_type' => 'material',
-                                'material_id' => $assemblyMaterial->material_id,
-                                'quantity' => $assemblyMaterial->quantity,
-                                'serial_number' => $assemblyMaterial->serial,
-                                'result' => 'pending',
-                                'target_product_id' => $assemblyMaterial->target_product_id
-                            ]);
-                        }
-                    }
-
-                    // Add all products from assembly if they're not already added
-                    foreach ($assembly->products as $assemblyProduct) {
-                        $existingItem = TestingItem::where('testing_id', $testing->id)
-                            ->where('product_id', $assemblyProduct->product_id)
-                            ->first();
-
-                        if (!$existingItem) {
-                            TestingItem::create([
-                                'testing_id' => $testing->id,
-                                'item_type' => 'product',
-                                'product_id' => $assemblyProduct->product_id,
-                                'quantity' => $assemblyProduct->quantity,
-                                'serial_number' => $assemblyProduct->serials,
-                                'result' => 'pending'
-                            ]);
-                        }
+            // Add testing details if provided
+            if ($request->has('test_items')) {
+                foreach ($request->test_items as $testItem) {
+                    if (!empty($testItem)) {
+                        TestingDetail::create([
+                            'testing_id' => $testing->id,
+                            'test_item_name' => $testItem,
+                            'result' => 'pending',
+                        ]);
                     }
                 }
             }
 
-            // Add testing details (test items)
-            foreach ($request->test_items as $testItem) {
-                TestingDetail::create([
-                    'testing_id' => $testing->id,
-                    'test_item_name' => $testItem,
-                    'result' => 'pending',
-                ]);
-            }
-
-            // Tạo thông báo khi tạo phiếu kiểm thử mới
-            if ($testing->assigned_to) {
-                Notification::createNotification(
-                    'Phiếu kiểm thử mới',
-                    "Phiếu kiểm thử #{$testing->test_code} đã được tạo và chờ duyệt.",
-                    'info',
-                    $testing->assigned_to,
-                    'testing',
-                    $testing->id,
-                    route('testing.show', $testing->id)
-                );
-            }
-
-            // Thông báo cho người tiếp nhận kiểm thử
-            if ($testing->receiver_id && $testing->receiver_id != $testing->assigned_to) {
-                Notification::createNotification(
-                    'Phiếu kiểm thử mới',
-                    "Phiếu kiểm thử #{$testing->test_code} đã được tạo và chờ duyệt.",
-                    'info',
-                    $testing->receiver_id,
-                    'testing',
-                    $testing->id,
-                    route('testing.show', $testing->id)
-                );
-            }
-
-            // Thông báo cho người lắp ráp nếu có phiếu lắp ráp liên quan
-            if ($request->assembly_id) {
-                $assembly = Assembly::find($request->assembly_id);
-                if ($assembly) {
-                    Notification::createNotification(
-                        'Phiếu kiểm thử được tạo',
-                        "Phiếu kiểm thử #{$testing->test_code} đã được tạo từ phiếu lắp ráp #{$assembly->code}.",
-                        'info',
-                        $assembly->assigned_employee_id,
-                        'assembly',
-                        $assembly->id,
-                        route('assemblies.show', $assembly->id)
-                    );
-                }
-            }
+            // Create notification
+            Notification::createNotification(
+                'Phiếu kiểm thử mới',
+                "Phiếu kiểm thử #{$testing->test_code} đã được tạo và chờ duyệt.",
+                'info',
+                $testing->receiver_id,
+                'testing',
+                $testing->id,
+                route('testing.show', $testing->id)
+            );
 
             DB::commit();
 
-            // Ghi nhật ký tạo mới phiếu kiểm thử
-            if (Auth::check()) {
-                UserLog::logActivity(
-                    Auth::id(),
-                    'create',
-                    'testings',
-                    'Tạo mới phiếu kiểm thử: ' . $testing->test_code,
-                    null,
-                    $testing->toArray()
-                );
-            }
+            // Log activity
+            UserLog::logActivity(
+                Auth::id(),
+                'create',
+                'testings',
+                'Tạo mới phiếu kiểm thử: ' . $testing->test_code,
+                null,
+                $testing->toArray()
+            );
 
             return redirect()->route('testing.show', $testing->id)
                 ->with('success', 'Phiếu kiểm thử đã được tạo thành công.');
@@ -834,7 +742,7 @@ class TestingController extends Controller
 
             // Kiểm tra items pending dựa vào loại kiểm thử
             $itemsToCheck = $testing->test_type == 'finished_product'
-                ? $testing->items->where('item_type', 'product')
+                ? $testing->items->where('item_type', 'good')
                 : $testing->items;
 
             $pendingItems = $itemsToCheck->where('result', 'pending')->count();
@@ -1379,34 +1287,82 @@ class TestingController extends Controller
     }
 
     /**
-     * Get materials by type and search term.
+     * Check if a test code already exists.
      */
-    public function getMaterialsByType(Request $request)
+    public function checkTestCode(Request $request)
     {
-        $type = $request->type;
-        $search = $request->search ?? '';
-
+        $code = $request->query('code');
+        $exists = Testing::where('test_code', $code)->exists();
+        
+        return response()->json([
+            'exists' => $exists
+        ]);
+    }
+    
+    /**
+     * Get materials by type.
+     */
+    public function getMaterialsByType($type)
+    {
         switch ($type) {
             case 'material':
-                $items = Material::where('is_hidden', false)
-                    ->where('name', 'like', "%{$search}%")
-                    ->get(['id', 'name', 'code']);
-                break;
+                return Material::where('is_hidden', false)
+                    ->select('id', 'code', 'name')
+                    ->get();
             case 'product':
-                $items = Product::where('is_hidden', false)
-                    ->where('name', 'like', "%{$search}%")
-                    ->get(['id', 'name', 'code']);
-                break;
-            case 'finished_product':
-                $items = Good::where('status', 'active')
-                    ->where('name', 'like', "%{$search}%")
-                    ->get(['id', 'name', 'code']);
-                break;
+                return Good::where('status', 'active')
+                    ->select('id', 'code', 'name')
+                    ->get();
             default:
-                $items = collect();
+                return response()->json([], 404);
         }
+    }
 
-        return response()->json($items);
+    /**
+     * Get inventory information for an item.
+     */
+    public function getInventoryInfo($type, $id, $warehouseId)
+    {
+        try {
+            $query = [
+                'warehouse_id' => $warehouseId,
+                'item_type' => $type
+            ];
+
+            // Xác định trường ID dựa vào loại
+            if ($type === 'material') {
+                $query['material_id'] = $id;
+            } elseif ($type === 'product') {
+                $query['material_id'] = $id;
+                $query['item_type'] = 'good'; // Thay đổi từ 'product' thành 'good'
+            }
+
+            $inventory = WarehouseMaterial::where($query)->first();
+
+            // Lấy danh sách serial numbers
+            $serials = [];
+            if ($inventory && $inventory->serial_numbers) {
+                $serials = explode(',', $inventory->serial_numbers);
+            }
+
+            return response()->json([
+                'quantity' => $inventory ? $inventory->quantity : 0,
+                'serials' => $serials
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy thông tin tồn kho: ' . $e->getMessage(), [
+                'type' => $type,
+                'id' => $id,
+                'warehouse_id' => $warehouseId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'quantity' => 0,
+                'serials' => [],
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

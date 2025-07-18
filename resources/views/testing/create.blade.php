@@ -16,9 +16,14 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <h1 class="text-xl font-bold text-gray-800">Tạo phiếu kiểm thử mới</h1>
+            <div class="flex items-center gap-2">
+                <!-- <button type="button" class="generate-new-code bg-blue-100 hover:bg-blue-200 text-blue-600 h-10 px-4 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-sync-alt mr-2"></i> Đổi mã mới
+                </button> -->
             <a href="{{ route('testing.index') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Quay lại
             </a>
+            </div>
         </header>
 
         <main class="p-6">
@@ -40,20 +45,35 @@
                     <div class="mb-6">
                         <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Thông tin cơ bản</h2>
                         
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Mã phiếu kiểm thử -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu kiểm thử</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="test_code" name="test_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                    <button type="button" class="generate-new-code bg-blue-100 hover:bg-blue-200 text-blue-600 h-10 px-4 rounded-lg flex items-center transition-colors whitespace-nowrap">
+                                        <i class="fas fa-sync-alt mr-2"></i> Đổi mã mới
+                                    </button>
+                                </div>
+                                <div id="codeError" class="text-red-500 text-xs mt-1 hidden">Mã phiếu kiểm thử đã tồn tại</div>
+                                @error('test_code')
+                                    <span class="text-red-500 text-xs">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        
                         <!-- Loại kiểm thử -->
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label for="test_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại kiểm thử</label>
                                 <select id="test_type" name="test_type" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn loại kiểm thử --</option>
                                     <option value="material">Kiểm thử Vật tư/Hàng hóa</option>
-                                    <option value="finished_product">Kiểm thử Thiết bị thành phẩm</option>
                                 </select>
                                 @error('test_type')
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
                             </div>
 
+                            <!-- Ngày kiểm thử -->
                             <div>
                                 <label for="test_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày kiểm thử</label>
                                 <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ date('Y-m-d') }}" required>
@@ -63,21 +83,7 @@
                             </div>
                         </div>
                         
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người phụ trách</label>
-                                <select id="assigned_to" name="assigned_to" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn người phụ trách --</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('assigned_to')
-                                    <span class="text-red-500 text-xs">{{ $message }}</span>
-                                @enderror
-                            </div>
-                            
-                            <div>
+                        <div class="mt-4">
                                 <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tiếp nhận kiểm thử</label>
                                 <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn người tiếp nhận --</option>
@@ -88,13 +94,12 @@
                                 @error('receiver_id')
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
-                            </div>
                         </div>
                     </div>
 
-                    <!-- Thêm vật tư/hàng hóa/thành phẩm -->
+                    <!-- Thêm vật tư/hàng hóa -->
                     <div class="mb-6 border-t border-gray-200 pt-6">
-                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Thêm vật tư, hàng hóa hoặc thành phẩm</h2>
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4">Thêm vật tư, hàng hóa</h2>
                         
                         <div id="items-container">
                             <div class="item-row mb-6 border border-gray-200 rounded-lg p-4">
@@ -104,47 +109,47 @@
                                         <select name="items[0][item_type]" class="item-type w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="updateItemOptions(this, 0)">
                                     <option value="">-- Chọn loại --</option>
                                     <option value="material">Vật tư</option>
-                                    <option value="product">Thành phẩm</option>
-                                    <option value="finished_product">Hàng hóa</option>
+                                            <option value="product">Hàng hóa</option>
                                 </select>
                             </div>
                             
                             <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/hàng hóa</label>
-                                        <select name="items[0][id]" id="item_name_0" class="item-name w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                        <select name="items[0][id]" id="item_name_0" class="item-name w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="checkInventory(this, 0)">
                                     <option value="">-- Chọn --</option>
                                 </select>
                             </div>
                             
                             <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
-                                        <select name="items[0][supplier_id]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                    <option value="">-- Chọn nhà cung cấp --</option>
-                                            @foreach($suppliers as $supplier)
-                                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Kho hàng</label>
+                                        <select name="items[0][warehouse_id]" class="warehouse-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="checkInventory(this, 0)">
+                                            <option value="">-- Chọn kho hàng --</option>
+                                            @foreach($warehouses as $warehouse)
+                                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                                             @endforeach
                                 </select>
                                 </div>
                             </div>
                         
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã lô</label>
-                                        <input type="text" name="items[0][batch_number]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã lô">
-                                </div>
-                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                                        <input type="number" name="items[0][quantity]" min="1" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="1" required>
+                                        <div class="relative">
+                                            <input type="number" name="items[0][quantity]" min="1" class="quantity-input w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="1" required onchange="checkInventory(this, 0)">
+                                            <div class="inventory-warning hidden absolute -bottom-6 left-0 text-red-500 text-xs">
+                                                Trong kho không đủ số lượng
+                                            </div>
                                 </div>
                             </div>
                             
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Serial/Mã thiết bị</label>
-                                    <input type="text" name="items[0][serial_number]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập serial hoặc mã thiết bị">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Serial</label>
+                                        <select name="items[0][serial_numbers][]" multiple class="serial-select w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" style="min-height: 38px;">
+                                        </select>
+                                    </div>
                                 </div>
                                 
-                                <div class="flex justify-end">
+                                <div class="flex justify-end mt-4">
                                     <button type="button" class="remove-item px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200" onclick="removeItem(this)">
                                         <i class="fas fa-trash mr-1"></i> Xóa
                                     </button>
@@ -168,17 +173,15 @@
                                     <tr class="bg-gray-100">
                                         <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">STT</th>
                                         <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">LOẠI</th>
-                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">MÃ - TÊN SẢN PHẨM</th>
-                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">NHÀ CUNG CẤP</th>
-                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">MÃ LÔ</th>
-                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SERIAL</th>
-                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">ĐƠN VỊ</th>
+                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">MÃ - TÊN</th>
                                         <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SỐ LƯỢNG</th>
+                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">KHO HÀNG</th>
+                                        <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SERIAL</th>
                                     </tr>
                                 </thead>
                                 <tbody id="items-summary-table">
                                     <tr class="text-gray-500 text-center">
-                                        <td colspan="8" class="py-4">Chưa có vật tư/hàng hóa nào được thêm</td>
+                                        <td colspan="6" class="py-4">Chưa có vật tư/hàng hóa nào được thêm</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -202,7 +205,7 @@
                             <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                 <div id="test_items_container" class="space-y-3">
                                     <div class="test-item flex items-center gap-4">
-                                    <input type="text" name="test_items[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử" required>
+                                    <input type="text" name="test_items[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử">
                                         <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -234,542 +237,228 @@
     <script>
         let itemCounter = 1;
         let itemsData = [];
+        let inventoryData = {};
+        
+        // Tự động tạo mã phiếu kiểm thử khi tải trang
+        document.addEventListener('DOMContentLoaded', function() {
+            generateTestCode();
+
+            // Thêm sự kiện click cho tất cả các nút đổi mã mới
+            document.querySelectorAll('.generate-new-code').forEach(button => {
+                button.addEventListener('click', generateTestCode);
+            });
+        });
+
+        // Hàm tạo mã phiếu kiểm thử
+        function generateTestCode() {
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hour = now.getHours().toString().padStart(2, '0');
+            const minute = now.getMinutes().toString().padStart(2, '0');
+            const second = now.getSeconds().toString().padStart(2, '0');
+            const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            const testCode = `QA${year}${month}${day}${hour}${minute}${second}${random}`;
+            document.getElementById('test_code').value = testCode;
+            checkTestCode(testCode);
+        }
+
+        // Kiểm tra mã phiếu kiểm thử có tồn tại không
+        function checkTestCode(code) {
+            fetch(`/api/testing/check-code?code=${code}`)
+                .then(response => response.json())
+                .then(data => {
+                    const errorDiv = document.getElementById('codeError');
+                    if (data.exists) {
+                        errorDiv.classList.remove('hidden');
+                        generateTestCode(); // Tạo mã mới nếu bị trùng
+                    } else {
+                        errorDiv.classList.add('hidden');
+                    }
+                });
+        }
+
+        // Thêm sự kiện kiểm tra khi nhập mã
+        document.getElementById('test_code').addEventListener('input', function(e) {
+            checkTestCode(e.target.value);
+        });
         
         function updateItemOptions(selectElement, index) {
             const itemType = selectElement.value;
             const itemNameSelect = document.getElementById('item_name_' + index);
-            const supplierContainer = selectElement.closest('.grid').querySelector(`select[name="items[${index}][supplier_id]"]`).closest('div');
-            const supplierSelect = selectElement.closest('.grid').querySelector(`select[name="items[${index}][supplier_id]"]`);
-            const serialInput = selectElement.closest('.item-row').querySelector(`input[name="items[${index}][serial_number]"]`);
             
-            // Xóa container serial cũ nếu có
-            const oldSerialContainer = selectElement.closest('.item-row').querySelector('.serial-container');
-            if (oldSerialContainer) {
-                oldSerialContainer.remove();
-            }
-            
-            // Clear existing options
+            // Reset item name select
             itemNameSelect.innerHTML = '<option value="">-- Chọn --</option>';
-            
-            // Hiển thị/ẩn trường nhà cung cấp dựa vào loại item
-            if (itemType === 'product') {
-                supplierContainer.style.display = 'none';
-            } else {
-                supplierContainer.style.display = 'block';
-            }
             
             if (!itemType) return;
             
             // Fetch items based on type
-            fetch(`/api/testing/materials-by-type?type=${itemType}&search=`)
+            fetch(`/api/testing/materials/${itemType}`)
                 .then(response => response.json())
                 .then(items => {
-                    // Xóa tất cả options cũ
-                    itemNameSelect.innerHTML = '<option value="">-- Chọn --</option>';
-                    
                     items.forEach(item => {
                         const option = document.createElement('option');
                         option.value = item.id;
-                        option.textContent = item.name;
-                        option.dataset.code = item.code || '';
+                        option.textContent = `[${item.code}] ${item.name}`;
                         itemNameSelect.appendChild(option);
                     });
-                })
-                .catch(error => console.error('Error fetching items:', error));
-                
-            // Thêm event listener cho việc chọn item
-            itemNameSelect.onchange = function() {
-                const selectedItemId = this.value;
-                if (selectedItemId) {
-                    console.log(`Fetching details for ${itemType} with ID ${selectedItemId}`);
+                });
+        }
+
+        function checkInventory(element, index) {
+            const itemType = document.querySelector(`select[name="items[${index}][item_type]"]`).value;
+            const itemId = document.querySelector(`select[name="items[${index}][id]"]`).value;
+            const warehouseId = document.querySelector(`select[name="items[${index}][warehouse_id]"]`).value;
+            const quantityInput = document.querySelector(`input[name="items[${index}][quantity]"]`);
+            const warningDiv = quantityInput.parentElement.querySelector('.inventory-warning');
+            
+            if (!itemType || !itemId || !warehouseId) return;
                     
-                    // Lấy thông tin nhà cung cấp của item
-                    fetch(`/api/items/${itemType}/${selectedItemId}`)
+            // Fetch inventory data
+            fetch(`/api/inventory/${itemType}/${itemId}/${warehouseId}`)
                         .then(response => response.json())
                         .then(data => {
-                            console.log('Item details:', data);
-                            if (data.supplier_id) {
-                                // Tìm option có value là supplier_id và chọn nó
-                                const supplierOption = supplierSelect.querySelector(`option[value="${data.supplier_id}"]`);
-                                if (supplierOption) {
-                                    supplierSelect.value = data.supplier_id;
-                                    // Thêm thông báo đã tự động chọn nhà cung cấp
-                                    const notification = document.createElement('div');
-                                    notification.className = 'text-sm text-green-600 mt-1';
-                                    notification.textContent = `Đã tự động chọn: ${data.supplier_name || supplierOption.textContent}`;
-                                    const existingNotification = supplierSelect.parentNode.querySelector('.text-green-600');
-                                    if (existingNotification) {
-                                        existingNotification.remove();
-                                    }
-                                    supplierSelect.parentNode.appendChild(notification);
-                                    
-                                    // Tự động ẩn thông báo sau 3 giây
-                                    setTimeout(() => {
-                                        if (notification.parentNode) {
-                                            notification.remove();
-                                        }
-                                    }, 3000);
-                                }
+                    inventoryData[`${itemType}-${itemId}-${warehouseId}`] = data.quantity;
+                    
+                    // Check quantity
+                    if (parseInt(quantityInput.value) > data.quantity) {
+                        warningDiv.classList.remove('hidden');
+                        quantityInput.classList.add('border-red-500');
+                    } else {
+                        warningDiv.classList.add('hidden');
+                        quantityInput.classList.remove('border-red-500');
                             }
                             
-                            // Cập nhật dữ liệu vật tư trong bảng tổng hợp
-                            updateItemData(index, {
-                                id: selectedItemId,
-                                type: itemType,
-                                name: data.name,
-                                code: data.code,
-                                unit: data.unit,
-                                supplier_name: data.supplier_name || (supplierSelect.selectedIndex > 0 ? supplierSelect.options[supplierSelect.selectedIndex].text : 'N/A')
-                            });
-                        })
-                        .catch(error => console.error('Error fetching item details:', error));
-                        
-                    // Lấy danh sách serial có sẵn
-                    fetch(`/api/testing/serial-numbers?type=${itemType}&id=${selectedItemId}`)
-                        .then(response => response.json())
-                        .then(serials => {
-                            console.log('Serials:', serials);
-                            
-                            // Xóa container serial cũ nếu có
-                            const oldSerialContainer = selectElement.closest('.item-row').querySelector('.serial-container');
-                            if (oldSerialContainer) {
-                                oldSerialContainer.remove();
-                            }
-                            
-                            // Hiển thị danh sách serial nếu có
-                            if (serials && serials.length > 0) {
-                                // Tạo container cho danh sách serial
-                                const serialContainerDiv = document.createElement('div');
-                                serialContainerDiv.className = 'serial-container bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3';
-                                
-                                // Tạo label
-                                const label = document.createElement('label');
-                                label.className = 'block text-sm font-medium text-gray-700 mb-2';
-                                label.textContent = 'Chọn serial có sẵn:';
-                                serialContainerDiv.appendChild(label);
-                                
-                                // Tạo select
-                                const serialSelect = document.createElement('select');
-                                serialSelect.className = 'w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white mb-2';
-                                
-                                // Thêm option mặc định
-                                const defaultOption = document.createElement('option');
-                                defaultOption.value = '';
-                                defaultOption.textContent = '-- Chọn serial --';
-                                serialSelect.appendChild(defaultOption);
-                                
-                                // Thêm các options từ danh sách serial
+                    // Update serials
+                    updateSerials(index, data.serials || []);
+                });
+        }
+
+        function updateSerials(index, serials) {
+            const serialSelect = document.querySelector(`select[name="items[${index}][serial_numbers][]"]`);
+            serialSelect.innerHTML = '';
+            
                                 serials.forEach(serial => {
                 const option = document.createElement('option');
                                     option.value = serial;
                                     option.textContent = serial;
                                     serialSelect.appendChild(option);
                                 });
-                                
-                                // Thêm event listener cho select
-                                serialSelect.onchange = function() {
-                                    serialInput.value = this.value;
-                                    
-                                    // Cập nhật serial trong dữ liệu vật tư
-                                    updateItemData(index, { serial_number: this.value });
-                                };
-                                
-                                serialContainerDiv.appendChild(serialSelect);
-                                
-                                // Thêm container vào trước input serial
-                                const serialInputContainer = serialInput.parentNode;
-                                serialInputContainer.insertBefore(serialContainerDiv, serialInput);
-                            }
-                        })
-                        .catch(error => console.error('Error fetching serials:', error));
-                }
-            };
         }
-        
-        // Cập nhật dữ liệu vật tư và bảng tổng hợp
-        function updateItemData(index, newData) {
-            // Tìm vật tư trong mảng dữ liệu
-            const existingItemIndex = itemsData.findIndex(item => item.index === index);
+
+        function addItem() {
+            const container = document.getElementById('items-container');
+            const template = container.children[0].cloneNode(true);
+                                    
+            // Update indices
+            template.querySelectorAll('select, input').forEach(element => {
+                element.name = element.name.replace('[0]', `[${itemCounter}]`);
+                if (element.id) {
+                    element.id = element.id.replace('_0', `_${itemCounter}`);
+                }
+            });
             
-            if (existingItemIndex >= 0) {
-                // Cập nhật dữ liệu cho vật tư đã tồn tại
-                itemsData[existingItemIndex] = { ...itemsData[existingItemIndex], ...newData };
-            } else {
-                // Thêm vật tư mới vào mảng
-                itemsData.push({ index, ...newData });
-            }
+            // Reset values
+            template.querySelectorAll('select').forEach(select => {
+                select.selectedIndex = 0;
+            });
+            template.querySelectorAll('input[type="number"]').forEach(input => {
+                input.value = 1;
+            });
             
-            // Cập nhật bảng tổng hợp
+            // Update event listeners
+            template.querySelector('.item-type').setAttribute('onchange', `updateItemOptions(this, ${itemCounter})`);
+            template.querySelector('.item-name').setAttribute('onchange', `checkInventory(this, ${itemCounter})`);
+            template.querySelector('.warehouse-select').setAttribute('onchange', `checkInventory(this, ${itemCounter})`);
+            template.querySelector('.quantity-input').setAttribute('onchange', `checkInventory(this, ${itemCounter})`);
+            
+            container.appendChild(template);
+            itemCounter++;
             updateSummaryTable();
         }
         
-        // Cập nhật bảng tổng hợp vật tư
+        function removeItem(button) {
+            const itemRow = button.closest('.item-row');
+            if (document.querySelectorAll('.item-row').length > 1) {
+                itemRow.remove();
+                updateSummaryTable();
+            }
+        }
+
         function updateSummaryTable() {
-            const tableBody = document.getElementById('items-summary-table');
+            const tbody = document.getElementById('items-summary-table');
+            const items = document.querySelectorAll('.item-row');
             
-            // Xóa nội dung cũ
-            tableBody.innerHTML = '';
-            
-            if (itemsData.length === 0) {
-                // Hiển thị thông báo nếu không có vật tư
-                const emptyRow = document.createElement('tr');
-                emptyRow.className = 'text-gray-500 text-center';
-                emptyRow.innerHTML = '<td colspan="8" class="py-4">Chưa có vật tư/hàng hóa nào được thêm</td>';
-                tableBody.appendChild(emptyRow);
+            if (items.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="text-gray-500 text-center">
+                        <td colspan="6" class="py-4">Chưa có vật tư/hàng hóa nào được thêm</td>
+                    </tr>
+                `;
                 return;
             }
             
-            // Thêm các hàng mới
-            itemsData.forEach((item, i) => {
+            tbody.innerHTML = '';
+            items.forEach((item, index) => {
+                const type = item.querySelector('.item-type').value;
+                const typeText = type === 'material' ? 'Vật tư' : 'Hàng hóa';
+                const itemSelect = item.querySelector('.item-name');
+                const itemText = itemSelect.options[itemSelect.selectedIndex]?.text || '--';
+                const quantity = item.querySelector('input[type="number"]').value;
+                const warehouseSelect = item.querySelector('.warehouse-select');
+                const warehouseText = warehouseSelect.options[warehouseSelect.selectedIndex]?.text || '--';
+                const serialSelect = item.querySelector('.serial-select');
+                const selectedSerials = Array.from(serialSelect.selectedOptions).map(opt => opt.value).join(', ');
+                
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
-                
-                // Lấy giá trị số lượng và mã lô từ input
-                const itemRow = document.querySelector(`.item-row:nth-child(${item.index + 1})`);
-                const quantityInput = itemRow ? itemRow.querySelector(`input[name="items[${item.index}][quantity]"]`) : null;
-                const batchInput = itemRow ? itemRow.querySelector(`input[name="items[${item.index}][batch_number]"]`) : null;
-                const serialInput = itemRow ? itemRow.querySelector(`input[name="items[${item.index}][serial_number]"]`) : null;
-                
-                const quantity = quantityInput ? quantityInput.value : '1';
-                const batchNumber = batchInput ? batchInput.value : 'N/A';
-                const serialNumber = item.serial_number || (serialInput ? serialInput.value : 'N/A');
-                
-                // Xác định loại vật tư
-                let typeText = '';
-                switch (item.type) {
-                    case 'material':
-                        typeText = 'Vật tư';
-                        break;
-                    case 'product':
-                        typeText = 'Thành phẩm';
-                        break;
-                    case 'finished_product':
-                        typeText = 'Hàng hóa';
-                        break;
-                }
-                
                 row.innerHTML = `
-                    <td class="py-2 px-3 border-b border-gray-200">${i + 1}</td>
+                    <td class="py-2 px-3 border-b border-gray-200">${index + 1}</td>
                     <td class="py-2 px-3 border-b border-gray-200">${typeText}</td>
-                    <td class="py-2 px-3 border-b border-gray-200">${item.code || ''} - ${item.name || ''}</td>
-                    <td class="py-2 px-3 border-b border-gray-200">${item.supplier_name || 'N/A'}</td>
-                    <td class="py-2 px-3 border-b border-gray-200">${batchNumber}</td>
-                    <td class="py-2 px-3 border-b border-gray-200">${serialNumber}</td>
-                    <td class="py-2 px-3 border-b border-gray-200">${item.unit || 'Chiếc'}</td>
+                    <td class="py-2 px-3 border-b border-gray-200">${itemText}</td>
                     <td class="py-2 px-3 border-b border-gray-200">${quantity}</td>
-                `;
-                
-                tableBody.appendChild(row);
-            });
-        }
-        
-        function addItem() {
-            const container = document.getElementById('items-container');
-            const newItem = document.createElement('div');
-            newItem.className = 'item-row mb-6 border border-gray-200 rounded-lg p-4';
-            newItem.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Loại</label>
-                        <select name="items[${itemCounter}][item_type]" class="item-type w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="updateItemOptions(this, ${itemCounter})">
-                            <option value="">-- Chọn loại --</option>
-                            <option value="material">Vật tư</option>
-                            <option value="product">Thành phẩm</option>
-                            <option value="finished_product">Hàng hóa</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/hàng hóa</label>
-                        <select name="items[${itemCounter}][id]" id="item_name_${itemCounter}" class="item-name w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                            <option value="">-- Chọn --</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nhà cung cấp</label>
-                        <select name="items[${itemCounter}][supplier_id]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                            <option value="">-- Chọn nhà cung cấp --</option>
-                            @foreach($suppliers as $supplier)
-                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Mã lô</label>
-                        <input type="text" name="items[${itemCounter}][batch_number]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập mã lô" oninput="updateBatchNumber(${itemCounter}, this.value)">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
-                        <input type="number" name="items[${itemCounter}][quantity]" min="1" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="1" required oninput="updateQuantity(${itemCounter}, this.value)">
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Serial/Mã thiết bị</label>
-                    <input type="text" name="items[${itemCounter}][serial_number]" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập serial hoặc mã thiết bị" oninput="updateSerialNumber(${itemCounter}, this.value)">
-                </div>
-
-                <div class="flex justify-end">
-                    <button type="button" class="remove-item px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200" onclick="removeItem(this, ${itemCounter})">
-                        <i class="fas fa-trash mr-1"></i> Xóa
-                    </button>
-                </div>
+                    <td class="py-2 px-3 border-b border-gray-200">${warehouseText}</td>
+                    <td class="py-2 px-3 border-b border-gray-200">${selectedSerials || '--'}</td>
             `;
-            container.appendChild(newItem);
-            itemCounter++;
-        }
-        
-        // Cập nhật số lượng trong bảng tổng hợp
-        function updateQuantity(index, value) {
-            const existingItemIndex = itemsData.findIndex(item => item.index === index);
-            if (existingItemIndex >= 0) {
-                itemsData[existingItemIndex].quantity = value;
-                updateSummaryTable();
-            }
-        }
-        
-        // Cập nhật mã lô trong bảng tổng hợp
-        function updateBatchNumber(index, value) {
-            const existingItemIndex = itemsData.findIndex(item => item.index === index);
-            if (existingItemIndex >= 0) {
-                itemsData[existingItemIndex].batch_number = value;
-                updateSummaryTable();
-            }
-        }
-        
-        // Cập nhật serial trong bảng tổng hợp
-        function updateSerialNumber(index, value) {
-            const existingItemIndex = itemsData.findIndex(item => item.index === index);
-            if (existingItemIndex >= 0) {
-                itemsData[existingItemIndex].serial_number = value;
-                updateSummaryTable();
-            }
-        }
-        
-        function removeItem(button, index) {
-            const container = document.getElementById('items-container');
-            const item = button.closest('.item-row');
-            
-            // Don't remove if it's the only one
-            if (container.children.length > 1) {
-                container.removeChild(item);
-                
-                // Xóa vật tư khỏi mảng dữ liệu
-                const itemIndex = itemsData.findIndex(item => item.index === index);
-                if (itemIndex >= 0) {
-                    itemsData.splice(itemIndex, 1);
-                    updateSummaryTable();
+                tbody.appendChild(row);
+            });
                 }
-            }
-        }
-        
-        // Add new test item
+
         function addTestItem() {
             const container = document.getElementById('test_items_container');
-            const newItem = document.createElement('div');
-            newItem.className = 'test-item flex items-center gap-4';
-            newItem.innerHTML = `
-                <input type="text" name="test_items[]" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập hạng mục kiểm thử" required>
-                <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
-                    <i class="fas fa-trash"></i>
-                </button>
-            `;
-            container.appendChild(newItem);
+            const template = container.children[0].cloneNode(true);
+            template.querySelector('input').value = '';
+            container.appendChild(template);
         }
         
-        // Remove test item
         function removeTestItem(button) {
-            const container = document.getElementById('test_items_container');
             const item = button.closest('.test-item');
-            
-            // Don't remove if it's the last one
-            if (container.children.length > 1) {
-                container.removeChild(item);
-            }
-        }
-        
-        // Khởi tạo cho item đầu tiên
-        document.addEventListener('DOMContentLoaded', function() {
-            const firstItemTypeSelect = document.querySelector('.item-type');
-            if (firstItemTypeSelect) {
-                // Khởi tạo hiển thị/ẩn trường nhà cung cấp
-                const supplierContainer = firstItemTypeSelect.closest('.grid').querySelector('select[name="items[0][supplier_id]"]').closest('div');
-                if (firstItemTypeSelect.value === 'product') {
-                    supplierContainer.style.display = 'none';
-                }
-                
-                firstItemTypeSelect.addEventListener('change', function() {
-                    updateItemOptions(this, 0);
-                });
-                
-                // Khởi tạo event listener cho select tên sản phẩm đầu tiên
-                const firstItemNameSelect = document.getElementById('item_name_0');
-                if (firstItemNameSelect) {
-                    firstItemNameSelect.onchange = function() {
-                        const itemType = firstItemTypeSelect.value;
-                        const selectedItemId = this.value;
-                        const supplierSelect = this.closest('.grid').querySelector('select[name="items[0][supplier_id]"]');
-                        const serialInput = this.closest('.item-row').querySelector('input[name="items[0][serial_number]"]');
-                        
-                        if (selectedItemId) {
-                            console.log(`Fetching details for ${itemType} with ID ${selectedItemId}`);
-                            
-                            // Lấy thông tin nhà cung cấp của item
-                            fetch(`/api/items/${itemType}/${selectedItemId}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    console.log('Item details:', data);
-                                    if (data.supplier_id) {
-                                        // Tìm option có value là supplier_id và chọn nó
-                                        const supplierOption = supplierSelect.querySelector(`option[value="${data.supplier_id}"]`);
-                                        if (supplierOption) {
-                                            supplierSelect.value = data.supplier_id;
-                                            // Thêm thông báo đã tự động chọn nhà cung cấp
-                                            const notification = document.createElement('div');
-                                            notification.className = 'text-sm text-green-600 mt-1';
-                                            notification.textContent = `Đã tự động chọn: ${data.supplier_name || supplierOption.textContent}`;
-                                            const existingNotification = supplierSelect.parentNode.querySelector('.text-green-600');
-                                            if (existingNotification) {
-                                                existingNotification.remove();
-                                            }
-                                            supplierSelect.parentNode.appendChild(notification);
-                                            
-                                            // Tự động ẩn thông báo sau 3 giây
-                                            setTimeout(() => {
-                                                if (notification.parentNode) {
-                                                    notification.remove();
+            if (document.querySelectorAll('.test-item').length > 1) {
+                item.remove();
                                                 }
-                                            }, 3000);
-                                        }
-                                    }
-                                    
-                                    // Cập nhật dữ liệu vật tư trong bảng tổng hợp
-                                    updateItemData(0, {
-                                        id: selectedItemId,
-                                        type: itemType,
-                                        name: data.name,
-                                        code: data.code,
-                                        unit: data.unit,
-                                        supplier_name: data.supplier_name || (supplierSelect.selectedIndex > 0 ? supplierSelect.options[supplierSelect.selectedIndex].text : 'N/A')
-                                    });
-                                })
-                                .catch(error => console.error('Error fetching item details:', error));
-                                
-                            // Lấy danh sách serial có sẵn
-                            fetch(`/api/testing/serial-numbers?type=${itemType}&id=${selectedItemId}`)
-                                .then(response => response.json())
-                                .then(serials => {
-                                    console.log('Serials:', serials);
-                                    
-                                    // Xóa container serial cũ nếu có
-                                    const oldSerialContainer = this.closest('.item-row').querySelector('.serial-container');
-                                    if (oldSerialContainer) {
-                                        oldSerialContainer.remove();
-                                    }
-                                    
-                                    // Hiển thị danh sách serial nếu có
-                                    if (serials && serials.length > 0) {
-                                        // Tạo container cho danh sách serial
-                                        const serialContainerDiv = document.createElement('div');
-                                        serialContainerDiv.className = 'serial-container bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3';
-                                        
-                                        // Tạo label
-                                        const label = document.createElement('label');
-                                        label.className = 'block text-sm font-medium text-gray-700 mb-2';
-                                        label.textContent = 'Chọn serial có sẵn:';
-                                        serialContainerDiv.appendChild(label);
-                                        
-                                        // Tạo select
-                                        const serialSelect = document.createElement('select');
-                                        serialSelect.className = 'w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white mb-2';
-                                        
-                                        // Thêm option mặc định
-                                        const defaultOption = document.createElement('option');
-                                        defaultOption.value = '';
-                                        defaultOption.textContent = '-- Chọn serial --';
-                                        serialSelect.appendChild(defaultOption);
-                                        
-                                        // Thêm các options từ danh sách serial
-                                        serials.forEach(serial => {
-                                            const option = document.createElement('option');
-                                            option.value = serial;
-                                            option.textContent = serial;
-                                            serialSelect.appendChild(option);
-                                        });
-                                        
-                                        // Thêm event listener cho select
-                                        serialSelect.onchange = function() {
-                                            serialInput.value = this.value;
-                                            
-                                            // Cập nhật serial trong dữ liệu vật tư
-                                            updateItemData(0, { serial_number: this.value });
-                                        };
-                                        
-                                        serialContainerDiv.appendChild(serialSelect);
-                                        
-                                        // Thêm container vào trước input serial
-                                        const serialInputContainer = serialInput.parentNode;
-                                        serialInputContainer.insertBefore(serialContainerDiv, serialInput);
-                                    }
-                                })
-                                .catch(error => console.error('Error fetching serials:', error));
-                        }
-                    };
-                }
-                
-                // Thêm event listener cho các trường input của item đầu tiên
-                const quantityInput = document.querySelector('input[name="items[0][quantity]"]');
-                if (quantityInput) {
-                    quantityInput.addEventListener('input', function() {
-                        updateQuantity(0, this.value);
-                    });
-                }
-                
-                const batchInput = document.querySelector('input[name="items[0][batch_number]"]');
-                if (batchInput) {
-                    batchInput.addEventListener('input', function() {
-                        updateBatchNumber(0, this.value);
-                    });
-                }
-                
-                const serialInput = document.querySelector('input[name="items[0][serial_number]"]');
-                if (serialInput) {
-                    serialInput.addEventListener('input', function() {
-                        updateSerialNumber(0, this.value);
-                    });
-                }
-            }
-        });
+        }
 
-        // Function to add default testing items
         function addDefaultTestItems() {
-            const testItemsContainer = document.getElementById('test_items_container');
-            const existingItems = testItemsContainer.querySelectorAll('.test-item');
+            const container = document.getElementById('test_items_container');
+            container.innerHTML = '';
             
-            // Remove existing items
-            existingItems.forEach((item, index) => {
-                if (index > 0) item.remove();
-            });
-            
-            // Set the first item
-            const firstItem = testItemsContainer.querySelector('input[name="test_items[]"]');
-            firstItem.value = 'Kiểm tra ngoại quan';
-            
-            // Add additional default items
             const defaultItems = [
-                'Kiểm tra chức năng cơ bản',
-                'Kiểm tra hoạt động liên tục'
+                'Kiểm tra ngoại quan',
+                'Kiểm tra kích thước',
+                'Kiểm tra chức năng',
+                'Kiểm tra an toàn'
             ];
             
-            defaultItems.forEach(itemText => {
-                addTestItem();
-                const newItems = testItemsContainer.querySelectorAll('input[name="test_items[]"]');
-                newItems[newItems.length - 1].value = itemText;
+            defaultItems.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'test-item flex items-center gap-4';
+                div.innerHTML = `
+                    <input type="text" name="test_items[]" value="${item}" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <button type="button" onclick="removeTestItem(this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(div);
             });
         }
     </script>
