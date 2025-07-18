@@ -328,13 +328,14 @@ class InventoryImportController extends Controller
 
         DB::beginTransaction();
         try {
-            // Tạo phiếu nhập kho
+            // Tạo phiếu nhập kho với trạng thái pending
             $inventoryImport = InventoryImport::create([
                 'supplier_id' => $request->supplier_id,
                 'import_code' => $request->import_code,
                 'import_date' => $request->import_date,
                 'order_code' => $request->order_code,
                 'notes' => $request->notes,
+                'status' => 'pending' // Mặc định là chờ xử lý
             ]);
 
             // Ghi nhật ký tạo mới phiếu nhập kho
@@ -396,37 +397,11 @@ class InventoryImportController extends Controller
                     $supplierName,
                     $material['notes']
                 );
-
-                // Cập nhật số lượng vật tư/thành phẩm/hàng hóa trong kho
-                $warehouseMaterial = WarehouseMaterial::firstOrNew([
-                    'warehouse_id' => $warehouseId,
-                    'material_id' => $itemId,
-                    'item_type' => $itemType
-                ]);
-
-                $currentQty = $warehouseMaterial->quantity ?? 0;
-                $warehouseMaterial->quantity = $currentQty + $material['quantity'];
-
-                // Lưu serial numbers vào bảng serials (nếu có)
-                if (!empty($serialNumbers)) {
-                    foreach ($serialNumbers as $serialNumber) {
-                        Serial::create([
-                            'serial_number' => $serialNumber,
-                            'product_id' => $itemId,
-                            'type' => $itemType,
-                            'status' => 'active',
-                            'notes' => $material['notes'] ?? null,
-                            'warehouse_id' => $warehouseId,
-                        ]);
-                    }
-                }
-
-                $warehouseMaterial->save();
             }
 
             DB::commit();
-            return redirect()->route('inventory-imports.index')
-                ->with('success', 'Phiếu nhập kho đã được thêm thành công.');
+            return redirect()->route('inventory-imports.show', $inventoryImport->id)
+                ->with('success', 'Phiếu nhập kho đã được tạo thành công và đang chờ duyệt.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Có lỗi xảy ra: ' . $e->getMessage()]);
@@ -839,15 +814,12 @@ class InventoryImportController extends Controller
 
     /**
      * Duyệt phiếu nhập kho
-     *
-     * @param  string  $id
-     * @return \Illuminate\Http\Response
      */
     public function approve(string $id)
     {
         DB::beginTransaction();
         try {
-            $inventoryImport = InventoryImport::findOrFail($id);
+            $inventoryImport = InventoryImport::with('materials')->findOrFail($id);
             
             // Kiểm tra xem phiếu đã được duyệt chưa
             if ($inventoryImport->status === 'approved') {
@@ -860,6 +832,34 @@ class InventoryImportController extends Controller
             // Cập nhật trạng thái phiếu
             $inventoryImport->status = 'approved';
             $inventoryImport->save();
+
+            // Cập nhật số lượng tồn kho và serial numbers
+            foreach ($inventoryImport->materials as $material) {
+                // Cập nhật số lượng vật tư/thành phẩm/hàng hóa trong kho
+                $warehouseMaterial = WarehouseMaterial::firstOrNew([
+                    'warehouse_id' => $material->warehouse_id,
+                    'material_id' => $material->material_id,
+                    'item_type' => $material->item_type
+                ]);
+
+                $currentQty = $warehouseMaterial->quantity ?? 0;
+                $warehouseMaterial->quantity = $currentQty + $material->quantity;
+                $warehouseMaterial->save();
+
+                // Lưu serial numbers vào bảng serials (nếu có)
+                if (!empty($material->serial_numbers)) {
+                    foreach ($material->serial_numbers as $serialNumber) {
+                        Serial::create([
+                            'serial_number' => $serialNumber,
+                            'product_id' => $material->material_id,
+                            'type' => $material->item_type,
+                            'status' => 'active',
+                            'notes' => $material->notes ?? null,
+                            'warehouse_id' => $material->warehouse_id,
+                        ]);
+                    }
+                }
+            }
             
             DB::commit();
             
