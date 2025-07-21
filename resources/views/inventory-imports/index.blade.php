@@ -22,24 +22,69 @@
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <form action="{{ route('inventory-imports.index') }}" method="GET"
                     class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                    <div class="flex gap-2 w-full md:w-auto">
-                        <input type="text" name="search" placeholder="Tìm kiếm theo mã, nhà cung cấp..."
-                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64"
-                            value="{{ $search ?? '' }}" />
-                        <select name="filter"
+                    <div class="flex flex-col md:flex-row gap-2 w-full">
+                        <!-- Bộ lọc -->
+                        <select name="filter" id="filter"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                            <option value="">Bộ lọc</option>
-                            <option value="import_code"
-                                {{ isset($filter) && $filter == 'import_code' ? 'selected' : '' }}>Mã phiếu nhập
+                            <option value="">Tất cả</option>
+                            <option value="import_code" {{ isset($filter) && $filter == 'import_code' ? 'selected' : '' }}>
+                                Mã phiếu nhập
                             </option>
-                            <option value="supplier" {{ isset($filter) && $filter == 'supplier' ? 'selected' : '' }}>Nhà
-                                cung cấp</option>
-                            <option value="order_code"
-                                {{ isset($filter) && $filter == 'order_code' ? 'selected' : '' }}>Mã đơn hàng</option>
+                            <option value="order_code" {{ isset($filter) && $filter == 'order_code' ? 'selected' : '' }}>
+                                Mã đơn hàng
+                            </option>
+                            <option value="supplier" {{ isset($filter) && $filter == 'supplier' ? 'selected' : '' }}>
+                                Nhà cung cấp
+                            </option>
+                            <option value="notes" {{ isset($filter) && $filter == 'notes' ? 'selected' : '' }}>
+                                Ghi chú
+                            </option>
+                            <option value="date" {{ isset($filter) && $filter == 'date' ? 'selected' : '' }}>
+                                Ngày nhập
+                            </option>
+                            <option value="status" {{ isset($filter) && $filter == 'status' ? 'selected' : '' }}>
+                                Trạng thái
+                            </option>
                         </select>
+
+                        <!-- Ô tìm kiếm cho mã phiếu, mã đơn, ghi chú -->
+                        <input type="text" name="search" id="search_text"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64"
+                            value="{{ request('search') }}" placeholder="Nhập từ khóa tìm kiếm..." />
+
+                        <!-- Dropdown nhà cung cấp -->
+                        <select name="supplier_id" id="supplier_select"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 hidden">
+                            <option value="">Chọn nhà cung cấp</option>
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}" {{ request('supplier_id') == $supplier->id ? 'selected' : '' }}>
+                                    {{ $supplier->name }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <!-- Dropdown trạng thái -->
+                        <select name="status" id="status_select"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 hidden">
+                            <option value="">Chọn trạng thái</option>
+                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Chờ xử lý</option>
+                            <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Đã duyệt</option>
+                        </select>
+
+                        <!-- Input date range -->
+                        <div id="date_range" class="flex gap-2 hidden">
+                            <input type="date" name="start_date"
+                                class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
+                                value="{{ request('start_date') }}" />
+                            <span class="flex items-center">đến</span>
+                            <input type="date" name="end_date"
+                                class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
+                                value="{{ request('end_date') }}" />
+                        </div>
+
                         <button type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-search"></i> Tìm kiếm
+                            <i class="fas fa-search mr-2"></i> Tìm kiếm
                         </button>
                     </div>
                 </form>
@@ -205,34 +250,49 @@
     </div>
 
     <script>
-        // Khởi tạo modal khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
-            initDeleteModal();
+            const filterSelect = document.getElementById('filter');
+            const searchText = document.getElementById('search_text');
+            const supplierSelect = document.getElementById('supplier_select');
+            const statusSelect = document.getElementById('status_select');
+            const dateRange = document.getElementById('date_range');
+
+            function updateSearchFields() {
+                // Hide all search fields first
+                searchText.classList.add('hidden');
+                supplierSelect.classList.add('hidden');
+                statusSelect.classList.add('hidden');
+                dateRange.classList.add('hidden');
+
+                // Show appropriate search field based on filter
+                switch (filterSelect.value) {
+                    case 'import_code':
+                    case 'order_code':
+                    case 'notes':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = `Nhập ${filterSelect.options[filterSelect.selectedIndex].text.toLowerCase()}...`;
+                        break;
+                    case 'supplier':
+                        supplierSelect.classList.remove('hidden');
+                        break;
+                    case 'status':
+                        statusSelect.classList.remove('hidden');
+                        break;
+                    case 'date':
+                        dateRange.classList.remove('hidden');
+                        break;
+                    default:
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Tìm kiếm...';
+                }
+            }
+
+            // Initial setup
+            updateSearchFields();
+
+            // Update on filter change
+            filterSelect.addEventListener('change', updateSearchFields);
         });
-
-        // Mở modal xác nhận xóa
-        function openDeleteModal(id, name) {
-            // Thay đổi nội dung modal
-            document.getElementById('customerNameToDelete').innerText = "phiếu nhập " + name;
-
-            // Thay đổi hành động khi nút xác nhận được nhấn
-            document.getElementById('confirmDeleteBtn').onclick = function() {
-                document.getElementById('delete-form-' + id).submit();
-                closeDeleteModal();
-            };
-
-            // Hiển thị modal
-            document.getElementById('deleteModal').classList.remove('hidden');
-            document.getElementById('deleteModal').classList.add('flex');
-            document.body.style.overflow = 'hidden';
-        }
-
-        // Đóng modal
-        function closeDeleteModal() {
-            document.getElementById('deleteModal').classList.remove('flex');
-            document.getElementById('deleteModal').classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }
     </script>
 </body>
 

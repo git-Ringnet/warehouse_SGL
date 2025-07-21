@@ -65,49 +65,86 @@ class InventoryImportController extends Controller
      */
     public function index(Request $request)
     {
-        $search = $request->input('search');
-        $filter = $request->input('filter');
-
         $query = InventoryImport::with(['supplier', 'warehouse', 'materials.material']);
 
         // Xử lý tìm kiếm
-        if ($search) {
-            if ($filter) {
-                // Tìm kiếm theo trường được chọn
-                switch ($filter) {
-                    case 'import_code':
-                        $query->where('import_code', 'like', "%{$search}%");
-                        break;
-                    case 'order_code':
-                        $query->where('order_code', 'like', "%{$search}%");
-                        break;
-                    case 'supplier':
-                        $query->whereHas('supplier', function ($q) use ($search) {
-                            $q->where('name', 'like', "%{$search}%");
+        if ($request->filled('filter')) {
+            switch ($request->filter) {
+                case 'import_code':
+                    if ($request->filled('search')) {
+                        $query->where('import_code', 'like', '%' . $request->search . '%');
+                    }
+                    break;
+
+                case 'order_code':
+                    if ($request->filled('search')) {
+                        $query->where('order_code', 'like', '%' . $request->search . '%');
+                    }
+                    break;
+
+                case 'supplier':
+                    if ($request->filled('supplier_id')) {
+                        $query->where('supplier_id', $request->supplier_id);
+                    }
+                    break;
+
+                case 'notes':
+                    if ($request->filled('search')) {
+                        $query->where('notes', 'like', '%' . $request->search . '%');
+                    }
+                    break;
+
+                case 'date':
+                    if ($request->filled('start_date')) {
+                        $query->whereDate('import_date', '>=', $request->start_date);
+                    }
+                    if ($request->filled('end_date')) {
+                        $query->whereDate('import_date', '<=', $request->end_date);
+                    }
+                    break;
+
+                case 'status':
+                    if ($request->filled('status')) {
+                        $query->where('status', $request->status);
+                    }
+                    break;
+
+                default:
+                    // Tìm kiếm tổng quát nếu không chọn bộ lọc cụ thể
+                    if ($request->filled('search')) {
+                        $search = $request->search;
+                        $query->where(function ($q) use ($search) {
+                            $q->where('import_code', 'like', '%' . $search . '%')
+                                ->orWhere('order_code', 'like', '%' . $search . '%')
+                                ->orWhere('notes', 'like', '%' . $search . '%')
+                                ->orWhereHas('supplier', function ($subq) use ($search) {
+                                    $subq->where('name', 'like', '%' . $search . '%');
+                                });
                         });
-                        break;
-                }
-            } else {
-                // Tìm kiếm tổng quát nếu không chọn bộ lọc
+                    }
+            }
+        } else {
+            // Tìm kiếm tổng quát nếu không chọn bộ lọc
+            if ($request->filled('search')) {
+                $search = $request->search;
                 $query->where(function ($q) use ($search) {
-                    $q->where('import_code', 'like', "%{$search}%")
-                        ->orWhere('order_code', 'like', "%{$search}%")
+                    $q->where('import_code', 'like', '%' . $search . '%')
+                        ->orWhere('order_code', 'like', '%' . $search . '%')
+                        ->orWhere('notes', 'like', '%' . $search . '%')
                         ->orWhereHas('supplier', function ($subq) use ($search) {
-                            $subq->where('name', 'like', "%{$search}%");
+                            $subq->where('name', 'like', '%' . $search . '%');
                         });
                 });
             }
         }
 
         $inventoryImports = $query->latest()->paginate(10);
+        $suppliers = \App\Models\Supplier::orderBy('name')->get();
 
-        // Giữ lại tham số tìm kiếm và lọc khi phân trang
-        $inventoryImports->appends([
-            'search' => $search,
-            'filter' => $filter
-        ]);
+        // Giữ lại tham số tìm kiếm khi phân trang
+        $inventoryImports->appends($request->all());
 
-        return view('inventory-imports.index', compact('inventoryImports', 'search', 'filter'));
+        return view('inventory-imports.index', compact('inventoryImports', 'suppliers'));
     }
 
     /**
