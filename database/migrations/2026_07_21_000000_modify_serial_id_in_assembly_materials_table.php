@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -13,15 +14,22 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
 
-        Schema::table('assembly_materials', function (Blueprint $table) {
-            // Xóa ràng buộc foreign key nếu tồn tại
-            try {
-                $table->dropForeign('assembly_materials_serial_id_foreign');
-            } catch (\Exception $e) {
-                // Không có foreign key thì bỏ qua lỗi
-            }
+        // Tìm tên constraint chính xác
+        $constraint = DB::select("
+            SELECT CONSTRAINT_NAME
+            FROM information_schema.KEY_COLUMN_USAGE
+            WHERE TABLE_NAME = 'assembly_materials'
+              AND COLUMN_NAME = 'serial_id'
+              AND REFERENCED_TABLE_NAME IS NOT NULL
+              AND CONSTRAINT_SCHEMA = DATABASE()
+        ");
 
-            // Đổi kiểu dữ liệu của serial_id
+        if (!empty($constraint)) {
+            $name = $constraint[0]->CONSTRAINT_NAME;
+            DB::statement("ALTER TABLE assembly_materials DROP FOREIGN KEY `$name`");
+        }
+
+        Schema::table('assembly_materials', function (Blueprint $table) {
             $table->text('serial_id')->nullable()->change();
         });
 
@@ -37,8 +45,6 @@ return new class extends Migration
 
         Schema::table('assembly_materials', function (Blueprint $table) {
             $table->unsignedBigInteger('serial_id')->nullable()->change();
-
-            // Thêm lại foreign key
             $table->foreign('serial_id')->references('id')->on('serials')->onDelete('set null');
         });
 
