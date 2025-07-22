@@ -11,15 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         Schema::table('assembly_materials', function (Blueprint $table) {
-            // Xóa khóa ngoại nếu tồn tại
-            if (Schema::hasColumn('assembly_materials', 'serial_id')) {
-                $table->dropForeign(['serial_id']);
-            }
-            
             // Đổi kiểu dữ liệu của serial_id thành text
             $table->text('serial_id')->nullable()->change();
         });
+
+        Schema::enableForeignKeyConstraints();
     }
 
     /**
@@ -27,6 +26,8 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
+
         Schema::table('assembly_materials', function (Blueprint $table) {
             // Khôi phục kiểu dữ liệu của serial_id về unsignedBigInteger
             $table->unsignedBigInteger('serial_id')->nullable()->change();
@@ -34,5 +35,7 @@ return new class extends Migration
             // Thêm lại khóa ngoại
             $table->foreign('serial_id')->references('id')->on('serials')->onDelete('set null');
         });
+
+        Schema::enableForeignKeyConstraints();
     }
 }; 
