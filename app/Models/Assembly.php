@@ -25,8 +25,26 @@ class Assembly extends Model
         'notes',
         'product_serials',
         'project_id',
-        'purpose'
+        'purpose',
+        'warehouse_id',
+        'target_warehouse_id'
     ];
+
+    /**
+     * Get the source warehouse for this assembly.
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
+    }
+
+    /**
+     * Get the target warehouse for this assembly.
+     */
+    public function targetWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
+    }
 
     /**
      * Get the product for this assembly (legacy - for backward compatibility).

@@ -303,13 +303,16 @@ class AssemblyController extends Controller
                     'serials' => $productSerialsStr,
                 ]);
 
-                // Create serial records for each product serial
                 // Use target_warehouse_id if available, otherwise use source warehouse_id
                 $targetWarehouseId = $assembly->target_warehouse_id;
                 if ($assembly->purpose === 'project' && !$targetWarehouseId) {
                     $targetWarehouseId = $assembly->warehouse_id;
                 }
-                $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $targetWarehouseId);
+
+                // Only create serial records if we have a valid warehouse ID and serials
+                if (!empty($filteredSerials) && $targetWarehouseId) {
+                    $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $targetWarehouseId);
+                }
 
                 // Update product inventory in target warehouse or source warehouse
                 $targetWarehouseId = $assembly->target_warehouse_id;
