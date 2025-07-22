@@ -241,7 +241,7 @@
                     <div class="mb-4">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Kho dùng để tính tồn kho</label>
                         <div class="space-y-2">
-                            @foreach (App\Models\Warehouse::orderBy('name')->get() as $warehouse)
+                            @foreach (App\Models\Warehouse::orderBy('name')->where('status', 'active')->where('is_hidden', false)->get() as $warehouse)
                                 <div class="flex items-center">
                                     <input type="checkbox" id="warehouse_{{ $warehouse->id }}"
                                         name="inventory_warehouses[]" value="{{ $warehouse->id }}"

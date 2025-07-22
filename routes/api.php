@@ -41,7 +41,11 @@ Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductC
 // Lấy hình ảnh sản phẩm
 Route::get('/products/{id}/images', [App\Http\Controllers\ProductController::class, 'getProductImages']); 
 
+
 // Route cho phiếu nhập kho
 Route::prefix('inventory-imports')->group(function () {
     Route::get('generate-code', [InventoryImportController::class, 'generateCode']);
 }); 
+
+Route::get('/materials/{material}/warehouses', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableWarehouses']);
+Route::get('/materials/{material}/serials/{warehouse}', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableSerials']); 

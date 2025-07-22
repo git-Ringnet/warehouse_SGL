@@ -18,8 +18,6 @@ class Assembly extends Model
     protected $fillable = [
         'code',
         'date',
-        'warehouse_id',
-        'target_warehouse_id',
         'assigned_to',
         'assigned_employee_id',
         'tester_id',
@@ -46,22 +44,6 @@ class Assembly extends Model
     public function products()
     {
         return $this->hasMany(AssemblyProduct::class);
-    }
-
-    /**
-     * Get the source warehouse (where components are taken from).
-     */
-    public function warehouse()
-    {
-        return $this->belongsTo(Warehouse::class);
-    }
-    
-    /**
-     * Get the target warehouse (where finished products are placed).
-     */
-    public function targetWarehouse()
-    {
-        return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
     }
 
     /**

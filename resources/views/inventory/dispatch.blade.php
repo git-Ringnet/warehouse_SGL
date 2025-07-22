@@ -18,7 +18,7 @@
     <div class="content-area">
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
-                <a href="{{ asset('inventory/dispatch_list') }}" class="text-gray-600 hover:text-blue-500 mr-4">
+                <a href="{{ asset('inventory') }}" class="text-gray-600 hover:text-blue-500 mr-4">
                     <i class="fas fa-arrow-left"></i>
                 </a>
                 <h1 class="text-xl font-bold text-gray-800">Tạo phiếu xuất kho</h1>
@@ -136,7 +136,7 @@
                                 <!-- Động load từ API -->
                             </select>
                         </div>
-                        <div>
+                        <div class="hidden">
                             <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian
                                 bảo hành</label>
                             <input type="text" id="warranty_period" name="warranty_period" readonly

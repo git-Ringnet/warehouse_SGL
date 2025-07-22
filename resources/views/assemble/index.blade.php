@@ -56,7 +56,7 @@
                         <div id="filterDropdown"
                             class="absolute left-0 mt-2 w-80 bg-white rounded-md shadow-lg z-30 hidden border border-gray-200">
                             <div class="p-4 space-y-3">
-                                <div class="grid grid-cols-2 gap-3">
+                                <div class="gap-3">
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
                                         <select id="statusFilter"
@@ -64,17 +64,6 @@
                                             <option value="">Tất cả trạng thái</option>
                                             @foreach ($statuses as $key => $value)
                                                 <option value="{{ $key }}">{{ $value }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Kho xuất</label>
-                                        <select id="warehouseFilter"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                                            <option value="">Tất cả kho</option>
-                                            @foreach ($warehouses as $warehouse)
-                                                <option value="{{ $warehouse->id }}">{{ $warehouse->name }}
-                                                    ({{ $warehouse->code }})</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -294,7 +283,6 @@
             function performSearch() {
                 const searchTerm = searchInput.value;
                 const statusFilter = document.getElementById('statusFilter').value;
-                const warehouseFilter = document.getElementById('warehouseFilter').value;
                 const employeeFilter = document.getElementById('employeeFilter').value;
                 const dateFromFilter = document.getElementById('dateFromFilter').value;
                 const dateToFilter = document.getElementById('dateToFilter').value;
@@ -303,7 +291,6 @@
 
                 if (searchTerm) params.append('search', searchTerm);
                 if (statusFilter) params.append('status', statusFilter);
-                if (warehouseFilter) params.append('warehouse', warehouseFilter);
                 if (employeeFilter) params.append('employee', employeeFilter);
                 if (dateFromFilter) params.append('date_from', dateFromFilter);
                 if (dateToFilter) params.append('date_to', dateToFilter);

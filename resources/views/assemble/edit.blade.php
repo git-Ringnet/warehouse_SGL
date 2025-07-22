@@ -112,6 +112,21 @@
                     </div>
                 @endif
 
+                @if($assembly->status === 'completed' || $assembly->status === 'cancelled')
+                    <div class="mb-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <div class="flex items-center text-yellow-800">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <span class="font-medium">
+                                @if($assembly->status === 'completed')
+                                    Phiếu lắp ráp đã hoàn thành, không thể chỉnh sửa.
+                                @else
+                                    Phiếu lắp ráp đã bị hủy, không thể chỉnh sửa.
+                                @endif
+                            </span>
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Thông tin phiếu lắp ráp -->
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -134,8 +149,8 @@
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp <span
                                     class="text-red-500">*</span></label>
                             <input type="date" id="assembly_date" name="assembly_date" value="{{ $assembly->date }}"
-                                required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                required {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'disabled' : '' }}
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'bg-gray-100 cursor-not-allowed' : '' }}">
                         </div>
                     </div>
 
@@ -177,33 +192,13 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Kho xuất vật tư</label>
-                            <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                                {{ $assembly->warehouse->name ?? 'Không xác định' }}
-                                ({{ $assembly->warehouse->code ?? '' }})
-                            </div>
-                            <input type="hidden" name="warehouse_id" value="{{ $assembly->warehouse_id }}">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Kho nhập thành phẩm</label>
-                            <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                                {{ $assembly->targetWarehouse->name ?? 'Không xác định' }}
-                                ({{ $assembly->targetWarehouse->code ?? '' }})
-                            </div>
-                            <input type="hidden" name="target_warehouse_id"
-                                value="{{ $assembly->target_warehouse_id }}">
-                        </div>
-                    </div>
-
                     <div class="mt-4">
                         <div>
                             <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
                                 chú</label>
                             <textarea id="assembly_note" name="assembly_note" rows="2"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ $assembly->notes }}</textarea>
+                                {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'disabled' : '' }}
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'bg-gray-100 cursor-not-allowed' : '' }}">{{ $assembly->notes }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -380,6 +375,7 @@
                             // Group existing materials by target_product_id
                             foreach ($assembly->materials as $index => $material) {
                                 $productId = $material->target_product_id;
+                                $productKey = 'product_0'; // Default to product_0
 
                                 // Map to product index for legacy compatibility
                                 if ($assembly->products && $assembly->products->count() > 0) {
@@ -389,9 +385,6 @@
                                             break;
                                         }
                                     }
-                                } else {
-                                    // Legacy support
-                                    $productKey = 'product_0';
                                 }
 
                                 if (!isset($componentsByProduct[$productKey])) {
@@ -720,10 +713,18 @@
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-times mr-2"></i> Hủy
                     </a>
+                    @if($assembly->status !== 'completed' && $assembly->status !== 'cancelled')
                     <button type="submit" id="submit-btn"
                         class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-save mr-2"></i> Cập nhật phiếu
                     </button>
+                    @else
+                    <button type="button" disabled
+                        class="bg-gray-400 cursor-not-allowed text-white px-5 py-2 rounded-lg flex items-center" 
+                        title="{{ $assembly->status == 'completed' ? 'Không thể cập nhật phiếu đã hoàn thành' : 'Không thể cập nhật phiếu đã hủy' }}">
+                        <i class="fas fa-save mr-2"></i> Cập nhật phiếu
+                    </button>
+                    @endif
                 </div>
             </form>
         </main>

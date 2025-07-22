@@ -106,11 +106,6 @@
                             <span
                                 class="text-sm text-gray-700">{{ $assembly->tester->name ?? 'Chưa phân công' }}</span>
                         </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất vật tư:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->warehouse->name }}
-                                ({{ $assembly->warehouse->code }})</span>
-                        </div>
                         @if ($assembly->targetWarehouse)
                             <div class="flex items-center mb-2">
                                 <span class="text-sm font-medium text-gray-700 mr-2">Kho nhập thành phẩm:</span>
