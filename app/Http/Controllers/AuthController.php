@@ -97,7 +97,8 @@ class AuthController extends Controller
         if ($user && $user->role === 'customer') {
             // Kiểm tra trạng thái tài khoản khách hàng
             $customer = Customer::find($user->customer_id);
-            if ($customer && !$customer->is_active) {
+            
+            if ($customer && $customer->is_locked) {
                 Log::warning('Tài khoản khách hàng đã bị khóa: ' . $credentials['username']);
                 return back()->withErrors([
                     'login_error' => 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.',
@@ -111,20 +112,22 @@ class AuthController extends Controller
                 // Lưu thông tin loại người dùng vào session
                 Session::put('user_type', 'customer');
                 
-                // Ghi nhật ký đăng nhập
-                UserLog::logActivity(
-                    $user->id,
-                    'login',
-                    'auth',
-                    'Đăng nhập thành công (khách hàng)',
-                    null,
-                    [
-                        'username' => $user->username, 
-                        'name' => $user->name,
-                        'customer_name' => $customer ? $customer->name : null,
-                        'customer_company' => $customer ? $customer->company_name : null
-                    ]
-                );
+                // Ghi nhật ký đăng nhập - chỉ ghi cho employee
+                if ($user->role !== 'customer') {
+                    UserLog::logActivity(
+                        $user->id,
+                        'login',
+                        'auth',
+                        'Đăng nhập thành công (khách hàng)',
+                        null,
+                        [
+                            'username' => $user->username, 
+                            'name' => $user->name,
+                            'customer_name' => $customer ? $customer->name : null,
+                            'customer_company' => $customer ? $customer->company_name : null
+                        ]
+                    );
+                }
                 
                 $request->session()->regenerate();
                 return redirect()->intended('/customer/dashboard');
@@ -153,8 +156,8 @@ class AuthController extends Controller
         // Xác định guard đang sử dụng
         $userType = Session::get('user_type');
         
-        // Ghi nhật ký đăng xuất trước khi logout
-        if (Auth::check()) {
+        // Ghi nhật ký đăng xuất trước khi logout - chỉ ghi cho employee
+        if (Auth::check() && $userType !== 'customer') {
             $user = Auth::user();
             UserLog::logActivity(
                 $user->id,

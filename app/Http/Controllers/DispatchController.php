@@ -1161,10 +1161,12 @@ class DispatchController extends Controller
         $items = collect();
 
         // Get products from products table (thành phẩm)
-        $products = Product::with(['warehouseMaterials' => function ($query) {
-            $query->where('item_type', 'product')
-                ->with('warehouse');
-        }])->get();
+        $products = Product::where('status', 'active')
+            ->where('is_hidden', false)
+            ->with(['warehouseMaterials' => function ($query) {
+                $query->where('item_type', 'product')
+                    ->with('warehouse');
+            }])->get();
 
         foreach ($products as $product) {
             // Get all warehouses that have this product
@@ -1202,10 +1204,12 @@ class DispatchController extends Controller
         }
 
         // Get goods from goods table (hàng hóa)
-        $goods = Good::with(['warehouseMaterials' => function ($query) {
-            $query->where('item_type', 'good')
-                ->with('warehouse');
-        }])->get();
+        $goods = Good::where('status', 'active')
+            ->where('is_hidden', false)
+            ->with(['warehouseMaterials' => function ($query) {
+                $query->where('item_type', 'good')
+                    ->with('warehouse');
+            }])->get();
 
         foreach ($goods as $good) {
             // Get all warehouses that have this good

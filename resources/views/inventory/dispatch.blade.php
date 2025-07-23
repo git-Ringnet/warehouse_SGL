@@ -167,12 +167,12 @@
                     </div>
                 </div>
 
-                <!-- Danh sách thành phẩm theo hợp đồng (hiển thị khi chọn "Tất cả") -->
+                <!-- Danh sách thiết bị theo hợp đồng (hiển thị khi chọn "Tất cả") -->
                 <div id="contract-product-list"
                     class="bg-white rounded-xl shadow-md p-6 border border-blue-200 mb-6 hidden">
                     <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                         <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                        <span>Danh sách thành phẩm theo hợp đồng</span>
+                        <span>Danh sách thiết bị theo hợp đồng</span>
                     </h2>
 
                     <!-- Chọn thành phẩm hợp đồng -->
@@ -198,10 +198,10 @@
                                 <tr>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
-                                        Mã SP</th>
+                                        Mã</th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
-                                        Tên thành phẩm</th>
+                                        Tên</th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase tracking-wider">
                                         Đơn vị</th>
@@ -272,10 +272,10 @@
                                 <tr>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
-                                        Mã SP</th>
+                                        Mã</th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
-                                        Tên thiết bị</th>
+                                        Tên</th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-700 uppercase tracking-wider">
                                         Đơn vị</th>
