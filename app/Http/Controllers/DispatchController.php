@@ -14,11 +14,14 @@ use App\Models\Project;
 use App\Models\Rental;
 use App\Helpers\ChangeLogHelper;
 use App\Models\UserLog;
+use App\Exports\DispatchExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class DispatchController extends Controller
 {
@@ -54,7 +57,7 @@ class DispatchController extends Controller
 
         $dispatches = $query->orderBy('dispatch_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->paginate(10);
 
         return view('inventory.index', compact('dispatches'));
     }
@@ -2265,5 +2268,27 @@ class DispatchController extends Controller
             default:
                 return 'gray';
         }
+    }
+
+    /**
+     * Export dispatch to Excel
+     */
+    public function exportExcel(Dispatch $dispatch)
+    {
+        $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
+        
+        return Excel::download(new DispatchExport($dispatch), 'phieu-xuat-' . $dispatch->dispatch_code . '.xlsx');
+    }
+
+    /**
+     * Export dispatch to PDF
+     */
+    public function exportPdf(Dispatch $dispatch)
+    {
+        $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
+        
+        $pdf = PDF::loadView('exports.dispatch', ['dispatch' => $dispatch]);
+        
+        return $pdf->download('phieu-xuat-' . $dispatch->dispatch_code . '.pdf');
     }
 }

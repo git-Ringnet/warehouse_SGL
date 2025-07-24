@@ -363,6 +363,8 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::delete('dispatch/{dispatch}', [DispatchController::class, 'destroy'])->name('dispatch.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.delete');
         Route::get('search', [DispatchController::class, 'search'])->name('search')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.view');
     });
+    Route::get('/inventory/dispatch/{dispatch}/export/excel', [DispatchController::class, 'exportExcel'])->name('inventory.dispatch.export.excel');
+    Route::get('/inventory/dispatch/{dispatch}/export/pdf', [DispatchController::class, 'exportPdf'])->name('inventory.dispatch.export.pdf');
 
     // API routes for dispatch
     Route::prefix('api/dispatch')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':inventory.view')->group(function () {

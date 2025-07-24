@@ -41,6 +41,8 @@ Route::post('/products/create-from-assembly', [App\Http\Controllers\Api\ProductC
 // Lấy hình ảnh sản phẩm
 Route::get('/products/{id}/images', [App\Http\Controllers\ProductController::class, 'getProductImages']); 
 
+// Add this route in the api.php file
+Route::get('/products/materials-count', [App\Http\Controllers\Api\ProductController::class, 'getMaterialsCount']);
 
 // Route cho phiếu nhập kho
 Route::prefix('inventory-imports')->group(function () {

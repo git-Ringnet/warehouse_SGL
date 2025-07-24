@@ -102,7 +102,7 @@
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <!-- Phần chọn dự án (hiển thị khi loại hình = project/warranty) -->
+                        <!-- Phần chọn dự án (hiển thị khi loại hình = project) -->
                         <div id="project_section">
                             <label for="project_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án<span
@@ -136,6 +136,19 @@
                                 <!-- Động load từ API -->
                             </select>
                         </div>
+
+                        <!-- Phần bảo hành (hiển thị khi loại hình = warranty) -->
+                        <div id="warranty_section" class="hidden">
+                            <label for="warranty_receiver"
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê<span
+                                    class="text-red-500">*</span></label>
+                            <select id="warranty_receiver" name="warranty_receiver" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn dự án / hợp đồng cho thuê --</option>
+                                <!-- Động load từ API -->
+                            </select>
+                        </div>
+
                         <div class="hidden">
                             <label for="warranty_period" class="block text-sm font-medium text-gray-700 mb-1">Thời gian
                                 bảo hành</label>
@@ -402,7 +415,14 @@
             // Khai báo các element cần thiết
             const dispatchDetailSelect = document.getElementById('dispatch_detail');
             const dispatchTypeSelect = document.getElementById('dispatch_type');
-            const projectReceiverSelect = document.getElementById('project_receiver');
+            const projectSection = document.getElementById('project_section');
+            const rentalSection = document.getElementById('rental_section');
+            const warrantySection = document.getElementById('warranty_section');
+            const projectReceiverInput = document.getElementById('project_receiver');
+            const rentalReceiverInput = document.getElementById('rental_receiver');
+            const warrantyReceiverInput = document.getElementById('warranty_receiver');
+            const projectIdInput = document.getElementById('project_id');
+            const warrantyPeriodInput = document.getElementById('warranty_period');
 
             let selectedContractProducts = [];
             let selectedBackupProducts = [];
@@ -739,7 +759,7 @@
                 const contractProductSelect = document.getElementById('contract_product_select');
                 if (contractProductSelect) {
                     contractProductSelect.innerHTML =
-                        '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                        '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
                 }
 
                 // Cập nhật dropdown dự phòng
@@ -771,7 +791,7 @@
                 const contractProductSelect = document.getElementById('contract_product_select');
                 if (contractProductSelect) {
                     contractProductSelect.innerHTML =
-                        '<option value="">-- Chọn sản phẩm hợp đồng --</option>';
+                        '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
                 }
 
                 const backupProductSelect = document.getElementById('backup_product_select');
@@ -882,39 +902,28 @@
                 dispatchTypeSelect.addEventListener('change', function() {
                     const selectedType = this.value;
 
-                    const projectSection = document.getElementById('project_section');
-                    const rentalSection = document.getElementById('rental_section');
-                    const projectReceiverInput = document.getElementById('project_receiver');
-                    const rentalReceiverInput = document.getElementById('rental_receiver');
-                    const dispatchDetailSelect = document.getElementById('dispatch_detail');
-
                     // Reset all sections
                     projectSection.classList.add('hidden');
                     rentalSection.classList.add('hidden');
+                    warrantySection.classList.add('hidden');
                     projectReceiverInput.removeAttribute('required');
                     rentalReceiverInput.removeAttribute('required');
+                    warrantyReceiverInput.removeAttribute('required');
 
                     if (selectedType === 'rental') {
-                        // Hiển thị phần cho thuê, ẩn phần dự án
+                        // Hiển thị phần cho thuê, ẩn phần dự án và bảo hành
                         rentalSection.classList.remove('hidden');
                         rentalReceiverInput.setAttribute('required', 'required');
 
                         // Load danh sách hợp đồng cho thuê
                         loadRentals();
 
-                        // Tắt required cho project_receiver vì đang dùng rental
-                        projectReceiverInput.removeAttribute('required');
-
-                        // Ẩn project section để tránh confusion
-                        projectSection.classList.add('hidden');
-
                         // Set project_receiver = rental_receiver và project_id = rental_id để tương thích với backend
                         const syncRentalToProject = function() {
                             projectReceiverInput.value = rentalReceiverInput.value;
 
                             // Lấy rental_id từ selected option và gán vào project_id
-                            const selectedOption = rentalReceiverInput.options[rentalReceiverInput
-                                .selectedIndex];
+                            const selectedOption = rentalReceiverInput.options[rentalReceiverInput.selectedIndex];
                             const projectIdInput = document.getElementById('project_id');
                             if (selectedOption && selectedOption.dataset.rentalId) {
                                 projectIdInput.value = selectedOption.dataset.rentalId;
@@ -943,13 +952,12 @@
                         }
 
                         // Xóa hidden input nếu có
-                        const hiddenDispatchDetail = document.getElementById(
-                            'hidden_dispatch_detail');
+                        const hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                         if (hiddenDispatchDetail) {
                             hiddenDispatchDetail.remove();
                         }
                     } else if (selectedType === 'project') {
-                        // Hiển thị phần dự án, ẩn phần cho thuê
+                        // Hiển thị phần dự án, ẩn phần cho thuê và bảo hành
                         projectSection.classList.remove('hidden');
                         projectReceiverInput.setAttribute('required', 'required');
 
@@ -960,15 +968,17 @@
                         }
 
                         // Xóa hidden input nếu có
-                        const hiddenDispatchDetail = document.getElementById(
-                            'hidden_dispatch_detail');
+                        const hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                         if (hiddenDispatchDetail) {
                             hiddenDispatchDetail.remove();
                         }
                     } else if (selectedType === 'warranty') {
-                        // Hiển thị phần dự án, ẩn phần cho thuê
-                        projectSection.classList.remove('hidden');
-                        projectReceiverInput.setAttribute('required', 'required');
+                        // Hiển thị phần bảo hành, ẩn phần dự án và cho thuê
+                        warrantySection.classList.remove('hidden');
+                        warrantyReceiverInput.setAttribute('required', 'required');
+
+                        // Load danh sách dự án và hợp đồng cho thuê cho phần bảo hành
+                        loadWarrantyReceivers();
 
                         // Tự động chọn "backup" và disable dropdown cho warranty
                         if (dispatchDetailSelect) {
@@ -976,15 +986,13 @@
                             dispatchDetailSelect.disabled = true;
 
                             // Tạo hidden input để đảm bảo giá trị được gửi đi
-                            let hiddenDispatchDetail = document.getElementById(
-                                'hidden_dispatch_detail');
+                            let hiddenDispatchDetail = document.getElementById('hidden_dispatch_detail');
                             if (!hiddenDispatchDetail) {
                                 hiddenDispatchDetail = document.createElement('input');
                                 hiddenDispatchDetail.type = 'hidden';
                                 hiddenDispatchDetail.id = 'hidden_dispatch_detail';
                                 hiddenDispatchDetail.name = 'dispatch_detail';
-                                document.getElementById('dispatch-form').appendChild(
-                                    hiddenDispatchDetail);
+                                document.getElementById('dispatch-form').appendChild(hiddenDispatchDetail);
                             }
                             hiddenDispatchDetail.value = 'backup';
 
@@ -996,19 +1004,18 @@
             }
 
             // Xử lý thay đổi dự án - cập nhật thời gian bảo hành và project_id
-            if (projectReceiverSelect) {
-                projectReceiverSelect.addEventListener('change', function() {
+            if (projectReceiverInput) {
+                projectReceiverInput.addEventListener('change', function() {
                     const selectedOption = this.options[this.selectedIndex];
-                    const warrantyPeriodInput = document.getElementById('warranty_period');
-                    const projectIdInput = document.getElementById('project_id');
-
-                    if (selectedOption && selectedOption.dataset.warrantyPeriod) {
-                        warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod +
-                            ' tháng';
-                        projectIdInput.value = selectedOption.dataset.projectId || '';
+                    
+                    if (selectedOption && selectedOption.dataset.projectId) {
+                        projectIdInput.value = selectedOption.dataset.projectId;
+                        if (selectedOption.dataset.warrantyPeriod) {
+                            warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
+                        }
                     } else {
-                        warrantyPeriodInput.value = '';
                         projectIdInput.value = '';
+                        warrantyPeriodInput.value = '';
                     }
                 });
             }
@@ -1957,15 +1964,20 @@
                     const dispatchType = document.getElementById('dispatch_type').value;
                     const projectReceiver = document.getElementById('project_receiver').value;
                     const rentalReceiver = document.getElementById('rental_receiver').value;
+                    const warrantyReceiver = document.getElementById('warranty_receiver').value;
+                    const projectId = document.getElementById('project_id').value;
 
                     console.log('Dispatch type:', dispatchType);
                     console.log('Project receiver:', projectReceiver);
                     console.log('Rental receiver:', rentalReceiver);
+                    console.log('Warranty receiver:', warrantyReceiver);
+                    console.log('Project ID:', projectId);
 
-                    // Đảm bảo project_receiver có giá trị khi dispatch_type là rental
-                    if (dispatchType === 'rental' && !projectReceiver && rentalReceiver) {
-                        console.log('Syncing rental receiver to project receiver');
-                        document.getElementById('project_receiver').value = rentalReceiver;
+                    // Kiểm tra project_id khi là loại hình bảo hành
+                    if (dispatchType === 'warranty' && !projectId) {
+                        e.preventDefault();
+                        alert('Vui lòng chọn dự án hoặc hợp đồng cho thuê để bảo hành!');
+                        return;
                     }
 
                     // Kiểm tra xem có sản phẩm nào được chọn không dựa trên dispatch_detail
@@ -2375,6 +2387,116 @@
                     document.getElementById('device-code-modal').classList.remove('hidden');
                 });
             });
+
+            // Hàm load danh sách dự án và hợp đồng cho thuê cho phần bảo hành
+            async function loadWarrantyReceivers() {
+                try {
+                    // Load danh sách dự án
+                    const projectResponse = await fetch('/api/dispatch/projects');
+                    const projectData = await projectResponse.json();
+
+                    // Load danh sách hợp đồng cho thuê
+                    const rentalResponse = await fetch('/api/dispatch/rentals');
+                    const rentalData = await rentalResponse.json();
+
+                    if (warrantyReceiverInput) {
+                        // Clear existing options
+                        warrantyReceiverInput.innerHTML = '<option value="">-- Chọn dự án / hợp đồng cho thuê --</option>';
+
+                        // Add project options
+                        if (projectData.success && projectData.projects) {
+                            const projectOptgroup = document.createElement('optgroup');
+                            projectOptgroup.label = 'Dự án';
+                            
+                            projectData.projects.forEach(project => {
+                                const option = document.createElement('option');
+                                option.value = project.display_name;
+                                option.textContent = project.display_name;
+                                option.dataset.projectId = project.id;
+                                option.dataset.type = 'project';
+                                option.dataset.warrantyPeriod = project.warranty_period;
+                                projectOptgroup.appendChild(option);
+                            });
+                            
+                            warrantyReceiverInput.appendChild(projectOptgroup);
+                        }
+
+                        // Add rental options
+                        if (rentalData.success && rentalData.rentals) {
+                            const rentalOptgroup = document.createElement('optgroup');
+                            rentalOptgroup.label = 'Hợp đồng cho thuê';
+                            
+                            rentalData.rentals.forEach(rental => {
+                                const option = document.createElement('option');
+                                option.value = rental.display_name;
+                                option.textContent = rental.display_name;
+                                option.dataset.rentalId = rental.id;
+                                option.dataset.type = 'rental';
+                                rentalOptgroup.appendChild(option);
+                            });
+                            
+                            warrantyReceiverInput.appendChild(rentalOptgroup);
+                        }
+
+                        // Add change event listener
+                        warrantyReceiverInput.addEventListener('change', function() {
+                            const selectedOption = this.options[this.selectedIndex];
+                            
+                            if (selectedOption) {
+                                const selectedType = selectedOption.dataset.type; // 'project' or 'rental'
+                                const selectedValue = selectedOption.value;
+                                const selectedId = selectedType === 'project' ? selectedOption.dataset.projectId : selectedOption.dataset.rentalId;
+                                
+                                // Set project_id based on type
+                                projectIdInput.value = selectedId;
+                                
+                                // Set warranty period
+                                if (selectedType === 'project' && selectedOption.dataset.warrantyPeriod) {
+                                    warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
+                                } else {
+                                    warrantyPeriodInput.value = '12 tháng'; // Default for rental
+                                }
+
+                                // Set project_receiver
+                                try {
+                                    const fullText = selectedOption.textContent.trim();
+                                    console.log('Processing text:', fullText);
+                                    
+                                    // Extract name from format: "CODE - NAME (CUSTOMER)"
+                                    const matches = fullText.match(/^[^-]+ - ([^(]+)/);
+                                    if (matches && matches[1]) {
+                                        projectReceiverInput.value = matches[1].trim();
+                                    } else {
+                                        // Fallback: use full text if pattern doesn't match
+                                        projectReceiverInput.value = fullText;
+                                    }
+
+                                    console.log('Warranty selection updated:', {
+                                        type: selectedType,
+                                        id: selectedId,
+                                        fullText: fullText,
+                                        receiver: projectReceiverInput.value,
+                                        warrantyPeriod: warrantyPeriodInput.value
+                                    });
+                                } catch (error) {
+                                    console.error('Error processing warranty receiver:', error);
+                                    // Fallback: use raw value
+                                    projectReceiverInput.value = selectedValue;
+                                }
+                            } else {
+                                projectIdInput.value = '';
+                                warrantyPeriodInput.value = '';
+                                projectReceiverInput.value = '';
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading warranty receivers:', error);
+                }
+            }
+
+            // Load tất cả sản phẩm từ tất cả kho ngay từ đầu
+            loadAllAvailableItems();
         });
     </script>
 </body>

@@ -58,6 +58,23 @@
             </div>
         </header>
 
+        <!-- Thông báo -->
+        @if (session()->has('success'))
+            <div class="mx-6 mt-6">
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                    {{ session('success') }}
+                </div>
+            </div>
+        @endif
+
+        @if (session()->has('error'))
+            <div class="mx-6 mt-6">
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+                    {{ session('error') }}
+                </div>
+            </div>
+        @endif
+
         <main class="p-6">
             <!-- Header Info -->
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
@@ -69,26 +86,14 @@
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày xuất:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->dispatch_date->format('d/m/Y') }}</span>
-                        </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Kho xuất:</span>
-                            <span class="text-sm text-gray-700">
-                                @php
-                                    $warehouses = $dispatch->items->pluck('warehouse.name')->filter()->unique();
-                                @endphp
-                                @if ($warehouses->count() > 1)
-                                    Nhiều kho ({{ $warehouses->implode(', ') }})
-                                @elseif($warehouses->count() == 1)
-                                    {{ $warehouses->first() }}
-                                @else
-                                    Không xác định
-                                @endif
-                            </span>
+                            <span
+                                class="text-sm text-gray-700">{{ $dispatch->dispatch_date->format('H:i:s d/m/Y') }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
-                            <span class="text-sm text-gray-700">{{ $dispatch->project_receiver }}</span>
+                            <a href="{{ route('projects.show', $dispatch->project_id) }}">
+                                <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
+                            </a>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Loại hình:</span>
@@ -100,6 +105,10 @@
 
                                     @case('rental')
                                         Cho thuê
+                                    @break
+
+                                    @case('warranty')
+                                        Bảo hành
                                     @break
 
                                     @case('other')
@@ -132,16 +141,10 @@
                                 @endswitch
                             </span>
                         </div>
-                        @if ($dispatch->warranty_period)
-                            <div class="flex items-center">
-                                <span class="text-sm font-medium text-gray-700 mr-2">Thời gian bảo hành:</span>
-                                <span class="text-sm text-gray-700">{{ $dispatch->warranty_period }}</span>
-                            </div>
-                        @endif
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Người lập phiếu:</span>
+                            <span class="text-sm font-medium text-gray-700 mr-2">Người tạo phiếu:</span>
                             <span
                                 class="text-sm text-gray-700">{{ $dispatch->creator->name ?? 'Không xác định' }}</span>
                         </div>
@@ -154,7 +157,7 @@
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Cập nhật lần cuối:</span>
                             <span
-                                class="text-sm text-gray-700">{{ $dispatch->updated_at->format('d/m/Y H:i:s') }}</span>
+                                class="text-sm text-gray-700">{{ $dispatch->updated_at->format('H:i:s d/m/Y') }}</span>
                         </div>
                         <div class="flex items-center">
                             <span class="text-sm font-medium text-gray-700 mr-2">Trạng thái:</span>
@@ -197,7 +200,7 @@
                 <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                     <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                         <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                        Danh sách thành phẩm theo hợp đồng
+                        Danh sách thiết bị theo hợp đồng
                     </h2>
 
                     @php
@@ -215,16 +218,13 @@
                                         STT</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Mã SP</th>
+                                        Mã</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Tên thành phẩm</th>
+                                        Tên thiết bị</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
                                         Đơn vị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Tồn kho</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
                                         Số lượng xuất</th>
@@ -269,23 +269,6 @@
                                                 Cái
                                             @endif
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            @php
-                                                $currentStock = 0;
-                                                if ($item->item) {
-                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where(
-                                                        'item_type',
-                                                        $item->item_type,
-                                                    )
-                                                        ->where('material_id', $item->item_id)
-                                                        ->where('warehouse_id', $item->warehouse_id)
-                                                        ->first();
-                                                    $currentStock = $warehouseMaterial
-                                                        ? $warehouseMaterial->quantity
-                                                        : 0;
-                                                }
-                                            @endphp
-                                            {{ $currentStock }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">
                                             {{ $item->quantity }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">
@@ -351,16 +334,13 @@
                                         STT</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Mã SP</th>
+                                        Mã</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
                                         Tên thiết bị</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
                                         Đơn vị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Tồn kho</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
                                         Số lượng xuất</th>
@@ -405,23 +385,6 @@
                                                 Cái
                                             @endif
                                         </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            @php
-                                                $currentStock = 0;
-                                                if ($item->item) {
-                                                    $warehouseMaterial = \App\Models\WarehouseMaterial::where(
-                                                        'item_type',
-                                                        $item->item_type,
-                                                    )
-                                                        ->where('material_id', $item->item_id)
-                                                        ->where('warehouse_id', $item->warehouse_id)
-                                                        ->first();
-                                                    $currentStock = $warehouseMaterial
-                                                        ? $warehouseMaterial->quantity
-                                                        : 0;
-                                                }
-                                            @endphp
-                                            {{ $currentStock }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">
                                             {{ $item->quantity }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap">
@@ -470,12 +433,12 @@
                     @if ($dispatch->dispatch_detail === 'contract')
                         <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
                             <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                            Danh sách thành phẩm theo hợp đồng
+                            Danh sách thiết bị theo hợp đồng
                         </h2>
                     @elseif($dispatch->dispatch_detail === 'backup')
                         <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
                             <i class="fas fa-tools text-orange-500 mr-2"></i>
-                            🔧 Danh sách thiết bị dự phòng
+                            Danh sách thiết bị dự phòng
                         </h2>
                     @else
                         <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -494,10 +457,10 @@
                                         STT</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
-                                        Mã SP</th>
+                                        Mã</th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
-                                        {{ $dispatch->dispatch_detail === 'contract' ? 'Tên thành phẩm' : ($dispatch->dispatch_detail === 'backup' ? 'Tên thiết bị' : 'Tên sản phẩm') }}
+                                        {{ $dispatch->dispatch_detail === 'contract' ? 'Tên thiết bị' : ($dispatch->dispatch_detail === 'backup' ? 'Tên thiết bị' : 'Tên thiết bị') }}
                                     </th>
                                     <th
                                         class="px-6 py-3 text-left text-xs font-medium text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-600 uppercase tracking-wider">
@@ -570,7 +533,8 @@
                                                 }
                                             @endphp
                                             @if ($serialCount > 0)
-                                                <span class="text-xs bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-100 text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800 px-2 py-1 rounded">
+                                                <span
+                                                    class="text-xs bg-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-100 text-{{ $dispatch->dispatch_detail === 'contract' ? 'blue' : ($dispatch->dispatch_detail === 'backup' ? 'orange' : 'gray') }}-800 px-2 py-1 rounded">
                                                     {{ $serialCount }} serial
                                                 </span>
                                             @else
@@ -604,14 +568,15 @@
 
             <!-- Buttons -->
             <div class="flex flex-wrap gap-3 justify-end">
-                <button id="export-excel-btn"
-                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                <a href="{{ route('inventory.dispatch.export.excel', $dispatch->id) }}"
+                    class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
                     <i class="fas fa-file-excel mr-2"></i> Xuất Excel
-                </button>
-                <button id="export-pdf-btn"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                </a>
+
+                <a href="{{ route('inventory.dispatch.export.pdf', $dispatch->id) }}"
+                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors">
                     <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
-                </button>
+                </a>
             </div>
         </main>
     </div>
@@ -737,16 +702,17 @@
                         location.reload();
                     } else {
                         let errorMessage = data.message || 'Không thể duyệt phiếu';
-                        
+
                         // Handle duplicate serials error
                         if (data.duplicate_serials && data.duplicate_serials.length > 0) {
                             errorMessage += '\n\nSerial numbers trùng lặp:';
                             data.duplicate_serials.forEach(duplicate => {
-                                errorMessage += `\n• ${duplicate.serial} (${duplicate.item_code} - ${duplicate.item_name}) - Đã có trong phiếu ${duplicate.existing_dispatch_code}`;
+                                errorMessage +=
+                                    `\n• ${duplicate.serial} (${duplicate.item_code} - ${duplicate.item_name}) - Đã có trong phiếu ${duplicate.existing_dispatch_code}`;
                             });
                             errorMessage += '\n\nVui lòng kiểm tra và chọn serial numbers khác.';
                         }
-                        
+
                         alert('Có lỗi xảy ra: ' + errorMessage);
                     }
                 })

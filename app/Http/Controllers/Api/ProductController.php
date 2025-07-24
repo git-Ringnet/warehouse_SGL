@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\UserLog;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ProductMaterial;
 
 class ProductController extends Controller
 {
@@ -120,6 +121,45 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Có lỗi xảy ra khi tạo thành phẩm: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get detailed materials information for each product
+     */
+    public function getMaterialsCount()
+    {
+        try {
+            // Get detailed material information for each product
+            $materialDetails = ProductMaterial::select('product_id', 'material_id', 'quantity')
+                ->with('material:id,code,name')
+                ->get()
+                ->groupBy('product_id')
+                ->map(function ($materials) {
+                    $details = [];
+                    foreach ($materials as $material) {
+                        for ($i = 0; $i < $material->quantity; $i++) {
+                            $details[] = [
+                                'material_id' => $material->material_id,
+                                'material_code' => $material->material->code,
+                                'material_name' => $material->material->name,
+                                'index' => $i + 1
+                            ];
+                        }
+                    }
+                    return $details;
+                })
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'data' => $materialDetails
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy thông tin vật tư: ' . $e->getMessage()
             ], 500);
         }
     }
