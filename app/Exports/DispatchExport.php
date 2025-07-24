@@ -59,13 +59,19 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
             ]
         ]);
 
-        // Style cho các tiêu đề phần (bao gồm cả tiêu đề bảng)
+        // Style cho các tiêu đề phần
         $titleRows = $this->findTitleRows($sheet);
         foreach($titleRows as $row) {
-            $sheet->getStyle("A{$row}")->applyFromArray([
+            $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
                 'font' => [
                     'bold' => true,
                     'size' => 13
+                ],
+                'fill' => [
+                    'fillType' => Fill::FILL_SOLID,
+                    'startColor' => [
+                        'rgb' => 'E2EFDA'
+                    ]
                 ]
             ]);
         }
@@ -75,7 +81,8 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         foreach($headerRows as $row) {
             $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
                 'font' => [
-                    'bold' => true
+                    'bold' => true,
+                    'size' => 11
                 ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
@@ -118,9 +125,8 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 
-                // Xóa tất cả các dòng từ lastDataRow + 7 trở đi
-                $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, $this->lastDataRow + 6);
-                $sheet->removeRow($this->lastDataRow + 7, $sheet->getHighestRow());
+                // Xóa các dòng trống không cần thiết
+                $this->cleanupSheet($sheet);
 
                 // Merge cells cho tiêu đề và các phần
                 $sheet->mergeCells('A1:F1');
@@ -148,13 +154,52 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         ];
     }
 
+    private function cleanupSheet(Worksheet $sheet)
+    {
+        $highestRow = $sheet->getHighestRow();
+        $rowsToDelete = [];
+        $emptyRowCount = 0;
+
+        // Tìm các dòng trống liên tiếp
+        for ($row = 1; $row <= $highestRow; $row++) {
+            $isEmpty = true;
+            for ($col = 'A'; $col <= 'F'; $col++) {
+                $cellValue = trim($sheet->getCell($col . $row)->getValue());
+                if (!empty($cellValue) && $cellValue !== '&nbsp;') {
+                    $isEmpty = false;
+                    break;
+                }
+            }
+
+            if ($isEmpty) {
+                $emptyRowCount++;
+                if ($emptyRowCount > 1) { // Giữ lại một dòng trống
+                    $rowsToDelete[] = $row;
+                }
+            } else {
+                $emptyRowCount = 0;
+            }
+        }
+
+        // Xóa các dòng từ dưới lên trên
+        rsort($rowsToDelete);
+        foreach ($rowsToDelete as $row) {
+            if ($row > 1) { // Không xóa dòng đầu tiên
+                $sheet->removeRow($row);
+            }
+        }
+
+        // Cập nhật lại lastDataRow
+        $this->lastDataRow = $this->findLastDataRow($sheet);
+    }
+
     private function findLastDataRow(Worksheet $sheet): int
     {
         $lastRow = $sheet->getHighestRow();
         for($row = $lastRow; $row >= 1; $row--) {
             $isEmpty = true;
             for($col = 'A'; $col <= 'F'; $col++) {
-                $cellValue = $sheet->getCell($col . $row)->getValue();
+                $cellValue = trim($sheet->getCell($col . $row)->getValue());
                 if (!empty($cellValue) && $cellValue !== '&nbsp;') {
                     $isEmpty = false;
                     break;
@@ -189,8 +234,7 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         
         for($row = 1; $row <= $lastRow; $row++) {
             $cellValue = $sheet->getCell('A' . $row)->getValue();
-            if (strpos($cellValue, 'Danh sách thiết bị') !== false || 
-                $cellValue === 'Thông tin phiếu xuất') {
+            if (strpos($cellValue, 'Danh sách thiết bị') !== false) {
                 $titleRows[] = $row;
             }
         }

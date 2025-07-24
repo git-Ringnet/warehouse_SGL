@@ -2286,9 +2286,7 @@ class DispatchController extends Controller
     public function exportPdf(Dispatch $dispatch)
     {
         $dispatch->load(['project', 'creator', 'companyRepresentative', 'items.material', 'items.product', 'items.good', 'items.warehouse']);
-        
-        $pdf = PDF::loadView('exports.dispatch', ['dispatch' => $dispatch]);
-        
+        $pdf = PDF::loadView('exports.dispatch_pdf', ['dispatch' => $dispatch]);
         return $pdf->download('phieu-xuat-' . $dispatch->dispatch_code . '.pdf');
     }
 }
