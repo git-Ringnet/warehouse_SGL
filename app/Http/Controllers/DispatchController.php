@@ -30,35 +30,42 @@ class DispatchController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Dispatch::with(['project', 'creator', 'companyRepresentative', 'items']);
+        $query = Dispatch::with(['creator', 'project', 'companyRepresentative'])
+            ->orderBy('created_at', 'desc');
 
-        // Apply search filter
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('dispatch_code', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('project_receiver', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('dispatch_note', 'LIKE', "%{$searchTerm}%");
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = strtolower($request->search);
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereRaw('LOWER(dispatch_code) LIKE ?', ['%' . $searchTerm . '%'])
+                  ->orWhereRaw('LOWER(project_receiver) LIKE ?', ['%' . $searchTerm . '%'])
+                  ->orWhereRaw('LOWER(dispatch_note) LIKE ?', ['%' . $searchTerm . '%'])
+                  ->orWhereHas('companyRepresentative', function($q) use ($searchTerm) {
+                      $q->whereRaw('LOWER(name) LIKE ?', ['%' . $searchTerm . '%']);
+                  });
             });
         }
 
-        // Apply status filter
-        if ($request->filled('status')) {
+        // Filter by status
+        if ($request->has('status') && !empty($request->status)) {
             $query->where('status', $request->status);
         }
 
-        // Apply date range filter
-        if ($request->filled('date_from')) {
-            $query->whereDate('dispatch_date', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('dispatch_date', '<=', $request->date_to);
+        // Filter by type
+        if ($request->has('type') && !empty($request->type)) {
+            $query->where('dispatch_type', $request->type);
         }
 
-        $dispatches = $query->orderBy('dispatch_date', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
+        if ($request->has('from_date') && !empty($request->from_date)) {
+            $fromDate = Carbon::createFromFormat('d/m/Y', $request->from_date)->startOfDay();
+            $query->where('dispatch_date', '>=', $fromDate);
+        }
 
+        if ($request->has('to_date') && !empty($request->to_date)) {
+            $toDate = Carbon::createFromFormat('d/m/Y', $request->to_date)->endOfDay();
+            $query->where('dispatch_date', '<=', $toDate);
+        }
+
+        $dispatches = $query->paginate(10);
         return view('inventory.index', compact('dispatches'));
     }
 
@@ -1983,12 +1990,7 @@ class DispatchController extends Controller
                         ['items' => ['Phiếu xuất theo hợp đồng phải có ít nhất một thành phẩm theo hợp đồng!']]
                     );
                 }
-                if (!empty($backupItems)) {
-                    throw new \Illuminate\Validation\ValidationException(
-                        validator([], []),
-                        ['items' => ['Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
-                    );
-                }
+
                 break;
 
             case 'backup':
@@ -1998,12 +2000,7 @@ class DispatchController extends Controller
                         ['items' => ['Phiếu xuất thiết bị dự phòng phải có ít nhất một thiết bị dự phòng!']]
                     );
                 }
-                if (!empty($contractItems)) {
-                    throw new \Illuminate\Validation\ValidationException(
-                        validator([], []),
-                        ['items' => ['Phiếu xuất thiết bị dự phòng không được chứa sản phẩm hợp đồng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
-                    );
-                }
+
                 break;
 
             case 'all':
@@ -2102,12 +2099,7 @@ class DispatchController extends Controller
                         ['contract_items' => ['Phiếu xuất theo hợp đồng phải có ít nhất một thành phẩm theo hợp đồng!']]
                     );
                 }
-                if ($backupItemsCount > 0) {
-                    throw new \Illuminate\Validation\ValidationException(
-                        validator([], []),
-                        ['backup_items' => ['Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
-                    );
-                }
+                
                 break;
 
             case 'backup':
@@ -2117,12 +2109,7 @@ class DispatchController extends Controller
                         ['backup_items' => ['Phiếu xuất thiết bị dự phòng phải có ít nhất một thiết bị dự phòng!']]
                     );
                 }
-                if ($contractItemsCount > 0) {
-                    throw new \Illuminate\Validation\ValidationException(
-                        validator([], []),
-                        ['contract_items' => ['Phiếu xuất thiết bị dự phòng không được chứa sản phẩm hợp đồng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.']]
-                    );
-                }
+
                 break;
 
             case 'all':

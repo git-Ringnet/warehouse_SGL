@@ -9,6 +9,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
 </head>
 
@@ -51,7 +53,7 @@
                     <div class="flex-1">
                         <div class="relative">
                             <input type="text" id="search_input"
-                                placeholder="Tìm kiếm mã phiếu, thành phẩm, khách hàng..."
+                                placeholder="Mã phiếu, người nhận, người đại diện dự án, ghi chú..."
                                 class="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-search text-gray-400"></i>
@@ -74,11 +76,13 @@
                             <option value="warranty">Bảo hành</option>
                         </select>
                         <div class="relative flex items-center">
-                            <input type="date" id="date_from" placeholder="Từ ngày"
-                                class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" id="date_from" placeholder="DD/MM/YYYY" autocomplete="off"
+                                class="datepicker border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                data-input>
                             <span class="mx-2 text-gray-500">-</span>
-                            <input type="date" id="date_to" placeholder="Đến ngày"
-                                class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="text" id="date_to" placeholder="DD/MM/YYYY" autocomplete="off"
+                                class="datepicker border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                data-input>
                         </div>
                         <button id="filter_btn"
                             class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-4 py-2 rounded-lg transition-colors">
@@ -240,126 +244,148 @@
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Lọc và tìm kiếm
+            // Remove auto-search on input
             const searchInput = document.getElementById('search_input');
-            const statusFilter = document.getElementById('status_filter');
-            const typeFilter = document.getElementById('type_filter');
-            const dateFrom = document.getElementById('date_from');
-            const dateTo = document.getElementById('date_to');
-            const filterBtn = document.getElementById('filter_btn');
-            const resetFilterBtn = document.getElementById('reset_filter_btn');
+            const oldSearchInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(oldSearchInput, searchInput);
 
-            // Sắp xếp
-            const sortId = document.getElementById('sort_id');
-            const sortDate = document.getElementById('sort_date');
-
-            // Biến lưu trữ trạng thái sắp xếp
-            let currentSort = {
-                field: 'dispatch_date',
-                direction: 'desc'
+            // Initialize flatpickr
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
             };
+            
+            flatpickr('#date_from', dateConfig);
+            flatpickr('#date_to', dateConfig);
 
-            // Perform search and filter
-            function performSearch() {
-                const form = document.createElement('form');
-                form.method = 'GET';
-                form.action = '{{ route('inventory.index') }}';
-
-                // Add search params
-                const params = {
-                    search: searchInput.value,
-                    status: statusFilter.value,
-                    dispatch_type: typeFilter.value,
-                    date_from: dateFrom.value,
-                    date_to: dateTo.value,
-                    sort_by: currentSort.field,
-                    sort_direction: currentSort.direction
-                };
-
-                // Create hidden inputs for each parameter
-                Object.keys(params).forEach(key => {
-                    if (params[key]) {
-                        const input = document.createElement('input');
-                        input.type = 'hidden';
-                        input.name = key;
-                        input.value = params[key];
-                        form.appendChild(input);
-                    }
-                });
-
-                document.body.appendChild(form);
-                form.submit();
+            // Set initial values from URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('status')) {
+                document.getElementById('status_filter').value = urlParams.get('status');
+            }
+            if (urlParams.has('type')) {
+                document.getElementById('type_filter').value = urlParams.get('type');
+            }
+            if (urlParams.has('search')) {
+                document.getElementById('search_input').value = urlParams.get('search');
+            }
+            if (urlParams.has('from_date')) {
+                document.getElementById('date_from').value = urlParams.get('from_date');
+            }
+            if (urlParams.has('to_date')) {
+                document.getElementById('date_to').value = urlParams.get('to_date');
             }
 
-            // Event listeners for filter controls
-            filterBtn.addEventListener('click', performSearch);
+            // Handle filter button click
+            const filterBtn = document.getElementById('filter_btn');
+            filterBtn.addEventListener('click', function() {
+                const searchValue = document.getElementById('search_input').value;
+                const statusValue = document.getElementById('status_filter').value;
+                const typeValue = document.getElementById('type_filter').value;
+                const fromDate = document.getElementById('date_from').value;
+                const toDate = document.getElementById('date_to').value;
 
-            resetFilterBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                statusFilter.value = '';
-                typeFilter.value = '';
-                dateFrom.value = '';
-                dateTo.value = '';
+                // Build query string
+                const params = new URLSearchParams();
+                if (searchValue) params.append('search', searchValue);
+                if (statusValue) params.append('status', statusValue);
+                if (typeValue) params.append('type', typeValue);
+                if (fromDate) params.append('from_date', fromDate);
+                if (toDate) params.append('to_date', toDate);
+
+                // Add current sort parameters if they exist
+                if (currentSort.field) {
+                    params.append('sort_by', currentSort.field);
+                    params.append('sort_direction', currentSort.direction);
+                }
+
+                // Redirect with query parameters
+                window.location.href = `${window.location.pathname}?${params.toString()}`;
+            });
+
+            // Handle reset button click
+            const resetBtn = document.getElementById('reset_filter_btn');
+            resetBtn.addEventListener('click', function() {
+                // Clear all inputs
+                document.getElementById('search_input').value = '';
+                document.getElementById('status_filter').value = '';
+                document.getElementById('type_filter').value = '';
+                document.getElementById('date_from').value = '';
+                document.getElementById('date_to').value = '';
+                
+                // Reset sort state
                 currentSort = {
                     field: 'dispatch_date',
                     direction: 'desc'
                 };
                 updateSortIcons();
-                performSearch();
+                
+                // Redirect to base URL
+                window.location.href = window.location.pathname;
             });
-
-            // Auto-search on input change (debounced)
-            let searchTimeout;
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(performSearch, 500);
-            });
-
-            // Auto-search on filter change
-            statusFilter.addEventListener('change', performSearch);
-            typeFilter.addEventListener('change', performSearch);
-            dateFrom.addEventListener('change', performSearch);
-            dateTo.addEventListener('change', performSearch);
 
             // Sorting functionality
+            const sortId = document.getElementById('sort_id');
+            const sortDate = document.getElementById('sort_date');
+
+            // Initialize sort state
+            let currentSort = {
+                field: urlParams.get('sort_by') || 'dispatch_date',
+                direction: urlParams.get('sort_direction') || 'desc'
+            };
+
+            // Update sort icons based on current state
             function updateSortIcons() {
-                // Reset all sort icons
-                document.querySelectorAll('[id^="sort_"] i').forEach(icon => {
-                    icon.className = 'fas fa-sort ml-1 text-gray-400';
+                // Remove all sort icons first
+                document.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.classList.remove('fa-sort-up', 'fa-sort-down', 'text-blue-600');
+                    icon.classList.add('fa-sort', 'text-gray-400');
                 });
 
                 // Update active sort icon
-                const activeIcon = document.querySelector(`#sort_${currentSort.field.replace('_', '')} i`);
-                if (activeIcon) {
-                    activeIcon.className = currentSort.direction === 'asc' ?
-                        'fas fa-sort-up ml-1 text-blue-500' :
-                        'fas fa-sort-down ml-1 text-blue-500';
+                if (currentSort.field && currentSort.direction) {
+                    const activeIcon = currentSort.field === 'id' ? sortId : sortDate;
+                    if (activeIcon) {
+                        const iconElement = activeIcon.querySelector('.sort-icon');
+                        if (iconElement) {
+                            iconElement.classList.remove('fa-sort', 'text-gray-400');
+                            iconElement.classList.add(
+                                currentSort.direction === 'asc' ? 'fa-sort-up' : 'fa-sort-down',
+                                'text-blue-600'
+                            );
+                        }
+                    }
                 }
             }
 
-            sortId.addEventListener('click', function() {
-                if (currentSort.field === 'dispatch_code') {
+            // Handle sort clicks
+            function handleSort(field) {
+                if (currentSort.field === field) {
                     currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
                 } else {
-                    currentSort.field = 'dispatch_code';
+                    currentSort.field = field;
                     currentSort.direction = 'asc';
                 }
                 updateSortIcons();
-                performSearch();
-            });
+                
+                // Build query string with current filters and new sort
+                const params = new URLSearchParams(window.location.search);
+                params.set('sort_by', currentSort.field);
+                params.set('sort_direction', currentSort.direction);
+                window.location.href = `${window.location.pathname}?${params.toString()}`;
+            }
 
-            sortDate.addEventListener('click', function() {
-                if (currentSort.field === 'dispatch_date') {
-                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-                } else {
-                    currentSort.field = 'dispatch_date';
-                    currentSort.direction = 'desc';
-                }
-                updateSortIcons();
-                performSearch();
-            });
+            // Add click handlers for sort buttons
+            if (sortId) sortId.addEventListener('click', () => handleSort('id'));
+            if (sortDate) sortDate.addEventListener('click', () => handleSort('dispatch_date'));
 
             // Initialize sort icons
             updateSortIcons();

@@ -2006,10 +2006,6 @@
                             hasRequiredProducts = false;
                             errorMessage =
                             'Vui lòng chọn ít nhất một thành phẩm theo hợp đồng để xuất kho!';
-                        } else if (selectedBackupProducts.length > 0) {
-                            hasRequiredProducts = false;
-                            errorMessage =
-                                'Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.';
                         } else {
                             hasRequiredProducts = true;
                         }
@@ -2018,10 +2014,6 @@
                         if (selectedBackupProducts.length === 0) {
                             hasRequiredProducts = false;
                             errorMessage = 'Vui lòng chọn ít nhất một thiết bị dự phòng để xuất kho!';
-                        } else if (selectedContractProducts.length > 0) {
-                            hasRequiredProducts = false;
-                            errorMessage =
-                                'Phiếu xuất thiết bị dự phòng không được chứa sản phẩm hợp đồng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.';
                         } else {
                             hasRequiredProducts = true;
                         }
@@ -2452,7 +2444,7 @@
                                 
                                 // Set warranty period
                                 if (selectedType === 'project' && selectedOption.dataset.warrantyPeriod) {
-                                    warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
+                                        warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
                                 } else {
                                     warrantyPeriodInput.value = '12 tháng'; // Default for rental
                                 }
