@@ -41,6 +41,35 @@ class WarehouseTransferMaterial extends Model
      */
     public function material(): BelongsTo
     {
-        return $this->belongsTo(Material::class);
+        return $this->belongsTo(Material::class, 'material_id');
+    }
+
+    /**
+     * Lấy thành phẩm
+     */
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'material_id');
+    }
+
+    /**
+     * Lấy hàng hóa
+     */
+    public function good(): BelongsTo
+    {
+        return $this->belongsTo(Good::class, 'material_id');
+    }
+
+    /**
+     * Lấy thông tin item dựa vào type
+     */
+    public function item()
+    {
+        return match($this->type) {
+            'material' => $this->material,
+            'product' => $this->product,
+            'good' => $this->good,
+            default => $this->material
+        };
     }
 }

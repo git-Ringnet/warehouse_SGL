@@ -10,8 +10,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <style>
+        .required::after {
+            content: " *";
+            color: #ef4444;
+        }
+    </style>
 </head>
 <body>
+    @if($warehouseTransfer->status !== 'pending')
+    <script>
+        window.location.href = "{{ route('warehouse-transfers.show', $warehouseTransfer->id) }}";
+    </script>
+    @endif
+
     <x-sidebar-component />
     
     <!-- Main Content -->
@@ -57,8 +69,8 @@
                         <!-- Cột 1 -->
                         <div class="space-y-4">
                             <div>
-                                <label for="transfer_code" class="block text-sm font-medium text-gray-700 mb-1 required">Mã phiếu chuyển</label>
-                                <input type="text" id="transfer_code" name="transfer_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ old('transfer_code', $warehouseTransfer->transfer_code) }}" required>
+                                <label for="transfer_code" class="block text-sm font-medium text-gray-700 mb-1">Mã phiếu chuyển</label>
+                                <input type="text" id="transfer_code" name="transfer_code" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100" value="{{ old('transfer_code', $warehouseTransfer->transfer_code) }}" readonly>
                             </div>
                             
                             <div>
@@ -66,7 +78,9 @@
                                 <select id="source_warehouse_id" name="source_warehouse_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn kho nguồn --</option>
                                     @foreach($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}" {{ old('source_warehouse_id', $warehouseTransfer->source_warehouse_id) == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @if(!$warehouse->is_hidden && !$warehouse->deleted_at)
+                                            <option value="{{ $warehouse->id }}" {{ old('source_warehouse_id', $warehouseTransfer->source_warehouse_id) == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @endif
                                     @endforeach
                                 </select>
                             </div>
@@ -79,7 +93,9 @@
                                 <select id="destination_warehouse_id" name="destination_warehouse_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn kho đích --</option>
                                     @foreach($warehouses as $warehouse)
-                                        <option value="{{ $warehouse->id }}" {{ old('destination_warehouse_id', $warehouseTransfer->destination_warehouse_id) == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @if(!$warehouse->is_hidden && !$warehouse->deleted_at)
+                                            <option value="{{ $warehouse->id }}" {{ old('destination_warehouse_id', $warehouseTransfer->destination_warehouse_id) == $warehouse->id ? 'selected' : '' }}>{{ $warehouse->name }}</option>
+                                        @endif
                                     @endforeach
                                 </select>
                             </div>
@@ -90,22 +106,12 @@
                             </div>
                             
                             <div>
-                                <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1 required">Nhân viên thực hiện</label>
-                                <select id="employee_id" name="employee_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
+                                <select id="employee_id" name="employee_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                     <option value="">-- Chọn nhân viên --</option>
                                     @foreach($employees as $employee)
                                         <option value="{{ $employee->id }}" {{ old('employee_id', $warehouseTransfer->employee_id) == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
                                     @endforeach
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
-                                <select id="status" name="status" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="pending" {{ old('status', $warehouseTransfer->status) == 'pending' ? 'selected' : '' }}>Chờ xác nhận</option>
-                                    <option value="in_progress" {{ old('status', $warehouseTransfer->status) == 'in_progress' ? 'selected' : '' }}>Đang chuyển</option>
-                                    <option value="completed" {{ old('status', $warehouseTransfer->status) == 'completed' ? 'selected' : '' }}>Hoàn thành</option>
-                                    <option value="canceled" {{ old('status', $warehouseTransfer->status) == 'canceled' ? 'selected' : '' }}>Đã hủy</option>
                                 </select>
                             </div>
                         </div>

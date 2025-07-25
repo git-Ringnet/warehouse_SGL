@@ -476,6 +476,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('check-inventory')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
         Route::post('/check-inventory', [WarehouseTransferController::class, 'checkInventory'])->name('check-inventory.post')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouse-transfers.view');
     });
+    Route::patch('/warehouse-transfers/{warehouseTransfer}/approve', [WarehouseTransferController::class, 'approve'])->name('warehouse-transfers.approve');
 
     // Quản lý phần mềm
     Route::prefix('software')->name('software.')->middleware('auth')->group(function () {

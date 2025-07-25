@@ -42,6 +42,12 @@
                     ($user->role_id &&
                         $user->roleGroup &&
                         $user->roleGroup->hasPermission('warehouse-transfers.delete')));
+            $canApprove =
+                $user &&
+                ($user->role === 'admin' ||
+                    ($user->role_id &&
+                        $user->roleGroup &&
+                        $user->roleGroup->hasPermission('warehouse-transfers.approve')));
         @endphp
         <header
             class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
@@ -56,14 +62,10 @@
                         <select name="filter"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
                             <option value="">Bộ lọc</option>
-                            <option value="material" {{ isset($filter) && $filter == 'material' ? 'selected' : '' }}>Vật
-                                tư</option>
-                            <option value="source" {{ isset($filter) && $filter == 'source' ? 'selected' : '' }}>Kho
-                                nguồn</option>
-                            <option value="destination"
-                                {{ isset($filter) && $filter == 'destination' ? 'selected' : '' }}>Kho đích</option>
-                            <option value="status" {{ isset($filter) && $filter == 'status' ? 'selected' : '' }}>Trạng
-                                thái</option>
+                            <option value="material" {{ isset($filter) && $filter == 'material' ? 'selected' : '' }}>Vật tư</option>
+                            <option value="source" {{ isset($filter) && $filter == 'source' ? 'selected' : '' }}>Kho nguồn</option>
+                            <option value="destination" {{ isset($filter) && $filter == 'destination' ? 'selected' : '' }}>Kho đích</option>
+                            <option value="status" {{ isset($filter) && $filter == 'status' ? 'selected' : '' }}>Trạng thái</option>
                         </select>
                         <button type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
@@ -93,36 +95,16 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                STT</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Mã chuyển kho</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Vật tư</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Kho nguồn</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Kho đích</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Ngày chuyển</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Nhân viên</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Trạng thái</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Ghi chú</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Hành động</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">STT</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã chuyển kho</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Vật tư</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kho nguồn</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Kho đích</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ngày chuyển</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nhân viên</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ghi chú</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
@@ -141,15 +123,28 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $transfer->transfer_date->format('d/m/Y') }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $transfer->employee->name }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span
-                                        class="px-2 py-1 {{ $transfer->status_class }} rounded-full text-xs font-semibold">
-                                        {{ $transfer->status_label }}
-                                    </span>
-                                </td>
+                                    {{ $transfer->employee ? $transfer->employee->name : 'Không có' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $transfer->notes ?? '-' }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @php
+                                        $statusClass = match($transfer->status) {
+                                            'pending' => 'bg-yellow-100 text-yellow-800',
+                                            'completed' => 'bg-green-100 text-green-800',
+                                            'canceled' => 'bg-red-100 text-red-800',
+                                            default => 'bg-gray-100 text-gray-800'
+                                        };
+                                        $statusText = match($transfer->status) {
+                                            'pending' => 'Chờ xử lý',
+                                            'completed' => 'Hoàn thành',
+                                            'canceled' => 'Đã hủy',
+                                            default => 'Không xác định'
+                                        };
+                                    @endphp
+                                    <span class="px-2 py-1 text-xs font-medium rounded-full {{ $statusClass }}">
+                                        {{ $statusText }}
+                                    </span>
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                     @if ($canViewDetail)
                                         <a href="{{ route('warehouse-transfers.show', $transfer->id) }}"
@@ -158,6 +153,8 @@
                                             <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
                                         </a>
                                     @endif
+
+                                    @if ($transfer->status === 'pending')
                                     @if ($canEdit)
                                         <a href="{{ route('warehouse-transfers.edit', $transfer->id) }}"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
@@ -165,21 +162,32 @@
                                             <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
                                         </a>
                                     @endif
+
+                                        @if ($canApprove)
+                                            <form action="{{ route('warehouse-transfers.approve', $transfer->id) }}" method="POST" class="inline-block">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" 
+                                                    onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu chuyển kho này?')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
+                                                    title="Duyệt">
+                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+
                                     @if ($canDelete)
-                                        <button
-                                            onclick="openDeleteModal('{{ $transfer->id }}', '{{ $transfer->transfer_code }}')"
+                                            <form action="{{ route('warehouse-transfers.destroy', $transfer->id) }}" method="POST" class="inline-block">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" 
+                                                    onclick="return confirm('Bạn có chắc chắn muốn xóa phiếu chuyển kho này?')"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                             title="Xóa">
                                             <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
                                         </button>
+                                            </form>
                                     @endif
-                                    @if ($canDelete)
-                                        <form id="delete-form-{{ $transfer->id }}"
-                                            action="{{ route('warehouse-transfers.destroy', $transfer->id) }}"
-                                            method="POST" class="hidden">
-                                            @csrf
-                                            @method('DELETE')
-                                        </form>
                                     @endif
                                 </td>
                             </tr>
