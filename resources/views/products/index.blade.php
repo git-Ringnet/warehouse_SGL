@@ -619,13 +619,7 @@
             
             // Clear filters in dropdown
             clearFiltersInDropdown.addEventListener('click', function() {
-                stockQuantityFilter.value = ''; // This will now be 'Tồn kho'
-                searchInput.value = '';
-                stockQuantityFilter.value = ''; // Clear new input
-                currentFilters = { search: '', stockQuantity: '' }; // Update current filters
-                updateFilterButtonText();
-                updateFilterTags();
-                performSearch();
+                window.location.href = window.location.pathname + '?per_page=10';
             });
             
             // Close dropdown when clicking outside

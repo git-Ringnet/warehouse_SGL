@@ -154,7 +154,7 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $dispatch->dispatch_date->format('d/m/Y') }}
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td class="px-6 py-4 text-sm text-gray-500">
                                         {{ $dispatch->project_receiver }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -166,7 +166,7 @@
                                             {{ $dispatch->status_label }}
                                         </span>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td class="px-6 py-4 text-sm text-gray-500">
                                         {{ $dispatch->dispatch_note ?? 'N/A' }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -199,7 +199,7 @@
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.approve'))))
                                                 <button
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
-                                                    title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}">
+                                                    title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}" data-url="{{ route('inventory.dispatch.approve', $dispatch->id) }}">
                                                     <i class="fas fa-check text-green-500 group-hover:text-white"></i>
                                                 </button>
                                             @endif
@@ -209,7 +209,7 @@
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.cancel'))))
                                                 <button
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
-                                                    title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}">
+                                                    title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}" data-url="{{ route('inventory.dispatch.cancel', $dispatch->id) }}">
                                                     <i class="fas fa-times text-red-500 group-hover:text-white"></i>
                                                 </button>
                                             @endif
@@ -219,7 +219,7 @@
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.delete'))))
                                                 <button
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn"
-                                                    title="Xóa phiếu xuất" data-id="{{ $dispatch->id }}">
+                                                    title="Xóa phiếu xuất" data-id="{{ $dispatch->id }}" data-url="{{ route('inventory.dispatch.destroy', $dispatch->id) }}">
                                                     <i class="fas fa-trash text-gray-500 group-hover:text-white"></i>
                                                 </button>
                                             @endif
@@ -388,6 +388,42 @@
             if (sortDate) sortDate.addEventListener('click', () => handleSort('dispatch_date'));
 
             // Initialize sort icons
+            updateSortIcons();
+
+            // --- Approve & Cancel actions ---
+            function handleAction(buttonClass, confirmMessage, httpMethod = 'POST') {
+                document.querySelectorAll(buttonClass).forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const url = this.dataset.url;
+                        if (!url) return;
+                        if (!confirm(confirmMessage)) return;
+                        fetch(url, {
+                            method: httpMethod,
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Reload to reflect new status
+                                location.reload();
+                            } else {
+                                alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại.');
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Có lỗi xảy ra, vui lòng thử lại.');
+                        });
+                    });
+                });
+            }
+
+            handleAction('.approve-btn', 'Bạn có chắc muốn duyệt phiếu xuất này?', 'POST');
+            handleAction('.cancel-btn', 'Bạn có chắc muốn hủy phiếu xuất này?', 'POST');
+            handleAction('.delete-btn', 'Bạn có chắc muốn xóa phiếu xuất này?', 'DELETE');
             updateSortIcons();
         });
     </script>

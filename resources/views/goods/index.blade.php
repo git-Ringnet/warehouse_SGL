@@ -319,9 +319,9 @@
                     </tbody>
                 </table>
             </div>
-            {{-- <div class="mt-4">
-                {{ $goods->links() }}
-            </div> --}}
+            <div class="mt-4">
+                {{ $goods->links() }}   
+            </div>
         </main>
     </div>
 
@@ -918,11 +918,7 @@
 
             if (clearFiltersInDropdown) {
                 clearFiltersInDropdown.addEventListener('click', function() {
-                    categoryFilter.value = '';
-                    unitFilter.value = '';
-                    stockFilter.value = '';
-                    // Trigger search after clearing filters
-                    performAjaxSearch();
+                    window.location.href = window.location.pathname + '?per_page=10';
                 });
             }
 

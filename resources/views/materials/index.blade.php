@@ -1102,13 +1102,7 @@ $warehouseTooltip = '';
 
             // Clear filters in dropdown
             clearFiltersInDropdown.addEventListener('click', function() {
-                categoryFilter.value = '';
-                unitFilter.value = '';
-                stockFilter.value = '';
-                searchInput.value = '';
-                updateFilterButtonText();
-                updateFilterTags();
-                performSearch();
+                window.location.href = window.location.pathname + '?per_page=10';
             });
 
             // Close dropdown when clicking outside

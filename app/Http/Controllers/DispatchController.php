@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use App\Models\Serial;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -187,6 +188,45 @@ class DispatchController extends Controller
                             $groupedItem['warehouse_id'],
                             $groupedItem['total_quantity']
                         );
+                        Log::info("Stock check result for grouped item $key:", $stockCheck);
+
+                        // Tổng tồn kho và serial chưa xuất trong kho
+                        $totalInWarehouse = $stockCheck['current_stock'];
+                        
+                        // Lấy tất cả serial của item này trong kho
+                        $allSerials = Serial::where('warehouse_id', $groupedItem['warehouse_id'])
+                            ->where('type', $groupedItem['item_type'])
+                            ->where('product_id', $groupedItem['item_id'])
+                            ->pluck('serial_number')
+                            ->toArray();
+                        
+                        // Lấy serial đã xuất từ dispatch_items của các phiếu approved
+                        $dispatchedSerials = DispatchItem::whereHas('dispatch', function($q) {
+                                $q->where('status', 'approved');
+                            })
+                            ->where('item_type', $groupedItem['item_type'])
+                            ->where('item_id', $groupedItem['item_id'])
+                            ->where('warehouse_id', $groupedItem['warehouse_id'])
+                            ->get()
+                            ->pluck('serial_numbers')
+                            ->flatten()
+                            ->filter(function($serial) {
+                                return !empty($serial);
+                            })
+                            ->map(function($serialData) {
+                                if (is_string($serialData)) {
+                                    $decoded = json_decode($serialData, true);
+                                    return is_array($decoded) ? $decoded : [$serialData];
+                                }
+                                return is_array($serialData) ? $serialData : [$serialData];
+                            })
+                            ->flatten()
+                            ->unique()
+                            ->toArray();
+                        
+                        // Serial chưa xuất = tất cả serial - serial đã xuất
+                        $availableSerials = array_diff($allSerials, $dispatchedSerials);
+                        $serialInWarehouse = count($availableSerials);
                         Log::info("Stock check result for grouped item $key:", $stockCheck);
 
                         if (!$stockCheck['sufficient']) {
@@ -705,10 +745,20 @@ class DispatchController extends Controller
                         'item_id' => $item->item_id,
                         'warehouse_id' => $item->warehouse_id,
                         'total_quantity' => 0,
+                        'serial_selected' => 0,
                         'categories' => []
                     ];
                 }
                 $groupedItems[$key]['total_quantity'] += $item->quantity;
+                // Đếm số serial đã chọn cho item này (nếu có)
+                if (is_array($item->serial_numbers)) {
+                    $groupedItems[$key]['serial_selected'] += count(array_filter($item->serial_numbers));
+                } elseif (is_string($item->serial_numbers) && !empty($item->serial_numbers)) {
+                    $decodedSerials = json_decode($item->serial_numbers, true);
+                    if (is_array($decodedSerials)) {
+                        $groupedItems[$key]['serial_selected'] += count(array_filter($decodedSerials));
+                    }
+                }
                 $groupedItems[$key]['categories'][] = $item->category ?? 'general';
             }
 
@@ -725,6 +775,75 @@ class DispatchController extends Controller
                     if (!$stockCheck['sufficient']) {
                         $categoriesText = implode(', ', array_unique($groupedItem['categories']));
                         $stockErrors[] = $stockCheck['message'] . " (Tổng từ: $categoriesText)";
+                    }
+
+                    // Kiểm tra tồn kho không-serial nếu có yêu cầu
+                    $noSerialRequired = $groupedItem['total_quantity'] - $groupedItem['serial_selected'];
+                    if ($noSerialRequired > 0) {
+                        // Tổng tồn kho
+                        $totalInWarehouse = $stockCheck['current_stock'];
+                        
+                        // Lấy tất cả serial của item này trong kho
+                        $allSerials = Serial::where('warehouse_id', $groupedItem['warehouse_id'])
+                            ->where('type', $groupedItem['item_type'])
+                            ->where('product_id', $groupedItem['item_id'])
+                            ->pluck('serial_number')
+                            ->toArray();
+                        
+                        // Lấy serial đã xuất từ dispatch_items của các phiếu approved
+                        $dispatchedSerials = [];
+                        $dispatchedItems = DispatchItem::whereHas('dispatch', function($q) {
+                                $q->where('status', 'approved');
+                            })
+                            ->where('item_type', $groupedItem['item_type'])
+                            ->where('item_id', $groupedItem['item_id'])
+                            ->where('warehouse_id', $groupedItem['warehouse_id'])
+                            ->get();
+                        
+                        foreach ($dispatchedItems as $dispatchedItem) {
+                            if (!empty($dispatchedItem->serial_numbers)) {
+                                if (is_string($dispatchedItem->serial_numbers)) {
+                                    $decoded = json_decode($dispatchedItem->serial_numbers, true);
+                                    if (is_array($decoded)) {
+                                        $dispatchedSerials = array_merge($dispatchedSerials, array_filter($decoded));
+                                    }
+                                } elseif (is_array($dispatchedItem->serial_numbers)) {
+                                    $dispatchedSerials = array_merge($dispatchedSerials, array_filter($dispatchedItem->serial_numbers));
+                                }
+                            }
+                        }
+                        
+                        // Serial chưa xuất = tất cả serial - serial đã xuất
+                        $availableSerials = array_diff($allSerials, $dispatchedSerials);
+                        $serialInWarehouse = count($availableSerials);
+                        $availableNoSerial = max($totalInWarehouse - $serialInWarehouse, 0);
+                        
+                        Log::info('Non-serial stock check:', [
+                            'item' => $groupedItem['item_type'] . '_' . $groupedItem['item_id'],
+                            'totalInWarehouse' => $totalInWarehouse,
+                            'allSerials' => count($allSerials),
+                            'dispatchedSerials' => count($dispatchedSerials),
+                            'availableSerials' => $serialInWarehouse,
+                            'availableNoSerial' => $availableNoSerial,
+                            'noSerialRequired' => $noSerialRequired
+                        ]);
+                        
+                        if ($availableNoSerial < $noSerialRequired) {
+                            // Lấy tên item để hiển thị lỗi rõ ràng hơn
+                            $itemName = 'Unknown';
+                            if ($groupedItem['item_type'] === 'material') {
+                                $item = \App\Models\Material::find($groupedItem['item_id']);
+                            } elseif ($groupedItem['item_type'] === 'product') {
+                                $item = \App\Models\Product::find($groupedItem['item_id']);
+                            } elseif ($groupedItem['item_type'] === 'good') {
+                                $item = \App\Models\Good::find($groupedItem['item_id']);
+                            }
+                            if (isset($item)) {
+                                $itemName = "{$item->code} - {$item->name}";
+                            }
+                            
+                            $stockErrors[] = "Không đủ thiết bị không có Serial cho {$itemName}. Yêu cầu {$noSerialRequired}, còn {$availableNoSerial}";
+                        }
                     }
                 } catch (\Exception $stockException) {
                     Log::error("Error checking stock for grouped item $key:", [
