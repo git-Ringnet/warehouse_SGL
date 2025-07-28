@@ -38,13 +38,13 @@
             class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý vật tư</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
+                <form id="searchForm" action="{{ route('materials.index') }}" method="GET" class="flex gap-2 w-full md:w-auto">
                     <!-- Ô tìm kiếm -->
                     <div class="relative flex-1 flex">
-                        <input type="text" id="searchInput" placeholder="Tìm kiếm..."
+                        <input type="text" id="searchInput" name="search" value="{{ request('search') }}" placeholder="Tìm kiếm..."
                             class="flex-1 border border-gray-300 rounded-l-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700" />
                         <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <button id="searchButton" type="button"
+                        <button id="searchButton" type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-lg border border-blue-500 transition-colors">
                             <i class="fas fa-search"></i>
                         </button>
@@ -61,7 +61,7 @@
                             <div class="p-4 space-y-3">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Loại vật tư</label>
-                                    <select id="categoryFilter"
+                                    <select id="categoryFilter" name="category"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                         <option value="">Tất cả loại</option>
                                         @foreach ($categories as $category)
@@ -71,7 +71,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Đơn vị</label>
-                                    <select id="unitFilter"
+                                    <select id="unitFilter" name="unit"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                         <option value="">Tất cả đơn vị</option>
                                         @foreach ($units as $unit)
@@ -81,7 +81,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn hoặc bằng)</label>
-                                    <input type="number" id="stockFilter" min="0"
+                                    <input type="number" id="stockFilter" name="stock" value="{{ request('stock') }}" min="0"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700"
                                         placeholder="Nhập số lượng">
                                 </div>
@@ -98,7 +98,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </form>
                 <div class="flex flex-wrap gap-2 items-center">
                     <!-- Dropdown menu cho các action phụ -->
                     <div class="relative inline-block text-left">
@@ -210,7 +210,14 @@
                             @endif
                             @if (request('stock'))
                                 <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">
-                                    Tồn kho: {{ request('stock') === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho' }}
+                                    @php
+                                        $stockVal = request('stock');
+                                    @endphp
+                                    @if(is_numeric($stockVal))
+                                        Tồn kho ≤ {{ $stockVal }}
+                                    @else
+                                        Tồn kho: {{ $stockVal === 'in_stock' ? 'Còn tồn kho' : 'Hết tồn kho' }}
+                                    @endif
                                 </span>
                             @endif
                         @endif
@@ -785,105 +792,6 @@ $warehouseTooltip = '';
                     .replace(/Đ/g, 'D');
             }
 
-            function performSearch() {
-                const searchTerm = searchInput.value.toLowerCase().trim();
-                const category = categoryFilter.value;
-                const unit = unitFilter.value;
-                const stock = stockFilter.value;
-
-                // Show loading indicator
-                showLoadingIndicator();
-
-                // Build query parameters
-                const params = new URLSearchParams();
-                
-                // Check if search term is a valid positive integer
-                const isPositiveInteger = /^\d+$/.test(searchTerm);
-                
-                // If it's a positive integer, use it as stock filter
-                if (isPositiveInteger) {
-                    params.append('stock', searchTerm);
-                } else if (searchTerm) {
-                    // Otherwise use as text search
-                    params.append('search', searchTerm);
-                }
-                
-                if (category) params.append('category', category);
-                if (unit) params.append('unit', unit);
-                if (stock) params.append('stock', stock);
-
-                // Perform AJAX search
-                fetch(`{{ route('materials.search.api') }}?${params.toString()}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log(data);
-                        
-                        let filteredMaterials = data.materials;
-                        
-                        // Only apply client-side text filtering if not searching by stock
-                        if (searchTerm && !isPositiveInteger) {
-                            // Split search terms by space for multi-word search
-                            const searchTerms = searchTerm.split(/\s+/).filter(term => term.length > 0);
-                            // Remove accents from search terms
-                            const normalizedSearchTerms = searchTerms.map(term => removeVietnameseAccents(term));
-                            
-                            filteredMaterials = filteredMaterials.filter(material => {
-                                // Get all searchable text fields and normalize them
-                                const code = removeVietnameseAccents((material.code || '').toLowerCase());
-                                const name = removeVietnameseAccents((material.name || '').toLowerCase());
-                                const category = removeVietnameseAccents((material.category || '').toLowerCase());
-                                const unit = removeVietnameseAccents((material.unit || '').toLowerCase());
-                                
-                                // Also keep original text for searching
-                                const originalCode = (material.code || '').toLowerCase();
-                                const originalName = (material.name || '').toLowerCase();
-                                const originalCategory = (material.category || '').toLowerCase();
-                                const originalUnit = (material.unit || '').toLowerCase();
-                                
-                                // Check if all search terms are found in any of the fields
-                                return normalizedSearchTerms.every(term => {
-                                    // Try matching both original and normalized text
-                                    const directMatch = 
-                                        code.includes(term) ||
-                                        name.includes(term) ||
-                                        category.includes(term) ||
-                                        unit.includes(term) ||
-                                        originalCode.includes(term) ||
-                                        originalName.includes(term) ||
-                                        originalCategory.includes(term) ||
-                                        originalUnit.includes(term);
-                                    
-                                    if (directMatch) return true;
-                                    
-                                    // For each term, try fuzzy search on both original and normalized text
-                                    let lastIndex = -1;
-                                    const fuzzyMatch = Array.from(term).every(char => {
-                                        const index = code.indexOf(char, lastIndex + 1);
-                                        if (index > lastIndex) {
-                                            lastIndex = index;
-                                            return true;
-                                        }
-                                        return false;
-                                    });
-                                    
-                                    return fuzzyMatch;
-                                });
-                            });
-                        }
-
-                        updateTable(filteredMaterials);
-                        updateResultCount(filteredMaterials.length);
-                        updateFilterTags();
-                        updateURL(params);
-                        hideLoadingIndicator();
-                    })
-                    .catch(error => {
-                        console.error('Search error:', error);
-                        hideLoadingIndicator();
-                        showErrorMessage('Có lỗi xảy ra khi tìm kiếm. Vui lòng thử lại.');
-                    });
-            }
-
             function showLoadingIndicator() {
                 // Add loading overlay to the table
                 const tableContainer = document.querySelector('.bg-white.rounded-xl.shadow-md');
@@ -1077,13 +985,10 @@ $warehouseTooltip = '';
                 }
             }
 
-            // Search on button click or Enter key
-            searchButton.addEventListener('click', performSearch);
-
+            // Submit form when pressing Enter in search input
             searchInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
-                    e.preventDefault();
-                    performSearch();
+                    document.getElementById('searchForm').submit();
                 }
             });
 
@@ -1096,13 +1001,15 @@ $warehouseTooltip = '';
             // Apply filters button
             applyFilters.addEventListener('click', function() {
                 filterDropdown.classList.add('hidden');
+                document.getElementById('searchForm').submit();
                 updateFilterButtonText();
-                performSearch();
             });
 
             // Clear filters in dropdown
-            clearFiltersInDropdown.addEventListener('click', function() {
-                window.location.href = window.location.pathname + '?per_page=10';
+            clearFiltersInDropdown.addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('searchForm').reset();
+                window.location.href = '{{ route('materials.index') }}';
             });
 
             // Close dropdown when clicking outside

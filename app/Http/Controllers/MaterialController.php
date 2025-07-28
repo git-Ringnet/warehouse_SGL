@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Barryvdh\DomPDF\Facade as PDF;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\MaterialsExport;
 use App\Exports\MaterialsTemplateExport;
@@ -37,7 +38,7 @@ class MaterialController extends Controller
             ->where('is_hidden', false);
 
         // Apply filters if provided
-        if ($request->filled('search')) {
+        if ($request->filled('search') && !ctype_digit($request->search)) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -56,8 +57,8 @@ class MaterialController extends Controller
             $query->where('unit', $request->unit);
         }
 
-        // Get paginated results
-        $materials = $query->orderBy('created_at', 'desc')->paginate(10);
+        // Lấy toàn bộ danh sách vật tư trước, sau đó mới tính tồn kho và áp dụng bộ lọc theo tồn kho, rồi phân trang
+        $materials = $query->orderBy('created_at', 'desc')->get();
 
         // Initialize grand totals
         $grandTotalQuantity = 0;
@@ -87,16 +88,41 @@ class MaterialController extends Controller
         }
 
         // Apply stock filter after calculating quantities
+        // Determine stock filter value (priority: explicit stock param, else numeric search term)
+        $useStock = null;
         if ($request->filled('stock')) {
-            if ($request->stock === 'in_stock') {
+            $useStock = $request->stock;
+        } elseif ($request->filled('search') && ctype_digit($request->search)) {
+            $useStock = $request->search;
+        }
+        if ($useStock !== null) {
+            if ($useStock === 'in_stock') {
                 $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity > 0;
                 });
-            } elseif ($request->stock === 'out_of_stock') {
+            } elseif ($useStock === 'out_of_stock') {
                 $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity == 0;
                 });
+            } elseif (is_numeric($useStock)) {
+                $threshold = (int) $useStock;
+                $materials = $materials->filter(function ($material) use ($threshold) {
+                    return $material->inventory_quantity <= $threshold;
+                });
             }
+        }
+
+        // Rebuild paginator if filtering converted it to a Collection
+        if (!$materials instanceof LengthAwarePaginator) {
+            $page = $request->input('page', 1);
+            $perPage = 10;
+            $materials = new LengthAwarePaginator(
+                $materials->forPage($page, $perPage),
+                $materials->count(),
+                $perPage,
+                $page,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
         }
 
         // Get unique categories and units for dropdowns
@@ -719,7 +745,7 @@ class MaterialController extends Controller
                 ->where('is_hidden', false);
 
             // Apply filters if provided
-            if ($request->filled('search')) {
+            if ($request->filled('search') && !ctype_digit($request->search)) {
                 $searchTerm = $request->search;
                 $query->where(function ($q) use ($searchTerm) {
                     $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -757,12 +783,19 @@ class MaterialController extends Controller
             }
 
             // Apply stock filter after calculating quantities
-            if ($request->filled('stock')) {
-                if ($request->stock === 'in_stock') {
+            // Determine stock filter value (priority: explicit stock param, else numeric search term)
+        $useStock = null;
+        if ($request->filled('stock')) {
+            $useStock = $request->stock;
+        } elseif ($request->filled('search') && ctype_digit($request->search)) {
+            $useStock = $request->search;
+        }
+        if ($useStock !== null) {
+                if ($useStock === 'in_stock') {
                     $materials = $materials->filter(function ($material) {
                         return $material->inventory_quantity > 0;
                     });
-                } elseif ($request->stock === 'out_of_stock') {
+                } elseif ($useStock === 'out_of_stock') {
                     $materials = $materials->filter(function ($material) {
                         return $material->inventory_quantity == 0;
                     });
@@ -989,7 +1022,7 @@ class MaterialController extends Controller
             ->where('is_hidden', false);
 
         // Apply filters if provided
-        if ($request->filled('search')) {
+        if ($request->filled('search') && !ctype_digit($request->search)) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
@@ -1029,14 +1062,26 @@ class MaterialController extends Controller
         }
 
         // Apply stock filter after calculating quantities
+        // Determine stock filter value (priority: explicit stock param, else numeric search term)
+        $useStock = null;
         if ($request->filled('stock')) {
-            if ($request->stock === 'in_stock') {
+            $useStock = $request->stock;
+        } elseif ($request->filled('search') && ctype_digit($request->search)) {
+            $useStock = $request->search;
+        }
+        if ($useStock !== null) {
+            if ($useStock === 'in_stock') {
                 $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity > 0;
                 });
-            } elseif ($request->stock === 'out_of_stock') {
+            } elseif ($useStock === 'out_of_stock') {
                 $materials = $materials->filter(function ($material) {
                     return $material->inventory_quantity == 0;
+                });
+            } elseif (is_numeric($useStock)) {
+                $threshold = (int) $useStock;
+                $materials = $materials->filter(function ($material) use ($threshold) {
+                    return $material->inventory_quantity <= $threshold;
                 });
             }
         }
