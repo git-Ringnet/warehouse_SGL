@@ -180,10 +180,10 @@ class MaterialsImport implements ToCollection, WithHeadingRow
             return [];
         }
         
-        // Lấy danh sách nhà cung cấp và sắp xếp theo thứ tự hiển thị trên giao diện
+        // Lấy danh sách nhà cung cấp và sắp xếp theo thứ tự hiển thị trên trang index
+        // Sử dụng cùng logic sắp xếp như trong SupplierController@index
         $suppliers = Supplier::query()
-            ->orderByRaw("CASE WHEN name = 'Kho Bảo Hành' THEN 0 ELSE 1 END")
-            ->orderBy('id', 'asc')
+            ->latest() // Sử dụng cùng thứ tự như trong supplier index
             ->get()
             ->values()
             ->map(function ($supplier, $index) {
