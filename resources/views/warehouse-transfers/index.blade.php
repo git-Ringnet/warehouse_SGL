@@ -115,7 +115,56 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $transfer->transfer_code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $transfer->material->name }}</td>
+                                    @php
+                                        $materialName = 'Không xác định';
+                                        
+                                        // Lấy thông tin từ warehouse_transfer_materials để xác định loại item
+                                        $transferMaterial = $transfer->materials->first();
+                                        if ($transferMaterial) {
+                                            $itemType = $transferMaterial->type ?? 'material';
+                                            $materialId = $transferMaterial->material_id;
+                                            
+                                            // Lấy tên dựa trên loại item
+                                            switch ($itemType) {
+                                                case 'material':
+                                                    $material = \App\Models\Material::find($materialId);
+                                                    if ($material) {
+                                                        $materialName = $material->name;
+                                                    }
+                                                    break;
+                                                case 'product':
+                                                    $product = \App\Models\Product::find($materialId);
+                                                    if ($product) {
+                                                        $materialName = $product->name;
+                                                    }
+                                                    break;
+                                                case 'good':
+                                                    $good = \App\Models\Good::find($materialId);
+                                                    if ($good) {
+                                                        $materialName = $good->name;
+                                                    }
+                                                    break;
+                                            }
+                                        } else {
+                                            // Fallback: thử tìm trong bảng materials trước
+                                            if ($transfer->material) {
+                                                $materialName = $transfer->material->name;
+                                            } else {
+                                                // Thử tìm trong bảng products hoặc goods
+                                                $product = \App\Models\Product::find($transfer->material_id);
+                                                if ($product) {
+                                                    $materialName = $product->name;
+                                                } else {
+                                                    $good = \App\Models\Good::find($transfer->material_id);
+                                                    if ($good) {
+                                                        $materialName = $good->name;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    @endphp
+                                    {{ $materialName }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $transfer->source_warehouse->name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

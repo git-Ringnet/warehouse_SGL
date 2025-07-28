@@ -25,7 +25,7 @@ class WarehouseTransferController extends Controller
      */
     public function index(Request $request)
     {
-        $query = WarehouseTransfer::query()->with(['source_warehouse', 'destination_warehouse', 'material', 'employee']);
+        $query = WarehouseTransfer::query()->with(['source_warehouse', 'destination_warehouse', 'material', 'employee', 'materials']);
 
         // Tìm kiếm
         if ($request->filled('search')) {
@@ -37,9 +37,32 @@ class WarehouseTransferController extends Controller
                     $query->where('serial', 'like', "%{$search}%");
                     break;
                 case 'material':
-                    $query->whereHas('material', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%")
-                            ->orWhere('code', 'like', "%{$search}%");
+                    $query->where(function ($q) use ($search) {
+                        // Tìm trong bảng materials
+                        $q->whereHas('material', function ($subQ) use ($search) {
+                            $subQ->where('name', 'like', "%{$search}%")
+                                ->orWhere('code', 'like', "%{$search}%");
+                        })
+                        // Hoặc tìm trong bảng products
+                        ->orWhereExists(function ($subQ) use ($search) {
+                            $subQ->select(DB::raw(1))
+                                ->from('products')
+                                ->whereRaw('products.id = warehouse_transfers.material_id')
+                                ->where(function ($productQ) use ($search) {
+                                    $productQ->where('name', 'like', "%{$search}%")
+                                        ->orWhere('code', 'like', "%{$search}%");
+                                });
+                        })
+                        // Hoặc tìm trong bảng goods
+                        ->orWhereExists(function ($subQ) use ($search) {
+                            $subQ->select(DB::raw(1))
+                                ->from('goods')
+                                ->whereRaw('goods.id = warehouse_transfers.material_id')
+                                ->where(function ($goodQ) use ($search) {
+                                    $goodQ->where('name', 'like', "%{$search}%")
+                                        ->orWhere('code', 'like', "%{$search}%");
+                                });
+                        });
                     });
                     break;
                 case 'source':
@@ -66,8 +89,30 @@ class WarehouseTransferController extends Controller
                     $query->where(function ($q) use ($search) {
                         $q->where('transfer_code', 'like', "%{$search}%")
                             ->orWhere('serial', 'like', "%{$search}%")
-                            ->orWhereHas('material', function ($q) use ($search) {
-                                $q->where('name', 'like', "%{$search}%");
+                            // Tìm trong bảng materials
+                            ->orWhereHas('material', function ($subQ) use ($search) {
+                                $subQ->where('name', 'like', "%{$search}%")
+                                    ->orWhere('code', 'like', "%{$search}%");
+                            })
+                            // Hoặc tìm trong bảng products
+                            ->orWhereExists(function ($subQ) use ($search) {
+                                $subQ->select(DB::raw(1))
+                                    ->from('products')
+                                    ->whereRaw('products.id = warehouse_transfers.material_id')
+                                    ->where(function ($productQ) use ($search) {
+                                        $productQ->where('name', 'like', "%{$search}%")
+                                            ->orWhere('code', 'like', "%{$search}%");
+                                    });
+                            })
+                            // Hoặc tìm trong bảng goods
+                            ->orWhereExists(function ($subQ) use ($search) {
+                                $subQ->select(DB::raw(1))
+                                    ->from('goods')
+                                    ->whereRaw('goods.id = warehouse_transfers.material_id')
+                                    ->where(function ($goodQ) use ($search) {
+                                        $goodQ->where('name', 'like', "%{$search}%")
+                                            ->orWhere('code', 'like', "%{$search}%");
+                                    });
                             });
                     });
             }
@@ -152,6 +197,30 @@ class WarehouseTransferController extends Controller
             $materialsData = json_decode($request->materials_json, true);
             if (empty($materialsData)) {
                 return back()->with('error', 'Danh sách vật tư không hợp lệ')->withInput();
+            }
+            
+            // Kiểm tra tính hợp lệ của material_id cho từng item
+            foreach ($materialsData as $material) {
+                $materialId = $material['id'];
+                $itemType = $material['type'] ?? 'material';
+                
+                // Kiểm tra xem material_id có tồn tại trong bảng tương ứng không
+                $exists = false;
+                switch ($itemType) {
+                    case 'material':
+                        $exists = Material::where('id', $materialId)->exists();
+                        break;
+                    case 'product':
+                        $exists = Product::where('id', $materialId)->exists();
+                        break;
+                    case 'good':
+                        $exists = Good::where('id', $materialId)->exists();
+                        break;
+                }
+                
+                if (!$exists) {
+                    return back()->with('error', "Không tìm thấy {$itemType} với ID: {$materialId}")->withInput();
+                }
             }
             
             // Kiểm tra serial trùng giữa các item
@@ -284,17 +353,20 @@ class WarehouseTransferController extends Controller
 
                     // Tạo nhật ký chuyển kho
                     if ($itemModel) {
+                        $sourceWarehouse = Warehouse::find($request->source_warehouse_id);
+                        $destinationWarehouse = Warehouse::find($request->destination_warehouse_id);
+                        
                         ChangeLogHelper::chuyenKho(
                             $itemModel->code,
                             $itemModel->name,
                             $quantity,
                             $warehouseTransfer->transfer_code,
-                            "Chuyển từ {$request->source_warehouse_id} sang {$request->destination_warehouse_id}",
+                            "Chuyển từ " . ($sourceWarehouse ? $sourceWarehouse->name : 'Kho không xác định') . " sang " . ($destinationWarehouse ? $destinationWarehouse->name : 'Kho không xác định'),
                             [
                                 'source_warehouse_id' => $request->source_warehouse_id,
-                                'source_warehouse_name' => $request->source_warehouse_id,
+                                'source_warehouse_name' => $sourceWarehouse ? $sourceWarehouse->name : 'Kho không xác định',
                                 'destination_warehouse_id' => $request->destination_warehouse_id,
-                                'destination_warehouse_name' => $request->destination_warehouse_id,
+                                'destination_warehouse_name' => $destinationWarehouse ? $destinationWarehouse->name : 'Kho không xác định',
                             ],
                             $warehouseTransfer->notes
                         );
@@ -331,9 +403,30 @@ class WarehouseTransferController extends Controller
     {
         $warehouseTransfer->load(['source_warehouse', 'destination_warehouse', 'material', 'employee', 'materials.material']);
         $selectedMaterials = $warehouseTransfer->materials->map(function ($item) {
+            $itemName = 'Không xác định';
+            $itemCode = '';
+            
+            // Thử lấy thông tin từ bảng tương ứng
+            if ($item->type == 'material' && $item->material) {
+                $itemName = $item->material->name;
+                $itemCode = $item->material->code;
+            } elseif ($item->type == 'product') {
+                $product = Product::find($item->material_id);
+                if ($product) {
+                    $itemName = $product->name;
+                    $itemCode = $product->code;
+                }
+            } elseif ($item->type == 'good') {
+                $good = Good::find($item->material_id);
+                if ($good) {
+                    $itemName = $good->name;
+                    $itemCode = $good->code;
+                }
+            }
+            
             return [
                 'id' => $item->material_id,
-                'name' => $item->material->code . ' - ' . $item->material->name,
+                'name' => $itemCode ? ($itemCode . ' - ' . $itemName) : $itemName,
                 'type' => $item->type ?? 'material',
                 'quantity' => $item->quantity,
                 'serial_numbers' => $item->serial_numbers,
@@ -369,10 +462,31 @@ class WarehouseTransferController extends Controller
 
         $warehouseTransfer->load(['materials.material']);
         $selectedMaterials = $warehouseTransfer->materials->map(function ($item) {
+            $itemName = 'Không xác định';
+            $itemCode = '';
+            
+            // Thử lấy thông tin từ bảng tương ứng
+            if ($item->type == 'material' && $item->material) {
+                $itemName = $item->material->name;
+                $itemCode = $item->material->code;
+            } elseif ($item->type == 'product') {
+                $product = Product::find($item->material_id);
+                if ($product) {
+                    $itemName = $product->name;
+                    $itemCode = $product->code;
+                }
+            } elseif ($item->type == 'good') {
+                $good = Good::find($item->material_id);
+                if ($good) {
+                    $itemName = $good->name;
+                    $itemCode = $good->code;
+                }
+            }
+            
             return [
                 'id' => $item->material_id,
-                'name' => $item->material->code . ' - ' . $item->material->name,
-                'type' => $item->type ?? $item->material->category ?? 'other',
+                'name' => $itemCode ? ($itemCode . ' - ' . $itemName) : $itemName,
+                'type' => $item->type ?? 'material',
                 'quantity' => $item->quantity,
                 'serial_numbers' => $item->serial_numbers,
                 'notes' => $item->notes
@@ -424,6 +538,30 @@ class WarehouseTransferController extends Controller
             $materialsData = json_decode($request->materials_json, true);
             if (empty($materialsData)) {
                 return back()->with('error', 'Danh sách vật tư không hợp lệ')->withInput();
+            }
+
+            // Kiểm tra tính hợp lệ của material_id cho từng item
+            foreach ($materialsData as $material) {
+                $materialId = $material['id'];
+                $itemType = $material['type'] ?? 'material';
+                
+                // Kiểm tra xem material_id có tồn tại trong bảng tương ứng không
+                $exists = false;
+                switch ($itemType) {
+                    case 'material':
+                        $exists = Material::where('id', $materialId)->exists();
+                        break;
+                    case 'product':
+                        $exists = Product::where('id', $materialId)->exists();
+                        break;
+                    case 'good':
+                        $exists = Good::where('id', $materialId)->exists();
+                        break;
+                }
+                
+                if (!$exists) {
+                    return back()->with('error', "Không tìm thấy {$itemType} với ID: {$materialId}")->withInput();
+                }
             }
 
             // Kiểm tra serial trùng giữa các item
