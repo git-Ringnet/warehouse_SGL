@@ -57,4 +57,5 @@ Route::get('/materials/{material}/serials/{warehouse}', [App\Http\Controllers\Ap
 // Warehouse Transfers
 Route::get('/warehouse-transfers/generate-code', [App\Http\Controllers\WarehouseTransferController::class, 'generateCode']);
 Route::get('/warehouse-transfers/get-serials', [App\Http\Controllers\WarehouseTransferController::class, 'getAvailableSerials']);
-Route::get('/warehouse-transfers/check-serial-data', [App\Http\Controllers\WarehouseTransferController::class, 'checkSerialData']); 
+Route::get('/warehouse-transfers/check-serial-data', [App\Http\Controllers\WarehouseTransferController::class, 'checkSerialData']);
+Route::get('/warehouse-transfers/get-items-by-warehouse', [App\Http\Controllers\WarehouseTransferController::class, 'getItemsByWarehouse']); 

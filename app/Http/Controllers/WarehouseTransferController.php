@@ -50,7 +50,7 @@ class WarehouseTransferController extends Controller
                                 ->whereRaw('products.id = warehouse_transfers.material_id')
                                 ->where(function ($productQ) use ($search) {
                                     $productQ->where('name', 'like', "%{$search}%")
-                                        ->orWhere('code', 'like', "%{$search}%");
+                            ->orWhere('code', 'like', "%{$search}%");
                                 });
                         })
                         // Hoặc tìm trong bảng goods
@@ -136,9 +136,6 @@ class WarehouseTransferController extends Controller
             ->get();
             
         $employees = Employee::orderBy('name')->get();
-        $materials = Material::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
-        $products = Product::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
-        $goods = Good::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
 
         // Generate mã phiếu chuyển kho mặc định
         $lastTransfer = WarehouseTransfer::orderBy('id', 'desc')->first();
@@ -161,9 +158,6 @@ class WarehouseTransferController extends Controller
         return view('warehouse-transfers.create', compact(
             'warehouses',
             'employees',
-            'materials',
-            'products',
-            'goods',
             'generated_transfer_code'
         ));
     }
@@ -456,9 +450,6 @@ class WarehouseTransferController extends Controller
     {
         $warehouses = Warehouse::orderBy('name')->get();
         $employees = Employee::orderBy('name')->get();
-        $materials = Material::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
-        $products = Product::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
-        $goods = Good::where('status', 'active')->where('is_hidden', false)->orderBy('name')->get();
 
         $warehouseTransfer->load(['materials.material']);
         $selectedMaterials = $warehouseTransfer->materials->map(function ($item) {
@@ -497,9 +488,6 @@ class WarehouseTransferController extends Controller
             'warehouseTransfer',
             'warehouses',
             'employees',
-            'materials',
-            'products',
-            'goods',
             'selectedMaterials'
         ));
     }
@@ -513,7 +501,6 @@ class WarehouseTransferController extends Controller
             'transfer_code' => 'required|string|max:50|unique:warehouse_transfers,transfer_code,' . $warehouseTransfer->id,
             'source_warehouse_id' => 'required|exists:warehouses,id',
             'destination_warehouse_id' => 'required|exists:warehouses,id|different:source_warehouse_id',
-            'quantity' => 'required|integer|min:1',
             'transfer_date' => 'required|date',
             'employee_id' => 'nullable|exists:employees,id',
             'materials_json' => 'required|json',
@@ -523,8 +510,6 @@ class WarehouseTransferController extends Controller
             'source_warehouse_id.required' => 'Kho nguồn là bắt buộc',
             'destination_warehouse_id.required' => 'Kho đích là bắt buộc',
             'destination_warehouse_id.different' => 'Kho đích không được trùng với kho nguồn',
-            'quantity.required' => 'Số lượng là bắt buộc',
-            'quantity.min' => 'Số lượng phải lớn hơn 0',
             'transfer_date.required' => 'Ngày chuyển kho là bắt buộc',
         ]);
 
@@ -597,7 +582,7 @@ class WarehouseTransferController extends Controller
                 'source_warehouse_id' => $request->source_warehouse_id,
                 'destination_warehouse_id' => $request->destination_warehouse_id,
                 'material_id' => $materialId,
-                'quantity' => $request->quantity,
+                'quantity' => $materialsData[0]['quantity'] ?? 1,
                 'transfer_date' => $request->transfer_date,
                 'employee_id' => $request->employee_id,
                 'status' => 'pending', // Luôn giữ trạng thái pending khi update
@@ -619,14 +604,23 @@ class WarehouseTransferController extends Controller
             // Xóa chi tiết vật tư hiện có
             $warehouseTransfer->materials()->delete();
 
-            // Tạo lại chi tiết vật tư
-            foreach ($materialsData as $materialData) {
+            // Tạo lại chi tiết vật tư (đồng bộ logic với store)
+            foreach ($materialsData as $material) {
+                $serialNumbers = null;
+                if (!empty($material['serial_numbers'])) {
+                    if (is_array($material['serial_numbers'])) {
+                        $serialNumbers = array_map('trim', $material['serial_numbers']);
+                    } else {
+                        $serialNumbers = array_filter(array_map('trim', preg_split('/[,;\n\r]+/', $material['serial_numbers'])));
+                    }
+                    $serialNumbers = !empty($serialNumbers) ? $serialNumbers : null;
+                }
                 $warehouseTransfer->materials()->create([
-                    'material_id' => $materialData['id'],
-                    'type' => $materialData['type'] ?? 'material',
-                    'quantity' => $materialData['quantity'],
-                    'serial_numbers' => $materialData['serial_numbers'] ?? null,
-                    'notes' => $materialData['notes'] ?? null,
+                    'material_id' => $material['id'],
+                    'type' => $material['type'] ?? 'material',
+                    'quantity' => $material['quantity'],
+                    'serial_numbers' => $serialNumbers,
+                    'notes' => $material['notes'] ?? null,
                 ]);
             }
 
@@ -696,6 +690,94 @@ class WarehouseTransferController extends Controller
             return false;
         }
     }
+
+    /**
+     * Cập nhật tồn kho với xử lý serial numbers
+     */
+    private function updateWarehouseStockWithSerials($sourceWarehouseId, $destinationWarehouseId, $materialId, $itemType, $quantity, $serialNumbers, $note = '')
+    {
+        try {
+            // Xử lý serial numbers
+            $serialArray = [];
+            if (!empty($serialNumbers)) {
+                if (is_string($serialNumbers)) {
+                    $serialArray = json_decode($serialNumbers, true) ?: [];
+                } elseif (is_array($serialNumbers)) {
+                    $serialArray = $serialNumbers;
+                }
+            }
+
+            // Giảm số lượng và xóa serial ở kho nguồn
+            $sourceWarehouseMaterial = WarehouseMaterial::where('warehouse_id', $sourceWarehouseId)
+                ->where('material_id', $materialId)
+                ->where('item_type', $itemType)
+                ->first();
+
+            if ($sourceWarehouseMaterial) {
+                $newQuantity = $sourceWarehouseMaterial->quantity - $quantity;
+                
+                // Xử lý serial numbers ở kho nguồn
+                $sourceSerials = [];
+                if (!empty($sourceWarehouseMaterial->serial_number)) {
+                    $sourceSerials = json_decode($sourceWarehouseMaterial->serial_number, true) ?: [];
+                }
+                
+                // Loại bỏ các serial đã chuyển
+                $sourceSerials = array_diff($sourceSerials, $serialArray);
+                
+                if ($newQuantity <= 0) {
+                    // Xóa bản ghi nếu không còn gì
+                    $sourceWarehouseMaterial->delete();
+                } else {
+                    // Cập nhật số lượng và serial mới
+                    $sourceWarehouseMaterial->quantity = $newQuantity;
+                    $sourceWarehouseMaterial->serial_number = !empty($sourceSerials) ? json_encode(array_values($sourceSerials)) : null;
+                    $sourceWarehouseMaterial->save();
+                }
+            }
+
+            // Tăng số lượng và thêm serial ở kho đích
+            $destinationWarehouseMaterial = WarehouseMaterial::where('warehouse_id', $destinationWarehouseId)
+                ->where('material_id', $materialId)
+                ->where('item_type', $itemType)
+                ->first();
+
+            if ($destinationWarehouseMaterial) {
+                // Cập nhật bản ghi hiện có
+                $destinationWarehouseMaterial->quantity += $quantity;
+                
+                // Thêm serial numbers mới
+                $destinationSerials = [];
+                if (!empty($destinationWarehouseMaterial->serial_number)) {
+                    $destinationSerials = json_decode($destinationWarehouseMaterial->serial_number, true) ?: [];
+                }
+                $destinationSerials = array_merge($destinationSerials, $serialArray);
+                $destinationWarehouseMaterial->serial_number = json_encode(array_values(array_unique($destinationSerials)));
+                
+                $destinationWarehouseMaterial->save();
+            } else {
+                // Tạo bản ghi mới
+                WarehouseMaterial::create([
+                    'warehouse_id' => $destinationWarehouseId,
+                    'material_id' => $materialId,
+                    'item_type' => $itemType,
+                    'quantity' => $quantity,
+                    'serial_number' => !empty($serialArray) ? json_encode($serialArray) : null,
+                ]);
+            }
+
+            Log::info("Chuyển serial thành công: từ kho {$sourceWarehouseId} sang kho {$destinationWarehouseId}, materialId={$materialId}, itemType={$itemType}, quantity={$quantity}, serials=" . json_encode($serialArray) . ", ghi chú={$note}");
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error("Lỗi khi chuyển serial: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Cập nhật tồn kho (method cũ, giữ lại để tương thích)
+     */
 
     /**
      * Remove the specified resource from storage.
@@ -842,11 +924,11 @@ class WarehouseTransferController extends Controller
             // Lấy danh sách serial đã nhập từ phiếu nhập kho - BỎ ĐIỀU KIỆN item_type
             // để lấy tất cả serial bất kể loại sản phẩm
             $importQuery = DB::table('inventory_import_materials')
-                ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
-                ->where('inventory_imports.warehouse_id', $warehouseId)
-                ->where('inventory_import_materials.material_id', $materialId)
-                ->whereNotNull('inventory_import_materials.serial_numbers')
-                ->select('inventory_import_materials.serial_numbers', 'inventory_import_materials.item_type');
+                ->where('material_id', $materialId)
+                ->whereNotNull('serial_numbers')
+                ->whereRaw("serial_numbers != '[]'")
+                ->whereRaw("serial_numbers != ''")
+                ->select('serial_numbers', 'item_type');
                 
             Log::info('Import Query:', ['sql' => $importQuery->toSql(), 'bindings' => $importQuery->getBindings()]);
             
@@ -899,6 +981,7 @@ class WarehouseTransferController extends Controller
                 ->join('warehouse_transfers', 'warehouse_transfers.id', '=', 'warehouse_transfer_materials.warehouse_transfer_id')
                 ->where('warehouse_transfers.source_warehouse_id', $warehouseId)
                 ->where('warehouse_transfer_materials.material_id', $materialId)
+                ->where('warehouse_transfers.status', 'completed') // Chỉ xem xét phiếu đã duyệt
                 ->whereNotNull('warehouse_transfer_materials.serial_numbers')
                 ->select('warehouse_transfer_materials.serial_numbers', 'warehouse_transfer_materials.type');
                 
@@ -934,8 +1017,28 @@ class WarehouseTransferController extends Controller
                 
             Log::info('Total stock:', ['quantity' => $totalStock]);
 
-            // Lấy danh sách serial còn tồn kho (đã nhập - đã chuyển)
+            // Lấy serial numbers trực tiếp từ warehouse_materials (nơi lưu trữ chính xác nhất)
+            $warehouseMaterial = WarehouseMaterial::where('warehouse_id', $warehouseId)
+                ->where('material_id', $materialId)
+                ->where('item_type', $itemType)
+                ->first();
+                
+            $availableSerials = [];
+            if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
+                try {
+                    $warehouseSerials = json_decode($warehouseMaterial->serial_number, true);
+                    if (is_array($warehouseSerials)) {
+                        $availableSerials = $warehouseSerials;
+                    }
+                } catch (\Exception $e) {
+                    Log::error('Lỗi khi decode serial từ warehouse_materials: ' . $e->getMessage());
+                }
+            }
+            
+            // Nếu không có serial trong warehouse_materials, thử tính từ inventory_import_materials - warehouse_transfer_materials
+            if (empty($availableSerials)) {
             $availableSerials = array_values(array_diff($importedSerials, $transferredSerials));
+            }
             
             // Số lượng tồn kho không có serial = tổng tồn kho - số lượng có serial
             $nonSerialStock = $totalStock - count($availableSerials);
@@ -1021,7 +1124,87 @@ class WarehouseTransferController extends Controller
     }
 
     /**
-     * Generate mã phiếu chuyển kho tự động
+     * Get items (materials, products, goods) available in a specific warehouse
+     */
+    public function getItemsByWarehouse(Request $request)
+    {
+        $warehouseId = $request->input('warehouse_id');
+        
+        if (!$warehouseId) {
+            return response()->json(['error' => 'Warehouse ID is required'], 400);
+        }
+
+        try {
+            // Lấy materials có trong kho (quantity > 0 hoặc có serial numbers)
+            $materials = Material::where('status', 'active')
+                ->where('is_hidden', false)
+                ->whereExists(function ($query) use ($warehouseId) {
+                    $query->select(DB::raw(1))
+                          ->from('warehouse_materials')
+                          ->whereColumn('warehouse_materials.material_id', 'materials.id')
+                          ->where('warehouse_materials.warehouse_id', $warehouseId)
+                          ->where('warehouse_materials.item_type', 'material')
+                          ->where(function($subQuery) {
+                              $subQuery->where('warehouse_materials.quantity', '>', 0)
+                                      ->orWhereNotNull('warehouse_materials.serial_number')
+                                      ->whereRaw("warehouse_materials.serial_number != ''")
+                                      ->whereRaw("warehouse_materials.serial_number != 'null'");
+                          });
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']);
+
+            // Lấy products có trong kho (quantity > 0 hoặc có serial numbers)
+            $products = Product::where('status', 'active')
+                ->where('is_hidden', false)
+                ->whereExists(function ($query) use ($warehouseId) {
+                    $query->select(DB::raw(1))
+                          ->from('warehouse_materials')
+                          ->whereColumn('warehouse_materials.material_id', 'products.id')
+                          ->where('warehouse_materials.warehouse_id', $warehouseId)
+                          ->where('warehouse_materials.item_type', 'product')
+                          ->where(function($subQuery) {
+                              $subQuery->where('warehouse_materials.quantity', '>', 0)
+                                      ->orWhereNotNull('warehouse_materials.serial_number')
+                                      ->whereRaw("warehouse_materials.serial_number != ''")
+                                      ->whereRaw("warehouse_materials.serial_number != 'null'");
+                          });
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']);
+
+            // Lấy goods có trong kho (quantity > 0 hoặc có serial numbers)
+            $goods = Good::where('status', 'active')
+                ->where('is_hidden', false)
+                ->whereExists(function ($query) use ($warehouseId) {
+                    $query->select(DB::raw(1))
+                          ->from('warehouse_materials')
+                          ->whereColumn('warehouse_materials.material_id', 'goods.id')
+                          ->where('warehouse_materials.warehouse_id', $warehouseId)
+                          ->where('warehouse_materials.item_type', 'good')
+                          ->where(function($subQuery) {
+                              $subQuery->where('warehouse_materials.quantity', '>', 0)
+                                      ->orWhereNotNull('warehouse_materials.serial_number')
+                                      ->whereRaw("warehouse_materials.serial_number != ''")
+                                      ->whereRaw("warehouse_materials.serial_number != 'null'");
+                          });
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']);
+
+            return response()->json([
+                'materials' => $materials,
+                'products' => $products,
+                'goods' => $goods
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error fetching items: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Generate a unique transfer code.
      */
     public function generateCode()
     {
@@ -1060,7 +1243,7 @@ class WarehouseTransferController extends Controller
             // Lưu dữ liệu cũ trước khi cập nhật
             $oldData = $warehouseTransfer->toArray();
 
-            // Kiểm tra tồn kho trước khi duyệt
+            // Kiểm tra tồn kho và serial trước khi duyệt
             $inventoryErrors = [];
             foreach ($warehouseTransfer->materials as $material) {
                 // Lấy thông tin tồn kho hiện tại
@@ -1081,9 +1264,63 @@ class WarehouseTransferController extends Controller
                     $itemName = "Mã: {$material->material_id}";
                 }
                 
-                // Nếu số lượng chuyển lớn hơn tồn kho hiện tại
+                // Test Case 1: Kiểm tra số lượng tồn kho
                 if ($material->quantity > $currentStock) {
                     $inventoryErrors[] = "Số lượng chuyển ({$material->quantity}) của {$itemName} vượt quá tồn kho hiện tại ({$currentStock})";
+                    continue; // Bỏ qua các kiểm tra khác nếu không đủ số lượng
+                }
+                
+                // Test Case 2 & 3: Kiểm tra serial numbers
+                if (!empty($material->serial_numbers)) {
+                    $requestedSerials = [];
+                    if (is_string($material->serial_numbers)) {
+                        $requestedSerials = json_decode($material->serial_numbers, true) ?: [];
+                    } elseif (is_array($material->serial_numbers)) {
+                        $requestedSerials = $material->serial_numbers;
+                    }
+                    
+                    if (!empty($requestedSerials)) {
+                        // Lấy serial có sẵn trong kho nguồn
+                        $warehouseMaterial = WarehouseMaterial::where('warehouse_id', $warehouseTransfer->source_warehouse_id)
+                            ->where('material_id', $material->material_id)
+                            ->where('item_type', $material->type ?? 'material')
+                            ->first();
+                            
+                        $availableSerials = [];
+                        if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
+                            $availableSerials = json_decode($warehouseMaterial->serial_number, true) ?: [];
+                        }
+                        
+                        // Kiểm tra từng serial có tồn tại không
+                        foreach ($requestedSerials as $serial) {
+                            if (!in_array($serial, $availableSerials)) {
+                                $inventoryErrors[] = "Serial '{$serial}' của {$itemName} không có trong kho nguồn";
+                            }
+                        }
+                        
+                        // Kiểm tra số lượng serial có đủ không
+                        if (count($requestedSerials) > count($availableSerials)) {
+                            $inventoryErrors[] = "Số lượng serial yêu cầu ({$material->quantity}) của {$itemName} vượt quá số lượng serial có sẵn (" . count($availableSerials) . ")";
+                        }
+                    }
+                } else {
+                    // Test Case 4: Kiểm tra thiết bị không có serial
+                    $warehouseMaterial = WarehouseMaterial::where('warehouse_id', $warehouseTransfer->source_warehouse_id)
+                        ->where('material_id', $material->material_id)
+                        ->where('item_type', $material->type ?? 'material')
+                        ->first();
+                        
+                    $availableSerials = [];
+                    if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
+                        $availableSerials = json_decode($warehouseMaterial->serial_number, true) ?: [];
+                    }
+                    
+                    // Số lượng thiết bị không có serial = tổng tồn kho - số lượng có serial
+                    $nonSerialStock = $currentStock - count($availableSerials);
+                    
+                    if ($material->quantity > $nonSerialStock) {
+                        $inventoryErrors[] = "Số lượng thiết bị không có serial ({$material->quantity}) của {$itemName} vượt quá số lượng có sẵn ({$nonSerialStock})";
+                    }
                 }
             }
             
@@ -1100,22 +1337,15 @@ class WarehouseTransferController extends Controller
 
             // Cập nhật tồn kho cho từng vật tư
             foreach ($warehouseTransfer->materials as $material) {
-                // Giảm số lượng tồn kho ở kho nguồn
-                $this->updateWarehouseStock(
+                // Chuyển serial và cập nhật tồn kho từ kho nguồn sang kho đích
+                $this->updateWarehouseStockWithSerials(
                     $warehouseTransfer->source_warehouse_id,
-                    $material->material_id,
-                    $material->type ?? 'material',
-                    -$material->quantity,
-                    "Giảm tồn kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
-                );
-
-                // Tăng số lượng tồn kho ở kho đích
-                $this->updateWarehouseStock(
                     $warehouseTransfer->destination_warehouse_id,
                     $material->material_id,
                     $material->type ?? 'material',
                     $material->quantity,
-                    "Tăng tồn kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
+                    $material->serial_numbers,
+                    "Chuyển kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
                 );
 
                 // Lấy thông tin vật tư để tạo nhật ký

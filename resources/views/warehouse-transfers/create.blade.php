@@ -222,7 +222,7 @@
 
     <script>
         // Tự động điền ngày hiện tại vào ô ngày chuyển kho
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             const today = new Date();
             const year = today.getFullYear();
             const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -233,15 +233,23 @@
             // Thêm sự kiện cho nút "Thêm vật tư"
             document.getElementById('add-material').addEventListener('click', addMaterialRow);
             
+            // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
+            await initializeItemLists();
+            
             // Khởi tạo các sự kiện cho hàng vật tư đầu tiên
             setupMaterialRowEvents(document.querySelector('.material-row'));
+            
+            // Load serials cho hàng đầu tiên nếu đã có material được chọn
+            const firstRow = document.querySelector('.material-row');
+            const materialSelect = firstRow.querySelector('.material-select');
+            const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
+            if (materialSelect && materialSelect.value && sourceWarehouseId) {
+                loadSerials(firstRow);
+            }
             
             // Cập nhật bảng tổng hợp ban đầu
             updateSummaryTable();
             
-            // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
-            initializeItemLists();
-
             // Cập nhật hiển thị các nút xóa
             updateRemoveButtons();
         });
@@ -253,35 +261,39 @@
             good: []
         };
         
+        // Hàm load items theo kho nguồn
+        async function loadItemsByWarehouse(warehouseId) {
+            if (!warehouseId) {
+                itemsData = { material: [], product: [], good: [] };
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/warehouse-transfers/get-items-by-warehouse?warehouse_id=${warehouseId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    itemsData = {
+                        material: data.materials || [],
+                        product: data.products || [],
+                        good: data.goods || []
+                    };
+                    console.log('Loaded items for warehouse:', warehouseId, itemsData);
+                } else {
+                    console.error('Error loading items:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading items:', error);
+            }
+        }
+        
         // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
-        function initializeItemLists() {
-            // Chuyển dữ liệu từ Blade sang Javascript
-            itemsData.material = {!! json_encode($materials->map(function($material) {
-                return [
-                    'id' => $material->id,
-                    'name' => $material->code . ' - ' . $material->name,
-                    'type' => 'material',
-                    'category' => $material->category ?? 'other'
-                ];
-            })) !!};
-            
-            itemsData.product = {!! json_encode($products->map(function($product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->code . ' - ' . $product->name,
-                    'type' => 'product',
-                    'category' => 'product'
-                ];
-            })) !!};
-            
-            itemsData.good = {!! json_encode($goods->map(function($good) {
-                return [
-                    'id' => $good->id,
-                    'name' => $good->code . ' - ' . $good->name,
-                    'type' => 'good',
-                    'category' => $good->category ?? 'other'
-                ];
-            })) !!};
+        async function initializeItemLists() {
+            // Load items theo kho nguồn đã chọn
+            const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
+            if (sourceWarehouseId) {
+                await loadItemsByWarehouse(sourceWarehouseId);
+            }
         }
         
         // Cập nhật danh sách sản phẩm khi chọn loại
@@ -294,6 +306,16 @@
             while (materialSelect.options.length > 1) {
                 materialSelect.remove(1);
             }
+            
+            // Reset serial display
+            const serialContainer = row.querySelector('.serial-list');
+            serialContainer.innerHTML = '<div class="text-gray-500 text-sm">Không có serial tồn kho</div>';
+            
+            // Reset counts
+            const selectedCountEl = row.querySelector('.selected-count');
+            const nonSerialCountEl = row.querySelector('.non-serial-count');
+            selectedCountEl.textContent = '0';
+            nonSerialCountEl.textContent = '0';
             
             // Nếu không có loại sản phẩm được chọn, không thêm các option
             if (!itemType) {
@@ -720,19 +742,13 @@
             
             try {
                 // Truy vấn trực tiếp vào database để lấy serial
-                const response = await fetch(`/api/warehouse-transfers/check-serial-data?warehouse_id=${sourceWarehouseId}&material_id=${materialId}`);
+                const response = await fetch(`/api/warehouse-transfers/get-serials?warehouse_id=${sourceWarehouseId}&material_id=${materialId}&item_type=${itemType}`);
                 const data = await response.json();
                 console.log('Serial Data Check:', data);
                 
-                if (data.count > 0) {
+                if (data.success && data.data && data.data.available_serials) {
                     // Lấy serial từ dữ liệu trả về
-                    const allSerials = [];
-                    data.data.forEach(item => {
-                        if (item.serial_numbers_decoded && Array.isArray(item.serial_numbers_decoded)) {
-                            // Đảm bảo trim serial ngay sau khi decode
-                            allSerials.push(...item.serial_numbers_decoded.map(s => s.trim()));
-                        }
-                    });
+                    const allSerials = data.data.available_serials;
                     
                     // Hiển thị danh sách serial
                     const serialContainer = row.querySelector('.serial-list');
@@ -751,23 +767,8 @@
                         : '<div class="text-gray-500 text-sm">Không có serial tồn kho</div>';
                         
                     // Cập nhật số lượng không có serial
-                    // Lấy số lượng tồn kho từ API checkInventory
-                    const inventoryResponse = await fetch(`${window.location.origin}/warehouse-transfers/check-inventory`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({
-                            material_id: materialId,
-                            warehouse_id: sourceWarehouseId,
-                            item_type: itemType
-                        })
-                    });
-                    
-                    const inventoryData = await inventoryResponse.json();
-                    const totalStock = inventoryData.quantity || 0;
-                    nonSerialCountEl.textContent = Math.max(0, totalStock - allSerials.length);
+                    const nonSerialStock = data.data.non_serial_stock || 0;
+                    nonSerialCountEl.textContent = nonSerialStock;
                     
                     // Thêm sự kiện cho các checkbox
                     const checkboxes = serialContainer.querySelectorAll('.serial-checkbox');
@@ -995,6 +996,25 @@
             // Code hiện tại ở đây...
             
             // Không cần thêm nút kiểm tra serial vào trang nữa vì đã tự động hiển thị
+            
+            // Thêm event listener cho kho nguồn
+            document.getElementById('source_warehouse_id').addEventListener('change', async function() {
+                // Load items theo kho nguồn mới
+                await loadItemsByWarehouse(this.value);
+                // Reset tất cả items đã chọn
+                selectedMaterials = [];
+                // Re-render tất cả material rows
+                const materialRows = document.querySelectorAll('.material-row');
+                materialRows.forEach(row => {
+                    const typeSelect = row.querySelector('.item-type-select');
+                    const materialSelect = row.querySelector('.material-select');
+                    if (typeSelect && materialSelect) {
+                        typeSelect.value = '';
+                        materialSelect.innerHTML = '<option value="">-- Chọn --</option>';
+                    }
+                });
+                updateSummaryTable();
+            });
         });
 
         // Hàm kiểm tra dữ liệu serial - Giữ lại để debug nếu cần
@@ -1002,6 +1022,8 @@
             const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
             const materialSelect = document.querySelector('.material-select');
             const materialId = materialSelect ? materialSelect.value : null;
+            const typeSelect = document.querySelector('.item-type-select');
+            const itemType = typeSelect ? typeSelect.value : 'material';
             
             if (!materialId) {
                 alert('Vui lòng chọn vật tư trước');
@@ -1009,7 +1031,7 @@
             }
             
             try {
-                const response = await fetch(`/api/warehouse-transfers/check-serial-data?warehouse_id=${sourceWarehouseId}&material_id=${materialId}`);
+                const response = await fetch(`/api/warehouse-transfers/get-serials?warehouse_id=${sourceWarehouseId}&material_id=${materialId}&item_type=${itemType}`);
                 const data = await response.json();
                 console.log('Serial Data Check:', data);
                 
