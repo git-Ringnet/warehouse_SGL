@@ -180,19 +180,24 @@
 
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
-                            <label for="rental_receiver" class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê<span class="text-red-500">*</span></label>
+                            <label for="rental_receiver"
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê<span
+                                    class="text-red-500">*</span></label>
                             <select id="rental_receiver" name="rental_receiver"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 @if ($dispatch->status !== 'pending') disabled @endif>
                                 <option value="">-- Chọn hợp đồng cho thuê --</option>
                                 <!-- Động load từ API -->
                             </select>
-                            <input type="hidden" name="project_receiver" id="rental_project_receiver" value="{{ $dispatch->project_receiver }}">
+                            <input type="hidden" name="project_receiver" id="rental_project_receiver"
+                                value="{{ $dispatch->project_receiver }}">
                         </div>
 
                         <!-- Phần bảo hành (hiển thị khi loại hình = warranty) -->
                         <div id="warranty_section" class="hidden">
-                            <label for="warranty_receiver" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê<span class="text-red-500">*</span></label>
+                            <label for="warranty_receiver"
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho
+                                thuê<span class="text-red-500">*</span></label>
                             <select id="warranty_receiver" name="project_receiver" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 @if ($dispatch->status !== 'pending') disabled @endif>
@@ -200,9 +205,9 @@
                                 <optgroup label="Dự án">
                                     @if (isset($projects))
                                         @foreach ($projects as $project)
-                                            <option value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
-                                                data-project-id="{{ $project->id }}"
-                                                data-type="project"
+                                            <option
+                                                value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
+                                                data-project-id="{{ $project->id }}" data-type="project"
                                                 {{ $dispatch->project_receiver == $project->project_code . ' - ' . $project->project_name . ' (' . ($project->customer->name ?? 'N/A') . ')' ? 'selected' : '' }}>
                                                 {{ $project->project_code }} - {{ $project->project_name }}
                                                 ({{ $project->customer->name ?? 'N/A' }})
@@ -830,7 +835,7 @@
                 <p class="text-sm text-gray-600 mb-2">Nhập thông tin mã thiết bị cho sản phẩm. Điền thông tin vào bảng
                     bên dưới:</p>
 
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto overflow-y-scroll h-[25rem]">
                     <table class="min-w-full border border-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
@@ -876,10 +881,10 @@
 
                 <div class="mt-4 flex justify-between">
                     <div class="flex space-x-2">
-                        <a href="{{ route('device-codes.template') }}"
+                        <button type="button" id="download-template"
                             class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                             <i class="fas fa-download mr-2"></i> Tải mẫu Excel
-                        </a>
+                        </button>
                         <button type="button" id="import-device-codes"
                             class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                             <i class="fas fa-file-import mr-2"></i> Import Excel
@@ -900,8 +905,15 @@
         </div>
     </div>
 
+    <!-- ExcelJS (borders supported) + FileSaver -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Helper: normalize device name to a key (take code before '-')
+            function deviceKey(str) {
+                return (str || '').split('-')[0].trim().toUpperCase();
+            }
             // Variables for edit page
             let availableItems = [];
             let selectedContractProducts = [];
@@ -1049,7 +1061,7 @@
                         const rentalSelect = document.getElementById('rental_receiver');
                         const projectReceiverInput = document.getElementById('rental_project_receiver');
                         const warrantyReceiverSelect = document.getElementById('warranty_rental_group');
-                        
+
                         if (rentalSelect) {
                             // Clear existing options
                             rentalSelect.innerHTML = '<option value="">-- Chọn hợp đồng cho thuê --</option>';
@@ -1092,12 +1104,12 @@
                             rentalSelect.addEventListener('change', function() {
                                 const selectedOption = this.options[this.selectedIndex];
                                 const projectIdInput = document.getElementById('project_id');
-                                
+
                                 // Cập nhật project_receiver hidden input
                                 if (projectReceiverInput) {
                                     projectReceiverInput.value = this.value;
                                 }
-                                
+
                                 // Cập nhật project_id từ rental_id
                                 if (selectedOption && selectedOption.dataset.rentalId) {
                                     if (projectIdInput) {
@@ -1158,7 +1170,7 @@
                         }
                         // Sync value later
                         hiddenProj.value = rentalReceiverInput.value || '';
-                        
+
                         // disable others
                         // disable other receiver selects
                         if (projectReceiverInput) projectReceiverInput.disabled = true;
@@ -1176,12 +1188,12 @@
                             if (hiddenProj) hiddenProj.value = this.value;
                             const selectedOption = this.options[this.selectedIndex];
                             const projectIdInput = document.getElementById('project_id');
-                            
+
                             // Cập nhật project_receiver
                             if (projectReceiverInput) {
                                 projectReceiverInput.value = this.value;
                             }
-                            
+
                             // Cập nhật project_id từ rental_id
                             if (selectedOption && selectedOption.dataset.rentalId) {
                                 if (projectIdInput) {
@@ -1209,7 +1221,7 @@
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
                         if (projectReceiverInput) {
                             projectReceiverInput.disabled = false;
-                            projectReceiverInput.setAttribute('required','required');
+                            projectReceiverInput.setAttribute('required', 'required');
                         }
                         // Remove hidden_project_receiver if exists
                         const hiddenProjRemove = document.getElementById('hidden_project_receiver');
@@ -1254,7 +1266,7 @@
                         const hiddenProjRemove2 = document.getElementById('hidden_project_receiver');
                         if (hiddenProjRemove2) hiddenProjRemove2.remove();
                         if (warrantyReceiverInput) {
-                            warrantyReceiverInput.setAttribute('required','required');
+                            warrantyReceiverInput.setAttribute('required', 'required');
 
                             // Load rentals cho dropdown bảo hành
                             loadRentals();
@@ -1264,9 +1276,11 @@
                                 const projectIdInput = document.getElementById('project_id');
 
                                 if (selectedOption && selectedOption.dataset.projectId) {
-                                    if (projectIdInput) projectIdInput.value = selectedOption.dataset.projectId;
+                                    if (projectIdInput) projectIdInput.value = selectedOption
+                                        .dataset.projectId;
                                 } else if (selectedOption && selectedOption.dataset.rentalId) {
-                                    if (projectIdInput) projectIdInput.value = selectedOption.dataset.rentalId;
+                                    if (projectIdInput) projectIdInput.value = selectedOption
+                                        .dataset.rentalId;
                                 } else {
                                     if (projectIdInput) projectIdInput.value = '';
                                 }
@@ -1302,7 +1316,7 @@
                 projectReceiverSelect.addEventListener('change', function() {
                     const selectedOption = this.options[this.selectedIndex];
                     const projectIdInput = document.getElementById('project_id');
-                    
+
                     if (selectedOption && selectedOption.dataset.projectId) {
                         if (projectIdInput) {
                             projectIdInput.value = selectedOption.dataset.projectId;
@@ -1627,7 +1641,6 @@
                             warehouses: item.warehouses || [],
                             display_name: `${item.code} - ${item.name} (${item.type === 'product' ? 'Thành phẩm' : 'Hàng hóa'})`
                         }));
-                        console.log('Loaded available items:', availableItems);
                         updateProductSelects();
                     } else {
                         console.error('Error loading items:', data.message);
@@ -2011,8 +2024,8 @@
                             ${isReadonly ? 
                                 `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
                                 `<button type="button" class="text-red-600 hover:text-red-900 remove-contract-product" data-index="${index}">
-                                                <i class="fas fa-trash"></i>
-                                            </button>`}
+                                                                                <i class="fas fa-trash"></i>
+                                                                            </button>`}
                         </td>
                         ${hiddenInputsHtml}
                     `;
@@ -2205,8 +2218,8 @@
                             ${isReadonly ? 
                                 `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
                                 `<button type="button" class="text-red-600 hover:text-red-900 remove-backup-product" data-index="${index}">
-                                                <i class="fas fa-trash"></i>
-                                            </button>`}
+                                                                                <i class="fas fa-trash"></i>
+                                                                            </button>`}
                         </td>
                         ${hiddenInputsHtml}
                     `;
@@ -3306,6 +3319,191 @@
                 });
             }
 
+            // Xử lý tải mẫu Excel từ modal
+            document.getElementById('download-template').addEventListener('click', async function() {
+                const tbody = document.getElementById('device-code-tbody');
+                const allRows = Array.from(tbody.querySelectorAll('tr'));
+                const headers = [
+                    'Mã - Tên thiết bị', 'Serial chính', 'Serial vật tư',
+                    'Serial SIM', 'Mã truy cập', 'ID IoT', 'MAC 4G', 'Chú thích'
+                ];
+                const excelRows = [headers];
+                const merges = [];
+                let currentRow = 1; // index tính từ header
+
+                // 1) Group rows by productId
+                const groups = {};
+                allRows.forEach(r => {
+                    const pid = r.dataset.productId;
+                    if (!groups[pid]) groups[pid] = [];
+                    groups[pid].push(r);
+                });
+
+                // 2) Với mỗi nhóm productId
+                Object.values(groups).forEach(groupRows => {
+                    const groupStart = currentRow;
+
+                    groupRows.forEach(r => {
+                        // --- A) Lấy dữ liệu row ---
+                        // chỉ dòng đầu có input contract_product_info
+                        const infoInput = r.querySelector('input[name*="product_info"]');
+                        let deviceName = infoInput ? infoInput.value.trim() : '';
+                        if (!deviceName) {
+                            const firstTdText = r.querySelector('td:first-child')?.textContent.trim() || '';
+                            deviceName = firstTdText;
+                        }
+                        let serialMain = r.querySelector('input[name*="serial_main"]')?.value.trim() || '';
+                        if (!serialMain) {
+                            const secondTdInps = r.querySelectorAll('td:nth-child(2) input');
+                            if (secondTdInps.length) {
+                                serialMain = secondTdInps[0].value.trim();
+                            } else {
+                                const secondTdTxt = r.querySelector('td:nth-child(2)')?.textContent.trim() || '';
+                                serialMain = secondTdTxt;
+                            }
+                        }
+                        const serialSim = r.querySelector('input[name*="serial_sim"]')?.value.trim() ||
+                            '';
+                        const accessCode = r.querySelector('input[name*="access_code"]')?.value.trim() ||
+                            '';
+                        const iotId = r.querySelector('input[name*="iot_id"]')?.value.trim() || '';
+                        const mac4g = r.querySelector('input[name*="mac_4g"]')?.value.trim() || '';
+                        const note = r.querySelector('input[name*="note"]')?.value.trim() || '';
+
+                        // --- B) Đếm seri vật tư theo số <div.mb-1> trong TR hiện tại
+                        const compDivs = Array.from(r.querySelectorAll('div.mb-1'));
+                        const rowCount = Math.max(1, compDivs.length);
+
+                        // --- C) Xuất ra excelRows
+                        for (let i = 0; i < rowCount; i++) {
+                            const inp = compDivs[i]?.querySelector('input');
+                            const compValue = inp ?
+                                inp.value.trim().replace(/^.*?-/, '').trim() :
+                                '';
+                            excelRows.push([
+                                i === 0 ? deviceName : '',
+                                i === 0 ? serialMain : '',
+                                compValue,
+                                i === 0 ? serialSim : '',
+                                i === 0 ? accessCode : '',
+                                i === 0 ? iotId : '',
+                                i === 0 ? mac4g : '',
+                                i === 0 ? note : ''
+                            ]);
+                        }
+
+                        // --- D) Merge cột 1,3–7 trong block của mỗi TR nếu rowCount >1
+                        if (rowCount > 1) {
+                            const endRow = currentRow + rowCount - 1;
+                            [1, 3, 4, 5, 6, 7].forEach(colIdx => {
+                                merges.push({
+                                    s: {
+                                        r: currentRow,
+                                        c: colIdx
+                                    },
+                                    e: {
+                                        r: endRow,
+                                        c: colIdx
+                                    }
+                                });
+                            });
+                        }
+
+                        currentRow += rowCount;
+                    });
+
+                    // 3) Merge col 0 (“Mã – Tên thiết bị”) xuyên suốt toàn nhóm
+                    const groupEnd = currentRow - 1;
+                    if (groupEnd > groupStart) {
+                        merges.push({
+                            s: {
+                                r: groupStart,
+                                c: 0
+                            },
+                            e: {
+                                r: groupEnd,
+                                c: 0
+                            }
+                        });
+                    }
+                });
+
+                // 4) Xuất file
+                if (excelRows.length === 1) {
+                    return alert('Không có dữ liệu để tạo file.');
+                }
+                try {
+                    const workbook = new ExcelJS.Workbook();
+                    const sheet = workbook.addWorksheet('Template');
+                    // add data
+                    excelRows.forEach(r => sheet.addRow(r));
+                    // apply merges (ExcelJS is 1-based)
+                    merges.forEach(m => {
+                        sheet.mergeCells(m.s.r + 1, m.s.c + 1, m.e.r + 1, m.e.c + 1);
+                    });
+                    // header styling
+                    const headerRow = sheet.getRow(1);
+                    headerRow.eachCell(cell => {
+                        cell.font = {
+                            bold: true,
+                            color: {
+                                argb: 'FFFFFFFF'
+                            }
+                        };
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: {
+                                argb: 'FF4B5563'
+                            }
+                        };
+                        cell.alignment = {
+                            horizontal: 'center',
+                            vertical: 'middle'
+                        };
+                    });
+                    // borders & auto-width
+                    sheet.eachRow(row =>
+                        row.eachCell(cell => {
+                            cell.border = {
+                                top: {
+                                    style: 'thin'
+                                },
+                                left: {
+                                    style: 'thin'
+                                },
+                                bottom: {
+                                    style: 'thin'
+                                },
+                                right: {
+                                    style: 'thin'
+                                }
+                            };
+                        })
+                    );
+                    sheet.columns.forEach(col => {
+                        let max = 10;
+                        col.eachCell({
+                            includeEmpty: true
+                        }, c => {
+                            max = Math.max(max, (c.value ? c.value.toString().length :
+                                0) + 2);
+                        });
+                        col.width = max;
+                    });
+                    // save
+                    const buf = await workbook.xlsx.writeBuffer();
+                    saveAs(new Blob([buf], {
+                            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        }),
+                        'template_device_codes.xlsx'
+                    );
+                } catch (err) {
+                    console.error(err);
+                    alert('Có lỗi khi tạo file Excel.');
+                }
+            });
+
             // Import Excel
             if (importDeviceCodesBtn) {
                 importDeviceCodesBtn.addEventListener('click', function() {
@@ -3318,97 +3516,127 @@
                         const file = e.target.files[0];
                         if (!file) return;
 
-                        const formData = new FormData();
-                        formData.append('file', file);
-                        formData.append('dispatch_id', dispatchId);
-                        formData.append('type', currentDeviceCodeType);
+                        // Loading state
+                        importDeviceCodesBtn.disabled = true;
+                        importDeviceCodesBtn.innerHTML =
+                            '<i class="fas fa-spinner fa-spin mr-2"></i> Đang import...';
 
                         try {
-                            // Disable import button and show loading state
-                            importDeviceCodesBtn.disabled = true;
-                            importDeviceCodesBtn.innerHTML =
-                                '<i class="fas fa-spinner fa-spin mr-2"></i> Đang import...';
+                            // ----- Clear existing serial fields before new import -----
+                            const tbody = document.getElementById('device-code-tbody');
+                            tbody.querySelectorAll('input:not([name*="product_info"])').forEach(i => i.value = '');
+                            // Parse Excel using ExcelJS
+                            const wb = new ExcelJS.Workbook();
+                            await wb.xlsx.load(await file.arrayBuffer());
+                            const sheet = wb.worksheets[0];
+                            if (!sheet) throw new Error('Không tìm thấy sheet trong file');
 
-                            const response = await fetch('/api/device-codes/import', {
-                                method: 'POST',
-                                body: formData,
-                                headers: {
-                                    'X-CSRF-TOKEN': document.querySelector(
-                                        'meta[name="csrf-token"]')?.content
+                            // Build map from device name -> array of row data (support quantity > 1)
+                            const dataMap = new Map();
+
+                            sheet.eachRow((r, idx) => {
+                                if (idx === 1) return; // skip header
+                                const values = r.values; // 1-indexed array
+                                console.log('Excel row values:', values);
+                                const deviceName = (values[1] || '').toString().trim();
+                                if (!deviceName) return;
+                                const keyDev = deviceKey(deviceName);
+                                let list = dataMap.get(keyDev) || [];
+                                // Find existing entry with same serial_main
+                                let currentRow = list.find(r => r.serial_main === (values[2] || '').toString().trim());
+                                if (!currentRow) {
+                                    currentRow = {
+                                    serial_main: (values[2] || '').toString()
+                                    .trim(),
+                                    comp_serials: [],
+                                    serial_sim: (values[4] || '').toString().trim(),
+                                    access_code: (values[5] || '').toString()
+                                    .trim(),
+                                    iot_id: (values[6] || '').toString().trim(),
+                                    mac_4g: (values[7] || '').toString().trim(),
+                                    note: (values[8] || '').toString().trim()
+                                    };
+                                    list.push(currentRow);
                                 }
+                                const compSer = (values[3] || '').toString().trim();
+                                if (compSer) currentRow.comp_serials.push(compSer);
+                                // persist list back
+                                dataMap.set(keyDev, list);
                             });
 
-                            const result = await response.json();
+                            const usedIndexMap = new Map();
 
-                            if (!result.success) {
-                                throw new Error(result.message || 'Lỗi khi import file');
-                            }
-
-                            // Get all rows in the table
-                            const tbody = document.getElementById('device-code-tbody');
+                            // Update existing rows (assign serials sequentially per device)
+                            // reuse tbody declared earlier
                             const rows = tbody.querySelectorAll('tr');
-
-                            // Clear all input values in existing rows first
+                            let lastDeviceName = '';
                             rows.forEach(row => {
+                                // Determine device name for this row
+                                let deviceName = '';
+                                const firstTd = row.querySelector('td:first-child');
+                                if (firstTd) {
+                                    const inp = firstTd.querySelector('input');
+                                    deviceName = inp ? inp.value.trim() : firstTd
+                                        .textContent.trim();
+                                }
+                                if (!deviceName) deviceName = lastDeviceName;
+                                if (!deviceName) return; // still blank, skip
+                                lastDeviceName = deviceName;
+                                const key = deviceKey(deviceName);
+                                const rowsArr = dataMap.get(key) || [];
+                                const currentIdx = usedIndexMap.get(key) || 0;
+                                // Try to match by existing serial_main value in the row (if any)
+                                let serialInput = row.querySelector('input[name*="serial_main"]');
+                                let serialVal = serialInput ? serialInput.value.trim() : '';
+                                let rowData = serialVal ? rowsArr.find(r => r.serial_main === serialVal) : undefined;
+                                let usedSequential = false;
+                                if (!rowData) {
+                                    rowData = rowsArr[currentIdx] || {};
+                                    usedSequential = true;
+                                }
+
                                 const inputs = row.querySelectorAll('input');
                                 inputs.forEach(input => {
                                     if (!input.name.includes(
-                                            'product_info'
-                                        )) { // Don't clear product info
-                                        input.value = '';
+                                        'product_info')) { // Don't clear product info
+                                        if (input.name.includes(
+                                            'serial_main')) {
+                                            input.value = rowData.serial_main;
+                                        } else if (input.name.includes(
+                                                'serial_components')) {
+                                            const componentInputs = row
+                                                .querySelectorAll(
+                                                    'input[name*="serial_components"]'
+                                                    );
+                                            componentInputs.forEach((ci,
+                                            idx) => {
+                                                ci.value = rowData
+                                                    .comp_serials?.[
+                                                    idx] || '';
+                                            });
+                                        } else if (input.name.includes(
+                                                'serial_sim')) {
+                                            input.value = rowData.serial_sim;
+                                        } else if (input.name.includes(
+                                                'access_code')) {
+                                            input.value = rowData.access_code;
+                                        } else if (input.name.includes(
+                                            'iot_id')) {
+                                            input.value = rowData.iot_id;
+                                        } else if (input.name.includes(
+                                            'mac_4g')) {
+                                            input.value = rowData.mac_4g;
+                                        } else if (input.name.includes(
+                                            'note')) {
+                                            input.value = rowData.note;
+                                        }
                                     }
                                 });
+                                if (usedSequential) {
+                                    usedIndexMap.set(key, currentIdx + 1);
+                                }
                             });
-
-                            // Update rows with imported data
-                            if (result.data && result.data.length > 0) {
-                                result.data.forEach(item => {
-                                    // Find matching row by product ID
-                                    const row = tbody.querySelector(
-                                        `tr[data-product-id="${item.product_id}"]`);
-                                    if (row) {
-                                        // Update fields with imported data
-                                        const serialMainInput = row.querySelector(
-                                            `input[name*="serial_main"]`);
-                                        if (serialMainInput) {
-                                            serialMainInput.value = item.serial_main ||
-                                                '';
-                                        }
-
-                                        // Update component serials
-                                        if (item.serial_components && item
-                                            .serial_components.length > 0) {
-                                            const componentContainer = row
-                                                .querySelector(
-                                                    `div[id*="component-serials"]`);
-                                            if (componentContainer) {
-                                                componentContainer.innerHTML = item
-                                                    .serial_components.map(serial => `
-                                                    <input type="text" 
-                                                        name="${currentDeviceCodeType}_serial_components[${item.product_id}][]" 
-                                                        value="${serial}"
-                                                        class="w-full border border-gray-300 rounded px-2 py-1 text-sm mb-1">
-                                                `).join('');
-                                            }
-                                        }
-
-                                        // Update other fields
-                                        const fields = ['serial_sim', 'access_code',
-                                            'iot_id', 'mac_4g', 'note'
-                                        ];
-                                        fields.forEach(field => {
-                                            const input = row.querySelector(
-                                                `input[name*="${field}"]`);
-                                            if (input) {
-                                                input.value = item[field] || '';
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-
                             alert('Import dữ liệu thành công!');
-
                         } catch (error) {
                             console.error('Error importing device codes:', error);
                             alert('Có lỗi xảy ra khi import: ' + error.message);
@@ -3419,10 +3647,9 @@
                                 '<i class="fas fa-file-import mr-2"></i> Import Excel';
                         }
                     });
-
                     fileInput.click();
                 });
-            }
+            }   
         });
     </script>
 </body>

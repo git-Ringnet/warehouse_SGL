@@ -608,7 +608,7 @@ class MaterialController extends Controller
         $query = Material::query();
 
         // Apply filters
-        if ($request->has('search')) {
+        if ($request->filled('search') && !ctype_digit($request->search)) {
             $search = $request->get('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -625,13 +625,7 @@ class MaterialController extends Controller
             $query->where('unit', $request->get('unit'));
         }
 
-        if ($request->has('stock')) {
-            if ($request->get('stock') === 'in_stock') {
-                $query->where('inventory_quantity', '>', 0);
-            } elseif ($request->get('stock') === 'out_of_stock') {
-                $query->where('inventory_quantity', '<=', 0);
-            }
-        }
+        
 
         // Get filtered materials
         $materials = $query->where('is_hidden', 0)
@@ -650,6 +644,42 @@ class MaterialController extends Controller
 
             // Update inventory quantity
             $material->inventory_quantity = $warehouseQuery->sum('quantity');
+        }
+
+        // Apply stock filter after inventory quantities are calculated
+        $useStock = null;
+        if ($request->filled('stock')) {
+            $useStock = $request->stock;
+        } elseif ($request->filled('search') && ctype_digit($request->search)) {
+            $useStock = $request->search;
+        }
+        if ($useStock !== null) {
+            if ($useStock === 'in_stock') {
+                $materials = $materials->filter(fn ($m) => $m->inventory_quantity > 0);
+            } elseif ($useStock === 'out_of_stock') {
+                $materials = $materials->filter(fn ($m) => $m->inventory_quantity == 0);
+            } elseif (is_numeric($useStock)) {
+                $threshold = (int) $useStock;
+                $materials = $materials->filter(fn ($m) => $m->inventory_quantity <= $threshold);
+            }
+        }
+
+        // Determine stock filter value
+        $useStock = null;
+        if ($request->filled('stock')) {
+            $useStock = $request->stock;
+        } elseif ($request->filled('search') && ctype_digit($request->search)) {
+            $useStock = $request->search;
+        }
+        if ($useStock !== null) {
+            if ($useStock === 'in_stock') {
+                $materials = $materials->filter(fn($m) => $m->inventory_quantity > 0);
+            } elseif ($useStock === 'out_of_stock') {
+                $materials = $materials->filter(fn($m) => $m->inventory_quantity == 0);
+            } elseif (is_numeric($useStock)) {
+                $threshold = (int) $useStock;
+                $materials = $materials->filter(fn($m) => $m->inventory_quantity <= $threshold);
+            }
         }
 
         // Prepare filters for view
@@ -682,7 +712,7 @@ class MaterialController extends Controller
             $query = Material::query();
 
             // Apply filters
-            if ($request->has('search')) {
+            if ($request->filled('search') && !ctype_digit($request->search)) {
                 $search = $request->get('search');
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -697,14 +727,6 @@ class MaterialController extends Controller
 
             if ($request->has('unit') && $request->get('unit')) {
                 $query->where('unit', $request->get('unit'));
-            }
-
-            if ($request->has('stock')) {
-                if ($request->get('stock') === 'in_stock') {
-                    $query->where('inventory_quantity', '>', 0);
-                } elseif ($request->get('stock') === 'out_of_stock') {
-                    $query->where('inventory_quantity', '<=', 0);
-                }
             }
 
             // Get filtered materials
