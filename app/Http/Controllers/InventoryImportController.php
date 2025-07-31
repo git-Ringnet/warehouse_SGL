@@ -881,6 +881,18 @@ class InventoryImportController extends Controller
 
                 $currentQty = $warehouseMaterial->quantity ?? 0;
                 $warehouseMaterial->quantity = $currentQty + $material->quantity;
+
+                // Cập nhật serial_number vào warehouse_materials nếu có serial
+                if (!empty($material->serial_numbers)) {
+                    $serials = is_array($material->serial_numbers) ? $material->serial_numbers : json_decode($material->serial_numbers, true);
+                    $currentSerials = [];
+                    if (!empty($warehouseMaterial->serial_number)) {
+                        $currentSerials = json_decode($warehouseMaterial->serial_number, true) ?: [];
+                    }
+                    // Gộp serial cũ và mới, loại bỏ trùng lặp
+                    $mergedSerials = array_unique(array_merge($currentSerials, $serials));
+                    $warehouseMaterial->serial_number = json_encode($mergedSerials);
+                }
                 $warehouseMaterial->save();
 
                 // Lưu serial numbers vào bảng serials (nếu có)
