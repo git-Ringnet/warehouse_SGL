@@ -132,7 +132,7 @@
                                 Người thực hiện</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Chú thích</th>
+                                Ghi chú</th>
                             <th
                                 class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Xem Chi tiết</th>
@@ -332,12 +332,14 @@
 
         // Export Excel button
         document.getElementById('export-excel-btn').addEventListener('click', function() {
-            alert('Tính năng xuất Excel đang được phát triển!');
+            const query = window.location.search;
+            window.location.href = '{{ route('changelogs.export.excel') }}' + query;
         });
 
         // Export PDF button
         document.getElementById('export-pdf-btn').addEventListener('click', function() {
-            alert('Tính năng xuất PDF đang được phát triển!');
+            const query = window.location.search;
+            window.location.href = '{{ route('changelogs.export.pdf') }}' + query;
         });
     </script>
 </body>

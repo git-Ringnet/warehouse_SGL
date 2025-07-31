@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\ChangeLog;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use App\Exports\ChangeLogsExport;
 
 class ChangeLogController extends Controller
 {
@@ -32,7 +35,7 @@ class ChangeLogController extends Controller
 
         // Order by time_changed descending
         $changeLogs = $query->orderBy('time_changed', 'desc')
-                           ->paginate(20);
+            ->paginate(10);
 
         return view('changelog.index', compact('changeLogs'));
     }
@@ -242,14 +245,14 @@ class ChangeLogController extends Controller
     public static function updateLogEntry($id, $data)
     {
         $changeLog = ChangeLog::findOrFail($id);
-        
+
         // Chỉ cập nhật các field được truyền vào
-        $updateData = array_filter($data, function($value) {
+        $updateData = array_filter($data, function ($value) {
             return $value !== null;
         });
 
         $changeLog->update($updateData);
-        
+
         return $changeLog->fresh();
     }
 
@@ -301,7 +304,7 @@ class ChangeLogController extends Controller
         $changeLog = ChangeLog::findOrFail($id);
         $detailedInfo = $changeLog->detailed_info ?? [];
         $detailedInfo[$key] = $value;
-        
+
         return self::updateDetailedInfo($id, $detailedInfo);
     }
 
@@ -312,12 +315,12 @@ class ChangeLogController extends Controller
     {
         $changeLog = ChangeLog::findOrFail($id);
         $detailedInfo = $changeLog->detailed_info ?? [];
-        
+
         if (isset($detailedInfo[$key])) {
             unset($detailedInfo[$key]);
             return self::updateDetailedInfo($id, $detailedInfo);
         }
-        
+
         return $changeLog;
     }
 
@@ -327,29 +330,75 @@ class ChangeLogController extends Controller
     public static function updateByDocumentCode($documentCode, $data)
     {
         $changeLogs = ChangeLog::where('document_code', $documentCode)->get();
-        
+
         $updated = [];
         foreach ($changeLogs as $changeLog) {
             $changeLog->update($data);
             $updated[] = $changeLog->fresh();
         }
-        
+
         return $updated;
     }
 
     /**
      * Tìm changelog theo item code và cập nhật
      */
+    /**
+     * Export filtered change logs to Excel
+     */
+    public function exportExcel(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+        $logs = $query->orderBy('time_changed', 'desc')->get();
+
+        return Excel::download(new ChangeLogsExport($logs), 'change_logs_' . now()->format('Ymd_His') . '.xlsx');
+    }
+
+    /**
+     * Export filtered change logs to PDF
+     */
+    public function exportPDF(Request $request)
+    {
+        $query = $this->buildFilteredQuery($request);
+        $logs = $query->orderBy('time_changed', 'desc')->get();
+
+        $pdf = PDF::loadView('changelog.pdf', compact('logs'))
+                    ->setPaper('a4', 'landscape');
+        return $pdf->download('change_logs_' . now()->format('Ymd_His') . '.pdf');
+    }
+
+    /**
+     * Build query with current filters
+     */
+    private function buildFilteredQuery(Request $request)
+    {
+        $query = ChangeLog::query();
+
+        if ($request->filled('change_type')) {
+            $query->byChangeType($request->change_type);
+        }
+
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->byDateRange($request->start_date, $request->end_date);
+        }
+
+        if ($request->filled('search')) {
+            $query->byItem($request->search);
+        }
+
+        return $query;
+    }
+
     public static function updateByItemCode($itemCode, $data)
     {
         $changeLogs = ChangeLog::where('item_code', $itemCode)->get();
-        
+
         $updated = [];
         foreach ($changeLogs as $changeLog) {
             $changeLog->update($data);
             $updated[] = $changeLog->fresh();
         }
-        
+
         return $updated;
     }
 }

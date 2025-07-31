@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Carbon\Carbon;
 
 class ChangeLog extends Model
 {
@@ -54,7 +55,9 @@ class ChangeLog extends Model
     // Scope for filtering by date range
     public function scopeByDateRange($query, $startDate, $endDate)
     {
-        return $query->whereBetween('time_changed', [$startDate, $endDate]);
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+        return $query->whereBetween('time_changed', [$start, $end]);
     }
 
     // Scope for searching by item
@@ -62,7 +65,8 @@ class ChangeLog extends Model
     {
         return $query->where(function($q) use ($search) {
             $q->where('item_code', 'like', "%{$search}%")
-              ->orWhere('item_name', 'like', "%{$search}%");
+              ->orWhere('item_name', 'like', "%{$search}%")
+              ->orWhere('notes', 'like', "%{$search}%");
         });
     }
 }

@@ -178,7 +178,11 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         ->name('customers.toggle-lock')
         ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':customers.manage');
 
-    //Materials routes với middleware bảo vệ từng quyền cụ thể
+    // ChangeLog export routes
+        Route::get('/changelogs/export/excel', [ChangeLogController::class, 'exportExcel'])->name('changelogs.export.excel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':changelogs.export');
+        Route::get('/changelogs/export/pdf', [ChangeLogController::class, 'exportPDF'])->name('changelogs.export.pdf')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':changelogs.export');
+
+        //Materials routes với middleware bảo vệ từng quyền cụ thể
     Route::get('/materials', [MaterialController::class, 'index'])->name('materials.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.view');
     Route::get('/materials/create', [MaterialController::class, 'create'])->name('materials.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
     Route::post('/materials', [MaterialController::class, 'store'])->name('materials.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':materials.create');
