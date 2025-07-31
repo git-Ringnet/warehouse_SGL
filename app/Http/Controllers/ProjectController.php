@@ -20,6 +20,7 @@ class ProjectController extends Controller
     {
         $search = $request->input('search');
         $filter = $request->input('filter');
+        $warranty_status = $request->input('warranty_status');
 
         $query = Project::with('customer');
 
@@ -54,15 +55,30 @@ class ProjectController extends Controller
             }
         }
 
+        // Xử lý bộ lọc bảo hành
+        if ($warranty_status) {
+            switch ($warranty_status) {
+                case 'active':
+                    // Còn bảo hành: remaining_warranty_days > 0
+                    $query->whereRaw('DATE_ADD(start_date, INTERVAL warranty_period MONTH) > CURDATE()');
+                    break;
+                case 'expired':
+                    // Hết bảo hành: remaining_warranty_days <= 0
+                    $query->whereRaw('DATE_ADD(start_date, INTERVAL warranty_period MONTH) <= CURDATE()');
+                    break;
+            }
+        }
+
         $projects = $query->latest()->paginate(10);
 
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
         $projects->appends([
             'search' => $search,
-            'filter' => $filter
+            'filter' => $filter,
+            'warranty_status' => $warranty_status
         ]);
 
-        return view('projects.index', compact('projects', 'search', 'filter'));
+        return view('projects.index', compact('projects', 'search', 'filter', 'warranty_status'));
     }
 
     /**
@@ -335,15 +351,21 @@ class ProjectController extends Controller
             $oldData = $project->toArray();
             $projectCode = $project->project_code;
 
-            // Kiểm tra xem dự án có phiếu xuất kho liên quan không
-            $dispatchCount = \App\Models\Dispatch::where('project_id', $id)->count();
-
-            if ($dispatchCount > 0) {
+            // Kiểm tra điều kiện 1: Thời gian bảo hành còn lại <= 0 ngày (đã hết hạn)
+            $remainingWarrantyDays = $project->remaining_warranty_days;
+            if ($remainingWarrantyDays > 0) {
                 return redirect()->route('projects.show', $id)
-                    ->with('error', 'Không thể xóa dự án này vì có ' . $dispatchCount . ' phiếu xuất kho liên quan. Vui lòng xóa các phiếu xuất kho trước khi xóa dự án.');
+                    ->with('error', 'Không thể xóa dự án này vì thời gian bảo hành còn lại: ' . $remainingWarrantyDays . ' ngày. Chỉ có thể xóa khi thời gian bảo hành đã hết.');
             }
 
-            // Nếu không có phiếu xuất kho liên quan, tiến hành xóa dự án
+            // Kiểm tra điều kiện 2: Không còn thiết bị dự phòng/bảo hành nào
+            $backupItemsCount = $this->getBackupItemsCount($id);
+            if ($backupItemsCount > 0) {
+                return redirect()->route('projects.show', $id)
+                    ->with('error', 'Không thể xóa dự án này vì còn ' . $backupItemsCount . ' thiết bị dự phòng/bảo hành. Vui lòng thu hồi tất cả thiết bị dự phòng trước khi xóa dự án.');
+            }
+
+            // Nếu thỏa mãn cả 2 điều kiện, tiến hành xóa dự án
             $project->delete();
 
             // Ghi nhật ký xóa dự án
@@ -377,6 +399,36 @@ class ProjectController extends Controller
             return redirect()->route('projects.index')
                 ->with('error', 'Có lỗi xảy ra khi xóa dự án: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Đếm số lượng thiết bị dự phòng/bảo hành của dự án
+     */
+    private function getBackupItemsCount($projectId)
+    {
+        // Lấy tất cả phiếu xuất kho của dự án
+        $dispatches = \App\Models\Dispatch::where('project_id', $projectId)->get();
+        
+        $backupItemsCount = 0;
+        
+        foreach ($dispatches as $dispatch) {
+            // Đếm thiết bị dự phòng/bảo hành (category = 'backup')
+            $backupItems = $dispatch->items()
+                ->where('category', 'backup')
+                ->get();
+            
+            foreach ($backupItems as $item) {
+                // Kiểm tra xem thiết bị đã bị thu hồi chưa
+                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                
+                // Chỉ đếm những thiết bị chưa bị thu hồi
+                if (!$isReturned) {
+                    $backupItemsCount++;
+                }
+            }
+        }
+        
+        return $backupItemsCount;
     }
 
     /**

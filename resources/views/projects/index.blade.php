@@ -84,6 +84,12 @@
                         <option value="customer" {{ isset($filter) && $filter == 'customer' ? 'selected' : '' }}>Khách
                             hàng</option>
                     </select>
+                    <select name="warranty_status"
+                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
+                        <option value="">Tất cả bảo hành</option>
+                        <option value="active" {{ isset($warranty_status) && $warranty_status == 'active' ? 'selected' : '' }}>Còn bảo hành</option>
+                        <option value="expired" {{ isset($warranty_status) && $warranty_status == 'expired' ? 'selected' : '' }}>Hết bảo hành</option>
+                    </select>
                     <button type="submit"
                         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors h-10">
                         <i class="fas fa-search"></i> Tìm kiếm
@@ -109,6 +115,9 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                STT</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Mã dự án</th>
@@ -138,6 +147,8 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         @forelse($projects as $project)
                             <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {{ $loop->iteration }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $project->project_code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -208,7 +219,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có dự án
+                                <td colspan="9" class="px-6 py-4 text-center text-sm text-gray-500">Không có dự án
                                     nào</td>
                             </tr>
                         @endforelse
