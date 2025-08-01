@@ -81,12 +81,12 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $warranty->warranty_code }}
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
                                         <div class="font-medium">{{ $warranty->customer_name }}</div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
                                         <div>{{ $warranty->project_name }}</div>
                                     </div>

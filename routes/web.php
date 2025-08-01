@@ -313,10 +313,6 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         return view('warranties.activate');
     });
 
-    Route::get('/warranties/verify', function () {
-        return view('warranties.verify');
-    });
-
     //repair - Repair Management
     Route::prefix('repairs')->name('repairs.')->group(function () {
         Route::get('/', [App\Http\Controllers\RepairController::class, 'index'])->name('index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
@@ -388,12 +384,6 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/', [WarrantyController::class, 'index'])->name('index');
         Route::get('/{warranty}', [WarrantyController::class, 'show'])->name('show');
     });
-
-    // Public warranty check routes
-    Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
-    Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
-    Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
-    Route::get('/api/warranty/{warrantyId}/items', [WarrantyController::class, 'getWarrantyItems'])->name('api.warranty.items');
 
     // Repair API routes
     Route::prefix('api/repairs')->group(function () {
@@ -762,3 +752,12 @@ Route::prefix('api/testing')->group(function () {
 
 // API route for inventory check
 Route::get('/api/inventory/{type}/{id}/{warehouseId}', [TestingController::class, 'getInventoryInfo']);
+
+//QR tra cứu bảo hành
+Route::get('/warranties/verify', function () {
+    return view('warranties.verify');
+});
+Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'])->name('warranty.check');
+Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
+Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
+Route::get('/api/warranty/{warrantyId}/items', [WarrantyController::class, 'getWarrantyItems'])->name('api.warranty.items');

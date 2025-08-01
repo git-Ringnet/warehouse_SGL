@@ -336,6 +336,9 @@ class Warranty extends Model
 
     /**
      * Get materials/components for each product in this warranty
+     *
+     * Only include materials that come from assemblies whose project_id matches
+     * the warranty's project (item_id).
      */
     public function getProductMaterialsAttribute()
     {
@@ -365,7 +368,7 @@ class Warranty extends Model
                     $product = Product::find($dispatchItem->item_id);
                     if ($product) {
                         // Get assembly materials for this product using serial numbers
-                        $serialNumbers = $dispatchItem->serial_numbers ?: [];
+                        $serialNumbers = $dispatchItem->serial_numbers ? array_unique($dispatchItem->serial_numbers) : [];
 
                         foreach ($serialNumbers as $serialNumber) {
                             // Find assembly that created this serial number
@@ -416,7 +419,7 @@ class Warranty extends Model
                                     'product_code' => $product->code,
                                     'product_name' => $product->name,
                                     'serial_number' => $serialNumber,
-                                    'materials' => $materials
+                                    'materials' => collect($materials)->unique('code')->values()->all()
                                 ];
                             }
                         }
@@ -444,7 +447,7 @@ class Warranty extends Model
                                     'product_code' => $product->code,
                                     'product_name' => $product->name,
                                     'serial_number' => 'N/A',
-                                    'materials' => $materials
+                                    'materials' => collect($materials)->unique('code')->values()->all()
                                 ];
                             }
                         }
@@ -452,7 +455,24 @@ class Warranty extends Model
                 }
             }
 
-            return $productMaterials;
+            // Deduplicate entries by product_code and serial_number
+            $deduped = [];
+            foreach ($productMaterials as $entry) {
+                $key = $entry['product_code'] . '|' . $entry['serial_number'];
+                if (!isset($deduped[$key])) {
+                    $deduped[$key] = $entry;
+                } else {
+                    // Merge materials, avoiding duplicates by material code
+                    $existingMaterials = collect($deduped[$key]['materials'])->keyBy('code');
+                    foreach ($entry['materials'] as $mat) {
+                        if (!$existingMaterials->has($mat['code'])) {
+                            $existingMaterials->put($mat['code'], $mat);
+                        }
+                    }
+                    $deduped[$key]['materials'] = $existingMaterials->values()->all();
+                }
+            }
+            return array_values($deduped);
         }
         return [];
     }
