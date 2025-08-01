@@ -19,6 +19,7 @@ class RentalController extends Controller
     {
         $search = $request->input('search');
         $filter = $request->input('filter');
+        $warranty_status = $request->input('warranty_status');
         
         $query = Rental::with('customer');
         
@@ -53,15 +54,30 @@ class RentalController extends Controller
             }
         }
         
+        // Xử lý bộ lọc bảo hành
+        if ($warranty_status) {
+            switch ($warranty_status) {
+                case 'active':
+                    // Còn bảo hành: due_date > hiện tại
+                    $query->where('due_date', '>', now()->toDateString());
+                    break;
+                case 'expired':
+                    // Hết bảo hành: due_date <= hiện tại
+                    $query->where('due_date', '<=', now()->toDateString());
+                    break;
+            }
+        }
+        
         $rentals = $query->latest()->paginate(10);
         
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
         $rentals->appends([
             'search' => $search,
-            'filter' => $filter
+            'filter' => $filter,
+            'warranty_status' => $warranty_status
         ]);
         
-        return view('rentals.index', compact('rentals', 'search', 'filter'));
+        return view('rentals.index', compact('rentals', 'search', 'filter', 'warranty_status'));
     }
 
     /**
@@ -275,20 +291,21 @@ class RentalController extends Controller
             $oldData = $rental->toArray();
             $rentalCode = $rental->rental_code;
 
-            // Kiểm tra xem phiếu cho thuê có phiếu xuất kho liên quan không
-            $dispatchCount = \App\Models\Dispatch::where('dispatch_type', 'rental')
-                ->where(function($query) use ($rental) {
-                    $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                        ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                })
-                ->count();
-            
-            if ($dispatchCount > 0) {
+            // Kiểm tra điều kiện 1: Thời gian bảo hành còn lại <= 0 ngày (đã hết hạn)
+            $remainingWarrantyDays = $rental->remaining_warranty_days;
+            if ($remainingWarrantyDays > 0) {
                 return redirect()->route('rentals.show', $id)
-                    ->with('error', 'Không thể xóa phiếu cho thuê này vì có ' . $dispatchCount . ' phiếu xuất kho liên quan. Vui lòng xóa các phiếu xuất kho trước khi xóa phiếu cho thuê.');
+                    ->with('error', 'Không thể xóa phiếu cho thuê này vì thời gian bảo hành còn lại: ' . $remainingWarrantyDays . ' ngày. Chỉ có thể xóa khi thời gian bảo hành đã hết.');
             }
-            
-            // Nếu không có phiếu xuất kho liên quan, tiến hành xóa phiếu cho thuê
+
+            // Kiểm tra điều kiện 2: Không còn thiết bị dự phòng/bảo hành nào
+            $backupItemsCount = $this->getBackupItemsCount($id);
+            if ($backupItemsCount > 0) {
+                return redirect()->route('rentals.show', $id)
+                    ->with('error', 'Không thể xóa phiếu cho thuê này vì còn ' . $backupItemsCount . ' thiết bị dự phòng/bảo hành. Vui lòng thu hồi tất cả thiết bị dự phòng trước khi xóa phiếu cho thuê.');
+            }
+
+            // Nếu thỏa mãn cả 2 điều kiện, tiến hành xóa phiếu cho thuê
             $rental->delete();
 
             // Ghi nhật ký xóa phiếu cho thuê
@@ -425,5 +442,43 @@ class RentalController extends Controller
         }
         
         return response()->json($allItems);
+    }
+    
+    /**
+     * Đếm số lượng thiết bị dự phòng/bảo hành của rental
+     */
+    private function getBackupItemsCount($rentalId)
+    {
+        // Lấy tất cả phiếu xuất kho của rental
+        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+            ->where(function($query) use ($rentalId) {
+                $rental = \App\Models\Rental::find($rentalId);
+                if ($rental) {
+                    $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                        ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                }
+            })
+            ->get();
+        
+        $backupItemsCount = 0;
+        
+        foreach ($dispatches as $dispatch) {
+            // Đếm thiết bị dự phòng/bảo hành (category = 'backup')
+            $backupItems = $dispatch->items()
+                ->where('category', 'backup')
+                ->get();
+            
+            foreach ($backupItems as $item) {
+                // Kiểm tra xem thiết bị đã bị thu hồi chưa
+                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                
+                // Chỉ đếm những thiết bị chưa bị thu hồi
+                if (!$isReturned) {
+                    $backupItemsCount++;
+                }
+            }
+        }
+        
+        return $backupItemsCount;
     }
 } 

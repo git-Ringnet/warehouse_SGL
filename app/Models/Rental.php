@@ -62,6 +62,35 @@ class Rental extends Model
      */
     public function daysRemaining()
     {
-        return now()->diffInDays($this->due_date, false);
+        return (int) now()->diffInDays($this->due_date, false);
+    }
+    
+    /**
+     * Tính số ngày bảo hành còn lại (tương tự như projects)
+     * Đối với rentals, bảo hành được tính từ due_date
+     */
+    public function getRemainingWarrantyDaysAttribute()
+    {
+        // Lấy ngày hết hạn từ due_date
+        $dueDate = \Carbon\Carbon::parse($this->due_date);
+        
+        // Nếu ngày hết hạn đã qua, trả về 0
+        if ($dueDate->isPast()) {
+            return 0;
+        }
+        
+        // Tính số ngày còn lại từ hiện tại đến ngày hết hạn
+        $now = \Carbon\Carbon::now();
+        
+        // Trả về số ngày còn lại (làm tròn xuống thành số nguyên)
+        return (int) $now->diffInDays($dueDate);
+    }
+    
+    /**
+     * Kiểm tra xem bảo hành có còn hiệu lực không
+     */
+    public function getHasValidWarrantyAttribute()
+    {
+        return $this->remaining_warranty_days > 0;
     }
 } 

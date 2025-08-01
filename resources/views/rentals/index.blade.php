@@ -119,6 +119,12 @@
                         <option value="customer" {{ isset($filter) && $filter == 'customer' ? 'selected' : '' }}>Khách
                             hàng</option>
                     </select>
+                    <select name="warranty_status"
+                        class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
+                        <option value="">Tất cả bảo hành</option>
+                        <option value="active" {{ isset($warranty_status) && $warranty_status == 'active' ? 'selected' : '' }}>Còn bảo hành</option>
+                        <option value="expired" {{ isset($warranty_status) && $warranty_status == 'expired' ? 'selected' : '' }}>Hết bảo hành</option>
+                    </select>
                     <button type="submit"
                         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors h-10">
                         <i class="fas fa-search"></i> Tìm kiếm
@@ -148,6 +154,9 @@
                         <tr>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                STT</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Mã phiếu</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -172,6 +181,8 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         @forelse($rentals as $rental)
                             <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $loop->iteration + ($rentals->currentPage() - 1) * $rentals->perPage() }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $rental->rental_code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $rental->rental_name }}
@@ -188,10 +199,14 @@
                                         @if ($rental->isOverdue())
                                             <span
                                                 class="ml-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Quá
-                                                hạn</span>
+                                                hạn {{ abs($rental->daysRemaining()) }} ngày</span>
                                         @elseif($rental->daysRemaining() <= 7)
                                             <span
-                                                class="ml-1 text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">{{ $rental->daysRemaining() }}
+                                                class="ml-1 text-xs bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">Còn {{ $rental->daysRemaining() }}
+                                                ngày</span>
+                                        @else
+                                            <span
+                                                class="ml-1 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Còn {{ $rental->daysRemaining() }}
                                                 ngày</span>
                                         @endif
                                     </span>
@@ -225,7 +240,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">Không có phiếu
+                                <td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Không có phiếu
                                     cho thuê nào</td>
                             </tr>
                         @endforelse

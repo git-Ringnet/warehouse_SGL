@@ -147,8 +147,8 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         @forelse($projects as $project)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ $loop->iteration }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $loop->iteration + ($projects->currentPage() - 1) * $projects->perPage() }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $project->project_code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -184,9 +184,9 @@
                                     <span class="font-medium flex items-center {{ $colorClass }}">
                                         <i class="fas fa-{{ $icon }} mr-1"></i>
                                         @if ($project->has_valid_warranty)
-                                            {{ $daysLeft }} ngày
+                                            <span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">Còn {{ $daysLeft }} ngày</span>
                                         @else
-                                            Hết hạn
+                                            <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Hết hạn {{ abs($daysLeft) }} ngày</span>
                                         @endif
                                     </span>
                                 </td>

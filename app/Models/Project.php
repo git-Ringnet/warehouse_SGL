@@ -90,7 +90,7 @@ class Project extends Model
         $now = Carbon::now();
         
         // Trả về số ngày còn lại (làm tròn xuống thành số nguyên)
-        return (int)$now->diffInDays($warrantyEndDate);
+        return (int) $now->diffInDays($warrantyEndDate);
     }
     
     /**

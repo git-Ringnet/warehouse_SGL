@@ -30,12 +30,14 @@ class EquipmentServiceController extends Controller
             'equipment_id' => 'required|exists:dispatch_items,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'reason' => 'required|string',
+            'rental_id' => 'nullable|exists:rentals,id',
         ], [
             'equipment_id.required' => 'Thiết bị không được để trống',
             'equipment_id.exists' => 'Thiết bị không tồn tại',
             'warehouse_id.required' => 'Kho không được để trống',
             'warehouse_id.exists' => 'Kho không tồn tại',
             'reason.required' => 'Lý do thu hồi không được để trống',
+            'rental_id.exists' => 'Phiếu thuê không tồn tại',
         ]);
 
         DB::beginTransaction();
@@ -117,6 +119,14 @@ class EquipmentServiceController extends Controller
                     $detailedInfo['project_id'] = $dispatchItem->dispatch->project_id;
                     $detailedInfo['project_name'] = $project ? $project->project_name : null;
                     $detailedInfo['project_code'] = $project ? $project->project_code : null;
+                } elseif ($dispatchItem->dispatch->dispatch_type === 'rental') {
+                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->dispatch_note}%")
+                        ->orWhere('rental_code', 'LIKE', "%{$dispatchItem->dispatch->project_receiver}%")
+                        ->first();
+                    $description = 'Thu hồi thiết bị dự phòng từ phiếu thuê: ' . ($rental ? $rental->rental_name : 'Không xác định');
+                    $detailedInfo['rental_id'] = $rental ? $rental->id : null;
+                    $detailedInfo['rental_name'] = $rental ? $rental->rental_name : null;
+                    $detailedInfo['rental_code'] = $rental ? $rental->rental_code : null;
                 }
 
                 // Lấy thông tin serial numbers nếu có
@@ -155,6 +165,58 @@ class EquipmentServiceController extends Controller
             if ($dispatchItem->dispatch->dispatch_type == 'project') {
                 return redirect()->route('projects.show', $dispatchItem->dispatch->project_id)
                     ->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
+            } elseif ($dispatchItem->dispatch->dispatch_type == 'rental') {
+                // Sử dụng rental_id từ form nếu có
+                if (isset($validatedData['rental_id'])) {
+                    return redirect()->route('rentals.show', $validatedData['rental_id'])
+                        ->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
+                }
+                
+                // Fallback: Tìm rental ID từ dispatch nếu không có rental_id
+                Log::info('Debug - Dispatch info for rental return redirect:', [
+                    'dispatch_id' => $dispatchItem->dispatch->id,
+                    'dispatch_note' => $dispatchItem->dispatch->dispatch_note,
+                    'project_receiver' => $dispatchItem->dispatch->project_receiver,
+                    'dispatch_type' => $dispatchItem->dispatch->dispatch_type
+                ]);
+                
+                // Tìm rental ID từ dispatch - thử nhiều cách
+                $rental = null;
+                
+                // Cách 1: Tìm theo dispatch_note
+                if ($dispatchItem->dispatch->dispatch_note) {
+                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->dispatch_note}%")->first();
+                }
+                
+                // Cách 2: Tìm theo project_receiver nếu cách 1 không tìm thấy
+                if (!$rental && $dispatchItem->dispatch->project_receiver) {
+                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->project_receiver}%")->first();
+                }
+                
+                // Cách 3: Tìm tất cả rentals và so sánh
+                if (!$rental) {
+                    $allRentals = \App\Models\Rental::all();
+                    foreach ($allRentals as $r) {
+                        if (strpos($dispatchItem->dispatch->dispatch_note ?? '', $r->rental_code) !== false ||
+                            strpos($dispatchItem->dispatch->project_receiver ?? '', $r->rental_code) !== false) {
+                            $rental = $r;
+                            break;
+                        }
+                    }
+                }
+                
+                Log::info('Debug - Found rental for return:', [
+                    'rental_id' => $rental ? $rental->id : null,
+                    'rental_code' => $rental ? $rental->rental_code : null,
+                    'rental_name' => $rental ? $rental->rental_name : null
+                ]);
+                
+                if ($rental) {
+                    return redirect()->route('rentals.show', $rental->id)
+                        ->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
+                } else {
+                    return redirect()->back()->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
+                }
             } else {
                 return redirect()->back()->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
             }
@@ -176,12 +238,14 @@ class EquipmentServiceController extends Controller
             'equipment_id' => 'required|exists:dispatch_items,id',
             'replacement_device_id' => 'required|exists:dispatch_items,id',
             'reason' => 'required|string',
+            'rental_id' => 'nullable|exists:rentals,id',
         ], [
             'equipment_id.required' => 'Thiết bị cần thay thế không được để trống',
             'equipment_id.exists' => 'Thiết bị cần thay thế không tồn tại',
             'replacement_device_id.required' => 'Thiết bị thay thế không được để trống',
             'replacement_device_id.exists' => 'Thiết bị thay thế không tồn tại',
             'reason.required' => 'Lý do thay thế không được để trống',
+            'rental_id.exists' => 'Phiếu thuê không tồn tại',
         ]);
 
         DB::beginTransaction();
@@ -249,6 +313,58 @@ class EquipmentServiceController extends Controller
             if ($originalItem->dispatch->dispatch_type == 'project') {
                 return redirect()->route('projects.show', $originalItem->dispatch->project_id)
                     ->with('success', 'Thiết bị đã được thay thế thành công.');
+            } elseif ($originalItem->dispatch->dispatch_type == 'rental') {
+                // Sử dụng rental_id từ form nếu có
+                if (isset($validatedData['rental_id'])) {
+                    return redirect()->route('rentals.show', $validatedData['rental_id'])
+                        ->with('success', 'Thiết bị đã được thay thế thành công.');
+                }
+                
+                // Fallback: Tìm rental ID từ dispatch nếu không có rental_id
+                Log::info('Debug - Dispatch info for rental redirect:', [
+                    'dispatch_id' => $originalItem->dispatch->id,
+                    'dispatch_note' => $originalItem->dispatch->dispatch_note,
+                    'project_receiver' => $originalItem->dispatch->project_receiver,
+                    'dispatch_type' => $originalItem->dispatch->dispatch_type
+                ]);
+                
+                // Tìm rental ID từ dispatch - thử nhiều cách
+                $rental = null;
+                
+                // Cách 1: Tìm theo dispatch_note
+                if ($originalItem->dispatch->dispatch_note) {
+                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->dispatch_note}%")->first();
+                }
+                
+                // Cách 2: Tìm theo project_receiver nếu cách 1 không tìm thấy
+                if (!$rental && $originalItem->dispatch->project_receiver) {
+                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->project_receiver}%")->first();
+                }
+                
+                // Cách 3: Tìm tất cả rentals và so sánh
+                if (!$rental) {
+                    $allRentals = \App\Models\Rental::all();
+                    foreach ($allRentals as $r) {
+                        if (strpos($originalItem->dispatch->dispatch_note ?? '', $r->rental_code) !== false ||
+                            strpos($originalItem->dispatch->project_receiver ?? '', $r->rental_code) !== false) {
+                            $rental = $r;
+                            break;
+                        }
+                    }
+                }
+                
+                Log::info('Debug - Found rental:', [
+                    'rental_id' => $rental ? $rental->id : null,
+                    'rental_code' => $rental ? $rental->rental_code : null,
+                    'rental_name' => $rental ? $rental->rental_name : null
+                ]);
+                
+                if ($rental) {
+                    return redirect()->route('rentals.show', $rental->id)
+                        ->with('success', 'Thiết bị đã được thay thế thành công.');
+                } else {
+                    return redirect()->back()->with('success', 'Thiết bị đã được thay thế thành công.');
+                }
             } else {
                 return redirect()->back()->with('success', 'Thiết bị đã được thay thế thành công.');
             }
@@ -269,13 +385,58 @@ class EquipmentServiceController extends Controller
             // Lấy thông tin thiết bị
             $dispatchItem = DispatchItem::with(['dispatch', 'warranties', 'material', 'product', 'good'])->findOrFail($id);
             
-            // Lấy thông tin dự án và nhân viên phụ trách
+            // Lấy thông tin dự án/project và nhân viên phụ trách
             $project = null;
+            $rental = null;
             $responsibleEmployee = null;
             
-            if ($dispatchItem->dispatch && $dispatchItem->dispatch->project) {
-                $project = $dispatchItem->dispatch->project;
-                $responsibleEmployee = $project->employee; // Nhân viên phụ trách dự án
+            // Kiểm tra xem có rental_id trong query parameter không
+            $rentalId = request()->query('rental_id');
+            
+            if ($rentalId) {
+                // Nếu có rental_id, sử dụng trực tiếp
+                $rental = \App\Models\Rental::find($rentalId);
+                if ($rental && $rental->employee_id) {
+                    $responsibleEmployee = \App\Models\Employee::find($rental->employee_id);
+                }
+            } else {
+                // Fallback: Tìm rental theo logic cũ
+                if ($dispatchItem->dispatch) {
+                    if ($dispatchItem->dispatch->project) {
+                        // Trường hợp project
+                        $project = $dispatchItem->dispatch->project;
+                        $responsibleEmployee = $project->employee; // Nhân viên phụ trách dự án
+                    } elseif ($dispatchItem->dispatch->dispatch_type === 'rental') {
+                        // Trường hợp rental - thử nhiều cách để tìm rental
+                        $rental = null;
+                        
+                        // Cách 1: Tìm theo dispatch_note
+                        if ($dispatchItem->dispatch->dispatch_note) {
+                            $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->dispatch_note}%")->first();
+                        }
+                        
+                        // Cách 2: Tìm theo project_receiver nếu cách 1 không tìm thấy
+                        if (!$rental && $dispatchItem->dispatch->project_receiver) {
+                            $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->project_receiver}%")->first();
+                        }
+                        
+                        // Cách 3: Tìm tất cả rentals và so sánh
+                        if (!$rental) {
+                            $allRentals = \App\Models\Rental::all();
+                            foreach ($allRentals as $r) {
+                                if (strpos($dispatchItem->dispatch->dispatch_note ?? '', $r->rental_code) !== false ||
+                                    strpos($dispatchItem->dispatch->project_receiver ?? '', $r->rental_code) !== false) {
+                                    $rental = $r;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if ($rental && $rental->employee_id) {
+                            $responsibleEmployee = \App\Models\Employee::find($rental->employee_id);
+                        }
+                    }
+                }
             }
             
             // Lấy thông tin thay thế
@@ -297,7 +458,7 @@ class EquipmentServiceController extends Controller
                     // Lấy thông tin nhân viên thực hiện
                     $employeeName = 'Không xác định';
                     
-                    // Ưu tiên: Nhân viên phụ trách dự án
+                    // Ưu tiên: Nhân viên phụ trách dự án/rental
                     if ($responsibleEmployee) {
                         $employeeName = $responsibleEmployee->name;
                     }
@@ -505,7 +666,16 @@ class EquipmentServiceController extends Controller
                 $items = $dispatch->items()
                     ->where('category', 'backup')
                     ->with(['material', 'product', 'good'])
-                    ->get();
+                    ->get()
+                    ->map(function ($item) {
+                        // Kiểm tra xem thiết bị đã được sử dụng làm thiết bị thay thế chưa
+                        $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
+                        
+                        // Thêm thông tin is_used vào item
+                        $item->is_used = $isUsed;
+                        
+                        return $item;
+                    });
                 $backupItems = $backupItems->concat($items);
             }
             
