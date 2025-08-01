@@ -42,7 +42,7 @@ class WarrantyController extends Controller
 
         $warranties = $query->orderBy('warranty_start_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(10);
 
         return view('warranties.index', compact('warranties'));
     }

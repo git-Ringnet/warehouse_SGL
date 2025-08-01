@@ -271,6 +271,9 @@ class RentalController extends Controller
                 );
             }
 
+            // Đồng bộ bảo hành
+            $this->syncWarrantiesFromRental($rental);
+
             return redirect()->route('rentals.show', $rental->id)
                 ->with('success', 'Phiếu cho thuê đã được cập nhật thành công.');
         } catch (\Exception $e) {
@@ -282,6 +285,35 @@ class RentalController extends Controller
     /**
      * Xóa phiếu cho thuê khỏi database
      */
+    /**
+     * Đồng bộ bảo hành điện tử khi cập nhật phiếu cho thuê
+     */
+    private function syncWarrantiesFromRental(Rental $rental)
+    {
+        $warranties = \App\Models\Warranty::whereIn('item_type', ['rental','project'])
+            ->where('item_id', $rental->id)
+            ->get();
+
+        if ($warranties->isEmpty()) {
+            return;
+        }
+
+        $customerName = optional($rental->customer)->name;
+        $startDate = \Carbon\Carbon::parse($rental->rental_date);
+        $endDate   = \Carbon\Carbon::parse($rental->due_date);
+        $periodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
+
+        foreach ($warranties as $warranty) {
+            $warranty->update([
+                'project_name'           => $rental->rental_name,
+                'customer_name'          => $customerName,
+                'warranty_start_date'    => $startDate->toDateString(),
+                'warranty_end_date'      => $endDate->toDateString(),
+                'warranty_period_months' => $periodMonths,
+            ]);
+        }
+    }
+
     public function destroy($id)
     {
         try {

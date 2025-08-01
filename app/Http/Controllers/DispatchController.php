@@ -965,11 +965,12 @@ class DispatchController extends Controller
                         if (!$warrantyPeriod && $dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
                             $rental = \App\Models\Rental::find($dispatch->project_id);
                             if ($rental) {
-                                // Default warranty period for rental - can be customized
-                                $warrantyPeriod = '12 tháng'; // Default 12 months for rental
-                                Log::info("Using default warranty period for rental", [
+                                // Use warranty period from rental if defined, else fall back later
+                                $warrantyPeriod = $rental->warranty_period ?: null;
+                                Log::info("Resolved warranty period from rental", [
                                     'rental_id' => $rental->id,
-                                    'warranty_period' => $warrantyPeriod
+                                    'rental_warranty_period' => $rental->warranty_period,
+                                    'applied_warranty_period' => $warrantyPeriod
                                 ]);
                             }
                         }
@@ -1419,7 +1420,19 @@ class DispatchController extends Controller
             'quantity' => $dispatchItem->quantity
         ]);
 
-        // Parse warranty period from request or use default
+        // Determine warranty period
+        if ($dispatch->dispatch_type === 'rental') {
+            // Lấy thời gian từ phiếu cho thuê
+            $rental = Rental::find($dispatch->project_id);
+            if ($rental) {
+                $startDate = Carbon::parse($rental->rental_date);
+                $endDate   = Carbon::parse($rental->due_date);
+                $warrantyPeriodMonths = max(1, $startDate->diffInMonths($endDate) ?: 1);
+                $warrantyStartDate = $startDate;
+                $warrantyEndDate   = $endDate;
+            }
+        } else {
+            // Parse warranty period from request or use default
         $warrantyPeriodMonths = 12; // Default 12 months
         if ($request->warranty_period) {
             // Extract number from warranty period string (e.g., "12 tháng" -> 12)
@@ -1431,7 +1444,12 @@ class DispatchController extends Controller
 
         // Calculate warranty dates
         $warrantyStartDate = $dispatch->dispatch_date;
-        $warrantyEndDate = $warrantyStartDate->copy()->addMonths($warrantyPeriodMonths);
+        if (!isset($warrantyEndDate)) {
+            // For non-rental or fallback when rental not found
+            $warrantyEndDate = $warrantyStartDate->copy()->addMonths($warrantyPeriodMonths);
+        }
+
+        }
 
         // Get item details
         $item = null;

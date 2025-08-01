@@ -227,13 +227,16 @@ class Warranty extends Model
      */
     public function getIsActiveAttribute()
     {
-        return $this->status === 'active' && $this->warranty_end_date >= now()->toDateString();
+        // Active khi cột status = 'active' và ngày hết hạn vẫn còn trong tương lai
+        return $this->status === 'active'
+            && $this->warranty_end_date
+            && \Carbon\Carbon::parse($this->warranty_end_date)->endOfDay()->isFuture();
     }
 
     /**
      * Get remaining warranty days
      */
-    public function getRemainingDaysAttribute()
+    public function getRemainingTimeAttribute()
     {
         // Nếu chưa kích hoạt
         if (!$this->activated_at) {
@@ -258,51 +261,51 @@ class Warranty extends Model
     /**
      * Get remaining time with days, hours and minutes
      */
-    public function getRemainingTimeAttribute()
-    {
-        // Nếu chưa kích hoạt
-        if (!$this->activated_at) {
-            return null; // Sẽ hiển thị "Chưa kích hoạt"
-        }
+    // public function getRemainingTimeAttribute()
+    // {
+    //     // Nếu chưa kích hoạt
+    //     if (!$this->activated_at) {
+    //         return null; // Sẽ hiển thị "Chưa kích hoạt"
+    //     }
 
-        // Tính ngày hết hạn từ ngày kích hoạt
-        $actualEndDate = $this->activated_at->copy()->addMonths($this->warranty_period_months ?? 12);
+    //     // Tính ngày hết hạn từ ngày kích hoạt
+    //     $actualEndDate = $this->activated_at->copy()->addMonths($this->warranty_period_months ?? 12);
         
-        // Nếu đã hết hạn
-        if (now() > $actualEndDate) {
-            return 0;
-        }
+    //     // Nếu đã hết hạn
+    //     if (now() > $actualEndDate) {
+    //         return 0;
+    //     }
 
-        // Tính tổng số phút còn lại
-        $totalMinutes = now()->diffInMinutes($actualEndDate, false);
+    //     // Tính tổng số phút còn lại
+    //     $totalMinutes = now()->diffInMinutes($actualEndDate, false);
         
-        // Tính ngày, giờ và phút
-        $days = floor($totalMinutes / (24 * 60));
-        $hours = floor(($totalMinutes % (24 * 60)) / 60);
-        $minutes = $totalMinutes % 60;
+    //     // Tính ngày, giờ và phút
+    //     $days = floor($totalMinutes / (24 * 60));
+    //     $hours = floor(($totalMinutes % (24 * 60)) / 60);
+    //     $minutes = $totalMinutes % 60;
         
-        // Format hiển thị
-        $parts = [];
+    //     // Format hiển thị
+    //     $parts = [];
         
-        if ($days > 0) {
-            $parts[] = "{$days} ngày";
-        }
+    //     if ($days > 0) {
+    //         $parts[] = "{$days} ngày";
+    //     }
         
-        if ($hours > 0) {
-            $parts[] = "{$hours} giờ";
-        }
+    //     if ($hours > 0) {
+    //         $parts[] = "{$hours} giờ";
+    //     }
         
-        if ($minutes > 0) {
-            $parts[] = "{$minutes} phút";
-        }
+    //     if ($minutes > 0) {
+    //         $parts[] = "{$minutes} phút";
+    //     }
         
-        // Nếu không có gì thì hiển thị "Dưới 1 phút"
-        if (empty($parts)) {
-            return "Dưới 1 phút";
-        }
+    //     // Nếu không có gì thì hiển thị "Dưới 1 phút"
+    //     if (empty($parts)) {
+    //         return "Dưới 1 phút";
+    //     }
         
-        return implode(' ', $parts);
-    }
+    //     return implode(' ', $parts);
+    // }
 
     /**
      * Get warranty status label
@@ -312,8 +315,6 @@ class Warranty extends Model
         $labels = [
             'active' => 'Còn hiệu lực',
             'expired' => 'Hết hạn',
-            'claimed' => 'Đã sử dụng',
-            'void' => 'Đã hủy',
         ];
 
         return $labels[$this->status] ?? 'Không xác định';
@@ -679,18 +680,24 @@ class Warranty extends Model
     public function getStatusAttribute($value)
     {
         // Nếu warranty thuộc về một dự án, kiểm tra trạng thái bảo hành của dự án
-        if ($this->item_type === 'project' && $this->dispatch && $this->dispatch->project) {
-            $project = $this->dispatch->project;
-            if (!$project->has_valid_warranty) {
+
+        // Tự động cập nhật trạng thái dựa trên ngày hết hạn
+        if ($this->warranty_end_date) {
+            $isPast = Carbon::parse($this->warranty_end_date)->endOfDay()->isPast();
+            if ($isPast) {
+                if ($value !== 'expired') {
+                    // Chuyển sang hết hạn
+                    $this->setAttribute('status', 'expired');
+                    $this->saveQuietly();
+                }
                 return 'expired';
-            }
-        }
-        
-        // Kiểm tra ngày hết hạn bảo hành
-        if ($value === 'active' && $this->warranty_end_date) {
-            if (Carbon::parse($this->warranty_end_date)->isPast()) {
-                $this->update(['status' => 'expired']);
-                return 'expired';
+            } else {
+                if ($value !== 'active') {
+                    // Kích hoạt lại nếu trước đó là expired
+                    $this->setAttribute('status', 'active');
+                    $this->saveQuietly();
+                }
+                return 'active';
             }
         }
         

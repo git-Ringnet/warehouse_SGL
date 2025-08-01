@@ -29,9 +29,6 @@
                         <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Còn hiệu lực
                         </option>
                         <option value="expired" {{ request('status') == 'expired' ? 'selected' : '' }}>Hết hạn</option>
-                        <option value="claimed" {{ request('status') == 'claimed' ? 'selected' : '' }}>Đã sử dụng
-                        </option>
-                        <option value="void" {{ request('status') == 'void' ? 'selected' : '' }}>Đã hủy</option>
                     </select>
                     <button type="submit"
                         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
@@ -39,7 +36,7 @@
                     </button>
                 </form>
             </div>
-        </header>
+        </header>   
 
         <main class="p-6">
             <div class="bg-white rounded-xl shadow-md overflow-x-auto border border-gray-100">
@@ -83,7 +80,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
-                                        <div class="font-medium">{{ $warranty->customer_name }}</div>
+                                        <div>{{ $warranty->project_name }}</div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">

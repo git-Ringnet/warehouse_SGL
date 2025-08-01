@@ -54,7 +54,8 @@ class Rental extends Model
      */
     public function isOverdue()
     {
-        return now()->gt($this->due_date);
+        $due = \Carbon\Carbon::parse($this->due_date)->endOfDay();
+        return now()->gt($due);
     }
 
     /**
@@ -62,7 +63,9 @@ class Rental extends Model
      */
     public function daysRemaining()
     {
-        return (int) now()->diffInDays($this->due_date, false);
+        $now = now()->startOfDay();
+        $due = \Carbon\Carbon::parse($this->due_date)->endOfDay();
+        return (int) $now->diffInDays($due, false);
     }
     
     /**
