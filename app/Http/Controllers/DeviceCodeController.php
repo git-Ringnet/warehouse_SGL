@@ -87,6 +87,8 @@ class DeviceCodeController extends Controller
             $validatedData = $request->validate([
                 'dispatch_id' => 'nullable|exists:dispatches,id',
                 'product_id' => 'required',
+                'item_type' => 'required|in:material,good,product',
+                'item_id' => 'required|integer',
                 'serial_main' => 'required',
                 'serial_components' => 'nullable|array',
                 'serial_sim' => 'nullable',
@@ -188,6 +190,25 @@ class DeviceCodeController extends Controller
             
             // Create new device codes
             foreach ($device_codes as $deviceCode) {
+                $newSerial = $deviceCode['serial_main'] ?? null;
+                if ($newSerial) {
+                    // Kiểm tra trùng serial trong bảng tồn kho hoặc device_codes khác
+                    $existsInStock = DB::table('serials')->where('serial_number', $newSerial)->exists();
+                    $existsInDeviceCodes = DeviceCode::where('serial_main', $newSerial)
+                        ->where(function($q) use ($dispatch_id, $type) {
+                            // Cho phép trùng với chính thiết bị đang cập nhật (cùng dispatch & type)
+                            $q->where('dispatch_id', '!=', $dispatch_id)
+                              ->orWhere('type', '!=', $type);
+                        })
+                        ->exists();
+                    if ($existsInStock || $existsInDeviceCodes) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Serial "'. $newSerial .'" đã được sử dụng cho thiết bị khác.'
+                        ], 422);
+                    }
+                }
                 // Skip empty records
                 if (empty($deviceCode['serial_main'])) {
                     continue;
@@ -196,6 +217,8 @@ class DeviceCodeController extends Controller
                 DeviceCode::create([
                     'dispatch_id' => $dispatch_id,
                     'product_id' => $deviceCode['product_id'],
+                    'item_type' => $deviceCode['item_type'] ?? null,
+                    'item_id' => $deviceCode['item_id'] ?? null,
                     'serial_main' => $deviceCode['serial_main'],
                     'serial_components' => $deviceCode['serial_components'] ?? [],
                     'serial_sim' => $deviceCode['serial_sim'] ?? null,
@@ -203,6 +226,7 @@ class DeviceCodeController extends Controller
                     'iot_id' => $deviceCode['iot_id'] ?? null,
                     'mac_4g' => $deviceCode['mac_4g'] ?? null,
                     'note' => $deviceCode['note'] ?? null,
+                    'old_serial' => $deviceCode['old_serial'] ?? null,
                     'type' => $type
                 ]);
             }

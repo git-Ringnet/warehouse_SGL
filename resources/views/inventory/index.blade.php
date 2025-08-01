@@ -146,7 +146,7 @@
                             @forelse($dispatches as $dispatch)
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {{ $loop->iteration }}
+                                        {{ $dispatches->firstItem() + $loop->index }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {{ $dispatch->dispatch_code }}

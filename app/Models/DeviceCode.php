@@ -9,6 +9,9 @@ class DeviceCode extends Model
     protected $fillable = [
         'dispatch_id',
         'product_id',
+        'item_type',
+        'item_id',
+        'old_serial',
         'serial_main',
         'serial_components',
         'serial_sim',

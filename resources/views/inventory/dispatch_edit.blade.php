@@ -713,12 +713,10 @@
 
                         <!-- Nút cập nhật mã thiết bị hợp đồng -->
                         <div class="mt-4 flex justify-end">
-                            @if ($dispatch->status === 'pending')
-                                <button type="button" id="update_contract_device_codes_btn"
-                                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
-                                    <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                                </button>
-                            @endif
+                            <button type="button" id="update_contract_device_codes_btn"
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                            </button>
                         </div>
                     </div>
 
@@ -784,14 +782,12 @@
                         </div>
 
                         <!-- Nút cập nhật mã thiết bị dự phòng -->
-                        @if ($dispatch->status === 'pending')
-                            <div class="mt-4 flex justify-end">
-                                <button type="button" id="update_backup_device_codes_btn"
-                                    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
-                                    <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                                </button>
-                            </div>
-                        @endif
+                        <div class="mt-4 flex justify-end">
+                            <button type="button" id="update_backup_device_codes_btn"
+                                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                            </button>
+                        </div>  
                     </div>
                 @endif
 
@@ -2024,8 +2020,8 @@
                             ${isReadonly ? 
                                 `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
                                 `<button type="button" class="text-red-600 hover:text-red-900 remove-contract-product" data-index="${index}">
-                                                                                <i class="fas fa-trash"></i>
-                                                                            </button>`}
+                                                                                    <i class="fas fa-trash"></i>
+                                                                                </button>`}
                         </td>
                         ${hiddenInputsHtml}
                     `;
@@ -2218,8 +2214,8 @@
                             ${isReadonly ? 
                                 `<span class="text-gray-400"><i class="fas fa-lock"></i></span>` :
                                 `<button type="button" class="text-red-600 hover:text-red-900 remove-backup-product" data-index="${index}">
-                                                                                <i class="fas fa-trash"></i>
-                                                                            </button>`}
+                                                                                    <i class="fas fa-trash"></i>
+                                                                                </button>`}
                         </td>
                         ${hiddenInputsHtml}
                     `;
@@ -3232,6 +3228,9 @@
 
                             // Get product ID from the data attribute
                             const productId = row.getAttribute('data-product-id');
+                            // Retrieve product info for item type
+                            const productInfo = (typeof getProductInfo === 'function') ? (
+                                getProductInfo(productId) || {}) : {};
                             if (!productId) {
                                 console.warn('Row missing product ID, skipping...');
                                 return;
@@ -3264,19 +3263,27 @@
                             const mac4g = row.querySelector('input[name*="mac_4g"]')?.value ||
                                 '';
                             const note = row.querySelector('input[name*="note"]')?.value || '';
+                            // Get selected original serial (if any)
+                            const rowIndex = row.getAttribute('data-row-index');
+                            const oldSerial = document.querySelector(
+                                `select[data-item-id="${productId}"][data-serial-index="${rowIndex}"]`
+                                )?.value || null;
 
                             // Create device code entry
                             deviceCodes.push({
                                 id: deviceCodeId,
                                 dispatch_id: dispatchId,
                                 product_id: productId,
+                                item_type: productInfo.type ?? 'product',
+                                item_id: productId,
                                 serial_main: mainSerialInput.value,
                                 serial_components: componentSerials,
                                 serial_sim: simSerial,
                                 access_code: accessCode,
                                 iot_id: iotId,
                                 mac_4g: mac4g,
-                                note: note
+                                note: note,
+                                old_serial: oldSerial
                             });
                         });
 
@@ -3304,6 +3311,8 @@
                         if (!result.success) {
                             throw new Error(result.message || 'Lỗi khi lưu thông tin');
                         }
+
+
 
                         alert('Đã lưu thông tin mã thiết bị thành công!');
                         deviceCodeModal.classList.add('hidden');
@@ -3346,29 +3355,39 @@
                     groupRows.forEach(r => {
                         // --- A) Lấy dữ liệu row ---
                         // chỉ dòng đầu có input contract_product_info
-                        const infoInput = r.querySelector('input[name*="product_info"]');
+                        const infoInput = r.querySelector(
+                        'input[name*="product_info"]');
                         let deviceName = infoInput ? infoInput.value.trim() : '';
                         if (!deviceName) {
-                            const firstTdText = r.querySelector('td:first-child')?.textContent.trim() || '';
+                            const firstTdText = r.querySelector('td:first-child')
+                                ?.textContent.trim() || '';
                             deviceName = firstTdText;
                         }
-                        let serialMain = r.querySelector('input[name*="serial_main"]')?.value.trim() || '';
+                        let serialMain = r.querySelector('input[name*="serial_main"]')
+                            ?.value.trim() || '';
                         if (!serialMain) {
-                            const secondTdInps = r.querySelectorAll('td:nth-child(2) input');
+                            const secondTdInps = r.querySelectorAll(
+                                'td:nth-child(2) input');
                             if (secondTdInps.length) {
                                 serialMain = secondTdInps[0].value.trim();
                             } else {
-                                const secondTdTxt = r.querySelector('td:nth-child(2)')?.textContent.trim() || '';
+                                const secondTdTxt = r.querySelector('td:nth-child(2)')
+                                    ?.textContent.trim() || '';
                                 serialMain = secondTdTxt;
                             }
                         }
-                        const serialSim = r.querySelector('input[name*="serial_sim"]')?.value.trim() ||
+                        const serialSim = r.querySelector('input[name*="serial_sim"]')
+                            ?.value.trim() ||
                             '';
-                        const accessCode = r.querySelector('input[name*="access_code"]')?.value.trim() ||
+                        const accessCode = r.querySelector('input[name*="access_code"]')
+                            ?.value.trim() ||
                             '';
-                        const iotId = r.querySelector('input[name*="iot_id"]')?.value.trim() || '';
-                        const mac4g = r.querySelector('input[name*="mac_4g"]')?.value.trim() || '';
-                        const note = r.querySelector('input[name*="note"]')?.value.trim() || '';
+                        const iotId = r.querySelector('input[name*="iot_id"]')?.value
+                            .trim() || '';
+                        const mac4g = r.querySelector('input[name*="mac_4g"]')?.value
+                            .trim() || '';
+                        const note = r.querySelector('input[name*="note"]')?.value
+                        .trim() || '';
 
                         // --- B) Đếm seri vật tư theo số <div.mb-1> trong TR hiện tại
                         const compDivs = Array.from(r.querySelectorAll('div.mb-1'));
@@ -3524,7 +3543,8 @@
                         try {
                             // ----- Clear existing serial fields before new import -----
                             const tbody = document.getElementById('device-code-tbody');
-                            tbody.querySelectorAll('input:not([name*="product_info"])').forEach(i => i.value = '');
+                            tbody.querySelectorAll('input:not([name*="product_info"])').forEach(
+                                i => i.value = '');
                             // Parse Excel using ExcelJS
                             const wb = new ExcelJS.Workbook();
                             await wb.xlsx.load(await file.arrayBuffer());
@@ -3543,18 +3563,20 @@
                                 const keyDev = deviceKey(deviceName);
                                 let list = dataMap.get(keyDev) || [];
                                 // Find existing entry with same serial_main
-                                let currentRow = list.find(r => r.serial_main === (values[2] || '').toString().trim());
+                                let currentRow = list.find(r => r.serial_main === (
+                                    values[2] || '').toString().trim());
                                 if (!currentRow) {
                                     currentRow = {
-                                    serial_main: (values[2] || '').toString()
-                                    .trim(),
-                                    comp_serials: [],
-                                    serial_sim: (values[4] || '').toString().trim(),
-                                    access_code: (values[5] || '').toString()
-                                    .trim(),
-                                    iot_id: (values[6] || '').toString().trim(),
-                                    mac_4g: (values[7] || '').toString().trim(),
-                                    note: (values[8] || '').toString().trim()
+                                        serial_main: (values[2] || '').toString()
+                                            .trim(),
+                                        comp_serials: [],
+                                        serial_sim: (values[4] || '').toString()
+                                            .trim(),
+                                        access_code: (values[5] || '').toString()
+                                            .trim(),
+                                        iot_id: (values[6] || '').toString().trim(),
+                                        mac_4g: (values[7] || '').toString().trim(),
+                                        note: (values[8] || '').toString().trim()
                                     };
                                     list.push(currentRow);
                                 }
@@ -3586,9 +3608,12 @@
                                 const rowsArr = dataMap.get(key) || [];
                                 const currentIdx = usedIndexMap.get(key) || 0;
                                 // Try to match by existing serial_main value in the row (if any)
-                                let serialInput = row.querySelector('input[name*="serial_main"]');
-                                let serialVal = serialInput ? serialInput.value.trim() : '';
-                                let rowData = serialVal ? rowsArr.find(r => r.serial_main === serialVal) : undefined;
+                                let serialInput = row.querySelector(
+                                    'input[name*="serial_main"]');
+                                let serialVal = serialInput ? serialInput.value.trim() :
+                                    '';
+                                let rowData = serialVal ? rowsArr.find(r => r
+                                    .serial_main === serialVal) : undefined;
                                 let usedSequential = false;
                                 if (!rowData) {
                                     rowData = rowsArr[currentIdx] || {};
@@ -3598,21 +3623,23 @@
                                 const inputs = row.querySelectorAll('input');
                                 inputs.forEach(input => {
                                     if (!input.name.includes(
-                                        'product_info')) { // Don't clear product info
+                                            'product_info'
+                                            )) { // Don't clear product info
                                         if (input.name.includes(
-                                            'serial_main')) {
+                                                'serial_main')) {
                                             input.value = rowData.serial_main;
                                         } else if (input.name.includes(
                                                 'serial_components')) {
                                             const componentInputs = row
                                                 .querySelectorAll(
                                                     'input[name*="serial_components"]'
-                                                    );
+                                                );
                                             componentInputs.forEach((ci,
-                                            idx) => {
+                                                idx) => {
                                                 ci.value = rowData
                                                     .comp_serials?.[
-                                                    idx] || '';
+                                                        idx
+                                                    ] || '';
                                             });
                                         } else if (input.name.includes(
                                                 'serial_sim')) {
@@ -3621,13 +3648,13 @@
                                                 'access_code')) {
                                             input.value = rowData.access_code;
                                         } else if (input.name.includes(
-                                            'iot_id')) {
+                                                'iot_id')) {
                                             input.value = rowData.iot_id;
                                         } else if (input.name.includes(
-                                            'mac_4g')) {
+                                                'mac_4g')) {
                                             input.value = rowData.mac_4g;
                                         } else if (input.name.includes(
-                                            'note')) {
+                                                'note')) {
                                             input.value = rowData.note;
                                         }
                                     }
@@ -3649,7 +3676,7 @@
                     });
                     fileInput.click();
                 });
-            }   
+            }
         });
     </script>
 </body>

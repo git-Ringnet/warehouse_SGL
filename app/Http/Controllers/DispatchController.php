@@ -66,7 +66,7 @@ class DispatchController extends Controller
             $query->where('dispatch_date', '<=', $toDate);
         }
 
-        $dispatches = $query->paginate(10);
+        $dispatches = $query->paginate(10)->withQueryString();
         return view('inventory.index', compact('dispatches'));
     }
 
