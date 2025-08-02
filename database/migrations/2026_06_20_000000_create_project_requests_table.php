@@ -19,6 +19,8 @@ return new class extends Migration
             $table->foreignId('implementer_id')->nullable()->constrained('employees')->onDelete('set null');
             $table->string('project_name');
             $table->foreignId('customer_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('project_id')->nullable()->constrained('projects')->onDelete('set null');
+            $table->foreignId('rental_id')->nullable()->constrained('rentals')->onDelete('set null');
             $table->string('project_address');
             $table->enum('approval_method', ['production', 'warehouse'])->default('production');
             $table->string('customer_name');

@@ -91,9 +91,13 @@
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
-                            <a href="{{ route('projects.show', $dispatch->project_id) }}">
-                                <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
-                            </a>
+                            @if($dispatch->project_id)
+                                <a href="{{ route('projects.show', $dispatch->project_id) }}">
+                                    <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
+                                </a>
+                            @else
+                                <span class="text-sm text-gray-700">{{ $dispatch->project_receiver }}</span>
+                            @endif
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Loại hình:</span>

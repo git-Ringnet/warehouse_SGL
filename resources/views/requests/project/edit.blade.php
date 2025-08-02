@@ -85,51 +85,220 @@
                         <label for="warehouse" class="ml-2 block text-sm font-medium text-gray-700">Xuất kho</label>
                             </div>
                         </div>
+                        <div class="col-span-2 mt-2">
+                            <div id="production_info" class="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700 {{ old('approval_method', $projectRequest->approval_method) == 'production' ? 'block' : 'hidden' }}">
+                                <i class="fas fa-info-circle mr-1"></i> Khi chọn <strong>Sản xuất lắp ráp</strong>, hệ thống sẽ gửi thông báo đến nhân viên thực hiện để tạo phiếu lắp ráp sau khi phiếu được duyệt.
+                            </div>
+                            <div id="warehouse_info" class="p-3 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700 {{ old('approval_method', $projectRequest->approval_method) == 'warehouse' ? 'block' : 'hidden' }}">
+                                <i class="fas fa-info-circle mr-1"></i> Khi chọn <strong>Xuất kho</strong>, hệ thống sẽ gửi thông báo đến nhân viên thực hiện để tạo phiếu xuất kho sau khi phiếu được duyệt.
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Danh sách sản phẩm đề xuất</h2>
-            <div class="bg-gray-50 rounded-lg p-4">
-                <p class="text-sm text-gray-500 mb-3 italic">Không thể chỉnh sửa danh sách sản phẩm. Nếu cần thay đổi, vui lòng tạo phiếu đề xuất mới.</p>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên sản phẩm</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Loại</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @php $index = 1; @endphp
-                            
-                            @forelse($projectRequest->items as $item)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $index++ }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $item->name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $item->quantity }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        @if($item->item_type == 'equipment')
-                                            Thiết bị
-                                        @elseif($item->item_type == 'material')
-                                            Vật tư
-                                        @elseif($item->item_type == 'good')
-                                            Hàng hóa
-                                        @endif
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="4" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">Không có sản phẩm nào</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+            <h2 class="text-lg font-semibold text-gray-800 mb-3">Danh mục đề xuất</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="flex items-center" id="equipment_radio">
+                    <input type="radio" name="item_type" id="equipment_type" value="equipment" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', $projectRequest->items->where('item_type', 'equipment')->count() > 0 ? 'equipment' : 'equipment') == 'equipment' ? 'checked' : '' }}>
+                    <label for="equipment_type" class="ml-2 block text-sm font-medium text-gray-700">Thành phẩm</label>
+                </div>
+                <div class="flex items-center" id="material_radio" style="display:none;">
+                    <input type="radio" name="item_type" id="material_type" value="material" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', $projectRequest->items->where('item_type', 'material')->count() > 0 ? 'material' : '') == 'material' ? 'checked' : '' }}>
+                    <label for="material_type" class="ml-2 block text-sm font-medium text-gray-700">Vật tư</label>
+                </div>
+                <div class="flex items-center" id="good_radio" style="display:none;">
+                    <input type="radio" name="item_type" id="good_type" value="good" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', $projectRequest->items->where('item_type', 'good')->count() > 0 ? 'good' : '') == 'good' ? 'checked' : '' }}>
+                    <label for="good_type" class="ml-2 block text-sm font-medium text-gray-700">Hàng hóa</label>
+                </div>
+            </div>
+            
+            <div id="equipment_section" class="item-section">
+                    <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-md font-medium text-gray-800">Thiết bị đề xuất</h3>
+                        <button type="button" id="add_equipment" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                            <i class="fas fa-plus-circle mr-1"></i> Thêm thiết bị
+                        </button>
+                    </div>
+                    
+                    <div id="equipment_container">
+                        @php $equipmentIndex = 0; @endphp
+                        @foreach($projectRequest->items->where('item_type', 'equipment') as $item)
+                        <div class="equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                            <div class="md:col-span-3">
+                            <label for="equipment_id_{{ $equipmentIndex }}" class="block text-sm font-medium text-gray-700 mb-1 required">Thiết bị</label>
+                            <select name="equipment[{{ $equipmentIndex }}][id]" id="equipment_id_{{ $equipmentIndex }}" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field equipment-select">
+                                <option value="">-- Chọn thiết bị --</option>
+                                @foreach($equipments ?? [] as $equipment)
+                                    <option value="{{ $equipment->id }}" {{ $item->item_id == $equipment->id ? 'selected' : '' }}>
+                                        {{ $equipment->name }} ({{ $equipment->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="equipment_quantity_{{ $equipmentIndex }}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            <input type="number" name="equipment[{{ $equipmentIndex }}][quantity]" id="equipment_quantity_{{ $equipmentIndex }}" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field equipment-quantity" value="{{ $item->quantity }}">
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                            </div>
                         </div>
+                        @php $equipmentIndex++; @endphp
+                        @endforeach
+                        @if($projectRequest->items->where('item_type', 'equipment')->count() == 0)
+                        <div class="equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                            <div class="md:col-span-3">
+                            <label for="equipment_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Thiết bị</label>
+                            <select name="equipment[0][id]" id="equipment_id_0" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field equipment-select">
+                                <option value="">-- Chọn thiết bị --</option>
+                                @foreach($equipments ?? [] as $equipment)
+                                    <option value="{{ $equipment->id }}" {{ old('equipment.0.id') == $equipment->id ? 'selected' : '' }}>
+                                        {{ $equipment->name }} ({{ $equipment->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="equipment_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            <input type="number" name="equipment[0][quantity]" id="equipment_quantity_0" required min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field equipment-quantity" value="{{ old('equipment.0.quantity', 1) }}">
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @endif
                     </div>
                 </div>
+                
+            <div id="material_section" class="item-section hidden">
+                    <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-md font-medium text-gray-800">Vật tư đề xuất</h3>
+                        <button type="button" id="add_material" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                            <i class="fas fa-plus-circle mr-1"></i> Thêm vật tư
+                        </button>
+                    </div>
+                    
+                    <div id="material_container">
+                        @php $materialIndex = 0; @endphp
+                        @foreach($projectRequest->items->where('item_type', 'material') as $item)
+                        <div class="material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                            <div class="md:col-span-3">
+                            <label for="material_id_{{ $materialIndex }}" class="block text-sm font-medium text-gray-700 mb-1 required">Vật tư</label>
+                            <select name="material[{{ $materialIndex }}][id]" id="material_id_{{ $materialIndex }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
+                                <option value="">-- Chọn vật tư --</option>
+                                @foreach($materials ?? [] as $material)
+                                    <option value="{{ $material->id }}" {{ $item->item_id == $material->id ? 'selected' : '' }}>
+                                        {{ $material->name }} ({{ $material->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="material_quantity_{{ $materialIndex }}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            <input type="number" name="material[{{ $materialIndex }}][quantity]" id="material_quantity_{{ $materialIndex }}" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ $item->quantity }}">
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @php $materialIndex++; @endphp
+                        @endforeach
+                        @if($projectRequest->items->where('item_type', 'material')->count() == 0)
+                        <div class="material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                            <div class="md:col-span-3">
+                            <label for="material_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Vật tư</label>
+                            <select name="material[0][id]" id="material_id_0" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
+                                <option value="">-- Chọn vật tư --</option>
+                                @foreach($materials ?? [] as $material)
+                                    <option value="{{ $material->id }}" {{ old('material.0.id') == $material->id ? 'selected' : '' }}>
+                                        {{ $material->name }} ({{ $material->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            </div>
+                            <div class="md:col-span-1">
+                                <label for="material_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            <input type="number" name="material[0][quantity]" id="material_quantity_0" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ old('material.0.quantity', 1) }}">
+                            </div>
+                            <div class="md:col-span-1 flex items-end">
+                                <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
+                                    <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                                </button>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            
+            <div id="good_section" class="item-section hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-md font-medium text-gray-800">Hàng hóa đề xuất</h3>
+                    <button type="button" id="add_good" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                        <i class="fas fa-plus-circle mr-1"></i> Thêm hàng hóa
+                    </button>
+                </div>
+                
+                <div id="good_container">
+                    @php $goodIndex = 0; @endphp
+                    @foreach($projectRequest->items->where('item_type', 'good') as $item)
+                    <div class="good-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                        <div class="md:col-span-3">
+                            <label for="good_id_{{ $goodIndex }}" class="block text-sm font-medium text-gray-700 mb-1 required">Hàng hóa</label>
+                            <select name="good[{{ $goodIndex }}][id]" id="good_id_{{ $goodIndex }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
+                                <option value="">-- Chọn hàng hóa --</option>
+                                @foreach($goods ?? [] as $good)
+                                    <option value="{{ $good->id }}" {{ $item->item_id == $good->id ? 'selected' : '' }}>
+                                        {{ $good->name }} ({{ $good->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label for="good_quantity_{{ $goodIndex }}" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            <input type="number" name="good[{{ $goodIndex }}][quantity]" id="good_quantity_{{ $goodIndex }}" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ $item->quantity }}">
+                        </div>
+                        <div class="md:col-span-1 flex items-end">
+                            <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group">
+                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                            </button>
+                        </div>
+                    </div>
+                    @php $goodIndex++; @endphp
+                    @endforeach
+                    @if($projectRequest->items->where('item_type', 'good')->count() == 0)
+                    <div class="good-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                        <div class="md:col-span-3">
+                            <label for="good_id_0" class="block text-sm font-medium text-gray-700 mb-1 required">Hàng hóa</label>
+                            <select name="good[0][id]" id="good_id_0" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field">
+                                <option value="">-- Chọn hàng hóa --</option>
+                                @foreach($goods ?? [] as $good)
+                                    <option value="{{ $good->id }}" {{ old('good.0.id') == $good->id ? 'selected' : '' }}>
+                                        {{ $good->name }} ({{ $good->code }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="md:col-span-1">
+                            <label for="good_quantity_0" class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
+                            <input type="number" name="good[0][quantity]" id="good_quantity_0" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 required-field" value="{{ old('good.0.quantity', 1) }}">
+                        </div>
+                        <div class="md:col-span-1 flex items-end">
+                            <button type="button" class="remove-row h-10 w-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group invisible">
+                                <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
+                            </button>
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
                     <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin liên hệ khách hàng</h2>
@@ -172,4 +341,8 @@
         color: red;
     }
 </style>
+
+@section('scripts')
+<script src="{{ asset('js/project-request-edit.js') }}"></script>
+@endsection
 @endsection 

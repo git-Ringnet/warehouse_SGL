@@ -10,7 +10,7 @@
             <div class="mt-1 flex items-center">
                 <span class="text-sm text-gray-500">Mã phiếu: {{ $projectRequest->request_code }}</span>
                 <span class="mx-2 text-gray-400">|</span>
-                <span class="text-sm text-gray-500">Ngày tạo: {{ $projectRequest->request_date->format('d/m/Y') }}</span>
+                <span class="text-sm text-gray-500">Ngày tạo: {{ $projectRequest->created_at->format('H:i d/m/Y') }}</span>
                 <span class="mx-2 text-gray-400">|</span>
                 <span class="text-sm">
                     @switch($projectRequest->status)
@@ -22,12 +22,6 @@
                             @break
                         @case('rejected')
                             <span class="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">Từ chối</span>
-                            @break
-                        @case('in_progress')
-                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">Đang thực hiện</span>
-                            @break
-                        @case('completed')
-                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Hoàn thành</span>
                             @break
                         @case('canceled')
                             <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">Đã hủy</span>
@@ -103,7 +97,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <p class="text-sm text-gray-600">Ngày đề xuất</p>
-                    <p class="font-medium">{{ \Carbon\Carbon::parse($projectRequest->request_date)->format('d/m/Y') }}</p>
+                    <p class="font-medium">{{ \Carbon\Carbon::parse($projectRequest->request_date)->format('H:i d/m/Y') }}</p>
                 </div>
                 <div>
                     <p class="text-sm text-gray-600">Trạng thái</p>
@@ -114,23 +108,30 @@
                             <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Đã duyệt</span>
                         @elseif($projectRequest->status == 'rejected')
                             <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Từ chối</span>
-                        @elseif($projectRequest->status == 'in_progress')
-                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Đang thực hiện</span>
-                        @elseif($projectRequest->status == 'completed')
-                            <span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Hoàn thành</span>
                         @elseif($projectRequest->status == 'canceled')
                             <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">Đã hủy</span>
                         @endif
                     </p>
                 </div>
-                <div>
-                    <p class="text-sm text-gray-600">Nhân viên đề xuất</p>
-                    <p class="font-medium">{{ $projectRequest->proposer->name ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-600">Nhân viên thực hiện</p>
-                    <p class="font-medium">{{ $projectRequest->implementer->name ?? 'Chưa phân công' }}</p>
-                </div>
+                @if($projectRequest->approval_method == 'production')
+                    <div>
+                        <p class="text-sm text-gray-600">Người phụ trách lắp ráp</p>
+                        <p class="font-medium">{{ $projectRequest->assembly_leader->name ?? 'Chưa phân công' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Người tiếp nhận kiểm thử</p>
+                        <p class="font-medium">{{ $projectRequest->tester->name ?? 'Chưa phân công' }}</p>
+                    </div>
+                @elseif($projectRequest->approval_method == 'warehouse')
+                    <div>
+                        <p class="text-sm text-gray-600">Người tạo phiếu</p>
+                        <p class="font-medium">{{ $projectRequest->proposer->name ?? 'Chưa phân công' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Người nhận phiếu</p>
+                        <p class="font-medium">{{ $projectRequest->implementer->name ?? 'Chưa phân công' }}</p>
+                    </div>
+                @endif
                 <div>
                     <p class="text-sm text-gray-600">Phương thức xử lý</p>
                     <p class="font-medium">
@@ -155,7 +156,7 @@
                 </div>
             </div>
 
-            @if($projectRequest->status == 'approved' || $projectRequest->status == 'in_progress' || $projectRequest->status == 'completed')
+            @if($projectRequest->status == 'approved')
                 <div class="mt-4">
                     @if($projectRequest->approval_method == 'production')
                         <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -170,7 +171,7 @@
                                     @endphp
                                     
                                     @if(isset($assembly) && $assembly)
-                                        <p class="text-sm text-blue-600">Phiếu lắp ráp <a href="{{ route('assemblies.show', $assembly->id) }}" class="font-semibold hover:underline">{{ $assembly->code }}</a> đã được tạo tự động.</p>
+                                        <p class="text-sm text-blue-600">Phiếu lắp ráp <a href="{{ route('assemblies.show', $assembly->id) }}" class="font-semibold hover:underline text-blue-700">{{ $assembly->code }}</a> đã được tạo tự động.</p>
                                         
                                         @if($assembly->products && $assembly->products->count() > 0)
                                             <div class="mt-2">
@@ -182,9 +183,9 @@
                                                 </ul>
                                             </div>
                                         @endif
-                        @else
+                                    @else
                                         <p class="text-sm text-blue-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu lắp ráp từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý lắp ráp để tạo phiếu lắp ráp mới.</p>
-                        @endif
+                                    @endif
                                 </div>
                             </div>
                         </div>
@@ -196,10 +197,29 @@
                                 </div>
                                 <div class="ml-3">
                                     <h3 class="text-md font-medium text-green-800">Phiếu xuất kho</h3>
-                                    <p class="text-sm text-green-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu xuất kho từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý kho để tạo phiếu xuất kho mới.</p>
+                                    @php
+                                        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%phiếu đề xuất dự án #' . $projectRequest->id . '%')->first();
+                                    @endphp
+                                    
+                                    @if(isset($dispatch) && $dispatch)
+                                        <p class="text-sm text-green-600">Phiếu xuất kho <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}" class="font-semibold hover:underline text-green-700">{{ $dispatch->dispatch_code }}</a> đã được tạo tự động.</p>
+                                        
+                                        @if($dispatch->items && $dispatch->items->count() > 0)
+                                            <div class="mt-2">
+                                                <p class="text-sm font-medium text-green-700">Sản phẩm trong phiếu xuất kho:</p>
+                                                <ul class="mt-1 list-disc list-inside text-sm text-green-600 ml-2">
+                                                    @foreach($dispatch->items as $dispatchItem)
+                                                        <li>{{ $dispatchItem->item_name ?? 'N/A' }} - Số lượng: {{ $dispatchItem->quantity }}</li>
+                                                    @endforeach
+                                                </ul>
+                                            </div>
+                                        @endif
+                                    @else
+                                        <p class="text-sm text-green-600">Nhân viên thực hiện đã nhận được thông báo để tạo phiếu xuất kho từ phiếu đề xuất này. Vui lòng truy cập vào mục Quản lý kho để tạo phiếu xuất kho mới.</p>
+                                    @endif
                                 </div>
                             </div>
-                </div>
+                        </div>
                     @endif
                 </div>
             @endif
@@ -280,11 +300,11 @@
         </div>
     </div>
 
-    <!-- Phần xử lý phiếu đề xuất -->
-    <div class="bg-white rounded-xl shadow-md p-6 mt-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Xử lý phiếu đề xuất</h2>
-        
-        @if($projectRequest->status === 'pending')
+    <!-- Phần xử lý phiếu đề xuất - chỉ hiển thị khi status là pending -->
+    @if($projectRequest->status === 'pending')
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Xử lý phiếu đề xuất</h2>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Duyệt phiếu -->
                 <div>
@@ -317,38 +337,8 @@
                     </form>
                 </div>
             </div>
-        @elseif($projectRequest->status === 'approved' || $projectRequest->status === 'in_progress')
-            <div>
-                <h3 class="text-md font-medium text-gray-700 mb-3">Cập nhật trạng thái</h3>
-                <form action="{{ route('requests.project.status', $projectRequest->id) }}" method="POST">
-                    @csrf
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái mới</label>
-                            <select name="status" id="status" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="in_progress" {{ $projectRequest->status === 'in_progress' ? 'selected' : '' }}>Đang thực hiện</option>
-                                <option value="completed">Hoàn thành</option>
-                                <option value="canceled">Đã hủy</option>
-                            </select>
-                            @error('status')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                        <div>
-                            <label for="status_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                            <textarea name="status_note" id="status_note" rows="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                            @error('status_note')
-                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
-                    </div>
-                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-save mr-2"></i> Cập nhật trạng thái
-                    </button>
-                </form>
-            </div>
-        @endif
-    </div>
+        </div>
+    @endif
 </div>
 
 <style>

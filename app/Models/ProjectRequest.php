@@ -19,8 +19,12 @@ class ProjectRequest extends Model
         'request_date',
         'proposer_id',
         'implementer_id',
+        'assembly_leader_id',
+        'tester_id',
         'project_name',
         'customer_id',
+        'project_id',
+        'rental_id',
         'project_address',
         'approval_method',
         'customer_name',
@@ -54,6 +58,22 @@ class ProjectRequest extends Model
     public function implementer()
     {
         return $this->belongsTo(Employee::class, 'implementer_id');
+    }
+
+    /**
+     * Lấy người phụ trách lắp ráp.
+     */
+    public function assembly_leader()
+    {
+        return $this->belongsTo(Employee::class, 'assembly_leader_id');
+    }
+
+    /**
+     * Lấy người tiếp nhận kiểm thử.
+     */
+    public function tester()
+    {
+        return $this->belongsTo(Employee::class, 'tester_id');
     }
 
     /**

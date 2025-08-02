@@ -11,6 +11,7 @@ use App\Models\Material;
 use App\Models\Good;
 use App\Models\Notification;
 use App\Models\Project;
+use App\Models\Rental;
 use App\Models\ProductMaterial;
 use App\Models\Dispatch;
 use App\Models\DispatchItem;
@@ -175,13 +176,56 @@ class ProjectRequestController extends Controller
         // Lấy danh sách khách hàng
         $customers = Customer::orderBy('company_name')->get();
         
-        // Lấy danh sách dự án
-        $projects = Project::with('customer')->orderBy('project_name')->get();
+        // Lấy danh sách dự án còn hiệu lực bảo hành
+        $projects = Project::with('customer')
+            ->whereHas('customer') // Đảm bảo có customer
+            ->get()
+            ->filter(function($project) {
+                return $project->has_valid_warranty; // Chỉ lấy dự án còn bảo hành
+            })
+            ->sortBy('project_name');
         
-        // Lấy danh sách thiết bị, vật tư, hàng hóa
-        $equipments = Product::where('status', 'active')->orderBy('name')->get();
-        $materials = Material::where('status', 'active')->orderBy('name')->get();
-        $goods = Good::where('status', 'active')->orderBy('name')->get();
+        // Lấy danh sách phiếu cho thuê còn hiệu lực bảo hành
+        $rentals = Rental::with('customer')
+            ->whereHas('customer') // Đảm bảo có customer
+            ->get()
+            ->filter(function($rental) {
+                return $rental->has_valid_warranty; // Chỉ lấy rental còn bảo hành
+            })
+            ->sortBy('rental_name');
+        
+        // Lấy danh sách thiết bị, vật tư, hàng hóa (chỉ lấy active và không bị ẩn)
+        $equipments = Product::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get();
+        $materials = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get();
+        $goods = Good::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get();
+        
+        // Lấy danh sách vật tư từ kho (cho xuất kho)
+        $warehouseMaterials = \App\Models\WarehouseMaterial::with(['material', 'warehouse'])
+            ->whereHas('warehouse', function($q) {
+                $q->where('status', 'active')->where('is_hidden', false);
+            })
+            ->where('quantity', '>', 0) // Chỉ lấy vật tư có tồn kho > 0
+            ->get()
+            ->groupBy('material_id')
+            ->map(function($group) {
+                // Lấy thông tin vật tư và kho có nhiều tồn kho nhất
+                $bestWarehouse = $group->sortByDesc('quantity')->first();
+                return [
+                    'material' => $bestWarehouse->material,
+                    'warehouse' => $bestWarehouse->warehouse,
+                    'quantity' => $bestWarehouse->quantity
+                ];
+            })
+            ->values();
         
         // Lấy thông tin nhân viên hiện tại
         $currentEmployee = Auth::user();
@@ -190,9 +234,11 @@ class ProjectRequestController extends Controller
             'employees', 
             'customers', 
             'projects',
+            'rentals',
             'equipments', 
             'materials', 
             'goods', 
+            'warehouseMaterials',
             'currentEmployee'
         ));
     }
@@ -263,9 +309,9 @@ class ProjectRequestController extends Controller
             'request_date' => 'required|date',
             'proposer_id' => 'required|exists:employees,id',
             'implementer_id' => 'nullable|exists:employees,id',
-            'project_id' => 'required|exists:projects,id',
+            'project_id' => 'required',
             'project_name' => 'required|string|max:255',
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => 'nullable', // Bỏ required vì sẽ tự động điền
             'project_address' => 'required|string|max:255',
             'approval_method' => 'required|in:production,warehouse',
             'item_type' => 'required|in:equipment,material,good',
@@ -279,6 +325,16 @@ class ProjectRequestController extends Controller
         // Thêm rules dựa vào loại item được chọn
         $itemType = $request->input('item_type');
         $rules = $baseRules;
+        
+        // Validate thêm cho lắp ráp
+        if ($request->approval_method === 'production') {
+            $rules['implementer_id'] = 'required|exists:employees,id';
+            // Khi chọn "Sản xuất lắp ráp" thì chỉ cho phép "equipment" (thành phẩm)
+            $rules['item_type'] = 'required|in:equipment';
+        } else {
+            // Khi chọn "Xuất kho" thì cho phép cả 3 loại
+            $rules['item_type'] = 'required|in:equipment,material,good';
+        }
         
         switch ($itemType) {
             case 'equipment':
@@ -294,9 +350,9 @@ class ProjectRequestController extends Controller
                 break;
                 
             case 'good':
-                $rules['goods'] = 'required|array|min:1';
-                $rules['goods.*.id'] = 'required|exists:goods,id';
-                $rules['goods.*.quantity'] = 'required|integer|min:1';
+                $rules['good'] = 'required|array|min:1';
+                $rules['good.*.id'] = 'required|exists:goods,id';
+                $rules['good.*.quantity'] = 'required|integer|min:1';
                 break;
         }
         
@@ -308,11 +364,92 @@ class ProjectRequestController extends Controller
                 ->withInput();
         }
         
+        // Kiểm tra thêm xem các item có active và không bị ẩn không
+        $items = [];
+        switch ($itemType) {
+            case 'equipment':
+                $items = $request->input('equipment') ?? [];
+                break;
+            case 'material':
+                $items = $request->input('material') ?? [];
+                break;
+            case 'good':
+                $items = $request->input('good') ?? [];
+                break;
+        }
+        
+        foreach ($items as $item) {
+            if (!isset($item['id'])) continue;
+            
+            $itemExists = false;
+            switch ($itemType) {
+                case 'equipment':
+                    $itemExists = Product::where('status', 'active')
+                        ->where('is_hidden', false)
+                        ->where('id', $item['id'])
+                        ->exists();
+                    break;
+                case 'material':
+                    $itemExists = Material::where('status', 'active')
+                        ->where('is_hidden', false)
+                        ->where('id', $item['id'])
+                        ->exists();
+                    break;
+                case 'good':
+                    $itemExists = Good::where('status', 'active')
+                        ->where('is_hidden', false)
+                        ->where('id', $item['id'])
+                        ->exists();
+                    break;
+            }
+            
+            if (!$itemExists) {
+                return redirect()->back()
+                    ->with('error', 'Item đã chọn không tồn tại hoặc đã bị ẩn.')
+                    ->withInput();
+            }
+        }
+        
         try {
             DB::beginTransaction();
             
-            // Lấy thông tin dự án từ ID
-            $project = Project::with('customer')->findOrFail($request->project_id);
+            // Xử lý project_id để phân biệt project và rental
+            $projectId = $request->project_id;
+            $projectType = null;
+            $actualProjectId = null;
+            
+            if (strpos($projectId, 'project_') === 0) {
+                $projectType = 'project';
+                $actualProjectId = substr($projectId, 8); // Bỏ 'project_' prefix
+            } elseif (strpos($projectId, 'rental_') === 0) {
+                $projectType = 'rental';
+                $actualProjectId = substr($projectId, 7); // Bỏ 'rental_' prefix
+            }
+            
+            // Lấy thông tin dự án/phiếu cho thuê từ ID
+            if ($projectType === 'project') {
+                $project = Project::with('customer')->findOrFail($actualProjectId);
+                
+                // Kiểm tra xem dự án còn hiệu lực bảo hành không
+                if (!$project->has_valid_warranty) {
+                    return redirect()->back()
+                        ->with('error', 'Dự án này đã hết hạn bảo hành và không thể tạo phiếu đề xuất.')
+                        ->withInput();
+                }
+                
+                $customer = $project->customer;
+            } else {
+                $rental = Rental::with('customer')->findOrFail($actualProjectId);
+                
+                // Kiểm tra xem rental còn hiệu lực bảo hành không
+                if (!$rental->has_valid_warranty) {
+                    return redirect()->back()
+                        ->with('error', 'Phiếu cho thuê này đã hết hạn bảo hành và không thể tạo phiếu đề xuất.')
+                        ->withInput();
+                }
+                
+                $customer = $rental->customer;
+            }
             
             // Tạo phiếu đề xuất mới
             $projectRequest = ProjectRequest::create([
@@ -320,14 +457,18 @@ class ProjectRequestController extends Controller
                 'request_date' => $request->request_date,
                 'proposer_id' => $request->proposer_id,
                 'implementer_id' => $request->implementer_id,
+                'assembly_leader_id' => $request->approval_method === 'production' ? $request->proposer_id : null,
+                'tester_id' => $request->approval_method === 'production' ? $request->implementer_id : null,
                 'project_name' => $request->project_name,
-                'customer_id' => $project->customer->id,
+                'customer_id' => $customer->id,
+                'project_id' => $projectType === 'project' ? $actualProjectId : null,
+                'rental_id' => $projectType === 'rental' ? $actualProjectId : null,
                 'project_address' => $request->project_address,
                 'approval_method' => $request->approval_method,
-                'customer_name' => $project->customer->name,
-                'customer_phone' => $project->customer->phone,
-                'customer_email' => $project->customer->email,
-                'customer_address' => $project->customer->address,
+                'customer_name' => $customer->name,
+                'customer_phone' => $customer->phone,
+                'customer_email' => $customer->email,
+                'customer_address' => $customer->address,
                 'notes' => $request->notes,
                 'status' => 'pending',
             ]);
@@ -343,7 +484,7 @@ class ProjectRequestController extends Controller
                     $items = $request->input('material') ?? [];
                     break;
                 case 'good':
-                    $items = $request->input('goods') ?? [];
+                    $items = $request->input('good') ?? [];
                     break;
             }
             
@@ -447,7 +588,7 @@ class ProjectRequestController extends Controller
      */
     public function show($id)
     {
-        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'equipments.equipment', 'materials.materialItem'])->findOrFail($id);
+        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'assembly_leader', 'tester', 'customer', 'equipments.equipment', 'materials.materialItem'])->findOrFail($id);
         
         // Tìm phiếu lắp ráp liên quan nếu có
         $assembly = \App\Models\Assembly::where('notes', 'like', '%phiếu đề xuất dự án #' . $id . '%')
@@ -474,11 +615,25 @@ class ProjectRequestController extends Controller
      */
     public function edit($id)
     {
-        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'equipments', 'materials'])->findOrFail($id);
+        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'items'])->findOrFail($id);
         $customers = Customer::all();
         $employees = Employee::where('is_active', true)->get();
         
-        return view('requests.project.edit', compact('projectRequest', 'customers', 'employees'));
+        // Lấy danh sách thiết bị, vật tư, hàng hóa (chỉ lấy active và không bị ẩn)
+        $equipments = Product::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get();
+        $materials = Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get();
+        $goods = Good::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get();
+        
+        return view('requests.project.edit', compact('projectRequest', 'customers', 'employees', 'equipments', 'materials', 'goods'));
     }
 
     /**
@@ -486,8 +641,8 @@ class ProjectRequestController extends Controller
      */
     public function update(Request $request, $id)
     {
-        // Validation
-        $validator = Validator::make($request->all(), [
+        // Validation cơ bản cho các trường chung
+        $baseRules = [
             'request_date' => 'required|date',
             'project_name' => 'required|string|max:255',
             'project_address' => 'required|string|max:255',
@@ -497,7 +652,41 @@ class ProjectRequestController extends Controller
             'customer_email' => 'nullable|email|max:255',
             'customer_address' => 'required|string|max:255',
             'notes' => 'nullable|string',
-        ], [
+            'item_type' => 'required|in:equipment,material,good',
+        ];
+        
+        // Thêm rules dựa vào loại item được chọn
+        $itemType = $request->input('item_type');
+        $rules = $baseRules;
+        
+        // Validate thêm cho lắp ráp
+        if ($request->approval_method === 'production') {
+            $rules['item_type'] = 'required|in:equipment';
+        } else {
+            $rules['item_type'] = 'required|in:equipment,material,good';
+        }
+        
+        switch ($itemType) {
+            case 'equipment':
+                $rules['equipment'] = 'required|array|min:1';
+                $rules['equipment.*.id'] = 'required|exists:products,id';
+                $rules['equipment.*.quantity'] = 'required|integer|min:1';
+                break;
+                
+            case 'material':
+                $rules['material'] = 'required|array|min:1';
+                $rules['material.*.id'] = 'required|exists:materials,id';
+                $rules['material.*.quantity'] = 'required|integer|min:1';
+                break;
+                
+            case 'good':
+                $rules['good'] = 'required|array|min:1';
+                $rules['good.*.id'] = 'required|exists:goods,id';
+                $rules['good.*.quantity'] = 'required|integer|min:1';
+                break;
+        }
+        
+        $validator = Validator::make($request->all(), $rules, [
             'request_date.required' => 'Ngày đề xuất không được để trống',
             'project_name.required' => 'Tên dự án không được để trống',
             'project_address.required' => 'Địa chỉ dự án không được để trống',
@@ -554,6 +743,60 @@ class ProjectRequestController extends Controller
                 'customer_address' => $request->customer_address,
                 'notes' => $request->notes,
             ]);
+            
+            // Xóa tất cả items cũ
+            $projectRequest->items()->delete();
+            
+            // Lưu danh sách thiết bị/vật tư/hàng hóa đề xuất dựa vào loại item được chọn
+            $items = [];
+            
+            switch ($itemType) {
+                case 'equipment':
+                    $items = $request->input('equipment') ?? [];
+                    break;
+                case 'material':
+                    $items = $request->input('material') ?? [];
+                    break;
+                case 'good':
+                    $items = $request->input('good') ?? [];
+                    break;
+            }
+            
+            foreach ($items as $item) {
+                if (!isset($item['id']) || !isset($item['quantity'])) {
+                    continue;
+                }
+                
+                // Lấy thông tin chi tiết của item dựa vào loại
+                $itemModel = null;
+                $itemData = [
+                    'project_request_id' => $projectRequest->id,
+                    'item_type' => $itemType,
+                    'item_id' => $item['id'],
+                    'quantity' => $item['quantity'],
+                ];
+                
+                switch ($itemType) {
+                    case 'equipment':
+                        $itemModel = Product::find($item['id']);
+                        break;
+                    case 'material':
+                        $itemModel = Material::find($item['id']);
+                        break;
+                    case 'good':
+                        $itemModel = Good::find($item['id']);
+                        break;
+                }
+                
+                if ($itemModel) {
+                    $itemData['name'] = $itemModel->name;
+                    $itemData['code'] = $itemModel->code;
+                    $itemData['unit'] = $itemModel->unit ?? 'N/A';
+                    $itemData['description'] = $itemModel->description;
+                }
+                
+                ProjectRequestItem::create($itemData);
+            }
             
             DB::commit();
 
@@ -666,6 +909,9 @@ class ProjectRequestController extends Controller
                 $dispatch = $this->createDispatchFromRequest($projectRequest);
                 if ($dispatch) {
                     $successMessage .= ' Phiếu xuất kho ' . $dispatch->dispatch_code . ' đã được tạo tự động.';
+                    
+                    // Cập nhật dự án với thiết bị
+                    $this->updateProjectWithItems($projectRequest);
                 }
             }
             
@@ -888,14 +1134,14 @@ class ProjectRequestController extends Controller
             // Tạo phiếu lắp ráp
             $assembly = \App\Models\Assembly::create([
                 'code' => $assemblyCode,
-                'date' => now()->format('Y-m-d'),
+                'date' => now()->format('Y-m-d'), // Ngày lắp ráp = ngày duyệt
                 'warehouse_id' => $defaultWarehouse->id,
                 'target_warehouse_id' => $defaultWarehouse->id,
-                'assigned_employee_id' => $projectRequest->implementer_id,
-                'tester_id' => $projectRequest->implementer_id,
-                'purpose' => 'project',
+                'assigned_employee_id' => $projectRequest->assembly_leader_id, // Người phụ trách lắp ráp
+                'tester_id' => $projectRequest->tester_id, // Người tiếp nhận kiểm thử
+                'purpose' => 'project', // Mục đích: xuất đi dự án
                 'project_id' => null,
-                'status' => 'pending',
+                'status' => 'pending', // Trạng thái: Chờ xử lý
                 'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id . ' - ' . $projectRequest->project_name,
             ]);
 
@@ -914,25 +1160,23 @@ class ProjectRequestController extends Controller
             // Thêm các sản phẩm từ phiếu đề xuất vào phiếu lắp ráp
             $productsAdded = false;
             
-            if ($projectRequest->item_type === 'equipment' && $projectRequest->equipments->count() > 0) {
-                foreach ($projectRequest->equipments as $equipment) {
-                    // Lấy thông tin sản phẩm
-                    $product = null;
-                    
-                    // Kiểm tra nếu có quan hệ equipment được tải
-                    if ($equipment->equipment) {
-                        $product = $equipment->equipment;
-                    } else {
-                        // Nếu không, tìm sản phẩm theo item_id
-                        $product = \App\Models\Product::find($equipment->item_id);
-                    }
+            // Lấy các items từ phiếu đề xuất
+            $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)
+                ->where('item_type', 'equipment')
+                ->get();
+            
+            foreach ($projectRequestItems as $item) {
+                // Lấy thông tin sản phẩm từ item_id (chỉ lấy active và không bị ẩn)
+                $product = \App\Models\Product::where('status', 'active')
+                    ->where('is_hidden', false)
+                    ->find($item->item_id);
                     
                     if ($product) {
                         // Thêm sản phẩm vào phiếu lắp ráp
                         \App\Models\AssemblyProduct::create([
                             'assembly_id' => $assembly->id,
                             'product_id' => $product->id,
-                            'quantity' => $equipment->quantity,
+                        'quantity' => $item->quantity,
                             'serials' => null,
                         ]);
                         
@@ -946,7 +1190,7 @@ class ProjectRequestController extends Controller
                             \App\Models\AssemblyMaterial::create([
                                 'assembly_id' => $assembly->id,
                                 'material_id' => $material->material_id,
-                                'quantity' => $material->quantity * $equipment->quantity, // Số lượng vật tư = số lượng cần cho 1 sản phẩm * số lượng sản phẩm
+                            'quantity' => $material->quantity * $item->quantity, // Số lượng vật tư = số lượng cần cho 1 sản phẩm * số lượng sản phẩm
                                 'serial' => null,
                                 'product_id' => $product->id // Liên kết vật tư với sản phẩm
                             ]);
@@ -957,21 +1201,20 @@ class ProjectRequestController extends Controller
                             'assembly_code' => $assembly->code,
                             'product_id' => $product->id,
                             'product_name' => $product->name,
-                            'quantity' => $equipment->quantity,
+                        'quantity' => $item->quantity,
                             'materials_count' => $productMaterials->count()
                         ]);
                     } else {
                         \Illuminate\Support\Facades\Log::warning('Không tìm thấy sản phẩm', [
-                            'item_id' => $equipment->item_id,
-                            'equipment' => $equipment->toArray()
+                        'item_id' => $item->item_id,
+                        'item' => $item->toArray()
                         ]);
-                    }
                 }
             }
             
             // Nếu không có sản phẩm nào được thêm, thêm sản phẩm mặc định
             if (!$productsAdded) {
-                // Tìm sản phẩm đầu tiên trong hệ thống
+                // Tìm sản phẩm đầu tiên trong hệ thống (chỉ lấy active và không bị ẩn)
                 $defaultProduct = \App\Models\Product::where('status', 'active')
                     ->where('is_hidden', false)
                     ->first();
@@ -1023,20 +1266,86 @@ class ProjectRequestController extends Controller
     private function createDispatchFromRequest($projectRequest)
     {
         // Tạo phiếu xuất kho mới
+        $projectId = $this->getProjectIdFromRequest($projectRequest);
+        
+        // Log để debug project_id
+        Log::info('Project ID from request:', [
+            'original_project_id' => $projectRequest->project_id,
+            'extracted_project_id' => $projectId
+        ]);
+        
+        // Nếu không tìm thấy project_id, thử lấy từ project_name
+        if (!$projectId) {
+            Log::warning('Không tìm thấy project_id, thử tìm từ project_name');
+            
+            // Tìm project theo tên
+            $project = Project::where('project_name', 'like', '%' . $projectRequest->project_name . '%')
+                ->orWhere('project_code', 'like', '%' . $projectRequest->project_name . '%')
+                ->first();
+            
+            if ($project) {
+                $projectId = $project->id;
+                Log::info('Tìm thấy project theo tên:', [
+                    'project_name' => $projectRequest->project_name,
+                    'found_project_id' => $projectId
+                ]);
+            }
+        }
+        
+        // Lấy thông tin customer để mapping đúng
+        $customer = Customer::find($projectRequest->customer_id);
+        
+        // Tìm employee tương ứng với customer (người đại diện)
+        $companyRepresentative = null;
+        if ($customer) {
+            // Tìm employee có tên trùng với customer name hoặc company name
+            $companyRepresentative = Employee::where('name', 'like', '%' . $customer->name . '%')
+                ->orWhere('name', 'like', '%' . $customer->company_name . '%')
+                ->first();
+            
+            // Nếu không tìm thấy, thử tìm từ project
+            if (!$companyRepresentative && $projectId) {
+                $project = Project::find($projectId);
+                if ($project && $project->representative_id) {
+                    $companyRepresentative = Employee::find($project->representative_id);
+                }
+            }
+        }
+        
+        // Log để debug
+        Log::info('Mapping dispatch data:', [
+            'customer_id' => $projectRequest->customer_id,
+            'customer_name' => $customer ? $customer->name : 'N/A',
+            'customer_company' => $customer ? $customer->company_name : 'N/A',
+            'project_id' => $projectId,
+            'company_representative_id' => $companyRepresentative ? $companyRepresentative->id : 'N/A',
+            'company_representative_name' => $companyRepresentative ? $companyRepresentative->name : 'N/A',
+            'project_receiver' => $customer ? $customer->company_name : $projectRequest->project_name
+        ]);
+        
         $dispatch = Dispatch::create([
             'dispatch_code' => 'DISP-' . date('YmdHis'),
-            'dispatch_date' => now(),
-            'dispatch_type' => 'project', // Mặc định là dự án
-            'dispatch_detail' => 'contract', // Mặc định là hợp đồng
+            'dispatch_date' => now(), // Ngày xuất = ngày duyệt
+            'dispatch_type' => 'project', // Loại hình: Dự án
+            'dispatch_detail' => 'contract', // Chi tiết xuất kho: Xuất theo hợp đồng
             'customer_id' => $projectRequest->customer_id,
-            'project_id' => $projectRequest->project_id,
-            'project_receiver' => $projectRequest->project_name, // Thêm trường project_receiver
-            'company_representative_id' => $projectRequest->implementer_id ?? $projectRequest->proposer_id, // Lấy từ người thực hiện hoặc người đề xuất
+            'project_id' => $projectId, // Có thể null nếu là rental
+            'project_receiver' => $customer ? $customer->company_name : $projectRequest->project_name, // Người nhận = tên công ty
+            'company_representative_id' => $companyRepresentative ? $companyRepresentative->id : ($projectRequest->implementer_id ?? $projectRequest->proposer_id), // Người đại diện = employee tương ứng
             'dispatch_note' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
-            'status' => 'pending',
-            'created_by' => Auth::id() ?? 1,
-            'warranty_period' => null, // Có thể lấy từ project nếu cần
-            'rental_id' => null, // Không cần vì là xuất cho dự án
+            'status' => 'pending', // Trạng thái: Chờ xử lý
+            'created_by' => Auth::id() ?? 1, // Người tạo phiếu = người duyệt
+            'warranty_period' => null,
+            'rental_id' => null,
+        ]);
+        
+        // Log kết quả tạo dispatch
+        Log::info('Dispatch created:', [
+            'dispatch_id' => $dispatch->id,
+            'dispatch_code' => $dispatch->dispatch_code,
+            'project_id' => $dispatch->project_id,
+            'customer_id' => $dispatch->customer_id,
+            'project_receiver' => $dispatch->project_receiver
         ]);
 
         // Ghi nhật ký tạo phiếu xuất kho
@@ -1051,7 +1360,7 @@ class ProjectRequestController extends Controller
             );
         }
 
-        // Lấy warehouse mặc định (có thể cần thêm logic để chọn warehouse phù hợp)
+        // Lấy warehouse mặc định
         $defaultWarehouse = Warehouse::query()
             ->where('status', 'active')
             ->where('is_hidden', false)
@@ -1061,8 +1370,11 @@ class ProjectRequestController extends Controller
             throw new \Exception('Không tìm thấy kho mặc định để xuất hàng.');
         }
 
+        // Lấy các items từ phiếu đề xuất
+        $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)->get();
+
         // Lặp qua các items trong phiếu đề xuất và tạo dispatch items tương ứng
-        foreach ($projectRequest->items as $item) {
+            foreach ($projectRequestItems as $item) {
             // Xác định loại item và thêm thông tin tương ứng
             switch ($item->item_type) {
                 case 'equipment':
@@ -1080,20 +1392,208 @@ class ProjectRequestController extends Controller
                 default:
                     throw new \Exception('Loại item không hợp lệ: ' . $item->item_type);
             }
+                
+                // Kiểm tra xem item có tồn tại và active không
+                $itemExists = false;
+                switch ($itemType) {
+                    case 'product':
+                        $itemExists = \App\Models\Product::where('status', 'active')
+                            ->where('is_hidden', false)
+                            ->where('id', $itemId)
+                            ->exists();
+                        break;
+                    case 'material':
+                        $itemExists = \App\Models\Material::where('status', 'active')
+                            ->where('is_hidden', false)
+                            ->where('id', $itemId)
+                            ->exists();
+                        break;
+                    case 'good':
+                        $itemExists = \App\Models\Good::where('status', 'active')
+                            ->where('is_hidden', false)
+                            ->where('id', $itemId)
+                            ->exists();
+                        break;
+                }
+                
+                // Bỏ qua item nếu không tồn tại hoặc bị ẩn
+                if (!$itemExists) {
+                    continue;
+                }
+
+            // Tìm kho có nhiều tồn kho nhất cho loại vật tư này
+            $bestWarehouse = $this->findBestWarehouse($itemType, $itemId);
+            $warehouseId = $bestWarehouse ? $bestWarehouse->id : $defaultWarehouse->id;
 
             // Tạo dispatch item với đầy đủ thông tin
             DispatchItem::create([
                 'dispatch_id' => $dispatch->id,
-                'warehouse_id' => $defaultWarehouse->id,
+                'warehouse_id' => $warehouseId,
                 'item_type' => $itemType,
                 'item_id' => $itemId,
                 'quantity' => $item->quantity,
                 'category' => 'contract', // Mặc định là contract theo yêu cầu
                 'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
-                'serial_numbers' => null // Có thể thêm logic xử lý serial numbers sau
+                'serial_numbers' => null
             ]);
         }
 
         return $dispatch;
+    }
+
+    /**
+     * Tìm kho có nhiều tồn kho nhất cho loại vật tư
+     */
+    private function findBestWarehouse($itemType, $itemId)
+    {
+        // Tìm kho có nhiều tồn kho nhất cho vật tư này
+        $bestWarehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+            ->whereHas('warehouse', function($q) {
+                $q->where('status', 'active')->where('is_hidden', false);
+            })
+            ->orderBy('quantity', 'desc')
+            ->first();
+            
+        if ($bestWarehouseMaterial) {
+            return $bestWarehouseMaterial->warehouse;
+        }
+        
+        // Nếu không tìm thấy trong WarehouseMaterial, trả về kho mặc định
+        $defaultWarehouse = \App\Models\Warehouse::where('status', 'active')
+            ->where('is_hidden', false)
+            ->first();
+            
+        return $defaultWarehouse;
+    }
+
+    /**
+     * Cập nhật dự án với thiết bị từ phiếu đề xuất
+     */
+    private function updateProjectWithItems($projectRequest)
+    {
+        try {
+            // Lấy project_id từ phiếu đề xuất
+            $projectId = $this->getProjectIdFromRequest($projectRequest);
+            
+            if (!$projectId) {
+                Log::warning('Không thể cập nhật dự án: project_id không tìm thấy', [
+                    'project_request_id' => $projectRequest->id,
+                    'original_project_id' => $projectRequest->project_id
+                ]);
+                return;
+            }
+            
+            // Xác định loại (project hoặc rental)
+            $originalProjectId = $projectRequest->project_id;
+            $isRental = strpos($originalProjectId, 'rental_') === 0;
+            
+            // Lấy phiếu xuất kho mới nhất
+            $latestDispatch = Dispatch::where('project_id', $projectId)
+                ->where('dispatch_type', $isRental ? 'rental' : 'project')
+                ->latest()
+                ->first();
+            
+            if (!$latestDispatch) {
+                Log::warning('Không tìm thấy phiếu xuất kho', [
+                    'project_id' => $projectId,
+                    'dispatch_type' => $isRental ? 'rental' : 'project',
+                    'project_request_id' => $projectRequest->id
+                ]);
+                return;
+            }
+            
+            // Lấy các items từ phiếu đề xuất
+            $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)
+                ->where('item_type', 'equipment')
+                ->get();
+            
+            foreach ($projectRequestItems as $item) {
+                // Lấy thông tin sản phẩm (chỉ lấy active và không bị ẩn)
+                $product = \App\Models\Product::where('status', 'active')
+                    ->where('is_hidden', false)
+                    ->find($item->item_id);
+                
+                if ($product) {
+                    // Tìm dispatch item tương ứng
+                    $dispatchItem = \App\Models\DispatchItem::where('dispatch_id', $latestDispatch->id)
+                        ->where('item_type', 'product')
+                        ->where('item_id', $product->id)
+                        ->first();
+                    
+                    if ($dispatchItem) {
+                        // Cập nhật số lượng trong dispatch item
+                        $dispatchItem->update([
+                            'quantity' => $item->quantity,
+                            'notes' => 'Cập nhật từ phiếu đề xuất #' . $projectRequest->id
+                        ]);
+                        
+                        Log::info('Đã cập nhật thiết bị', [
+                            'type' => $isRental ? 'rental' : 'project',
+                            'project_id' => $projectId,
+                            'dispatch_id' => $latestDispatch->id,
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'quantity' => $item->quantity
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi cập nhật dự án với thiết bị: ' . $e->getMessage(), [
+                'project_request_id' => $projectRequest->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Lấy project_id từ phiếu đề xuất
+     */
+    private function getProjectIdFromRequest($projectRequest)
+    {
+        // Kiểm tra xem có project_id hoặc rental_id không
+        if ($projectRequest->project_id) {
+            Log::info('Found project_id in project_request:', [
+                'project_id' => $projectRequest->project_id,
+                'project_name' => $projectRequest->project_name
+            ]);
+            return $projectRequest->project_id;
+        }
+        
+        if ($projectRequest->rental_id) {
+            // Nếu có rental_id, lấy project_id từ rental
+            $rental = Rental::find($projectRequest->rental_id);
+            if ($rental && $rental->project_id) {
+                Log::info('Found project_id from rental:', [
+                    'rental_id' => $projectRequest->rental_id,
+                    'project_id' => $rental->project_id
+                ]);
+                return $rental->project_id;
+            }
+        }
+        
+        // Fallback: thử tìm project theo tên
+        Log::warning('No project_id or rental_id found, trying to find by project_name');
+        $project = Project::where('project_name', 'like', '%' . $projectRequest->project_name . '%')
+            ->orWhere('project_code', 'like', '%' . $projectRequest->project_name . '%')
+            ->first();
+        
+        if ($project) {
+            Log::info('Found project by name:', [
+                'project_name' => $projectRequest->project_name,
+                'found_project_id' => $project->id
+            ]);
+            return $project->id;
+        }
+        
+        Log::warning('No project found for project_request:', [
+            'project_request_id' => $projectRequest->id,
+            'project_name' => $projectRequest->project_name,
+            'project_id' => $projectRequest->project_id,
+            'rental_id' => $projectRequest->rental_id
+        ]);
+        
+        return null;
     }
 } 

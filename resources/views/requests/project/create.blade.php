@@ -45,7 +45,7 @@
                     <input type="date" name="request_date" id="request_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('request_date', date('Y-m-d')) }}">
                 </div>
                 <div>
-                    <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Nhân viên đề xuất</label>
+                    <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required" id="proposer_label">Nhân viên đề xuất</label>
                     <select name="proposer_id" id="proposer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn nhân viên --</option>
                         @foreach($employees ?? [] as $employee)
@@ -56,7 +56,7 @@
                     </select>
                         </div>
                         <div>
-                    <label for="implementer_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
+                    <label for="implementer_id" class="block text-sm font-medium text-gray-700 mb-1" id="implementer_label">Nhân viên thực hiện</label>
                     <select name="implementer_id" id="implementer_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn nhân viên --</option>
                         @foreach($employees ?? [] as $employee)
@@ -71,39 +71,56 @@
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
                     <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
+                    <div class="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-blue-700">
+                        <i class="fas fa-info-circle mr-1"></i> 
+                        <strong>Lưu ý:</strong> Chỉ hiển thị các dự án và phiếu cho thuê còn hiệu lực bảo hành. 
+                        Các dự án/phiếu cho thuê đã hết hạn bảo hành sẽ không được hiển thị trong danh sách này.
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="project_id" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
+                            <label for="project_id" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Phiếu cho thuê</label>
                             <select name="project_id" id="project_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Chọn dự án --</option>
+                                <option value="">-- Chọn dự án / phiếu cho thuê --</option>
+                                <optgroup label="Dự án">
                                 @foreach($projects as $project)
-                                    <option value="{{ $project->id }}" 
+                                        <option value="project_{{ $project->id }}" 
+                                                data-type="project"
                                             data-customer-id="{{ $project->customer->id }}"
                                             data-customer-name="{{ $project->customer->name }}"
                                             data-customer-phone="{{ $project->customer->phone }}"
                                             data-customer-email="{{ $project->customer->email }}" 
                                             data-customer-address="{{ $project->customer->address }}"
-                                            {{ old('project_id') == $project->id ? 'selected' : '' }}>
+                                                data-project-name="{{ $project->project_name }}"
+                                                data-project-address="{{ $project->project_address ?? '' }}"
+                                                {{ old('project_id') == 'project_' . $project->id ? 'selected' : '' }}>
                                         {{ $project->project_name }} ({{ $project->project_code }})
                                     </option>
                                 @endforeach
+                                </optgroup>
+                                <optgroup label="Phiếu cho thuê">
+                                    @foreach($rentals as $rental)
+                                        <option value="rental_{{ $rental->id }}" 
+                                                data-type="rental"
+                                                data-customer-id="{{ $rental->customer->id }}"
+                                                data-customer-name="{{ $rental->customer->name }}"
+                                                data-customer-phone="{{ $rental->customer->phone }}"
+                                                data-customer-email="{{ $rental->customer->email }}" 
+                                                data-customer-address="{{ $rental->customer->address }}"
+                                                data-project-name="{{ $rental->rental_name }}"
+                                                data-project-address="{{ $rental->rental_address ?? '' }}"
+                                                {{ old('project_id') == 'rental_' . $rental->id ? 'selected' : '' }}>
+                                            {{ $rental->rental_name }} ({{ $rental->rental_code }})
+                                        </option>
+                                    @endforeach
+                                </optgroup>
                             </select>
                             <input type="hidden" name="project_name" id="project_name">
+                            <input type="hidden" name="project_type" id="project_type">
                         </div>
                         <div>
-                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
-                    <select name="customer_id" id="customer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">-- Chọn đối tác --</option>
-                                @foreach($customers as $customer)
-                                    <option value="{{ $customer->id }}" 
-                                            data-name="{{ $customer->name }}"
-                                            data-phone="{{ $customer->phone }}"
-                                            data-email="{{ $customer->email }}" 
-                                            data-address="{{ $customer->address }}"
-                                            {{ old('customer_id') == $customer->id ? 'selected' : '' }}>
-                                {{ $customer->company_name }} ({{ $customer->name }})
-                            </option>
-                        @endforeach
+                    <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1">Đối tác</label>
+                    <select name="customer_id" id="customer_id" readonly disabled class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed">
+                        <option value="">-- Đối tác sẽ được tự động điền --</option>
                     </select>
                         </div>
                         <div class="md:col-span-2">
@@ -166,15 +183,15 @@
                 <div class="mb-6 border-b border-gray-200 pb-4">
             <h2 class="text-lg font-semibold text-gray-800 mb-3">Danh mục đề xuất</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div class="flex items-center">
+                <div class="flex items-center" id="equipment_radio">
                     <input type="radio" name="item_type" id="equipment_type" value="equipment" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', 'equipment') == 'equipment' ? 'checked' : '' }}>
-                    <label for="equipment_type" class="ml-2 block text-sm font-medium text-gray-700">Thiết bị</label>
+                    <label for="equipment_type" class="ml-2 block text-sm font-medium text-gray-700">Thành phẩm</label>
                 </div>
-                <div class="flex items-center">
+                <div class="flex items-center" id="material_radio" style="display:none;">
                     <input type="radio" name="item_type" id="material_type" value="material" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type') == 'material' ? 'checked' : '' }}>
                     <label for="material_type" class="ml-2 block text-sm font-medium text-gray-700">Vật tư</label>
                 </div>
-                <div class="flex items-center">
+                <div class="flex items-center" id="good_radio" style="display:none;">
                     <input type="radio" name="item_type" id="good_type" value="good" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type') == 'good' ? 'checked' : '' }}>
                     <label for="good_type" class="ml-2 block text-sm font-medium text-gray-700">Hàng hóa</label>
                 </div>
@@ -332,22 +349,23 @@
     // Xử lý khi chọn dự án
     document.getElementById('project_id').addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
+        const projectType = selectedOption.getAttribute('data-type');
+        const projectId = selectedOption.getAttribute('data-project-id'); // Lấy ID của dự án/phiếu cho thuê
         const customerId = selectedOption.getAttribute('data-customer-id');
         const customerName = selectedOption.getAttribute('data-customer-name');
         const customerPhone = selectedOption.getAttribute('data-customer-phone');
         const customerEmail = selectedOption.getAttribute('data-customer-email');
         const customerAddress = selectedOption.getAttribute('data-customer-address');
+        const projectName = selectedOption.getAttribute('data-project-name');
+        const projectAddress = selectedOption.getAttribute('data-project-address');
         
-        // Cập nhật select box khách hàng
+        // Cập nhật select box khách hàng (disabled)
         const customerSelect = document.getElementById('customer_id');
-        customerSelect.value = customerId;
+        customerSelect.innerHTML = `<option value="${customerId}" selected>${customerName}</option>`;
         
-        // Kích hoạt sự kiện change để hiển thị thông tin khách hàng
-        const event = new Event('change');
-        customerSelect.dispatchEvent(event);
-        
-        // Cập nhật tên dự án
-        document.getElementById('project_name').value = selectedOption.text.split(' (')[0];
+        // Cập nhật tên dự án/phiếu cho thuê
+        document.getElementById('project_name').value = projectName;
+        document.getElementById('project_type').value = projectType;
         
         // Cập nhật các trường thông tin khách hàng
         document.getElementById('customer_name').value = customerName;
@@ -416,10 +434,41 @@
             // Hiển thị thông tin tương ứng
             if (this.value === 'production') {
                 document.getElementById('production_info').classList.remove('hidden');
+                // Chỉ hiển thị radio "Thành phẩm" khi chọn "Sản xuất lắp ráp"
+                document.getElementById('equipment_radio').style.display = 'flex';
+                document.getElementById('material_radio').style.display = 'none';
+                document.getElementById('good_radio').style.display = 'none';
+                // Tự động chọn "Thành phẩm"
+                document.getElementById('equipment_type').checked = true;
+                // Kích hoạt sự kiện change để hiển thị section thành phẩm
+                document.getElementById('equipment_type').dispatchEvent(new Event('change'));
             } else if (this.value === 'warehouse') {
                 document.getElementById('warehouse_info').classList.remove('hidden');
+                // Hiển thị đầy đủ 3 radio khi chọn "Xuất kho"
+                document.getElementById('equipment_radio').style.display = 'flex';
+                document.getElementById('material_radio').style.display = 'flex';
+                document.getElementById('good_radio').style.display = 'flex';
             }
         });
+    });
+    
+    // Khởi tạo trạng thái ban đầu
+    document.addEventListener('DOMContentLoaded', function() {
+        const productionRadio = document.getElementById('production');
+        const warehouseRadio = document.getElementById('warehouse');
+        
+        if (productionRadio.checked) {
+            // Nếu mặc định chọn "Sản xuất lắp ráp"
+            document.getElementById('equipment_radio').style.display = 'flex';
+            document.getElementById('material_radio').style.display = 'none';
+            document.getElementById('good_radio').style.display = 'none';
+            document.getElementById('equipment_type').checked = true;
+        } else if (warehouseRadio.checked) {
+            // Nếu mặc định chọn "Xuất kho"
+            document.getElementById('equipment_radio').style.display = 'flex';
+            document.getElementById('material_radio').style.display = 'flex';
+            document.getElementById('good_radio').style.display = 'flex';
+        }
     });
     
     // Kiểm tra nếu đã có đối tác được chọn khi tải trang
@@ -699,6 +748,109 @@
             handleEquipmentChange(equipmentSelect);
         }
     });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        function updateLabels() {
+            var prod = document.getElementById('production');
+            var proposerLabel = document.getElementById('proposer_label');
+            var implementerLabel = document.getElementById('implementer_label');
+            
+            if (prod.checked) {
+                proposerLabel.innerHTML = 'Người phụ trách lắp ráp <span class="text-danger">*</span>';
+                implementerLabel.innerHTML = 'Người tiếp nhận kiểm thử <span class="text-danger">*</span>';
+                document.getElementById('implementer_id').setAttribute('required', 'required');
+            } else {
+                proposerLabel.innerHTML = 'Người tạo phiếu <span class="text-danger">*</span>';
+                implementerLabel.innerHTML = 'Người nhận phiếu';
+                document.getElementById('implementer_id').removeAttribute('required');
+            }
+        }
+        
+        document.getElementById('production').addEventListener('change', updateLabels);
+        document.getElementById('warehouse').addEventListener('change', updateLabels);
+        updateLabels();
+    });
+
+    // Kiểm tra tồn kho khi chọn item
+    function checkStock(itemType, itemId, selectElement) {
+        if (!itemId) return;
+        
+        fetch(`/api/check-stock/${itemType}/${itemId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.has_stock) {
+                        // Hiển thị thông tin tồn kho
+                        const stockInfo = data.warehouses.map(w => 
+                            `${w.warehouse_name}: ${w.quantity}`
+                        ).join(', ');
+                        
+                        // Tạo thông báo thành công
+                        const successMsg = `✅ Đã chọn thành công: ${data.item_name} (${data.item_code})\n📦 Tổng tồn kho: ${data.total_stock}\n🏢 Kho: ${stockInfo}`;
+                        
+                        // Hiển thị thông báo
+                        showNotification(successMsg, 'success');
+                        
+                        // Thêm class thành công cho select
+                        selectElement.classList.add('border-green-500');
+                        selectElement.classList.remove('border-red-500');
+                    } else {
+                        // Thông báo không đủ tồn kho
+                        const errorMsg = `❌ Không đủ tồn kho cho: ${data.item_name} (${data.item_code})\n📦 Tổng tồn kho: ${data.total_stock}`;
+                        
+                        showNotification(errorMsg, 'error');
+                        
+                        // Reset select và thêm class lỗi
+                        selectElement.value = '';
+                        selectElement.classList.add('border-red-500');
+                        selectElement.classList.remove('border-green-500');
+                    }
+                } else {
+                    showNotification('❌ Lỗi khi kiểm tra tồn kho', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error checking stock:', error);
+                showNotification('❌ Lỗi khi kiểm tra tồn kho', 'error');
+            });
+    }
+    
+    // Hiển thị thông báo
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // Tự động ẩn sau 5 giây
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+    
+    // Thêm event listener cho các select items
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('select[name*="[id]"]')) {
+            const itemType = getItemTypeFromSelect(e.target);
+            const itemId = e.target.value;
+            
+            if (itemId) {
+                checkStock(itemType, itemId, e.target);
+            }
+        }
+    });
+    
+    // Lấy item type từ select
+    function getItemTypeFromSelect(selectElement) {
+        const name = selectElement.name;
+        if (name.includes('equipment')) return 'product';
+        if (name.includes('material')) return 'material';
+        if (name.includes('good')) return 'good';
+        return 'product';
+    }
     </script>
 @endsection
 @endsection 
