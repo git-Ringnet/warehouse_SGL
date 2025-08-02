@@ -44,15 +44,15 @@ class StockController extends Controller
             // Lấy thông tin tồn kho từ WarehouseMaterial
             $warehouseMaterials = WarehouseMaterial::with('warehouse')
                 ->where('material_id', $itemId)
+                ->where('item_type', $itemType)
                 ->where('quantity', '>', 0)
                 ->whereHas('warehouse', function($q) {
                     $q->where('status', 'active')->where('is_hidden', false);
                 })
                 ->get();
             
-            // Nếu không tìm thấy trong WarehouseMaterial, có thể là Product hoặc Good
-            if ($warehouseMaterials->isEmpty() && ($itemType === 'product' || $itemType === 'good')) {
-                // Trả về thông tin item nhưng không có tồn kho
+            // Nếu không tìm thấy trong WarehouseMaterial, trả về thông tin item nhưng không có tồn kho
+            if ($warehouseMaterials->isEmpty()) {
                 return response()->json([
                     'success' => true,
                     'item_name' => $item->name,

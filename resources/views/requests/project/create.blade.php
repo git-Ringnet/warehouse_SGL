@@ -769,6 +769,33 @@
         document.getElementById('production').addEventListener('change', updateLabels);
         document.getElementById('warehouse').addEventListener('change', updateLabels);
         updateLabels();
+        
+        // Thêm event listener cho approval_method để cập nhật kiểm tra tồn kho
+        document.querySelectorAll('input[name="approval_method"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                // Cập nhật lại tất cả các select items đã chọn
+                const selectedItems = document.querySelectorAll('select[name*="[id]"]');
+                selectedItems.forEach(select => {
+                    if (select.value) {
+                        const itemType = getItemTypeFromSelect(select);
+                        const itemId = select.value;
+                        
+                        if (this.value === 'warehouse') {
+                            // Kiểm tra tồn kho khi chuyển sang "Xuất kho"
+                            checkStock(itemType, itemId, select);
+                        } else {
+                            // Chỉ hiển thị thông báo chọn thành công khi chuyển sang "Sản xuất lắp ráp"
+                            const selectedOption = select.options[select.selectedIndex];
+                            if (selectedOption && selectedOption.text !== '-- Chọn thiết bị --' && selectedOption.text !== '-- Chọn vật tư --' && selectedOption.text !== '-- Chọn hàng hóa --') {
+                                showNotification(`✅ Đã chọn thành công: ${selectedOption.text}`, 'success');
+                                select.classList.add('border-green-500');
+                                select.classList.remove('border-red-500');
+                            }
+                        }
+                    }
+                });
+            });
+        });
     });
 
     // Kiểm tra tồn kho khi chọn item
@@ -831,14 +858,25 @@
         }, 5000);
     }
     
-    // Thêm event listener cho các select items
+    // Thêm event listener cho các select items - chỉ kiểm tra tồn kho khi chọn "Xuất kho"
     document.addEventListener('change', function(e) {
         if (e.target.matches('select[name*="[id]"]')) {
             const itemType = getItemTypeFromSelect(e.target);
             const itemId = e.target.value;
             
-            if (itemId) {
+            // Chỉ kiểm tra tồn kho khi chọn "Xuất kho"
+            const approvalMethod = document.querySelector('input[name="approval_method"]:checked');
+            if (approvalMethod && approvalMethod.value === 'warehouse' && itemId) {
                 checkStock(itemType, itemId, e.target);
+            } else if (itemId) {
+                // Nếu không phải "Xuất kho", chỉ hiển thị thông báo chọn thành công
+                const selectElement = e.target;
+                const selectedOption = selectElement.options[selectElement.selectedIndex];
+                if (selectedOption && selectedOption.text !== '-- Chọn thiết bị --' && selectedOption.text !== '-- Chọn vật tư --' && selectedOption.text !== '-- Chọn hàng hóa --') {
+                    showNotification(`✅ Đã chọn thành công: ${selectedOption.text}`, 'success');
+                    selectElement.classList.add('border-green-500');
+                    selectElement.classList.remove('border-red-500');
+                }
             }
         }
     });
