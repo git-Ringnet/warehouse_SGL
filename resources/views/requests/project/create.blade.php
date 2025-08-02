@@ -32,14 +32,10 @@
                 </div>
             </div>
         </div>
-        <script>
-            console.error('❌ Form validation errors:', {!! json_encode($errors->all()) !!});
-            console.error('❌ Old input data:', {!! json_encode(old()) !!});
-        </script>
     @endif
         
-        <form action="{{ route('requests.project.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6" id="projectRequestForm">
-        @csrf
+    <form action="{{ route('requests.project.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
+                @csrf
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
                     <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin đề xuất</h2>
@@ -855,144 +851,6 @@
         if (name.includes('good')) return 'good';
         return 'product';
     }
-    
-    // Debug form submission
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 Form loaded successfully');
-        
-        const form = document.getElementById('projectRequestForm');
-        if (form) {
-            console.log('✅ Form element found:', form);
-            
-            form.addEventListener('submit', function(e) {
-                console.log('📝 Form submission started');
-                
-                // Log form data
-                const formData = new FormData(form);
-                console.log('📋 Form data:');
-                for (let [key, value] of formData.entries()) {
-                    console.log(`  ${key}: ${value}`);
-                }
-                
-                // Validate required fields
-                const requiredFields = [
-                    'request_date',
-                    'proposer_id', 
-                    'project_id',
-                    'project_name',
-                    'project_address',
-                    'approval_method',
-                    'item_type',
-                    'customer_name',
-                    'customer_phone',
-                    'customer_address'
-                ];
-                
-                console.log('🔍 Checking required fields:');
-                let hasErrors = false;
-                
-                requiredFields.forEach(field => {
-                    const element = form.querySelector(`[name="${field}"]`);
-                    if (element) {
-                        const value = element.value.trim();
-                        if (!value) {
-                            console.error(`❌ Missing required field: ${field}`);
-                            hasErrors = true;
-                        } else {
-                            console.log(`✅ ${field}: ${value}`);
-                        }
-                    } else {
-                        console.warn(`⚠️ Field not found: ${field}`);
-                    }
-                });
-                
-                // Check item type and items
-                const itemType = formData.get('item_type');
-                console.log('📦 Item type:', itemType);
-                
-                if (itemType) {
-                    let items = [];
-                    switch (itemType) {
-                        case 'equipment':
-                            items = form.querySelectorAll('select[name*="[id]"][name*="equipment"]');
-                            break;
-                        case 'material':
-                            items = form.querySelectorAll('select[name*="[id]"][name*="material"]');
-                            break;
-                        case 'good':
-                            items = form.querySelectorAll('select[name*="[id]"][name*="good"]');
-                            break;
-                    }
-                    
-                    console.log(`📦 Found ${items.length} ${itemType} items`);
-                    items.forEach((item, index) => {
-                        const itemId = item.value;
-                        const quantityInput = item.closest('.item-row').querySelector('input[name*="[quantity]"]');
-                        const quantity = quantityInput ? quantityInput.value : 'N/A';
-                        console.log(`  Item ${index + 1}: ID=${itemId}, Quantity=${quantity}`);
-                    });
-                }
-                
-                // Check approval method
-                const approvalMethod = formData.get('approval_method');
-                console.log('✅ Approval method:', approvalMethod);
-                
-                if (approvalMethod === 'production') {
-                    const implementerId = formData.get('implementer_id');
-                    console.log('👤 Implementer ID:', implementerId);
-                    if (!implementerId) {
-                        console.error('❌ Implementer ID is required for production method');
-                        hasErrors = true;
-                    }
-                }
-                
-                if (hasErrors) {
-                    console.error('❌ Form validation failed - preventing submission');
-                    e.preventDefault();
-                    alert('Vui lòng kiểm tra lại các trường bắt buộc');
-                    return false;
-                }
-                
-                console.log('✅ Form validation passed - proceeding with submission');
-                
-                // Show loading state
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) {
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý...';
-                }
-                
-                console.log('🚀 Form submitted successfully');
-            });
-        } else {
-            console.error('❌ Form element not found');
-        }
-        
-        // Debug project selection
-        const projectSelect = document.getElementById('project_id');
-        if (projectSelect) {
-            projectSelect.addEventListener('change', function() {
-                console.log('🏗️ Project selected:', this.value);
-                console.log('🏗️ Selected option data:', this.options[this.selectedIndex].dataset);
-            });
-        }
-        
-        // Debug approval method change
-        const approvalMethods = document.querySelectorAll('input[name="approval_method"]');
-        approvalMethods.forEach(method => {
-            method.addEventListener('change', function() {
-                console.log('✅ Approval method changed to:', this.value);
-            });
-        });
-        
-        // Debug item type change
-        const itemTypes = document.querySelectorAll('input[name="item_type"]');
-        itemTypes.forEach(type => {
-            type.addEventListener('change', function() {
-                console.log('📦 Item type changed to:', this.value);
-            });
-        });
-    });
     </script>
 @endsection
 @endsection 
