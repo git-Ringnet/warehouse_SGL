@@ -34,12 +34,20 @@ class MaintenanceRequestController extends Controller
         // Lấy danh sách thành phẩm
         $products = Product::where('status', 'active')->orderBy('name')->get();
         
-        // Lấy các bảo hành còn hiệu lực
-        $warranties = Warranty::with(['dispatch.project', 'dispatch.project.customer'])
+        // Lấy các bảo hành còn hiệu lực (cả dự án và phiếu cho thuê)
+        $warranties = Warranty::with([
+                'dispatch' => function($query) {
+                    $query->with(['project', 'project.customer']);
+                }
+            ])
             ->where('status', 'active')
             ->whereDate('warranty_end_date', '>=', now()) // Chỉ lấy bảo hành chưa hết hạn
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->unique(function ($item) {
+                // Loại bỏ trùng lặp dựa trên dispatch_id và project_id
+                return $item->dispatch_id . '_' . ($item->dispatch->project_id ?? 'null');
+            });
         
         return view('requests.maintenance.create', compact('employees', 'customers', 'products', 'warranties'));
     }
@@ -104,7 +112,7 @@ class MaintenanceRequestController extends Controller
         $validationRules = [
             'request_date' => 'required|date',
             'proposer_id' => 'required|exists:employees,id',
-            'project_name' => 'required|string|max:255',
+            'project_name' => 'nullable|string|max:255', // Bỏ required vì tự động điền
             'customer_id' => 'required|exists:customers,id',
             'maintenance_date' => 'required|date',
             'maintenance_reason' => 'required|string',
@@ -117,8 +125,9 @@ class MaintenanceRequestController extends Controller
         
         // Validation khác nhau phụ thuộc vào việc có warranty_id hay không
         if ($request->filled('warranty_id')) {
-            // Nếu có warranty_id, không bắt buộc phải có products hoặc warranty_items
-            // Chúng ta sẽ tự động lấy các thiết bị từ warranty
+            // Nếu có warranty_id, yêu cầu ít nhất một thiết bị được chọn
+            $validationRules['selected_devices'] = 'required|array|min:1';
+            $validationRules['selected_devices.*'] = 'integer|exists:dispatch_items,id';
         } else {
             // Nếu không có warranty_id, bắt buộc phải có products
             $validationRules['products'] = 'required|array|min:1';
@@ -140,14 +149,14 @@ class MaintenanceRequestController extends Controller
             // Tạo phiếu bảo trì mới
             $maintenanceRequest = MaintenanceRequest::create([
                 'request_code' => MaintenanceRequest::generateRequestCode(),
-                'request_date' => $request->request_date,
+                'request_date' => $request->request_date, // Sử dụng request_date
                 'proposer_id' => $request->proposer_id,
                 'project_name' => $request->project_name,
                 'customer_id' => $request->customer_id,
                 'warranty_id' => $request->warranty_id,
                 'project_address' => $request->customer_address,
                 'maintenance_date' => $request->maintenance_date,
-                'maintenance_type' => $request->maintenance_type ?? 'regular', // Mặc định là regular
+                'maintenance_type' => $request->maintenance_type ?? 'maintenance', // Mặc định là maintenance
                 'maintenance_reason' => $request->maintenance_reason,
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
@@ -157,26 +166,64 @@ class MaintenanceRequestController extends Controller
                 'status' => 'pending',
             ]);
             
-            // Lưu danh sách thành phẩm từ bảo hành hoặc chọn thủ công
+            // Lưu danh sách thiết bị được chọn từ bảo hành
             if ($request->filled('warranty_id')) {
                 // Lấy thông tin warranty
                 $warranty = Warranty::with(['dispatch.items' => function($query) {
                     $query->where('category', 'contract');
-                }, 'dispatch.items.product'])->findOrFail($request->warranty_id);
+                }, 'dispatch.items.product', 'dispatch.items.material', 'dispatch.items.good'])->findOrFail($request->warranty_id);
+                
+                // Lấy các thiết bị được chọn từ form
+                $selectedDevices = $request->input('selected_devices', []);
                 
                 // Lấy các thiết bị từ warranty
                 if ($warranty->dispatch && $warranty->dispatch->items) {
                     foreach ($warranty->dispatch->items as $dispatchItem) {
-                        if ($dispatchItem->item_type == 'product' && $dispatchItem->product) {
-                            MaintenanceRequestProduct::create([
-                                'maintenance_request_id' => $maintenanceRequest->id,
-                                'product_id' => $dispatchItem->product->id,
-                                'product_name' => $dispatchItem->product->name,
-                                'product_code' => $dispatchItem->product->code,
-                                'quantity' => 1,
-                                'unit' => $dispatchItem->product->unit,
-                                'description' => $dispatchItem->product->description
-                            ]);
+                        // Chỉ lưu các thiết bị được chọn
+                        if (in_array($dispatchItem->id, $selectedDevices)) {
+                            $itemDetail = null;
+                            $itemName = '';
+                            $itemCode = '';
+                            $itemType = '';
+                            
+                            switch ($dispatchItem->item_type) {
+                                case 'product':
+                                    if ($dispatchItem->product) {
+                                        $itemDetail = $dispatchItem->product;
+                                        $itemName = $itemDetail->name;
+                                        $itemCode = $itemDetail->code;
+                                        $itemType = 'Thành phẩm';
+                                    }
+                                    break;
+                                case 'material':
+                                    if ($dispatchItem->material) {
+                                        $itemDetail = $dispatchItem->material;
+                                        $itemName = $itemDetail->name;
+                                        $itemCode = $itemDetail->code;
+                                        $itemType = 'Vật tư';
+                                    }
+                                    break;
+                                case 'good':
+                                    if ($dispatchItem->good) {
+                                        $itemDetail = $dispatchItem->good;
+                                        $itemName = $itemDetail->name;
+                                        $itemCode = $itemDetail->code;
+                                        $itemType = 'Hàng hóa';
+                                    }
+                                    break;
+                            }
+                            
+                            if ($itemDetail) {
+                                MaintenanceRequestProduct::create([
+                                    'maintenance_request_id' => $maintenanceRequest->id,
+                                    'product_id' => $dispatchItem->item_id,
+                                    'product_name' => $itemName,
+                                    'product_code' => $itemCode,
+                                    'quantity' => 1,
+                                    'unit' => $itemDetail->unit ?? 'cái',
+                                    'description' => $itemDetail->description ?? ''
+                                ]);
+                            }
                         }
                     }
                 }
@@ -290,9 +337,9 @@ class MaintenanceRequestController extends Controller
         // Validation cơ bản
         $validator = Validator::make($request->all(), [
             'request_date' => 'required|date',
-            'project_name' => 'required|string|max:255',
+            'project_name' => 'nullable|string|max:255', // Bỏ required vì tự động điền
             'maintenance_date' => 'required|date',
-            'maintenance_type' => 'required|in:regular,emergency,preventive',
+            'maintenance_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
             'maintenance_reason' => 'required|string',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
@@ -312,7 +359,7 @@ class MaintenanceRequestController extends Controller
             
             // Cập nhật phiếu bảo trì
             $maintenanceRequest->update([
-                'request_date' => $request->request_date,
+                'request_date' => $request->request_date, // Sử dụng request_date
                 'project_name' => $request->project_name,
                 'project_address' => $request->customer_address,
                 'maintenance_date' => $request->maintenance_date,
@@ -478,17 +525,7 @@ class MaintenanceRequestController extends Controller
         }
         
         // Xác định loại sửa chữa dựa trên loại bảo trì
-        $repairType = 'maintenance';
-        switch ($maintenanceRequest->maintenance_type) {
-            case 'emergency':
-                $repairType = 'repair';
-                break;
-            case 'preventive':
-                $repairType = 'maintenance';
-                break;
-            default:
-                $repairType = 'maintenance';
-        }
+        $repairType = $maintenanceRequest->maintenance_type; // Map trực tiếp với loại bảo trì
         
         // Tìm warehouse mặc định (sử dụng warehouse_id = 1 nếu không tìm thấy)
         $defaultWarehouseId = 1;

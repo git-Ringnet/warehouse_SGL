@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
             $table->string('project_address');
             $table->date('maintenance_date');
-            $table->enum('maintenance_type', ['regular', 'emergency', 'preventive'])->default('regular');
+            $table->enum('maintenance_type', ['maintenance', 'repair', 'replacement', 'upgrade', 'other'])->default('maintenance');
             $table->text('maintenance_reason');
             $table->string('customer_name');
             $table->string('customer_phone');

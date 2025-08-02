@@ -57,8 +57,8 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án bảo trì</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
-                    <input type="text" name="project_name" id="project_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_name', $maintenanceRequest->project_name) }}">
+                    <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1">Tên dự án</label>
+                    <input type="text" name="project_name" id="project_name" readonly class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:outline-none" value="{{ old('project_name', $maintenanceRequest->project_name) }}">
                 </div>
                 <div>
                     <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1">Đối tác</label>
@@ -82,9 +82,11 @@
                 <div>
                     <label for="maintenance_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại bảo trì</label>
                     <select name="maintenance_type" id="maintenance_type" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="regular" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'regular' ? 'selected' : '' }}>Định kỳ</option>
-                        <option value="emergency" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'emergency' ? 'selected' : '' }}>Khẩn cấp</option>
-                        <option value="preventive" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'preventive' ? 'selected' : '' }}>Phòng ngừa</option>
+                        <option value="maintenance" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'maintenance' ? 'selected' : '' }}>Bảo trì định kỳ</option>
+                        <option value="repair" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'repair' ? 'selected' : '' }}>Sửa chữa lỗi</option>
+                        <option value="replacement" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'replacement' ? 'selected' : '' }}>Thay thế linh kiện</option>
+                        <option value="upgrade" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'upgrade' ? 'selected' : '' }}>Nâng cấp</option>
+                        <option value="other" {{ old('maintenance_type', $maintenanceRequest->maintenance_type) == 'other' ? 'selected' : '' }}>Khác</option>
                     </select>
                 </div>
                 <div class="md:col-span-2">

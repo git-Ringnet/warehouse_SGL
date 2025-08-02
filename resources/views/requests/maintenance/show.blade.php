@@ -116,15 +116,25 @@
                 <div>
                     <p class="text-sm text-gray-500">Loại bảo trì</p>
                     <p class="font-medium">
-                        @if($maintenanceRequest->maintenance_type === 'regular')
-                            Định kỳ
-                        @elseif($maintenanceRequest->maintenance_type === 'emergency')
-                            Khẩn cấp
-                        @elseif($maintenanceRequest->maintenance_type === 'preventive')
-                            Phòng ngừa
-                        @else
-                            Không xác định
-                        @endif
+                        @switch($maintenanceRequest->maintenance_type)
+                            @case('maintenance')
+                                Bảo trì định kỳ
+                                @break
+                            @case('repair')
+                                Sửa chữa lỗi
+                                @break
+                            @case('replacement')
+                                Thay thế linh kiện
+                                @break
+                            @case('upgrade')
+                                Nâng cấp
+                                @break
+                            @case('other')
+                                Khác
+                                @break
+                            @default
+                                Không xác định
+                        @endswitch
                     </p>
                 </div>
             </div>

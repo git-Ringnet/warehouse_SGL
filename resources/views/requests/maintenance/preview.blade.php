@@ -57,15 +57,25 @@
                 <div class="excel-cell">{{ $maintenanceRequest->maintenance_date->format('d/m/Y') }}</div>
                 <div class="excel-cell excel-cell-header">Loại bảo trì:</div>
                 <div class="excel-cell">
-                    @if($maintenanceRequest->maintenance_type === 'regular')
-                        Định kỳ
-                    @elseif($maintenanceRequest->maintenance_type === 'emergency')
-                        Khẩn cấp
-                    @elseif($maintenanceRequest->maintenance_type === 'preventive')
-                        Phòng ngừa
-                    @else
-                        Không xác định
-                    @endif
+                    @switch($maintenanceRequest->maintenance_type)
+                        @case('maintenance')
+                            Bảo trì định kỳ
+                            @break
+                        @case('repair')
+                            Sửa chữa lỗi
+                            @break
+                        @case('replacement')
+                            Thay thế linh kiện
+                            @break
+                        @case('upgrade')
+                            Nâng cấp
+                            @break
+                        @case('other')
+                            Khác
+                            @break
+                        @default
+                            Không xác định
+                    @endswitch
                 </div>
             </div>
             <div class="excel-row">

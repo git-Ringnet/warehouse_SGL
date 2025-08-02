@@ -213,6 +213,7 @@ class WarrantyController extends Controller
                     if ($itemDetail) {
                         $items[] = [
                             'id' => $item->id,
+                            'code' => $itemDetail->code ?? '',
                             'name' => $itemName,
                             'type' => $itemType,
                             'serial_number' => $serialNumber
