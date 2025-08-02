@@ -248,6 +248,13 @@ class ProjectRequestController extends Controller
      */
     public function store(Request $request)
     {
+        // Debug logging
+        Log::info('🚀 ProjectRequestController::store started', [
+            'request_data' => $request->all(),
+            'user_id' => Auth::id(),
+            'timestamp' => now()
+        ]);
+        
         // Bật hiển thị lỗi chi tiết
         ini_set('display_errors', 1);
         ini_set('display_startup_errors', 1);
@@ -322,6 +329,12 @@ class ProjectRequestController extends Controller
             'notes' => 'nullable|string',
         ];
         
+        Log::info('📋 Validation rules:', [
+            'base_rules' => $baseRules,
+            'item_type' => $request->input('item_type'),
+            'approval_method' => $request->input('approval_method')
+        ]);
+        
         // Thêm rules dựa vào loại item được chọn
         $itemType = $request->input('item_type');
         $rules = $baseRules;
@@ -358,11 +371,24 @@ class ProjectRequestController extends Controller
         
         $validator = Validator::make($request->all(), $rules);
         
+        Log::info('🔍 Validation result:', [
+            'rules' => $rules,
+            'data' => $request->all(),
+            'passes' => $validator->passes(),
+            'errors' => $validator->errors()->toArray()
+        ]);
+        
         if ($validator->fails()) {
+            Log::error('❌ Validation failed:', [
+                'errors' => $validator->errors()->toArray(),
+                'input' => $request->all()
+            ]);
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
         }
+        
+        Log::info('✅ Validation passed successfully');
         
         // Kiểm tra thêm xem các item có active và không bị ẩn không
         $items = [];
@@ -411,12 +437,18 @@ class ProjectRequestController extends Controller
         }
         
         try {
+            Log::info('💾 Starting database transaction');
             DB::beginTransaction();
             
             // Xử lý project_id để phân biệt project và rental
             $projectId = $request->project_id;
             $projectType = null;
             $actualProjectId = null;
+            
+            Log::info('🏗️ Processing project_id:', [
+                'original_project_id' => $projectId,
+                'project_name' => $request->project_name
+            ]);
             
             if (strpos($projectId, 'project_') === 0) {
                 $projectType = 'project';
@@ -427,11 +459,27 @@ class ProjectRequestController extends Controller
             }
             
             // Lấy thông tin dự án/phiếu cho thuê từ ID
+            Log::info('🔍 Looking up project/rental:', [
+                'project_type' => $projectType,
+                'actual_project_id' => $actualProjectId
+            ]);
+            
             if ($projectType === 'project') {
                 $project = Project::with('customer')->findOrFail($actualProjectId);
                 
+                Log::info('✅ Found project:', [
+                    'project_id' => $project->id,
+                    'project_name' => $project->project_name,
+                    'has_valid_warranty' => $project->has_valid_warranty,
+                    'customer_id' => $project->customer->id ?? null
+                ]);
+                
                 // Kiểm tra xem dự án còn hiệu lực bảo hành không
                 if (!$project->has_valid_warranty) {
+                    Log::warning('❌ Project warranty expired:', [
+                        'project_id' => $project->id,
+                        'project_name' => $project->project_name
+                    ]);
                     return redirect()->back()
                         ->with('error', 'Dự án này đã hết hạn bảo hành và không thể tạo phiếu đề xuất.')
                         ->withInput();
@@ -441,8 +489,19 @@ class ProjectRequestController extends Controller
             } else {
                 $rental = Rental::with('customer')->findOrFail($actualProjectId);
                 
+                Log::info('✅ Found rental:', [
+                    'rental_id' => $rental->id,
+                    'rental_name' => $rental->rental_name,
+                    'has_valid_warranty' => $rental->has_valid_warranty,
+                    'customer_id' => $rental->customer->id ?? null
+                ]);
+                
                 // Kiểm tra xem rental còn hiệu lực bảo hành không
                 if (!$rental->has_valid_warranty) {
+                    Log::warning('❌ Rental warranty expired:', [
+                        'rental_id' => $rental->id,
+                        'rental_name' => $rental->rental_name
+                    ]);
                     return redirect()->back()
                         ->with('error', 'Phiếu cho thuê này đã hết hạn bảo hành và không thể tạo phiếu đề xuất.')
                         ->withInput();
@@ -452,7 +511,7 @@ class ProjectRequestController extends Controller
             }
             
             // Tạo phiếu đề xuất mới
-            $projectRequest = ProjectRequest::create([
+            $requestData = [
                 'request_code' => ProjectRequest::generateRequestCode(),
                 'request_date' => $request->request_date,
                 'proposer_id' => $request->proposer_id,
@@ -471,6 +530,15 @@ class ProjectRequestController extends Controller
                 'customer_address' => $customer->address,
                 'notes' => $request->notes,
                 'status' => 'pending',
+            ];
+            
+            Log::info('📝 Creating ProjectRequest with data:', $requestData);
+            
+            $projectRequest = ProjectRequest::create($requestData);
+            
+            Log::info('✅ ProjectRequest created successfully:', [
+                'id' => $projectRequest->id,
+                'request_code' => $projectRequest->request_code
             ]);
             
             // Lưu danh sách thiết bị/vật tư/hàng hóa đề xuất dựa vào loại item được chọn
@@ -554,6 +622,7 @@ class ProjectRequestController extends Controller
             }
             
             DB::commit();
+            Log::info('✅ Database transaction committed successfully');
             
             // Ghi nhật ký tạo phiếu đề xuất mới
             if (Auth::check()) {
@@ -567,6 +636,12 @@ class ProjectRequestController extends Controller
                 );
             }
             
+            Log::info('🎉 ProjectRequest creation completed successfully', [
+                'project_request_id' => $projectRequest->id,
+                'request_code' => $projectRequest->request_code,
+                'redirect_url' => route('requests.project.show', $projectRequest->id)
+            ]);
+            
             return redirect()->route('requests.project.show', $projectRequest->id)
                 ->with('success', 'Phiếu đề xuất triển khai dự án đã được tạo thành công.');
                 
@@ -574,8 +649,13 @@ class ProjectRequestController extends Controller
             DB::rollBack();
             
             // Log lỗi chi tiết
-            Log::error('Lỗi khi tạo phiếu đề xuất: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
+            Log::error('❌ Error creating project request:', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all()
+            ]);
             
             return redirect()->back()
                 ->with('error', 'Có lỗi xảy ra: ' . $e->getMessage())
