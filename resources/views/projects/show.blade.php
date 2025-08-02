@@ -253,83 +253,77 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @php
-                                use App\Models\DispatchReturn;
-                                $dispatches = \App\Models\Dispatch::where('project_id', $project->id)
-                                    ->where('dispatch_type', 'project')
-                                    ->whereIn('status', ['approved', 'completed'])
-                                    ->get();
-                                $contractItems = collect();
-                                foreach ($dispatches as $dispatch) {
-                                    $items = $dispatch->items()->where('category', 'contract')->get();
-                                    $contractItems = $contractItems->concat($items);
-                                }
-                            @endphp
-                            
-                            @forelse($contractItems as $index => $item)
-                                @php
-                                    $isReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
-                                @endphp
-                                <tr class="hover:bg-gray-50">
-                                    <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
-                                    <td class="py-2 px-4 border-b">
-                                        @if($item->item_type == 'material' && $item->material)
-                                            {{ $item->material->code }}
-                                        @elseif($item->item_type == 'product' && $item->product)
-                                            {{ $item->product->code }}
-                                        @elseif($item->item_type == 'good' && $item->good)
-                                            {{ $item->good->code }}
-                                        @else
-                                            N/A
-                                        @endif
-                                    </td>
-                                    <td class="py-2 px-4 border-b">
-                                        @if($item->item_type == 'material' && $item->material)
-                                            {{ $item->material->name }}
-                                        @elseif($item->item_type == 'product' && $item->product)
-                                            {{ $item->product->name }}
-                                        @elseif($item->item_type == 'good' && $item->good)
-                                            {{ $item->good->name }}
-                                        @else
-                                            N/A
-                                        @endif
-                                    </td>
-                                    <td class="py-2 px-4 border-b">
-                                        @if(is_array($item->serial_numbers) && count($item->serial_numbers) > 0)
-                                            {{ implode(', ', $item->serial_numbers) }}
-                                        @else
-                                            N/A
-                                        @endif
-                                    </td>
-                                    <td class="py-2 px-4 border-b">
-                                            @if($isReplaced)
-                                                <button data-id="{{ $item->id }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
-                                                    <i class="fas fa-exchange-alt"></i>
-                                                    <span>Đã thay thế</span>
-                                                </button>
-                                            @else
-                                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay thế</span>
-                                        @endif
-                                    </td>
-                                    <td class="py-2 px-4 border-b">
-                                        <a href="{{ route('inventory.dispatch.show', $item->dispatch_id) }}" class="text-blue-500 hover:text-blue-700">
-                                            <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
-                                        </a>
-                                    </td>
-                                    <td class="py-2 px-4 border-b">
-                                            <button type="button" data-id="{{ $item->id }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
-                                                <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
-                                            </button>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="7" class="py-4 px-4 border-b text-center text-gray-500">
-                                        Không có thiết bị nào theo hợp đồng
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
+    @forelse($contractItems as $index => $itemData)
+        @php
+            $item = $itemData['dispatch_item'];
+            $dispatch = $itemData['dispatch'];
+            $serialIndex = $itemData['serial_index'];
+            $serialNumber = $itemData['serial_number'];
+            $isReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
+        @endphp
+        <tr class="hover:bg-gray-50">
+            <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
+            <td class="py-2 px-4 border-b">
+                @if($item->item_type == 'material' && $item->material)
+                    {{ $item->material->code }}
+                @elseif($item->item_type == 'product' && $item->product)
+                    {{ $item->product->code }}
+                @elseif($item->item_type == 'good' && $item->good)
+                    {{ $item->good->code }}
+                @else
+                    N/A
+                @endif
+            </td>
+            <td class="py-2 px-4 border-b">
+                @if($item->item_type == 'material' && $item->material)
+                    {{ $item->material->name }}
+                @elseif($item->item_type == 'product' && $item->product)
+                    {{ $item->product->name }}
+                @elseif($item->item_type == 'good' && $item->good)
+                    {{ $item->good->name }}
+                @else
+                    N/A
+                @endif
+            </td>
+            <td class="py-2 px-4 border-b">
+                @if($serialNumber)
+                    {{ $serialNumber }}
+                @else
+                    N/A
+                @endif
+            </td>
+            <td class="py-2 px-4 border-b">
+                <span class="text-sm text-gray-600">{{ $dispatch->dispatch_code }}</span>
+            </td>
+            <td class="py-2 px-4 border-b">
+                @if($isReplaced)
+                    <button data-id="{{ $item->id }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Đã thay thế</span>
+                    </button>
+                @else
+                    <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay thế</span>
+                @endif
+            </td>
+            <td class="py-2 px-4 border-b">
+                <a href="{{ route('inventory.dispatch.show', $item->dispatch_id) }}" class="text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-info-circle mr-1"></i> Xem chi tiết
+                </a>
+            </td>
+            <td class="py-2 px-4 border-b">
+                <button type="button" data-id="{{ $item->id }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
+                </button>
+            </td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="8" class="py-4 px-4 border-b text-center text-gray-500">
+                Không có thiết bị nào theo hợp đồng
+            </td>
+        </tr>
+    @endforelse
+</tbody>
                     </table>
                 </div>
             </div>
@@ -357,11 +351,8 @@
                         </thead>
                         <tbody>
                             @php
-                                $backupItems = collect();
-                                foreach ($dispatches as $dispatch) {
-                                    $items = $dispatch->items()->where('category', 'backup')->get();
-                                    $backupItems = $backupItems->concat($items);
-                                }
+                                use App\Models\DispatchReturn;
+                                use App\Models\DispatchReplacement;
                                 $visibleBackupItems = $backupItems->filter(function($item) {
                                     return !\App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
                                 });

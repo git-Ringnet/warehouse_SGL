@@ -180,6 +180,24 @@ class RentalController extends Controller
             $backupItems = $backupItems->concat($items);
         }
 
+        // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
+        $contractItems = collect();
+        foreach ($dispatches as $dispatch) {
+            $items = $dispatch->items()->where('category', 'contract')->get();
+            
+            foreach ($items as $item) {
+                // Tạo nhiều bản ghi tương ứng với quantity
+                for ($i = 0; $i < $item->quantity; $i++) {
+                    $contractItems->push([
+                        'dispatch_item' => $item,
+                        'dispatch' => $dispatch,
+                        'serial_index' => $i,
+                        'serial_number' => isset($item->serial_numbers[$i]) ? $item->serial_numbers[$i] : null
+                    ]);
+                }
+            }
+        }
+
         // Ghi nhật ký xem chi tiết phiếu cho thuê
         if (Auth::check()) {
             UserLog::logActivity(
@@ -192,7 +210,7 @@ class RentalController extends Controller
             );
         }
         
-        return view('rentals.show', compact('rental', 'warehouses', 'backupItems'));
+        return view('rentals.show', compact('rental', 'warehouses', 'backupItems', 'contractItems'));
     }
 
     /**
