@@ -353,13 +353,18 @@
                             @php
                                 use App\Models\DispatchReturn;
                                 use App\Models\DispatchReplacement;
-                                $visibleBackupItems = $backupItems->filter(function($item) {
+                                $visibleBackupItems = $backupItems->filter(function($itemData) {
+                                    $item = $itemData['dispatch_item'];
                                     return !\App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
                                 });
                             @endphp
                             
-                            @forelse($visibleBackupItems as $index => $item)
+                            @forelse($visibleBackupItems as $index => $itemData)
                                 @php
+                                    $item = $itemData['dispatch_item'];
+                                    $dispatch = $itemData['dispatch'];
+                                    $serialIndex = $itemData['serial_index'];
+                                    $serialNumber = $itemData['serial_number'];
                                     $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
                                 @endphp
                                 <tr class="hover:bg-gray-50">
@@ -387,8 +392,8 @@
                                         @endif
                                     </td>
                                     <td class="py-2 px-4 border-b">
-                                        @if(is_array($item->serial_numbers) && count($item->serial_numbers) > 0)
-                                            {{ implode(', ', $item->serial_numbers) }}
+                                        @if($serialNumber)
+                                            {{ $serialNumber }}
                                         @else
                                             N/A
                                         @endif

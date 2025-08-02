@@ -197,7 +197,18 @@ class ProjectController extends Controller
 
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
-            $backupItems = $backupItems->concat($items);
+            
+            foreach ($items as $item) {
+                // Tạo nhiều bản ghi tương ứng với quantity
+                for ($i = 0; $i < $item->quantity; $i++) {
+                    $backupItems->push([
+                        'dispatch_item' => $item,
+                        'dispatch' => $dispatch,
+                        'serial_index' => $i,
+                        'serial_number' => isset($item->serial_numbers[$i]) ? $item->serial_numbers[$i] : null
+                    ]);
+                }
+            }
         }
 
         // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
@@ -439,8 +450,11 @@ class ProjectController extends Controller
                 // Kiểm tra xem thiết bị đã bị thu hồi chưa
                 $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
                 
-                // Chỉ đếm những thiết bị chưa bị thu hồi
-                if (!$isReturned) {
+                // Kiểm tra xem thiết bị đã được sử dụng trong bảo hành/thay thế chưa
+                $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
+                
+                // Chỉ đếm những thiết bị chưa bị thu hồi VÀ chưa được sử dụng trong bảo hành/thay thế
+                if (!$isReturned && !$isUsed) {
                     $backupItemsCount++;
                 }
             }
