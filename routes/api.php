@@ -29,7 +29,6 @@ Route::get('dispatch/rentals', [App\Http\Controllers\InventoryController::class,
 Route::get('dispatch/item-serials', [App\Http\Controllers\InventoryController::class, 'getItemSerials']);
 
 // Thêm các route cho device codes API
-Route::get('device-codes/{dispatch_id}', [DeviceCodeController::class, 'getByDispatch']);
 Route::post('device-codes/save', [DeviceCodeController::class, 'saveDeviceCodes']);
 Route::post('device-codes/import', [DeviceCodeController::class, 'importFromExcel']);
 Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial');
@@ -62,3 +61,6 @@ Route::get('/warehouse-transfers/get-items-by-warehouse', [App\Http\Controllers\
 
 // API kiểm tra tồn kho
 Route::get('/check-stock/{itemType}/{itemId}', [App\Http\Controllers\Api\StockController::class, 'checkStock']); 
+
+// Device codes route
+Route::get('/device-codes/{dispatchId}', [App\Http\Controllers\Api\DeviceCodeController::class, 'getDeviceCodes']); 

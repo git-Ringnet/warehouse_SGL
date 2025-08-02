@@ -151,13 +151,12 @@ class DeviceCodeController extends Controller
     public function getByDispatch(Request $request, $dispatch_id)
     {
         try {
-            $type = $request->query('type', 'contract'); // Default to contract type
-            
-            $query = DeviceCode::where('dispatch_id', $dispatch_id)
-                              ->where('type', $type);
-            
-            $deviceCodes = $query->get();
-            
+            // Get device codes from device_codes table
+            $deviceCodes = DB::table('device_codes')
+                ->where('dispatch_id', $dispatch_id)
+                ->select('item_id', 'serial_main', 'old_serial', 'product_id', 'item_type')
+                ->get();
+
             return response()->json([
                 'success' => true,
                 'deviceCodes' => $deviceCodes
