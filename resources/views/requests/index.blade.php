@@ -144,6 +144,14 @@
                         </select>
                     </div>
                     <div class="w-full md:w-auto">
+                        <input type="date" name="date_from" placeholder="Từ ngày" value="{{ request('date_from') }}"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="w-full md:w-auto">
+                        <input type="date" name="date_to" placeholder="Đến ngày" value="{{ request('date_to') }}"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="w-full md:w-auto">
                         <select name="status"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">-- Trạng thái --</option>
@@ -152,12 +160,6 @@
                             <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Đã duyệt
                             </option>
                             <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Từ chối
-                            </option>
-                            <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang
-                                thực hiện</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành
-                            </option>
-                            <option value="canceled" {{ request('status') == 'canceled' ? 'selected' : '' }}>Đã hủy
                             </option>
                         </select>
                     </div>
@@ -538,18 +540,14 @@
                     </tbody>
                 </table>
             </div>
-
-            @if (isset($requests) && $requests->hasPages())
-                <div class="px-6 py-4 border-t border-gray-200">
-                    <div class="flex justify-between items-center">
-                        <div class="text-sm text-gray-700">
-                            Hiển thị {{ $requests->firstItem() ?? 0 }} đến {{ $requests->lastItem() ?? 0 }} 
-                            trong tổng số {{ $requests->total() }} phiếu yêu cầu
-                        </div>
-                        {{ $requests->links() }}
-                    </div>
+            <div class="mt-6 flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    Showing {{ $requests->firstItem() ?? 0 }} to {{ $requests->lastItem() ?? 0 }} of {{ $requests->total() ?? 0 }} results
                 </div>
-            @endif
+                <div class="flex space-x-1">
+                    {{ $requests->links() }}
+                </div>
+            </div>
         </div>
     </div>
 

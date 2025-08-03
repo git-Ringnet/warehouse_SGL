@@ -32,6 +32,8 @@ class ProjectRequestController extends Controller
         $search = $request->input('search');
         $filter = $request->input('filter');
         $status = $request->input('status');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
         
         // Query cho phiếu đề xuất triển khai dự án
         $projectQuery = ProjectRequest::with(['proposer', 'customer']);
@@ -112,6 +114,19 @@ class ProjectRequestController extends Controller
             $customerMaintenanceQuery->where('status', $status);
         }
         
+        // Lọc theo ngày tạo phiếu
+        if ($dateFrom) {
+            $projectQuery->whereDate('created_at', '>=', $dateFrom);
+            $maintenanceQuery->whereDate('created_at', '>=', $dateFrom);
+            $customerMaintenanceQuery->whereDate('created_at', '>=', $dateFrom);
+        }
+        
+        if ($dateTo) {
+            $projectQuery->whereDate('created_at', '<=', $dateTo);
+            $maintenanceQuery->whereDate('created_at', '<=', $dateTo);
+            $customerMaintenanceQuery->whereDate('created_at', '<=', $dateTo);
+        }
+        
         // Lấy dữ liệu phiếu đề xuất triển khai dự án
         $projectRequests = $projectQuery->latest()->get();
         
@@ -159,10 +174,12 @@ class ProjectRequestController extends Controller
         $requests->appends([
             'search' => $search,
             'filter' => $filter,
-            'status' => $status
+            'status' => $status,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo
         ]);
         
-        return view('requests.index', compact('requests', 'search', 'filter', 'status'));
+        return view('requests.index', compact('requests', 'search', 'filter', 'status', 'dateFrom', 'dateTo'));
     }
 
     /**
