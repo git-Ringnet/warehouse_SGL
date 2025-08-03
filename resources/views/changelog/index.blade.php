@@ -60,7 +60,15 @@
                             <select name="change_type" id="change_type"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Tất cả</option>
-                                @foreach (\App\Models\ChangeLog::CHANGE_TYPES as $key => $label)
+                                @php
+                                    $filterTypes = [
+                                        'xuat_kho' => 'Xuất kho',
+                                        'thu_hoi' => 'Thu hồi',
+                                        'nhap_kho' => 'Nhập kho',
+                                        'chuyen_kho' => 'Chuyển kho'
+                                    ];
+                                @endphp
+                                @foreach ($filterTypes as $key => $label)
                                     <option value="{{ $key }}"
                                         {{ request('change_type') == $key ? 'selected' : '' }}>
                                         {{ $label }}

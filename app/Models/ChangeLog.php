@@ -32,9 +32,7 @@ class ChangeLog extends Model
 
     // Constants for change types
     const CHANGE_TYPES = [
-        'lap_rap' => 'Lắp ráp',
         'xuat_kho' => 'Xuất kho',
-        'sua_chua' => 'Sửa chữa',
         'thu_hoi' => 'Thu hồi',
         'nhap_kho' => 'Nhập kho',
         'chuyen_kho' => 'Chuyển kho'

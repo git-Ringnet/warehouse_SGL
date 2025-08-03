@@ -183,7 +183,9 @@
 
                                             @if (
                                                 !in_array($dispatch->status, ['completed', 'cancelled']) &&
-                                                    ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.edit'))))
+                                                    ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.edit'))) &&
+                                                    !str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp') &&
+                                                    !str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu sửa chữa'))
                                         <a href="{{ route('inventory.dispatch.edit', $dispatch->id) }}">
                                             <button
                                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"

@@ -139,7 +139,7 @@
                                             <span class="text-gray-400">N/A</span>
                                         @endif
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <td class="px-6 py-4 text-sm text-gray-500">
                                         {{ $repair->warranty && $repair->warranty->customer_name ? $repair->warranty->customer_name : 'N/A' }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">

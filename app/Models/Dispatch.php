@@ -75,11 +75,11 @@ class Dispatch extends Model
     }
 
     /**
-     * Get the user who approved this dispatch.
+     * Get the employee who approved this dispatch.
      */
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(Employee::class, 'approved_by');
     }
 
     /**

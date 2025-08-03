@@ -23,12 +23,15 @@ class ChangeLogHelper
     }
 
     /**
-     * Log lắp ráp
+     * Log lắp ráp - ĐÃ BỊ VÔ HIỆU HÓA
+     * Thay thế bằng xuất kho với phiếu xuất kho
      */
+    /*
     public static function lapRap($itemCode, $itemName, $quantity, $assemblyCode, $description = null, $detailedInfo = [], $notes = null)
     {
         return ChangeLogController::logAssembly($itemCode, $itemName, $quantity, $assemblyCode, $description, $detailedInfo, $notes);
     }
+    */
 
     /**
      * Log sửa chữa

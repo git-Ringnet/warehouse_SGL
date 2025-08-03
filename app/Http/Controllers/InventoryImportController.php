@@ -197,8 +197,8 @@ class InventoryImportController extends Controller
             ->all();    // Convert to array
 
         // Log để debug
-        \Log::info('Materials:', ['data' => $materials]);
-        \Log::info('Goods:', ['data' => $goods]);
+        Log::info('Materials:', ['data' => $materials]);
+        Log::info('Goods:', ['data' => $goods]);
         
         // Tạo mã phiếu nhập tự động
         $generated_import_code = $this->generateImportCode();
@@ -415,25 +415,6 @@ class InventoryImportController extends Controller
                     'item_type' => $itemType,
                 ]);
 
-                //Lưu nhật ký thay đổi
-                if ($itemType == 'material') {
-                    $materialLS = Material::find($itemId);
-                } else if ($itemType == 'good') {
-                    $materialLS = Good::find($itemId);
-                }
-
-                // Lấy thông tin nhà cung cấp để đưa vào description
-                $supplier = \App\Models\Supplier::find($inventoryImport->supplier_id);
-                $supplierName = $supplier ? $supplier->name : 'Không xác định';
-
-                ChangeLogHelper::nhapKho(
-                    $materialLS->code,
-                    $materialLS->name,
-                    $material['quantity'],
-                    $inventoryImport->import_code,
-                    $supplierName,
-                    $material['notes']
-                );
             }
 
             DB::commit();
@@ -907,6 +888,31 @@ class InventoryImportController extends Controller
                             'warehouse_id' => $material->warehouse_id,
                         ]);
                     }
+                }
+
+                // Lưu nhật ký thay đổi khi phiếu được duyệt
+                $itemType = $material->item_type;
+                $itemId = $material->material_id;
+
+                if ($itemType == 'material') {
+                    $materialLS = Material::find($itemId);
+                } else if ($itemType == 'good') {
+                    $materialLS = Good::find($itemId);
+                }
+
+                if ($materialLS) {
+                    // Lấy thông tin kho nhập để đưa vào description
+                    $warehouse = \App\Models\Warehouse::find($material->warehouse_id);
+                    $warehouseName = $warehouse ? $warehouse->name : 'Không xác định';
+
+                    ChangeLogHelper::nhapKho(
+                        $materialLS->code,
+                        $materialLS->name,
+                        $material->quantity,
+                        $inventoryImport->import_code,
+                        $warehouseName,
+                        $material->notes
+                    );
                 }
             }
             

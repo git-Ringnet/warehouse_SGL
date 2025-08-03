@@ -8,6 +8,7 @@
     <title>SGL - Hệ thống quản lý kho</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ asset('js/time-range-filter.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -39,11 +40,10 @@
                     <div class="relative">
                         <select id="timeRangeSelect"
                             class="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="today">Theo ngày</option>
+                            <option value="day">Theo ngày</option>
                             <option value="week">Theo tuần</option>
                             <option value="month" selected>Theo tháng</option>
                             <option value="year">Theo năm</option>
-                            <option value="custom">Tùy chỉnh</option>
                         </select>
                         <div
                             class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
@@ -55,37 +55,41 @@
                     <div id="dateInputs" class="flex space-x-2">
                         <!-- Single day picker - for "Theo ngày" -->
                         <div id="dayInput" class="hidden">
-                            <input type="date" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <div class="flex items-center space-x-2">
+                                <input type="date" id="dayStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <span class="text-gray-500 dark:text-gray-400">đến</span>
+                                <input type="date" id="dayEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
                         </div>
                         
                         <!-- Week picker - for "Theo tuần" -->
                         <div id="weekInput" class="hidden">
-                            <input type="week" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <div class="flex items-center space-x-2">
+                                <input type="date" id="weekStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <span class="text-gray-500 dark:text-gray-400">đến</span>
+                                <input type="date" id="weekEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
                         </div>
                         
                         <!-- Month picker - for "Theo tháng" -->
                         <div id="monthInput" class="flex space-x-2">
-                            <input type="month" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            <div class="flex items-center space-x-2">
+                                <input type="date" id="monthStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <span class="text-gray-500 dark:text-gray-400">đến</span>
+                                <input type="date" id="monthEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
                         </div>
                         
                         <!-- Year picker - for "Theo năm" -->
                         <div id="yearInput" class="hidden">
-                            <select class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="2023" selected>2023</option>
-                                <option value="2022">2022</option>
-                                <option value="2021">2021</option>
-                                <option value="2020">2020</option>
-                            </select>
-                        </div>
-                        
-                        <!-- Date range picker - for "Tùy chỉnh" -->
-                        <div id="customRangeInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" placeholder="Từ ngày" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="yearStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" placeholder="Đến ngày" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="yearEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
+                        
+
                     </div>
                 </div>
             </div>
@@ -645,6 +649,40 @@
     </div>
 
     <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            
+            // Update current time
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            
+            // Initialize charts
+            if (typeof initCharts === 'function') {
+                window.chartInstances = initCharts();
+            }
+            
+            // Thêm event listener cho các trường ngày để tự động cập nhật biểu đồ
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            dateInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    // Tự động cập nhật biểu đồ khi thay đổi ngày
+                    setTimeout(() => {
+                        if (window.chartInstances && window.chartInstances.inventoryOverviewChart) {
+                            updateInventoryOverviewChart('materials', window.chartInstances);
+                        }
+                    }, 100);
+                });
+            });
+            
+            // Thêm event listener cho advanced filter button nếu tồn tại
+            const advancedFilterBtn = document.getElementById('advancedFilterBtn');
+            const advancedFilterPanel = document.getElementById('advancedFilterPanel');
+            if (advancedFilterBtn && advancedFilterPanel) {
+                advancedFilterBtn.addEventListener('click', function() {
+                    advancedFilterPanel.classList.toggle('hidden');
+                });
+            }
+        });
+
         // Update current time
         function updateCurrentTime() {
             const now = new Date();
@@ -1104,11 +1142,10 @@
             document.getElementById('weekInput').classList.add('hidden');
             document.getElementById('monthInput').classList.add('hidden');
             document.getElementById('yearInput').classList.add('hidden');
-            document.getElementById('customRangeInput').classList.add('hidden');
             
             // Show the selected input
             switch(selectedValue) {
-                case 'today':
+                case 'day':
                     document.getElementById('dayInput').classList.remove('hidden');
                     break;
                 case 'week':
@@ -1119,9 +1156,6 @@
                     break;
                 case 'year':
                     document.getElementById('yearInput').classList.remove('hidden');
-                    break;
-                case 'custom':
-                    document.getElementById('customRangeInput').classList.remove('hidden');
                     break;
             }
 
@@ -1544,11 +1578,11 @@
             document.getElementById('weekInput').classList.add('hidden');
             document.getElementById('monthInput').classList.add('hidden');
             document.getElementById('yearInput').classList.add('hidden');
-            document.getElementById('customRangeInput').classList.add('hidden');
+
             
             // Show the selected input
             switch(selectedValue) {
-                case 'today':
+                case 'day':
                     document.getElementById('dayInput').classList.remove('hidden');
                     break;
                 case 'week':
@@ -1560,42 +1594,170 @@
                 case 'year':
                     document.getElementById('yearInput').classList.remove('hidden');
                     break;
-                case 'custom':
-                    document.getElementById('customRangeInput').classList.remove('hidden');
-                    break;
+
             }
             
-            // Set default values to current date/month/year
+            // Set default values to current date
             const now = new Date();
             const currentYear = now.getFullYear();
             const currentMonth = now.getMonth() + 1;
             const formattedMonth = currentMonth < 10 ? `0${currentMonth}` : currentMonth;
             const currentDay = now.getDate();
             const formattedDay = currentDay < 10 ? `0${currentDay}` : currentDay;
+            const today = `${currentYear}-${formattedMonth}-${formattedDay}`;
             
-            // Set default date
-            const dateInputs = document.querySelectorAll('input[type="date"]');
-            dateInputs.forEach(input => {
-                input.value = `${currentYear}-${formattedMonth}-${formattedDay}`;
-            });
+            // Set default values for all date inputs
+            setDefaultDateRanges(today);
             
-            // Set default month
-            const monthInputs = document.querySelectorAll('input[type="month"]');
-            monthInputs.forEach(input => {
-                input.value = `${currentYear}-${formattedMonth}`;
-            });
-            
-            // Set default week
-            const weekInputs = document.querySelectorAll('input[type="week"]');
-            weekInputs.forEach(input => {
-                // Get the week number
-                const firstDayOfYear = new Date(currentYear, 0, 1);
-                const pastDaysOfYear = (now - firstDayOfYear) / 86400000;
-                const currentWeek = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-                const formattedWeek = currentWeek < 10 ? `0${currentWeek}` : currentWeek;
-                input.value = `${currentYear}-W${formattedWeek}`;
+            // Add event listener for time range selection change
+            timeRangeSelect.addEventListener('change', function() {
+                const selectedValue = this.value;
+                
+                // Hide all inputs first
+                document.getElementById('dayInput').classList.add('hidden');
+                document.getElementById('weekInput').classList.add('hidden');
+                document.getElementById('monthInput').classList.add('hidden');
+                document.getElementById('yearInput').classList.add('hidden');
+                
+                // Show the selected input
+                switch(selectedValue) {
+                    case 'day':
+                        document.getElementById('dayInput').classList.remove('hidden');
+                        break;
+                    case 'week':
+                        document.getElementById('weekInput').classList.remove('hidden');
+                        break;
+                    case 'month':
+                        document.getElementById('monthInput').classList.remove('hidden');
+                        break;
+                    case 'year':
+                        document.getElementById('yearInput').classList.remove('hidden');
+                        break;
+                }
+                
+                // Update date ranges based on selection
+                setDefaultDateRanges(today);
+                
+                // Tự động cập nhật biểu đồ khi thay đổi loại thời gian
+                setTimeout(() => {
+                    if (window.chartInstances && window.chartInstances.inventoryOverviewChart) {
+                        updateInventoryOverviewChart('materials', window.chartInstances);
+                    }
+                }, 100);
             });
         });
+
+        // Function to set default date ranges based on time range type
+        function setDefaultDateRanges(today) {
+            const timeRangeSelect = document.getElementById("timeRangeSelect");
+            const selectedValue = timeRangeSelect.value;
+            
+            switch(selectedValue) {
+                case 'day':
+                    // For day range, set both start and end to today
+                    document.getElementById('dayStartDate').value = today;
+                    document.getElementById('dayEndDate').value = today;
+                    break;
+                    
+                case 'week':
+                    // For week range, set to current week
+                    const weekStart = getWeekStart(today);
+                    const weekEnd = getWeekEnd(today);
+                    document.getElementById('weekStartDate').value = weekStart;
+                    document.getElementById('weekEndDate').value = weekEnd;
+                    break;
+                    
+                case 'month':
+                    // For month range, set to current month
+                    const monthStart = getMonthStart(today);
+                    const monthEnd = getMonthEnd(today);
+                    document.getElementById('monthStartDate').value = monthStart;
+                    document.getElementById('monthEndDate').value = monthEnd;
+                    break;
+                    
+                case 'year':
+                    // For year range, set to current year
+                    const yearStart = getYearStart(today);
+                    const yearEnd = getYearEnd(today);
+                    document.getElementById('yearStartDate').value = yearStart;
+                    document.getElementById('yearEndDate').value = yearEnd;
+                    break;
+                    
+
+            }
+        }
+
+        // Helper functions to calculate date ranges
+        function getWeekStart(dateString) {
+            const date = new Date(dateString);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+            const monday = new Date(date.setDate(diff));
+            return monday.toISOString().split('T')[0];
+        }
+
+        function getWeekEnd(dateString) {
+            const date = new Date(dateString);
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? 0 : 7); // Adjust when day is Sunday
+            const sunday = new Date(date.setDate(diff));
+            return sunday.toISOString().split('T')[0];
+        }
+
+        function getMonthStart(dateString) {
+            const date = new Date(dateString);
+            return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+        }
+
+        function getMonthEnd(dateString) {
+            const date = new Date(dateString);
+            return new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+        }
+
+        function getYearStart(dateString) {
+            const date = new Date(dateString);
+            return new Date(date.getFullYear(), 0, 1).toISOString().split('T')[0];
+        }
+
+        function getYearEnd(dateString) {
+            const date = new Date(dateString);
+            return new Date(date.getFullYear(), 11, 31).toISOString().split('T')[0];
+        }
+
+        // Function to get current date range based on selection
+        function getCurrentDateRange() {
+            const timeRangeSelect = document.getElementById("timeRangeSelect");
+            const selectedValue = timeRangeSelect.value;
+            
+            switch(selectedValue) {
+                case 'day':
+                    return {
+                        start: document.getElementById('dayStartDate').value,
+                        end: document.getElementById('dayEndDate').value
+                    };
+                case 'week':
+                    return {
+                        start: document.getElementById('weekStartDate').value,
+                        end: document.getElementById('weekEndDate').value
+                    };
+                case 'month':
+                    return {
+                        start: document.getElementById('monthStartDate').value,
+                        end: document.getElementById('monthEndDate').value
+                    };
+                case 'year':
+                    return {
+                        start: document.getElementById('yearStartDate').value,
+                        end: document.getElementById('yearEndDate').value
+                    };
+
+                default:
+                    return {
+                        start: document.getElementById('monthStartDate').value,
+                        end: document.getElementById('monthEndDate').value
+                    };
+            }
+        }
 
         // Add this function to update statistics
         function updateStatistics() {
@@ -1646,8 +1808,44 @@
             toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ...</span></div>';
             toast.classList.remove("hidden");
             
+            // Lấy thông tin thời gian từ bộ tìm kiếm
+            const timeRangeSelect = document.getElementById("timeRangeSelect");
+            const timeRangeType = timeRangeSelect ? timeRangeSelect.value : 'month';
+            
+            let startDate = '';
+            let endDate = '';
+            
+            // Lấy ngày bắt đầu và kết thúc dựa trên loại tìm kiếm
+            switch(timeRangeType) {
+                case 'day':
+                    startDate = document.getElementById('dayStartDate')?.value || '';
+                    endDate = document.getElementById('dayEndDate')?.value || '';
+                    break;
+                case 'week':
+                    startDate = document.getElementById('weekStartDate')?.value || '';
+                    endDate = document.getElementById('weekEndDate')?.value || '';
+                    break;
+                case 'month':
+                    startDate = document.getElementById('monthStartDate')?.value || '';
+                    endDate = document.getElementById('monthEndDate')?.value || '';
+                    break;
+                case 'year':
+                    startDate = document.getElementById('yearStartDate')?.value || '';
+                    endDate = document.getElementById('yearEndDate')?.value || '';
+                    break;
+            }
+            
+            // Tạo URL với tham số
+            const params = new URLSearchParams({
+                category: category,
+                time_range_type: timeRangeType
+            });
+            
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            
             // Gọi API để lấy dữ liệu
-            fetch(`/dashboard/inventory-overview-chart?category=${category}`)
+            fetch(`/dashboard/inventory-overview-chart?${params.toString()}`)
                 .then(response => {
                     console.log('API response received:', response.status);
                     return response.json();
@@ -1672,6 +1870,15 @@
                             title = 'Hàng Hóa';
                             break;
                     }
+                    
+                    // Thêm thông tin thời gian vào tiêu đề
+                    const timeRangeLabels = {
+                        'day': 'Theo ngày',
+                        'week': 'Theo tuần',
+                        'month': 'Theo tháng',
+                        'year': 'Theo năm'
+                    };
+                    title += ` - ${timeRangeLabels[timeRangeType] || 'Theo tháng'}`;
                     
                     charts.inventoryOverviewChart.options.plugins.title.text = title;
                     charts.inventoryOverviewChart.update();
@@ -2038,12 +2245,12 @@
             oldSearchButton.addEventListener('click', handleSearch);
             
             // Lấy danh sách kho để hiển thị trong bộ lọc
-            fetch('/api/warehouses/search')
+            fetch('/warehouses/api-search')
                 .then(response => response.json())
-                .then(data => {
+                .then(response => {
                     const filterWarehouse = document.getElementById('filterWarehouse');
-                    if (filterWarehouse) {
-                        data.forEach(warehouse => {
+                    if (filterWarehouse && response.success && response.data && response.data.warehouses) {
+                        response.data.warehouses.forEach(warehouse => {
                             const option = document.createElement('option');
                             option.value = warehouse.id;
                             option.textContent = warehouse.name;
@@ -2056,12 +2263,15 @@
                 });
             
             // Hiển thị/ẩn bộ lọc nâng cao
-            advancedFilterBtn.addEventListener('click', function() {
-                advancedFilterPanel.classList.toggle('hidden');
-            });
+            if (advancedFilterBtn && advancedFilterPanel) {
+                advancedFilterBtn.addEventListener('click', function() {
+                    advancedFilterPanel.classList.toggle('hidden');
+                });
+            }
             
             // Đặt lại bộ lọc
-            resetFiltersBtn.addEventListener('click', function() {
+            if (resetFiltersBtn) {
+                resetFiltersBtn.addEventListener('click', function() {
                 document.getElementById('filterWarehouse').value = '';
                 document.getElementById('filterStatus').value = '';
                 document.getElementById('filterDateRange').value = '';
@@ -2075,10 +2285,12 @@
                 document.getElementById('materialFilters').classList.add('hidden');
                 document.getElementById('productFilters').classList.add('hidden');
                 document.getElementById('projectFilters').classList.add('hidden');
-            });
+                });
+            }
             
             // Hiển thị bộ lọc theo loại khi chọn loại tìm kiếm
-            searchCategory.addEventListener('change', function() {
+            if (searchCategory) {
+                searchCategory.addEventListener('change', function() {
                 const category = this.value;
                 
                 // Ẩn tất cả các bộ lọc theo loại
@@ -2098,7 +2310,8 @@
                         document.getElementById('projectFilters').classList.remove('hidden');
                         break;
                 }
-            });
+                });
+            }
             
             // Xử lý tìm kiếm
             function performSearch() {
@@ -2450,59 +2663,75 @@
                 }
                 
                 // Hiển thị modal
-                const itemDetailsModal = document.getElementById('itemDetailsModal');
                 const closeModal = document.getElementById('closeModal');
                 
-                if (itemDetailsModal && closeModal) {
-                    // Hiển thị modal
-                    itemDetailsModal.classList.remove('hidden');
-                    
-                    // Xử lý sự kiện đóng modal
-                    const closeModalHandler = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        itemDetailsModal.classList.add('hidden');
-                        // Gỡ bỏ event listener sau khi đóng
-                        closeModal.removeEventListener('click', closeModalHandler);
-                    };
-                    
-                    // Thêm event listener cho nút đóng
-                    closeModal.addEventListener('click', closeModalHandler);
-                    
-                    // Xử lý đóng modal khi click bên ngoài
-                    const outsideClickHandler = function(e) {
-                        if (e.target === itemDetailsModal) {
-                            itemDetailsModal.classList.add('hidden');
+                if (closeModal) {
+                    // Lấy modal element
+                    const modalElement = document.getElementById('itemDetailsModal');
+                    if (modalElement) {
+                        // Hiển thị modal
+                        modalElement.classList.remove('hidden');
+                        
+                        // Xử lý sự kiện đóng modal
+                        const closeModalHandler = function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            modalElement.classList.add('hidden');
                             // Gỡ bỏ event listener sau khi đóng
-                            itemDetailsModal.removeEventListener('click', outsideClickHandler);
-                        }
-                    };
-                    
-                    // Thêm event listener cho click bên ngoài
-                    itemDetailsModal.addEventListener('click', outsideClickHandler);
+                            closeModal.removeEventListener('click', closeModalHandler);
+                        };
+                        
+                        // Thêm event listener cho nút đóng
+                        closeModal.addEventListener('click', closeModalHandler);
+                        
+                        // Xử lý đóng modal khi click bên ngoài
+                        const outsideClickHandler = function(e) {
+                            if (e.target === modalElement) {
+                                modalElement.classList.add('hidden');
+                                // Gỡ bỏ event listener sau khi đóng
+                                modalElement.removeEventListener('click', outsideClickHandler);
+                            }
+                        };
+                        
+                        // Thêm event listener cho click bên ngoài
+                        modalElement.addEventListener('click', outsideClickHandler);
+                    }
                 }
             }
             
-            // Đóng modal
-            closeModal.addEventListener('click', function() {
-                itemDetailsModal.classList.add('hidden');
-            });
+            // Đóng kết quả tìm kiếm
             
-            // Đóng modal khi click bên ngoài
-            itemDetailsModal.addEventListener('click', function(e) {
-                if (e.target === itemDetailsModal) {
-                    itemDetailsModal.classList.add('hidden');
+            // Thêm event listener cho modal nếu chưa có
+            const existingCloseModal = document.getElementById('closeModal');
+            const existingItemDetailsModal = document.getElementById('itemDetailsModal');
+            
+            if (existingCloseModal && existingItemDetailsModal) {
+                // Kiểm tra xem đã có event listener chưa
+                const hasEventListener = existingCloseModal.onclick !== null;
+                if (!hasEventListener) {
+                    existingCloseModal.addEventListener('click', function() {
+                        existingItemDetailsModal.classList.add('hidden');
+                    });
+                    
+                    // Đóng modal khi click bên ngoài
+                    existingItemDetailsModal.addEventListener('click', function(e) {
+                        if (e.target === existingItemDetailsModal) {
+                            existingItemDetailsModal.classList.add('hidden');
+                        }
+                    });
                 }
-            });
+            }
             
             // Đóng kết quả tìm kiếm
-            closeResults.addEventListener('click', function() {
-                searchResults.classList.add('hidden');
-            });
+            const existingCloseResults = document.getElementById('closeResults');
+            const existingSearchResults = document.getElementById('searchResults');
+            if (existingCloseResults && existingSearchResults) {
+                existingCloseResults.addEventListener('click', function() {
+                    existingSearchResults.classList.add('hidden');
+                });
+            }
         });
         
-        // Initialize all charts and store references
-        // ... existing code ...
     </script>
 </body>
 

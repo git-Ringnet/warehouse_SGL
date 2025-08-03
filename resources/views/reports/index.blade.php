@@ -230,7 +230,7 @@
                         <tbody class="divide-y divide-gray-200">
                             @forelse($reportData as $index => $item)
                             <tr class="hover:bg-gray-50">
-                                <td class="py-3 px-4 text-sm text-gray-900">{{ $index + 1 }}</td>
+                                <td class="py-3 px-4 text-sm text-gray-900">{{ $loop->index + 1 }}</td>
                                 <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ $item['item_code'] }}</td>
                                 <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_name'] }}</td>
                                 <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_unit'] }}</td>
@@ -402,8 +402,19 @@
                 console.log('Response data:', data); // Debug log
                 
                 if (data.success) {
+                    // Lưu thông tin sắp xếp hiện tại trước khi cập nhật DOM
+                    const currentSort = getCurrentSortInfo();
+                    
                     // Cập nhật bảng
                     document.getElementById('reportTableContainer').innerHTML = data.html;
+                    
+                    // Khôi phục thứ tự sắp xếp nếu có
+                    if (currentSort) {
+                        // Đợi một chút để DOM được cập nhật
+                        setTimeout(() => {
+                            sortTable(currentSort.column);
+                        }, 100);
+                    }
                     
                     // Cập nhật số lượng kết quả
                     document.getElementById('resultCount').textContent = 
@@ -445,6 +456,13 @@
                     data[input.name] = input.value.trim();
                 }
             });
+            
+            // Thêm thông tin sắp xếp hiện tại
+            const currentSort = getCurrentSortInfo();
+            if (currentSort) {
+                data.sort_column = currentSort.column;
+                data.sort_direction = currentSort.direction;
+            }
             
             console.log('Filter data:', data); // Debug log
             return data;
@@ -531,6 +549,14 @@
         // Cập nhật hàm xuất PDF để dùng filter hiện tại
         function exportToPdf() {
             const formData = getFilterFormData();
+            
+            // Thêm thông tin sắp xếp hiện tại
+            const currentSort = getCurrentSortInfo();
+            if (currentSort) {
+                formData.sort_column = currentSort.column;
+                formData.sort_direction = currentSort.direction;
+            }
+            
             const params = new URLSearchParams(formData);
             
             // Hiển thị loading
@@ -680,6 +706,23 @@
             });
 
         });
+
+        // Lấy thông tin sắp xếp hiện tại
+        function getCurrentSortInfo() {
+            const table = document.querySelector('table');
+            if (!table) return null;
+            
+            const headerCells = table.querySelectorAll('th');
+            for (let i = 0; i < headerCells.length; i++) {
+                if (headerCells[i].classList.contains('sort-asc') || headerCells[i].classList.contains('sort-desc')) {
+                    return {
+                        column: i,
+                        direction: headerCells[i].classList.contains('sort-asc') ? 'asc' : 'desc'
+                    };
+                }
+            }
+            return null;
+        }
 
         // Table sorting functionality  
         function sortTable(columnIndex) {

@@ -33,7 +33,7 @@
     <tbody class="divide-y divide-gray-200">
         @forelse($reportData as $index => $item)
         <tr class="hover:bg-gray-50">
-            <td class="py-3 px-4 text-sm text-gray-900">{{ $index + 1 }}</td>
+            <td class="py-3 px-4 text-sm text-gray-900">{{ $loop->index + 1 }}</td>
             <td class="py-3 px-4 text-sm text-gray-900 font-medium">{{ $item['item_code'] }}</td>
             <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_name'] }}</td>
             <td class="py-3 px-4 text-sm text-gray-900">{{ $item['item_unit'] }}</td>

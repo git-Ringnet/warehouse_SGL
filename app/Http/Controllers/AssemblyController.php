@@ -432,42 +432,8 @@ class AssemblyController extends Controller
                     ->where('item_type', 'material')
                     ->decrement('quantity', $totalRequiredQty);
 
-                // Lưu nhật ký sử dụng vật tư trong lắp ráp
-                try {
-                    $material = Material::find($component['id']);
-                    if ($material) {
-                        ChangeLogHelper::lapRap(
-                            $material->code,
-                            $material->name,
-                            $totalRequiredQty,
-                            $assembly->code,
-                            "Sử dụng vật tư trong lắp ráp",
-                            [
-                                'assembly_id' => $assembly->id,
-                                'material_id' => $component['id'],
-                                'warehouse_id' => $request->warehouse_id,
-                                'target_warehouse_id' => $assembly->target_warehouse_id,
-                                'target_product_id' => $componentProductId,
-                                'component_quantity' => $componentQty,
-                                'product_quantity' => $productQty,
-                                'total_quantity_used' => $totalRequiredQty,
-                                'serial_numbers' => $serial,
-                                'serial_ids' => $serialIds,
-                                'assigned_employee_id' => $assembly->assigned_employee_id,
-                                'created_by' => Auth::id(),
-                                'created_at' => now()->toDateTimeString()
-                            ],
-                            $component['note'] ?? null
-                        );
-                    }
-                } catch (\Exception $logException) {
-                    Log::error("Error creating assembly change log for material {$component['id']}:", [
-                        'assembly_code' => $assembly->code,
-                        'material_id' => $component['id'],
-                        'error' => $logException->getMessage()
-                    ]);
-                    // Continue processing even if change log creation fails
-                }
+                // Lưu nhật ký sử dụng vật tư trong lắp ráp - ĐÃ CHUYỂN SANG TẠO PHIẾU XUẤT KHO
+                // Logic cũ ChangeLogHelper::lapRap đã được thay thế bằng createMaterialExportSlipForAssembly
             }
 
             // Create single testing record for this assembly
@@ -504,6 +470,34 @@ class AssemblyController extends Controller
             } else {
                 Log::info('Dispatch not created - purpose is not project', [
                     'purpose' => $assembly->purpose
+                ]);
+            }
+
+            // Tạo phiếu xuất kho cho vật tư khi lắp ráp lưu kho
+            Log::info('Checking assembly purpose for material export slip', [
+                'assembly_id' => $assembly->id,
+                'assembly_code' => $assembly->code,
+                'purpose' => $assembly->purpose,
+                'purpose_type' => gettype($assembly->purpose),
+                'purpose_comparison' => $assembly->purpose === 'storage'
+            ]);
+            
+            if ($assembly->purpose === 'storage') {
+                Log::info('Creating material export slip for assembly: ' . $assembly->code);
+                try {
+                    $this->createMaterialExportSlipForAssembly($assembly);
+                    Log::info('Created material export slip for assembly: ' . $assembly->code);
+                } catch (\Exception $e) {
+                    Log::error('Error creating material export slip for assembly: ' . $e->getMessage(), [
+                        'assembly_code' => $assembly->code,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                }
+            } else {
+                Log::info('Material export slip not created - purpose is not storage', [
+                    'purpose' => $assembly->purpose,
+                    'assembly_code' => $assembly->code
                 ]);
             }
 
@@ -1656,6 +1650,144 @@ class AssemblyController extends Controller
         }
 
         Log::info("Created dispatch {$dispatch->dispatch_code} for assembly {$assembly->code}");
+
+        return $dispatch;
+    }
+
+    /**
+     * Tạo phiếu xuất kho cho vật tư khi lắp ráp lưu kho
+     */
+    private function createMaterialExportSlipForAssembly(Assembly $assembly)
+    {
+        Log::info('Starting createMaterialExportSlipForAssembly', [
+            'assembly_id' => $assembly->id,
+            'assembly_code' => $assembly->code,
+            'purpose' => $assembly->purpose,
+            'warehouse_id' => $assembly->warehouse_id,
+            'target_warehouse_id' => $assembly->target_warehouse_id
+        ]);
+
+        // Tạo mã phiếu xuất kho tự động
+        $exportCode = 'XK' . date('ymd') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        
+        Log::info('Generated export code', ['export_code' => $exportCode]);
+        
+        // Tạo phiếu xuất kho
+        $dispatch = \App\Models\Dispatch::create([
+            'dispatch_code' => $exportCode,
+            'dispatch_date' => now(),
+            'dispatch_type' => 'project', // Sử dụng 'project' thay vì 'assembly_material' vì enum chỉ chấp nhận 3 giá trị
+            'dispatch_detail' => 'all', // Sử dụng 'all' thay vì 'Vật tư lắp ráp' vì enum chỉ chấp nhận 3 giá trị
+            'project_id' => null,
+            'project_receiver' => 'Lắp ráp lưu kho: ' . $assembly->code,
+            'warranty_period' => null,
+            'company_representative_id' => Auth::id(),
+            'dispatch_note' => 'Sinh từ phiếu lắp ráp: ' . $assembly->code,
+            'status' => 'approved', // Tự động duyệt
+            'created_by' => Auth::id(),
+        ]);
+
+        Log::info('Created dispatch record', [
+            'dispatch_id' => $dispatch->id,
+            'dispatch_code' => $dispatch->dispatch_code
+        ]);
+
+        // Lấy danh sách vật tư đã sử dụng trong lắp ráp
+        $assemblyMaterials = \App\Models\AssemblyMaterial::where('assembly_id', $assembly->id)->get();
+        
+        Log::info('Found assembly materials', [
+            'count' => $assemblyMaterials->count(),
+            'materials' => $assemblyMaterials->map(function($am) {
+                return [
+                    'material_id' => $am->material_id,
+                    'quantity' => $am->quantity,
+                    'serial' => $am->serial
+                ];
+            })->toArray()
+        ]);
+        
+        foreach ($assemblyMaterials as $am) {
+            if ($am->material) {
+                Log::info('Processing assembly material', [
+                    'material_id' => $am->material_id,
+                    'material_code' => $am->material->code,
+                    'material_name' => $am->material->name,
+                    'quantity' => $am->quantity,
+                    'serial' => $am->serial
+                ]);
+
+                // Xử lý serial_numbers - chuyển thành array
+                $serialNumbers = null;
+                if ($am->serial) {
+                    $serialArray = explode(',', $am->serial);
+                    $serialNumbers = $serialArray; // Không cần json_encode vì model đã cast thành array
+                    Log::info('Processed serial numbers', [
+                        'original_serial' => $am->serial,
+                        'serial_array' => $serialArray
+                    ]);
+                }
+
+                // Tạo item trong phiếu xuất kho
+                $dispatchItem = \App\Models\DispatchItem::create([
+                    'dispatch_id' => $dispatch->id,
+                    'item_type' => 'material',
+                    'item_id' => $am->material_id,
+                    'quantity' => $am->quantity,
+                    'warehouse_id' => $assembly->warehouse_id, // Thêm warehouse_id từ assembly
+                    'category' => 'general',
+                    'serial_numbers' => $serialNumbers,
+                    'notes' => 'Vật tư lắp ráp từ phiếu lắp ráp',
+                ]);
+
+                Log::info('Created dispatch item', [
+                    'dispatch_item_id' => $dispatchItem->id,
+                    'dispatch_id' => $dispatchItem->dispatch_id,
+                    'item_type' => $dispatchItem->item_type,
+                    'item_id' => $dispatchItem->item_id,
+                    'quantity' => $dispatchItem->quantity,
+                    'warehouse_id' => $dispatchItem->warehouse_id,
+                    'serial_numbers' => $dispatchItem->serial_numbers
+                ]);
+
+                // Lưu nhật ký thay đổi cho xuất kho vật tư lắp ráp
+                \App\Helpers\ChangeLogHelper::xuatKho(
+                    $am->material->code,
+                    $am->material->name,
+                    $am->quantity,
+                    $exportCode,
+                    'Sinh từ Phiếu lắp ráp với mã ' . $assembly->code,
+                    [
+                        'assembly_id' => $assembly->id,
+                        'material_id' => $am->material_id,
+                        'warehouse_id' => $assembly->warehouse_id,
+                        'target_warehouse_id' => $assembly->target_warehouse_id,
+                        'quantity' => $am->quantity,
+                        'serial' => $am->serial,
+                        'assigned_employee_id' => $assembly->assigned_employee_id,
+                        'created_by' => Auth::id(),
+                        'created_at' => now()->toDateTimeString(),
+                        'action_type' => 'material_assembly_warehouse_export'
+                    ],
+                    'Vật tư lắp ráp lưu kho'
+                );
+
+                Log::info('Created change log for material export', [
+                    'material_code' => $am->material->code,
+                    'export_code' => $exportCode
+                ]);
+            } else {
+                Log::warning('Assembly material not found', [
+                    'assembly_material_id' => $am->id,
+                    'material_id' => $am->material_id
+                ]);
+            }
+        }
+
+        Log::info('Completed createMaterialExportSlipForAssembly', [
+            'assembly_id' => $assembly->id,
+            'dispatch_id' => $dispatch->id,
+            'dispatch_code' => $dispatch->dispatch_code
+        ]);
 
         return $dispatch;
     }

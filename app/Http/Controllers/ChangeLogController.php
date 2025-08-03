@@ -92,8 +92,10 @@ class ChangeLogController extends Controller
     }
 
     /**
-     * Helper method cho Lắp ráp
+     * Helper method cho Lắp ráp - ĐÃ BỊ VÔ HIỆU HÓA
+     * Thay thế bằng xuất kho với phiếu xuất kho
      */
+    /*
     public static function logAssembly($itemCode, $itemName, $quantity, $assemblyCode, $description = null, $detailedInfo = [], $notes = null)
     {
         return self::createLogEntry([
@@ -107,6 +109,7 @@ class ChangeLogController extends Controller
             'detailed_info' => $detailedInfo
         ]);
     }
+    */
 
     /**
      * Helper method cho Xuất kho

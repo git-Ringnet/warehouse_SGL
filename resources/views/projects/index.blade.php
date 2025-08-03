@@ -151,9 +151,9 @@
                                     {{ $loop->iteration + ($projects->currentPage() - 1) * $projects->perPage() }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $project->project_code }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-6 py-4 text-sm text-gray-700">
                                     {{ $project->project_name }}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <td class="px-6 py-4 text-sm text-gray-700">
                                     {{ $project->customer->company_name }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $project->customer->name }}</td>

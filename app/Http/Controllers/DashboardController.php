@@ -137,44 +137,68 @@ class DashboardController extends Controller
             // Lấy loại dữ liệu (materials, products, goods)
             $category = $request->input('category', 'materials');
             
+            // Lấy thông tin thời gian từ request
+            $timeRangeType = $request->input('time_range_type', 'month');
+            $startDate = $request->input('start_date');
+            $endDate = $request->input('end_date');
+            
             Log::info('Getting inventory overview chart data', [
                 'category' => $category,
+                'time_range_type' => $timeRangeType,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'request_url' => $request->fullUrl()
             ]);
             
-            // Lấy khoảng thời gian (mặc định là 6 tháng gần nhất)
-            $period = $request->input('period', 'month');
-            $months = 6;
-            
-            // Tạo mảng nhãn thời gian
+            // Tạo mảng nhãn thời gian và dữ liệu theo loại thời gian
             $labels = [];
-            $currentDate = now();
+            $data = [];
             
-            for ($i = $months - 1; $i >= 0; $i--) {
-                $date = clone $currentDate;
-                $date->subMonths($i);
-                $labels[] = 'Tháng ' . $date->format('n');
-            }
-            
-            // Lấy dữ liệu theo loại
-            switch ($category) {
-                case 'materials':
-                    $data = $this->getMaterialsChartData($months);
-                    break;
-                case 'products':
-                    $data = $this->getProductsChartData($months);
-                    break;
-                case 'goods':
-                    $data = $this->getGoodsChartData($months);
-                    break;
-                default:
-                    $data = $this->getMaterialsChartData($months);
+            if ($startDate && $endDate) {
+                // Sử dụng khoảng thời gian được chỉ định
+                $data = $this->getChartDataByTimeRange($category, $timeRangeType, $startDate, $endDate);
+                $labels = $data['labels'];
+                $chartData = $data['data'];
+                
+                Log::info('Chart data generated', [
+                    'category' => $category,
+                    'time_range_type' => $timeRangeType,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'labels_count' => count($labels),
+                    'data_keys' => array_keys($chartData)
+                ]);
+            } else {
+                // Mặc định là 6 tháng gần nhất
+                $months = 6;
+                $currentDate = now();
+                
+                for ($i = $months - 1; $i >= 0; $i--) {
+                    $date = clone $currentDate;
+                    $date->subMonths($i);
+                    $labels[] = 'Tháng ' . $date->format('n');
+                }
+                
+                // Lấy dữ liệu theo loại
+                switch ($category) {
+                    case 'materials':
+                        $chartData = $this->getMaterialsChartData($months);
+                        break;
+                    case 'products':
+                        $chartData = $this->getProductsChartData($months);
+                        break;
+                    case 'goods':
+                        $chartData = $this->getGoodsChartData($months);
+                        break;
+                    default:
+                        $chartData = $this->getMaterialsChartData($months);
+                }
             }
             
             // Kiểm tra xem có dữ liệu không
             $hasData = false;
             foreach (['import', 'export', 'damaged'] as $key) {
-                if (isset($data[$key]) && array_sum($data[$key]) > 0) {
+                if (isset($chartData[$key]) && array_sum($chartData[$key]) > 0) {
                     $hasData = true;
                     break;
                 }
@@ -183,39 +207,26 @@ class DashboardController extends Controller
             // Nếu không có dữ liệu, tạo dữ liệu mẫu
             if (!$hasData) {
                 Log::warning('No data found for chart, returning sample data', [
-                    'category' => $category
+                    'category' => $category,
+                    'time_range_type' => $timeRangeType
                 ]);
                 
-                // Dữ liệu mẫu theo loại
-                switch ($category) {
-                    case 'materials':
-                        $data = [
-                            'import' => [450, 500, 550, 600, 650, 700],
-                            'export' => [300, 350, 400, 450, 500, 550],
-                            'damaged' => [50, 45, 60, 55, 65, 70]
-                        ];
-                        break;
-                    case 'products':
-                        $data = [
-                            'import' => [200, 220, 240, 260, 280, 300],
-                            'export' => [180, 200, 220, 240, 260, 280],
-                            'damaged' => [20, 25, 30, 35, 40, 45]
-                        ];
-                        break;
-                    case 'goods':
-                        $data = [
-                            'import' => [350, 370, 390, 410, 430, 450],
-                            'export' => [320, 340, 360, 380, 400, 420],
-                            'damaged' => [30, 35, 40, 45, 50, 55]
-                        ];
-                        break;
-                    default:
-                        $data = [
-                            'import' => [450, 500, 550, 600, 650, 700],
-                            'export' => [300, 350, 400, 450, 500, 550],
-                            'damaged' => [50, 45, 60, 55, 65, 70]
-                        ];
+                // Tạo dữ liệu mẫu phù hợp với số lượng labels
+                $labelCount = count($labels);
+                $sampleData = [];
+                
+                // Tạo dữ liệu mẫu cho từng ngày
+                for ($i = 0; $i < $labelCount; $i++) {
+                    // Tạo dữ liệu ngẫu nhiên nhưng có quy luật
+                    $baseValue = 100 + ($i * 10); // Tăng dần theo thời gian
+                    $randomFactor = rand(-20, 20); // Thêm yếu tố ngẫu nhiên
+                    
+                    $sampleData['import'][] = max(0, $baseValue + $randomFactor);
+                    $sampleData['export'][] = max(0, $baseValue * 0.7 + $randomFactor);
+                    $sampleData['damaged'][] = max(0, $baseValue * 0.1 + rand(-5, 5));
                 }
+                
+                $chartData = $sampleData;
             }
             
             $response = [
@@ -223,61 +234,35 @@ class DashboardController extends Controller
                 'datasets' => [
                     [
                         'label' => 'Nhập kho',
-                        'data' => $data['import'],
+                        'data' => $chartData['import'],
                         'backgroundColor' => '#10b981',
                     ],
                     [
                         'label' => 'Xuất kho',
-                        'data' => $data['export'],
+                        'data' => $chartData['export'],
                         'backgroundColor' => '#ef4444',
                     ],
                     [
                         'label' => 'Hư hỏng',
-                        'data' => $data['damaged'],
+                        'data' => $chartData['damaged'],
                         'backgroundColor' => '#f59e0b',
-                    ]
-                ]
+                    ],
+                ],
+                'time_range_type' => $timeRangeType
             ];
             
-            Log::info('Inventory overview chart data generated successfully', [
-                'category' => $category,
-                'labels' => $labels,
-                'data_sample' => [
-                    'import' => array_slice($data['import'], 0, 2),
-                    'export' => array_slice($data['export'], 0, 2),
-                    'damaged' => array_slice($data['damaged'], 0, 2),
-                ]
-            ]);
-            
             return response()->json($response);
+            
         } catch (\Exception $e) {
-            Log::error('Error in getInventoryOverviewChart', [
+            Log::error('Error getting inventory overview chart data', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'category' => $request->input('category', 'materials')
+                'trace' => $e->getTraceAsString()
             ]);
             
-            // Return sample data in case of error
             return response()->json([
-                'labels' => ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6'],
-                'datasets' => [
-                    [
-                        'label' => 'Nhập kho',
-                        'data' => [450, 500, 550, 600, 650, 700],
-                        'backgroundColor' => '#10b981',
-                    ],
-                    [
-                        'label' => 'Xuất kho',
-                        'data' => [300, 350, 400, 450, 500, 550],
-                        'backgroundColor' => '#ef4444',
-                    ],
-                    [
-                        'label' => 'Hư hỏng',
-                        'data' => [50, 45, 60, 55, 65, 70],
-                        'backgroundColor' => '#f59e0b',
-                    ]
-                ]
-            ]);
+                'error' => 'Có lỗi xảy ra khi lấy dữ liệu biểu đồ',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
     
@@ -1515,6 +1500,277 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             return [];
+        }
+    }
+
+    /**
+     * Lấy dữ liệu biểu đồ theo khoảng thời gian và loại thời gian
+     */
+    private function getChartDataByTimeRange($category, $timeRangeType, $startDate, $endDate)
+    {
+        $start = \Carbon\Carbon::parse($startDate);
+        $end = \Carbon\Carbon::parse($endDate);
+        
+        $labels = [];
+        $importData = [];
+        $exportData = [];
+        $damagedData = [];
+        
+        switch ($timeRangeType) {
+            case 'day':
+                // Hiển thị theo từng ngày - hiển thị tất cả ngày trong khoảng thời gian
+                $current = $start->copy();
+                while ($current->lte($end)) {
+                    $labels[] = $current->format('d/m/Y');
+                    
+                    $dayImports = $this->getImportsForDate($category, $current);
+                    $dayExports = $this->getExportsForDate($category, $current);
+                    $dayDamaged = $this->getDamagedForDate($category, $current);
+                    
+                    $importData[] = $dayImports;
+                    $exportData[] = $dayExports;
+                    $damagedData[] = $dayDamaged;
+                    
+                    $current->addDay();
+                }
+                break;
+                
+            case 'week':
+                // Hiển thị theo từng tuần
+                $current = $start->copy();
+                $weekCount = 1;
+                while ($current->lte($end)) {
+                    $weekStart = $current->copy()->startOfWeek();
+                    $weekEnd = $current->copy()->endOfWeek();
+                    
+                    // Đảm bảo không vượt quá ngày kết thúc
+                    if ($weekEnd->gt($end)) {
+                        $weekEnd = $end;
+                    }
+                    
+                    $labels[] = "Tuần {$weekCount} ({$weekStart->format('d/m/Y')} đến {$weekEnd->format('d/m/Y')})";
+                    
+                    $weekImports = $this->getImportsForPeriod($category, $weekStart, $weekEnd);
+                    $weekExports = $this->getExportsForPeriod($category, $weekStart, $weekEnd);
+                    $weekDamaged = $this->getDamagedForPeriod($category, $weekStart, $weekEnd);
+                    
+                    $importData[] = $weekImports;
+                    $exportData[] = $weekExports;
+                    $damagedData[] = $weekDamaged;
+                    
+                    $current->addWeek();
+                    $weekCount++;
+                }
+                break;
+                
+            case 'month':
+                // Hiển thị theo từng tháng
+                $current = $start->copy();
+                while ($current->lte($end)) {
+                    $monthStart = $current->copy()->startOfMonth();
+                    $monthEnd = $current->copy()->endOfMonth();
+                    
+                    // Đảm bảo không vượt quá ngày kết thúc
+                    if ($monthEnd->gt($end)) {
+                        $monthEnd = $end;
+                    }
+                    
+                    $labels[] = "Tháng {$current->format('m/Y')} ({$monthStart->format('d/m/Y')} đến {$monthEnd->format('d/m/Y')})";
+                    
+                    $monthImports = $this->getImportsForPeriod($category, $monthStart, $monthEnd);
+                    $monthExports = $this->getExportsForPeriod($category, $monthStart, $monthEnd);
+                    $monthDamaged = $this->getDamagedForPeriod($category, $monthStart, $monthEnd);
+                    
+                    $importData[] = $monthImports;
+                    $exportData[] = $monthExports;
+                    $damagedData[] = $monthDamaged;
+                    
+                    $current->addMonth();
+                }
+                break;
+                
+            case 'year':
+                // Hiển thị theo từng năm
+                $current = $start->copy();
+                while ($current->lte($end)) {
+                    $yearStart = $current->copy()->startOfYear();
+                    $yearEnd = $current->copy()->endOfYear();
+                    
+                    // Đảm bảo không vượt quá ngày kết thúc
+                    if ($yearEnd->gt($end)) {
+                        $yearEnd = $end;
+                    }
+                    
+                    $labels[] = "Năm {$current->format('Y')} ({$yearStart->format('d/m/Y')} đến {$yearEnd->format('d/m/Y')})";
+                    
+                    $yearImports = $this->getImportsForPeriod($category, $yearStart, $yearEnd);
+                    $yearExports = $this->getExportsForPeriod($category, $yearStart, $yearEnd);
+                    $yearDamaged = $this->getDamagedForPeriod($category, $yearStart, $yearEnd);
+                    
+                    $importData[] = $yearImports;
+                    $exportData[] = $yearExports;
+                    $damagedData[] = $yearDamaged;
+                    
+                    $current->addYear();
+                }
+                break;
+                
+            default:
+                // Mặc định là tháng
+                $current = $start->copy();
+                while ($current->lte($end)) {
+                    $monthStart = $current->copy()->startOfMonth();
+                    $monthEnd = $current->copy()->endOfMonth();
+                    
+                    if ($monthEnd->gt($end)) {
+                        $monthEnd = $end;
+                    }
+                    
+                    $labels[] = "Tháng {$current->format('m/Y')}";
+                    
+                    $monthImports = $this->getImportsForPeriod($category, $monthStart, $monthEnd);
+                    $monthExports = $this->getExportsForPeriod($category, $monthStart, $monthEnd);
+                    $monthDamaged = $this->getDamagedForPeriod($category, $monthStart, $monthEnd);
+                    
+                    $importData[] = $monthImports;
+                    $exportData[] = $monthExports;
+                    $damagedData[] = $monthDamaged;
+                    
+                    $current->addMonth();
+                }
+                break;
+        }
+        
+        return [
+            'labels' => $labels,
+            'data' => [
+                'import' => $importData,
+                'export' => $exportData,
+                'damaged' => $damagedData
+            ]
+        ];
+    }
+
+    /**
+     * Lấy dữ liệu nhập kho cho một ngày cụ thể
+     */
+    private function getImportsForDate($category, $date)
+    {
+        $itemType = $this->getItemTypeByCategory($category);
+        
+        return DB::table('warehouse_materials')
+            ->where('item_type', $itemType)
+            ->whereDate('created_at', $date)
+            ->sum('quantity');
+    }
+
+    /**
+     * Lấy dữ liệu xuất kho cho một ngày cụ thể
+     */
+    private function getExportsForDate($category, $date)
+    {
+        $itemType = $this->getItemTypeByCategory($category);
+        
+        if ($itemType === 'material') {
+            return DB::table('assembly_materials')
+                ->whereDate('created_at', $date)
+                ->sum('quantity');
+        } else {
+            return DB::table('dispatch_items')
+                ->where('item_type', $itemType)
+                ->whereDate('created_at', $date)
+                ->sum('quantity');
+        }
+    }
+
+    /**
+     * Lấy dữ liệu hư hỏng cho một ngày cụ thể
+     */
+    private function getDamagedForDate($category, $date)
+    {
+        $itemType = $this->getItemTypeByCategory($category);
+        
+        if ($itemType === 'material') {
+            return DB::table('testing_items')
+                ->where('item_type', $itemType)
+                ->where('result', 'fail')
+                ->whereDate('created_at', $date)
+                ->sum('quantity');
+        } else {
+            return DB::table('testings')
+                ->where('test_type', $itemType === 'product' ? 'product' : 'good')
+                ->whereDate('created_at', $date)
+                ->sum('fail_quantity');
+        }
+    }
+
+    /**
+     * Lấy dữ liệu nhập kho cho một khoảng thời gian
+     */
+    private function getImportsForPeriod($category, $startDate, $endDate)
+    {
+        $itemType = $this->getItemTypeByCategory($category);
+        
+        return DB::table('warehouse_materials')
+            ->where('item_type', $itemType)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('quantity');
+    }
+
+    /**
+     * Lấy dữ liệu xuất kho cho một khoảng thời gian
+     */
+    private function getExportsForPeriod($category, $startDate, $endDate)
+    {
+        $itemType = $this->getItemTypeByCategory($category);
+        
+        if ($itemType === 'material') {
+            return DB::table('assembly_materials')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('quantity');
+        } else {
+            return DB::table('dispatch_items')
+                ->where('item_type', $itemType)
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('quantity');
+        }
+    }
+
+    /**
+     * Lấy dữ liệu hư hỏng cho một khoảng thời gian
+     */
+    private function getDamagedForPeriod($category, $startDate, $endDate)
+    {
+        $itemType = $this->getItemTypeByCategory($category);
+        
+        if ($itemType === 'material') {
+            return DB::table('testing_items')
+                ->where('item_type', $itemType)
+                ->where('result', 'fail')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('quantity');
+        } else {
+            return DB::table('testings')
+                ->where('test_type', $itemType === 'product' ? 'product' : 'good')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->sum('fail_quantity');
+        }
+    }
+
+    /**
+     * Lấy item_type dựa trên category
+     */
+    private function getItemTypeByCategory($category)
+    {
+        switch ($category) {
+            case 'materials':
+                return 'material';
+            case 'products':
+                return 'product';
+            case 'goods':
+                return 'good';
+            default:
+                return 'material';
         }
     }
 } 

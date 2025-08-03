@@ -1333,32 +1333,136 @@ class RepairController extends Controller
                 );
             }
 
-            // Lưu nhật ký thay đổi cho thay thế vật tư
+            // Tạo phiếu xuất kho cho vật tư thay thế
             try {
-                ChangeLogHelper::suaChua(
+                $exportCode = $this->createExportSlipForReplacement($repair, $replacement);
+                
+                // Lưu nhật ký thay đổi cho xuất kho vật tư thay thế
+                ChangeLogHelper::xuatKho(
                     $replacement['material_code'],
                     $replacement['material_name'],
                     $replacement['quantity'],
-                    $repair->repair_code,
-                    'Thay thế', // Mô tả cố định theo yêu cầu
+                    $exportCode,
+                    'Sinh từ Phiếu sửa chữa với mã ' . $repair->repair_code,
                     [
                         'repair_id' => $repair->id,
                         'device_code' => $replacement['device_code'],
-                        'old_serials' => $replacement['old_serials'],
                         'new_serials' => $replacement['new_serials'],
-                        'source_warehouse_id' => $replacement['source_warehouse_id'],
                         'target_warehouse_id' => $replacement['target_warehouse_id'],
                         'warranty_code' => $repair->warranty_code,
-                        'action_type' => 'material_replacement'
+                        'action_type' => 'material_replacement_export'
                     ],
                     $replacement['notes'] ?? ''
                 );
+
+                // Lưu nhật ký thay đổi cho thu hồi vật tư cũ
+                if ($repair->warranty) {
+                    $warranty = $repair->warranty;
+                    
+                    // Xác định loại item để hiển thị chính xác
+                    $itemTypeLabel = '';
+                    $itemType = $replacement['item_type'] ?? 'material';
+                    switch ($itemType) {
+                        case 'material':
+                            $itemTypeLabel = 'vật tư';
+                            break;
+                        case 'product':
+                            $itemTypeLabel = 'thành phẩm';
+                            break;
+                        case 'good':
+                            $itemTypeLabel = 'hàng hóa';
+                            break;
+                        default:
+                            $itemTypeLabel = 'vật tư';
+                            break;
+                    }
+
+                    // Tạo description cho thu hồi
+                    $description = '';
+                    if ($warranty->item_type === 'project' && $warranty->item_id) {
+                        $project = \App\Models\Project::find($warranty->item_id);
+                        $description = "Thu hồi {$itemTypeLabel} từ dự án: " . ($project ? $project->project_name : 'Không xác định');
+                    } elseif ($warranty->item_type === 'rental' && $warranty->item_id) {
+                        $rental = \App\Models\Rental::find($warranty->item_id);
+                        $description = "Thu hồi {$itemTypeLabel} từ phiếu cho thuê: " . ($rental ? $rental->rental_name : 'Không xác định');
+                    } else {
+                        $description = "Thu hồi {$itemTypeLabel} từ phiếu sửa chữa: {$repair->repair_code}";
+                    }
+
+                    // Tạo mã thu hồi tự động
+                    $recallCode = 'TH' . date('ymd') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+
+                    ChangeLogHelper::thuHoi(
+                        $replacement['material_code'],
+                        $replacement['material_name'],
+                        $replacement['quantity'],
+                        $recallCode,
+                        $description,
+                        [
+                            'repair_id' => $repair->id,
+                            'repair_code' => $repair->repair_code,
+                            'device_code' => $replacement['device_code'],
+                            'source_warehouse_id' => $replacement['source_warehouse_id'],
+                            'warranty_code' => $repair->warranty_code,
+                            'action_type' => 'material_recall_from_replacement',
+                            'old_serials' => $replacement['old_serials']
+                        ],
+                        "Thu hồi {$itemTypeLabel} - Lý do thay thế: " . ($replacement['notes'] ?? 'Thay thế vật tư')
+                    );
+                }
 
                 Log::info("Created change log for material replacement: {$replacement['material_code']} in repair {$repair->repair_code}");
             } catch (\Exception $e) {
                 Log::error("Failed to create change log for material replacement: " . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Tạo phiếu xuất kho cho vật tư thay thế
+     */
+    private function createExportSlipForReplacement($repair, $replacement)
+    {
+        // Tạo mã phiếu xuất kho tự động
+        $exportCode = 'XK' . date('ymd') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+        
+        // Tạo phiếu xuất kho
+        $dispatch = \App\Models\Dispatch::create([
+            'dispatch_code' => $exportCode,
+            'dispatch_date' => now(),
+            'dispatch_type' => 'project', // Sử dụng 'project' thay vì 'repair' vì enum chỉ chấp nhận 3 giá trị
+            'dispatch_detail' => 'all', // Sử dụng 'all' thay vì 'Vật tư thay thế cho sửa chữa' vì enum chỉ chấp nhận 3 giá trị
+            'project_id' => null,
+            'project_receiver' => 'Sửa chữa: ' . $repair->repair_code,
+            'warranty_period' => null,
+            'company_representative_id' => Auth::id(),
+            'dispatch_note' => 'Sinh từ phiếu sửa chữa: ' . $repair->repair_code,
+            'status' => 'approved', // Tự động duyệt
+            'created_by' => Auth::id(),
+        ]);
+
+        // Tạo item trong phiếu xuất kho
+        \App\Models\DispatchItem::create([
+            'dispatch_id' => $dispatch->id,
+            'item_type' => 'material',
+            'item_id' => $this->getMaterialIdByCode($replacement['material_code']),
+            'quantity' => $replacement['quantity'],
+            'warehouse_id' => $replacement['target_warehouse_id'], // Thêm warehouse_id
+            'category' => 'general',
+            'serial_numbers' => $replacement['new_serials'], // Không cần json_encode vì model đã cast thành array
+            'notes' => $replacement['notes'] ?? 'Vật tư thay thế từ phiếu sửa chữa',
+        ]);
+
+        return $exportCode;
+    }
+
+    /**
+     * Lấy ID của material theo code
+     */
+    private function getMaterialIdByCode($materialCode)
+    {
+        $material = \App\Models\Material::where('code', $materialCode)->first();
+        return $material ? $material->id : null;
     }
 
     /**
@@ -1369,14 +1473,31 @@ class RepairController extends Controller
         // Delete existing damaged materials for this repair
         \App\Models\DamagedMaterial::where('repair_id', $repair->id)->delete();
 
+        // Track processed combinations to avoid duplicates
+        $processedCombinations = [];
+
         // Create new damaged material records
         foreach ($damagedMaterials as $damaged) {
+            // Xử lý serial - nếu rỗng thì set null thay vì empty string
+            $serial = !empty($damaged['serial']) ? $damaged['serial'] : null;
+            
+            // Tạo key để kiểm tra duplicate
+            $combinationKey = $repair->id . '-' . $damaged['device_code'] . '-' . $damaged['material_code'] . '-' . ($serial ?? '');
+            
+            // Kiểm tra nếu đã xử lý combination này
+            if (in_array($combinationKey, $processedCombinations)) {
+                Log::warning("Skipping duplicate damaged material combination: {$combinationKey}");
+                continue;
+            }
+            
+            $processedCombinations[] = $combinationKey;
+            
             \App\Models\DamagedMaterial::create([
                 'repair_id' => $repair->id,
                 'device_code' => $damaged['device_code'],
                 'material_code' => $damaged['material_code'],
                 'material_name' => $damaged['material_name'],
-                'serial' => $damaged['serial'] ?? null,
+                'serial' => $serial,
                 'damage_description' => $damaged['damage_description'] ?? '',
                 'reported_by' => Auth::id(),
                 'reported_at' => now(),

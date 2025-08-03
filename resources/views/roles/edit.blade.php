@@ -392,7 +392,7 @@
                                                 {{ in_array($rental->id, $roleRentals) ? 'checked' : '' }}>
                                             <label for="rental-{{ $rental->id }}"
                                                 class="ml-2 block text-sm text-gray-700">
-                                                <div class="font-medium">Hợp đồng #{{ $rental->id }}</div>
+                                                <div class="font-medium">{{ $rental->rental_name }}</div>
                                                 <div class="text-xs text-gray-500">
                                                     @if ($rental->customer)
                                                         {{ $rental->customer->name }}
@@ -649,57 +649,77 @@
             // Khởi tạo trạng thái ban đầu của các nhóm quyền
             initializeGroupStatus();
 
-            // Hàm để chọn/bỏ chọn tất cả quyền
-            document.getElementById('select-all-permissions').addEventListener('click', function() {
-                document.querySelectorAll('input[name="permissions[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-            });
-
-            document.getElementById('deselect-all-permissions').addEventListener('click', function() {
-                document.querySelectorAll('input[name="permissions[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
-
-            // Hàm để chọn/bỏ chọn tất cả nhân viên
-            document.getElementById('select-all-employees').addEventListener('click', function() {
-                document.querySelectorAll('input[name="employees[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
-                });
-            });
-
-            document.getElementById('deselect-all-employees').addEventListener('click', function() {
-                document.querySelectorAll('input[name="employees[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
-                });
-            });
-
             // Hàm để chọn/bỏ chọn tất cả dự án
-            document.getElementById('select-all-projects').addEventListener('click', function() {
-                document.querySelectorAll('input[name="projects[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
+            const selectAllProjectsBtn = document.getElementById('select-all-projects');
+            const deselectAllProjectsBtn = document.getElementById('deselect-all-projects');
+            
+            if (selectAllProjectsBtn) {
+                console.log('Tìm thấy nút select-all-projects');
+                selectAllProjectsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const checkboxes = document.querySelectorAll('input[name="projects[]"]');
+                    console.log('Tìm thấy', checkboxes.length, 'checkbox dự án');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = true;
+                    });
+                    console.log('Đã chọn tất cả dự án');
                 });
-            });
+            } else {
+                console.log('KHÔNG tìm thấy nút select-all-projects');
+            }
 
-            document.getElementById('deselect-all-projects').addEventListener('click', function() {
-                document.querySelectorAll('input[name="projects[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
+            if (deselectAllProjectsBtn) {
+                console.log('Tìm thấy nút deselect-all-projects');
+                deselectAllProjectsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const checkboxes = document.querySelectorAll('input[name="projects[]"]');
+                    console.log('Tìm thấy', checkboxes.length, 'checkbox dự án');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    console.log('Đã bỏ chọn tất cả dự án');
                 });
-            });
+            } else {
+                console.log('KHÔNG tìm thấy nút deselect-all-projects');
+            }
 
             // Hàm để chọn/bỏ chọn tất cả hợp đồng cho thuê
-            document.getElementById('select-all-rentals').addEventListener('click', function() {
-                document.querySelectorAll('input[name="rentals[]"]').forEach(checkbox => {
-                    checkbox.checked = true;
+            const selectAllRentalsBtn = document.getElementById('select-all-rentals');
+            const deselectAllRentalsBtn = document.getElementById('deselect-all-rentals');
+            
+            if (selectAllRentalsBtn) {
+                console.log('Tìm thấy nút select-all-rentals');
+                selectAllRentalsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const checkboxes = document.querySelectorAll('input[name="rentals[]"]');
+                    console.log('Tìm thấy', checkboxes.length, 'checkbox hợp đồng cho thuê');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = true;
+                    });
+                    console.log('Đã chọn tất cả hợp đồng cho thuê');
                 });
-            });
+            } else {
+                console.log('KHÔNG tìm thấy nút select-all-rentals');
+            }
 
-            document.getElementById('deselect-all-rentals').addEventListener('click', function() {
-                document.querySelectorAll('input[name="rentals[]"]').forEach(checkbox => {
-                    checkbox.checked = false;
+            if (deselectAllRentalsBtn) {
+                console.log('Tìm thấy nút deselect-all-rentals');
+                deselectAllRentalsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const checkboxes = document.querySelectorAll('input[name="rentals[]"]');
+                    console.log('Tìm thấy', checkboxes.length, 'checkbox hợp đồng cho thuê');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = false;
+                    });
+                    console.log('Đã bỏ chọn tất cả hợp đồng cho thuê');
                 });
-            });
+            } else {
+                console.log('KHÔNG tìm thấy nút deselect-all-rentals');
+            }
         });
     </script>
 </body>

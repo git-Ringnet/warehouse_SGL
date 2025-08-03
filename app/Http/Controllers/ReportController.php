@@ -42,7 +42,7 @@ class ReportController extends Controller
         }
 
         // Lấy dữ liệu báo cáo (chỉ vật tư)
-        $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
+        $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category, request('sort_column'), request('sort_direction'));
 
         // Thống kê tổng quan
         $stats = $this->getInventoryStats($dateFrom, $dateTo);
@@ -88,7 +88,9 @@ class ReportController extends Controller
                 'from_date' => $dateFrom,
                 'to_date' => $dateTo,
                 'search' => $search,
-                'category_filter' => $category
+                'category_filter' => $category,
+                'sort_column' => request('sort_column'),
+                'sort_direction' => request('sort_direction')
             ]);
 
             // Nếu không có ngày, mặc định là tháng hiện tại
@@ -100,7 +102,7 @@ class ReportController extends Controller
             }
 
             // Lấy dữ liệu báo cáo
-            $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
+            $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category, request('sort_column'), request('sort_direction'));
 
             // Lấy thống kê tổng quan theo filter
             $stats = $this->getFilteredInventoryStats($dateFrom, $dateTo, $search, $category);
@@ -175,7 +177,7 @@ class ReportController extends Controller
     /**
      * Lấy dữ liệu báo cáo vật tư (gộp theo mã vật tư)
      */
-    private function getMaterialsReportData($dateFrom, $dateTo, $search = null, $category = null)
+    private function getMaterialsReportData($dateFrom, $dateTo, $search = null, $category = null, $sortColumn = null, $sortDirection = null)
     {
         $reportData = [];
 
@@ -284,7 +286,42 @@ class ReportController extends Controller
             }
         }
 
-        return collect($reportData)->sortBy(['item_code']);
+        // Sắp xếp dữ liệu theo tham số được truyền vào
+        $collection = collect($reportData);
+        
+        // Nếu có tham số sắp xếp từ request hoặc được truyền vào
+        if ((request()->has('sort_column') && request()->has('sort_direction')) || ($sortColumn !== null && $sortDirection !== null)) {
+            $sortColumn = $sortColumn ?? request('sort_column');
+            $sortDirection = $sortDirection ?? request('sort_direction');
+            
+            // Map column index to field name
+            $columnMap = [
+                0 => 'item_id', // STT - sort by ID
+                1 => 'item_code', // Mã vật tư
+                2 => 'item_name', // Tên vật tư
+                3 => 'item_unit', // Đơn vị
+                4 => 'opening_stock', // Tồn đầu kỳ
+                5 => 'imports', // Nhập
+                6 => 'exports', // Xuất
+                7 => 'closing_stock', // Tồn cuối kỳ
+                8 => 'current_stock', // Tồn hiện tại
+                9 => 'current_stock', // Chênh lệch (sort by current_stock)
+            ];
+            
+            if (isset($columnMap[$sortColumn])) {
+                $field = $columnMap[$sortColumn];
+                if ($sortDirection === 'asc') {
+                    $collection = $collection->sortBy($field);
+                } else {
+                    $collection = $collection->sortByDesc($field);
+                }
+            }
+        } else {
+            // Mặc định sắp xếp theo mã vật tư
+            $collection = $collection->sortBy('item_code');
+        }
+        
+        return $collection;
     }
 
     /**
@@ -1004,87 +1041,137 @@ class ReportController extends Controller
             $dateTo = Carbon::now()->format('Y-m-d');
         }
 
-        $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
+        $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category, request('sort_column'), request('sort_direction'));
 
-        // Tạo CSV content
-        $filename = 'bao_cao_vat_tu_' . date('Y_m_d_H_i_s') . '.csv';
-        $headers = [
-            'Content-Type' => 'text/csv; charset=utf-8',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
-        ];
-
-        $callback = function () use ($reportData, $dateFrom, $dateTo) {
-            try {
-                $file = fopen('php://output', 'w');
-                // Add BOM for UTF-8
-                fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-                // Headers
-                fputcsv($file, [
-                    'STT',
-                    'Mã vật tư',
-                    'Tên vật tư',
-                    'Đơn vị',
-                    'Danh mục',
-                    'Tồn đầu kỳ',
-                    'Nhập trong kỳ',
-                    'Xuất trong kỳ',
-                    'Tồn cuối kỳ',
-                    'Chênh lệch'
-                ]);
-                // Data
-                foreach ($reportData as $index => $item) {
-                    $difference = isset($item['calculated_closing'])
-                        ? $item['closing_stock'] - $item['calculated_closing']
-                        : (isset($item['current_stock']) ? $item['current_stock'] - $item['closing_stock'] : '');
-                    fputcsv($file, [
-                        $index + 1,
-                        $item['item_code'],
-                        $item['item_name'],
-                        $item['item_unit'],
-                        $item['item_category'],
-                        $item['opening_stock'],
-                        $item['imports'],
-                        $item['exports'],
-                        $item['closing_stock'],
-                        $difference
-                    ]);
-                }
-                // Summary
-                fputcsv($file, []);
-                $totalDifference = $reportData->sum(function ($item) {
-                    if (isset($item['calculated_closing'])) {
-                        return $item['closing_stock'] - $item['calculated_closing'];
-                    } elseif (isset($item['current_stock'])) {
-                        return $item['current_stock'] - $item['closing_stock'];
-                    }
-                    return 0;
-                });
-                fputcsv($file, [
-                    'TỔNG CỘNG',
-                    '',
-                    '',
-                    '',
-                    '',
-                    $reportData->sum('opening_stock'),
-                    $reportData->sum('imports'),
-                    $reportData->sum('exports'),
-                    $reportData->sum('closing_stock'),
-                    $totalDifference
-                ]);
-                // Info
-                fputcsv($file, []);
-                fputcsv($file, ['Thời gian:', "Từ " . Carbon::parse($dateFrom)->format('d/m/Y') . " đến " . Carbon::parse($dateTo)->format('d/m/Y')]);
-                fputcsv($file, ['Xuất lúc:', Carbon::now()->format('H:i:s d/m/Y')]);
-                fclose($file);
-            } catch (\Throwable $e) {
-                Log::error('Export Excel Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-                $file = fopen('php://output', 'w');
-                fputcsv($file, ['Lỗi khi xuất file:', $e->getMessage()]);
-                fclose($file);
+        // Tạo file Excel thực sự
+        $filename = 'bao_cao_vat_tu_' . date('Y_m_d_H_i_s') . '.xlsx';
+        
+        try {
+            // Tạo workbook mới
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Thiết lập tiêu đề
+            $sheet->setCellValue('A1', 'BÁO CÁO VẬT TƯ');
+            $sheet->mergeCells('A1:J1');
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
+            $sheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            
+            // Thông tin thời gian
+            $sheet->setCellValue('A2', 'Thời gian: Từ ' . Carbon::parse($dateFrom)->format('d/m/Y') . ' đến ' . Carbon::parse($dateTo)->format('d/m/Y'));
+            $sheet->mergeCells('A2:J2');
+            $sheet->getStyle('A2')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            
+            // Headers
+            $headers = [
+                'A4' => 'STT',
+                'B4' => 'Mã vật tư',
+                'C4' => 'Tên vật tư',
+                'D4' => 'Đơn vị',
+                'E4' => 'Tồn đầu kỳ',
+                'F4' => 'Nhập trong kỳ',
+                'G4' => 'Xuất trong kỳ',
+                'H4' => 'Tồn cuối kỳ',
+                'I4' => 'Tồn hiện tại',
+                'J4' => 'Chênh lệch'
+            ];
+            
+            foreach ($headers as $cell => $header) {
+                $sheet->setCellValue($cell, $header);
+                $sheet->getStyle($cell)->getFont()->setBold(true);
+                $sheet->getStyle($cell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('E5E7EB');
+                $sheet->getStyle($cell)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             }
-        };
-
-        return response()->stream($callback, 200, $headers);
+            
+            // Data
+            $row = 5;
+            foreach ($reportData as $index => $item) {
+                $difference = $item['current_stock'] - $item['closing_stock'];
+                
+                $sheet->setCellValue('A' . $row, $index + 1);
+                $sheet->setCellValue('B' . $row, $item['item_code']);
+                $sheet->setCellValue('C' . $row, $item['item_name']);
+                $sheet->setCellValue('D' . $row, $item['item_unit']);
+                $sheet->setCellValue('E' . $row, $item['opening_stock']);
+                $sheet->setCellValue('F' . $row, $item['imports']);
+                $sheet->setCellValue('G' . $row, $item['exports']);
+                $sheet->setCellValue('H' . $row, $item['closing_stock']);
+                $sheet->setCellValue('I' . $row, $item['current_stock']);
+                $sheet->setCellValue('J' . $row, $difference);
+                
+                // Định dạng số
+                $sheet->getStyle('E' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('F' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                $sheet->getStyle('J' . $row)->getNumberFormat()->setFormatCode('#,##0');
+                
+                // Màu cho chênh lệch
+                if ($difference >= 0) {
+                    $sheet->getStyle('J' . $row)->getFont()->getColor()->setRGB('008000'); // Xanh lá
+                } else {
+                    $sheet->getStyle('J' . $row)->getFont()->getColor()->setRGB('FF0000'); // Đỏ
+                }
+                
+                $row++;
+            }
+            
+            // Tổng cộng
+            $totalRow = $row;
+            $sheet->setCellValue('A' . $totalRow, 'TỔNG CỘNG');
+            $sheet->mergeCells('A' . $totalRow . ':D' . $totalRow);
+            $sheet->setCellValue('E' . $totalRow, $reportData->sum('opening_stock'));
+            $sheet->setCellValue('F' . $totalRow, $reportData->sum('imports'));
+            $sheet->setCellValue('G' . $totalRow, $reportData->sum('exports'));
+            $sheet->setCellValue('H' . $totalRow, $reportData->sum('closing_stock'));
+            $sheet->setCellValue('I' . $totalRow, $reportData->sum('current_stock'));
+            $sheet->setCellValue('J' . $totalRow, $reportData->sum('current_stock') - $reportData->sum('closing_stock'));
+            
+            // Định dạng tổng cộng
+            $sheet->getStyle('A' . $totalRow . ':J' . $totalRow)->getFont()->setBold(true);
+            $sheet->getStyle('A' . $totalRow . ':J' . $totalRow)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('F3F4F6');
+            $sheet->getStyle('E' . $totalRow . ':J' . $totalRow)->getNumberFormat()->setFormatCode('#,##0');
+            
+            // Thông tin xuất
+            $sheet->setCellValue('A' . ($totalRow + 2), 'Xuất lúc: ' . Carbon::now()->format('H:i:s d/m/Y'));
+            $sheet->mergeCells('A' . ($totalRow + 2) . ':J' . ($totalRow + 2));
+            $sheet->getStyle('A' . ($totalRow + 2))->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+            $sheet->getStyle('A' . ($totalRow + 2))->getFont()->setItalic(true);
+            
+            // Tự động điều chỉnh độ rộng cột
+            foreach (range('A', 'J') as $column) {
+                $sheet->getColumnDimension($column)->setAutoSize(true);
+            }
+            
+            // Border cho bảng dữ liệu
+            $styleArray = [
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
+            ];
+            $sheet->getStyle('A4:J' . ($totalRow))->applyFromArray($styleArray);
+            
+            // Tạo file Excel
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            
+            // Lưu vào buffer
+            ob_start();
+            $writer->save('php://output');
+            $content = ob_get_clean();
+            
+            return response($content)
+                ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
+                ->header('Cache-Control', 'max-age=0');
+                
+        } catch (\Exception $e) {
+            Log::error('Export Excel Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json(['error' => 'Có lỗi khi xuất file Excel: ' . $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -1105,7 +1192,7 @@ class ReportController extends Controller
                 $dateTo = Carbon::now()->format('Y-m-d');
             }
 
-            $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category);
+            $reportData = $this->getMaterialsReportData($dateFrom, $dateTo, $search, $category, request('sort_column'), request('sort_direction'));
             $stats = $this->getFilteredInventoryStats($dateFrom, $dateTo, $search, $category);
 
             // Generate PDF using DomPDF

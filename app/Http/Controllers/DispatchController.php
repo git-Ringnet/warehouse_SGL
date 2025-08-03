@@ -81,11 +81,70 @@ class DispatchController extends Controller
 
         $employees = Employee::all();
 
-        $projects = Project::with('customer')->get();
+        // Lọc dự án theo quyền của nhân viên đang đăng nhập
+        $projects = $this->getFilteredProjects();
 
         $nextDispatchCode = Dispatch::generateDispatchCode();
 
         return view('inventory.dispatch', compact('warehouses', 'employees', 'projects', 'nextDispatchCode'));
+    }
+
+    /**
+     * Helper method để lọc dự án theo quyền của nhân viên
+     */
+    private function getFilteredProjects()
+    {
+        $user = Auth::guard('web')->user();
+        $projects = collect();
+
+        if ($user) {
+            // Nếu là admin, lấy tất cả dự án
+            if ($user->role === 'admin') {
+                $projects = Project::with('customer')->get();
+            } else {
+                // Nếu có role_id, lọc theo dự án được gán cho role
+                if ($user->role_id && $user->roleGroup) {
+                    $projects = $user->roleGroup->projects()->with('customer')->get();
+                } else {
+                    // Nếu không có role, chỉ lấy dự án mà nhân viên phụ trách
+                    $projects = Project::where('employee_id', $user->id)->with('customer')->get();
+                }
+            }
+        } else {
+            // Fallback: lấy tất cả dự án nếu không có user
+            $projects = Project::with('customer')->get();
+        }
+
+        return $projects;
+    }
+
+    /**
+     * Helper method để lọc hợp đồng cho thuê theo quyền của nhân viên
+     */
+    private function getFilteredRentals()
+    {
+        $user = Auth::guard('web')->user();
+        $rentals = collect();
+
+        if ($user) {
+            // Nếu là admin, lấy tất cả hợp đồng cho thuê
+            if ($user->role === 'admin') {
+                $rentals = Rental::with('customer')->get();
+            } else {
+                // Nếu có role_id, lọc theo hợp đồng cho thuê được gán cho role
+                if ($user->role_id && $user->roleGroup) {
+                    $rentals = $user->roleGroup->rentals()->with('customer')->get();
+                } else {
+                    // Nếu không có role, chỉ lấy hợp đồng cho thuê mà nhân viên phụ trách
+                    $rentals = Rental::where('employee_id', $user->id)->with('customer')->get();
+                }
+            }
+        } else {
+            // Fallback: lấy tất cả hợp đồng cho thuê nếu không có user
+            $rentals = Rental::with('customer')->get();
+        }
+
+        return $rentals;
     }
 
     /**
@@ -408,7 +467,8 @@ class DispatchController extends Controller
 
         $employees = Employee::all();
 
-        $projects = Project::with('customer')->get();
+        // Lọc dự án theo quyền của nhân viên đang đăng nhập
+        $projects = $this->getFilteredProjects();
 
         $dispatch->load(['items.material', 'items.product', 'items.good', 'items.warehouse', 'project', 'companyRepresentative']);
 
@@ -1800,7 +1860,8 @@ class DispatchController extends Controller
      */
     public function getProjects()
     {
-        $projects = Project::with('customer')->get();
+        // Lọc dự án theo quyền của nhân viên đang đăng nhập
+        $projects = $this->getFilteredProjects();
 
         return response()->json([
             'success' => true,
@@ -2064,7 +2125,8 @@ class DispatchController extends Controller
      */
     public function getRentals()
     {
-        $rentals = Rental::with('customer')->get();
+        // Lọc hợp đồng cho thuê theo quyền của nhân viên đang đăng nhập
+        $rentals = $this->getFilteredRentals();
 
         return response()->json([
             'success' => true,

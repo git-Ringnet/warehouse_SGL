@@ -113,9 +113,26 @@ class EquipmentServiceController extends Controller
                     'returned_by' => Auth::id(),
                 ];
 
+                // Xác định loại item để hiển thị chính xác
+                $itemTypeLabel = '';
+                switch ($dispatchItem->item_type) {
+                    case 'material':
+                        $itemTypeLabel = 'vật tư';
+                        break;
+                    case 'product':
+                        $itemTypeLabel = 'thành phẩm';
+                        break;
+                    case 'good':
+                        $itemTypeLabel = 'hàng hóa';
+                        break;
+                    default:
+                        $itemTypeLabel = 'hàng hóa';
+                        break;
+                }
+
                 if ($dispatchItem->dispatch->dispatch_type === 'project') {
                     $project = \App\Models\Project::find($dispatchItem->dispatch->project_id);
-                    $description = 'Thu hồi thiết bị dự phòng từ dự án: ' . ($project ? $project->project_name : 'Không xác định');
+                    $description = "Thu hồi {$itemTypeLabel} từ dự án: " . ($project ? $project->project_name : 'Không xác định');
                     $detailedInfo['project_id'] = $dispatchItem->dispatch->project_id;
                     $detailedInfo['project_name'] = $project ? $project->project_name : null;
                     $detailedInfo['project_code'] = $project ? $project->project_code : null;
@@ -123,7 +140,7 @@ class EquipmentServiceController extends Controller
                     $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->dispatch_note}%")
                         ->orWhere('rental_code', 'LIKE', "%{$dispatchItem->dispatch->project_receiver}%")
                         ->first();
-                    $description = 'Thu hồi thiết bị dự phòng từ phiếu thuê: ' . ($rental ? $rental->rental_name : 'Không xác định');
+                    $description = "Thu hồi {$itemTypeLabel} từ phiếu cho thuê: " . ($rental ? $rental->rental_name : 'Không xác định');
                     $detailedInfo['rental_id'] = $rental ? $rental->id : null;
                     $detailedInfo['rental_name'] = $rental ? $rental->rental_name : null;
                     $detailedInfo['rental_code'] = $rental ? $rental->rental_code : null;
@@ -141,7 +158,7 @@ class EquipmentServiceController extends Controller
                     $dispatchReturn->return_code,
                     $description,
                     $detailedInfo,
-                    'Thu hồi thiết bị dự phòng - Lý do: ' . $validatedData['reason']
+                    "Thu hồi {$itemTypeLabel} - Lý do: " . $validatedData['reason']
                 );
 
                 Log::info('Thu hồi thiết bị dự phòng - Đã lưu nhật ký', [
@@ -295,7 +312,24 @@ class EquipmentServiceController extends Controller
             $replacementItem->save();
 
             // Tạo phiếu bảo hành nếu chưa có
-            $warranty = Warranty::where('dispatch_item_id', $originalItem->id)->first();
+            // Kiểm tra bảo hành theo logic chia sẻ dự án/phiếu cho thuê
+            if ($originalItem->dispatch->dispatch_type === 'rental') {
+                // Cho phiếu cho thuê: kiểm tra bảo hành chia sẻ trong cùng rental
+                $warranty = Warranty::whereHas('dispatch', function ($query) use ($originalItem) {
+                    $query->where('project_id', $originalItem->dispatch->project_id)
+                        ->where('dispatch_type', 'rental');
+                })->first();
+            } elseif ($originalItem->dispatch->project_id) {
+                // Cho dự án thường: kiểm tra bảo hành chia sẻ trong cùng project
+                $warranty = Warranty::whereHas('dispatch', function ($query) use ($originalItem) {
+                    $query->where('project_id', $originalItem->dispatch->project_id)
+                        ->where('dispatch_type', '!=', 'rental');
+                })->first();
+            } else {
+                // Fallback: kiểm tra theo dispatch_item_id cho trường hợp không có project
+                $warranty = Warranty::where('dispatch_item_id', $originalItem->id)->first();
+            }
+            
             if (!$warranty) {
                 $warranty = $this->createWarranty($originalItem, $replacementItem, $validatedData['reason']);
             } else {
@@ -305,6 +339,84 @@ class EquipmentServiceController extends Controller
                     ". Lý do: " . $validatedData['reason'] . 
                     ". Thiết bị thay thế: " . $this->getItemCode($replacementItem);
                 $warranty->save();
+            }
+
+            // Lưu nhật ký thay đổi cho việc thu hồi vật tư khi thay thế
+            try {
+                // Lấy thông tin vật tư gốc
+                $originalItemInfo = $this->getItemInfo($originalItem);
+                $replacementItemInfo = $this->getItemInfo($replacementItem);
+                
+                // Xác định loại item để hiển thị chính xác
+                $itemTypeLabel = '';
+                switch ($originalItem->item_type) {
+                    case 'material':
+                        $itemTypeLabel = 'vật tư';
+                        break;
+                    case 'product':
+                        $itemTypeLabel = 'thành phẩm';
+                        break;
+                    case 'good':
+                        $itemTypeLabel = 'hàng hóa';
+                        break;
+                    default:
+                        $itemTypeLabel = 'vật tư';
+                        break;
+                }
+                
+                // Xác định loại dự án/phiếu cho thuê
+                $projectType = '';
+                $projectName = '';
+                $detailedInfo = [
+                    'replacement_code' => $replacement->replacement_code,
+                    'reason' => $validatedData['reason'],
+                    'original_item_code' => $originalItemInfo['code'],
+                    'replacement_item_code' => $replacementItemInfo['code']
+                ];
+
+                if ($originalItem->dispatch->dispatch_type === 'project') {
+                    $project = \App\Models\Project::find($originalItem->dispatch->project_id);
+                    $projectType = 'dự án';
+                    $projectName = $project ? $project->project_name : 'Không xác định';
+                    $detailedInfo['project_id'] = $project ? $project->id : null;
+                    $detailedInfo['project_name'] = $projectName;
+                    $detailedInfo['project_code'] = $project ? $project->project_code : null;
+                } elseif ($originalItem->dispatch->dispatch_type === 'rental') {
+                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->dispatch_note}%")
+                        ->orWhere('rental_code', 'LIKE', "%{$originalItem->dispatch->project_receiver}%")
+                        ->first();
+                    $projectType = 'phiếu cho thuê';
+                    $projectName = $rental ? $rental->rental_name : 'Không xác định';
+                    $detailedInfo['rental_id'] = $rental ? $rental->id : null;
+                    $detailedInfo['rental_name'] = $projectName;
+                    $detailedInfo['rental_code'] = $rental ? $rental->rental_code : null;
+                }
+
+                $description = "Thu hồi {$itemTypeLabel} từ {$projectType}: {$projectName}";
+
+                ChangeLogHelper::thuHoi(
+                    $originalItemInfo['code'],
+                    $originalItemInfo['name'],
+                    $originalItem->quantity,
+                    $replacement->replacement_code,
+                    $description,
+                    $detailedInfo,
+                    "Thu hồi {$itemTypeLabel} - Lý do thay thế: " . $validatedData['reason']
+                );
+
+                Log::info('Thu hồi vật tư khi thay thế - Đã lưu nhật ký', [
+                    'replacement_code' => $replacement->replacement_code,
+                    'original_item_code' => $originalItemInfo['code'],
+                    'dispatch_type' => $originalItem->dispatch->dispatch_type
+                ]);
+
+            } catch (\Exception $logException) {
+                Log::error('Lỗi khi lưu nhật ký thu hồi vật tư khi thay thế', [
+                    'replacement_code' => $replacement->replacement_code,
+                    'error' => $logException->getMessage(),
+                    'trace' => $logException->getTraceAsString()
+                ]);
+                // Không throw exception để không ảnh hưởng đến quá trình thay thế chính
             }
 
             DB::commit();
@@ -601,6 +713,40 @@ class EquipmentServiceController extends Controller
         }
 
         return $itemCode;
+    }
+
+    /**
+     * Helper: Lấy thông tin chi tiết vật tư từ dispatch item
+     */
+    private function getItemInfo($dispatchItem)
+    {
+        $itemInfo = [
+            'code' => 'N/A',
+            'name' => 'N/A'
+        ];
+
+        switch ($dispatchItem->item_type) {
+            case 'material':
+                if ($dispatchItem->material) {
+                    $itemInfo['code'] = $dispatchItem->material->code;
+                    $itemInfo['name'] = $dispatchItem->material->name;
+                }
+                break;
+            case 'product':
+                if ($dispatchItem->product) {
+                    $itemInfo['code'] = $dispatchItem->product->code;
+                    $itemInfo['name'] = $dispatchItem->product->name;
+                }
+                break;
+            case 'good':
+                if ($dispatchItem->good) {
+                    $itemInfo['code'] = $dispatchItem->good->code;
+                    $itemInfo['name'] = $dispatchItem->good->name;
+                }
+                break;
+        }
+
+        return $itemInfo;
     }
 
     /**

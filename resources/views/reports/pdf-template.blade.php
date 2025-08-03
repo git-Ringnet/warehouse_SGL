@@ -103,16 +103,18 @@
         }
         
         .table-title {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: bold;
             color: #2c3e50;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             text-align: center;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 10px;
-            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
-            border-radius: 5px;
+            letter-spacing: 1px;
+            padding: 12px;
+            background-color: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         table {
@@ -126,15 +128,15 @@
         }
         
         th {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background-color: #3498db;
             color: white;
             padding: 12px 6px;
             text-align: center;
             font-weight: bold;
-            font-size: 10px;
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.3px;
-            border: none;
+            letter-spacing: 0.5px;
+            border: 1px solid #2980b9;
         }
         
         td {
@@ -280,23 +282,19 @@
         <div class="summary-stats">
             <div class="stat-item">
                 <div class="stat-label">Tổng số vật tư</div>
-                <div class="stat-value">{{ $stats['total_materials'] ?? 0 }}</div>
+                <div class="stat-value">{{ $stats['total_items'] ?? 0 }}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">Tổng tồn đầu kỳ</div>
-                <div class="stat-value">{{ number_format($stats['total_opening'] ?? 0) }}</div>
+                <div class="stat-label">Số lượng danh mục vật tư</div>
+                <div class="stat-value">{{ $stats['total_categories'] ?? 0 }}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">Tổng nhập kho</div>
-                <div class="stat-value">{{ number_format($stats['total_imports'] ?? 0) }}</div>
+                <div class="stat-label">Nhập kho (trong kỳ)</div>
+                <div class="stat-value">{{ number_format($stats['imports'] ?? 0) }}</div>
             </div>
             <div class="stat-item">
-                <div class="stat-label">Tổng xuất kho</div>
-                <div class="stat-value">{{ number_format($stats['total_exports'] ?? 0) }}</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Tổng tồn cuối kỳ</div>
-                <div class="stat-value">{{ number_format($stats['total_closing'] ?? 0) }}</div>
+                <div class="stat-label">Xuất kho (trong kỳ)</div>
+                <div class="stat-value">{{ number_format($stats['exports'] ?? 0) }}</div>
             </div>
         </div>
     </div>
@@ -305,20 +303,28 @@
     <div class="notes">
         <div class="notes-title">Ghi chú quan trọng</div>
         <div class="notes-content">
-            <strong>Tồn cuối kỳ (tính toán)</strong>: Tồn đầu kỳ + Nhập - Xuất<br>
+            <strong>Tồn cuối kỳ</strong>: Tồn đầu kỳ + Nhập - Xuất (tính toán theo lý thuyết)<br>
             <strong>Tồn hiện tại</strong>: Số lượng thực tế trong kho hiện tại<br>
             <strong>Chênh lệch</strong>: Tồn hiện tại - Tồn cuối kỳ (tính toán)<br>
-            Chênh lệch dương (nền xanh): Thừa so với tính toán<br>
-            Chênh lệch âm (nền đỏ): Thiếu so với tính toán<br>
-            Chênh lệch = 0: Khớp với tính toán
+            <strong>Ý nghĩa chênh lệch:</strong><br>
+            • Chênh lệch dương (+): Thừa so với tính toán<br>
+            • Chênh lệch âm (-): Thiếu so với tính toán<br>
+            • Chênh lệch = 0: Khớp với tính toán
         </div>
     </div>
 
     <!-- Bảng chi tiết -->
     <div class="table-container">
         <div class="table-title">CHI TIẾT VẬT TƯ</div>
+        <div style="text-align: center; margin-bottom: 15px; font-size: 12px; color: #7f8c8d;">
+            Bảng chi tiết xuất nhập tồn kho theo từng vật tư
+        </div>
         
         @if($reportData->count() > 0)
+            <div style="margin-bottom: 10px; text-align: right; font-size: 10px; color: #7f8c8d;">
+                Tổng số vật tư: <strong>{{ $reportData->count() }}</strong> | 
+                Kỳ báo cáo: {{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -326,10 +332,10 @@
                         <th style="width: 12%">Mã vật tư</th>
                         <th style="width: 25%">Tên vật tư</th>
                         <th style="width: 8%">Đơn vị</th>
-                        <th style="width: 15%">Danh mục</th>
                         <th style="width: 8%">Tồn đầu kỳ</th>
                         <th style="width: 8%">Nhập</th>
                         <th style="width: 8%">Xuất</th>
+                        <th style="width: 8%">Tồn cuối kỳ</th>
                         <th style="width: 8%">Tồn hiện tại</th>
                         <th style="width: 8%">Chênh lệch</th>
                     </tr>
@@ -341,43 +347,71 @@
                             $differenceClass = $difference > 0 ? 'positive' : ($difference < 0 ? 'negative' : 'zero');
                         @endphp
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $loop->index + 1 }}</td>
                             <td class="text-left">{{ $item['item_code'] }}</td>
                             <td class="text-left">{{ $item['item_name'] }}</td>
                             <td>{{ $item['item_unit'] }}</td>
-                            <td class="text-left">{{ $item['item_category'] }}</td>
                             <td class="text-right">{{ number_format($item['opening_stock']) }}</td>
-                            <td class="text-right">{{ number_format($item['imports']) }}</td>
-                            <td class="text-right">{{ number_format($item['exports']) }}</td>
+                            <td class="text-right">
+                                @if($item['imports'] > 0)
+                                    +{{ number_format($item['imports']) }}
+                                @else
+                                    0
+                                @endif
+                            </td>
+                            <td class="text-right">
+                                @if($item['exports'] > 0)
+                                    -{{ number_format($item['exports']) }}
+                                @else
+                                    0
+                                @endif
+                            </td>
+                            <td class="text-right">{{ number_format($item['closing_stock']) }}</td>
                             <td class="text-right">{{ number_format($item['current_stock']) }}</td>
                             <td class="text-right {{ $differenceClass }}">
-                                {{ $difference > 0 ? '+' : '' }}{{ number_format($difference) }}
+                                @if($difference >= 0)
+                                    +{{ number_format($difference) }}
+                                @else
+                                    {{ number_format($difference) }}
+                                @endif
                             </td>
                         </tr>
                     @endforeach
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5" class="text-left" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
+                        <td colspan="4" class="text-left" style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">
                             TỔNG CỘNG
                         </td>
                         <td class="text-right" style="font-size: 11px;">{{ number_format($reportData->sum('opening_stock')) }}</td>
-                        <td class="text-right" style="font-size: 11px;">{{ number_format($reportData->sum('imports')) }}</td>
-                        <td class="text-right" style="font-size: 11px;">{{ number_format($reportData->sum('exports')) }}</td>
+                        <td class="text-right" style="font-size: 11px;">+{{ number_format($reportData->sum('imports')) }}</td>
+                        <td class="text-right" style="font-size: 11px;">-{{ number_format($reportData->sum('exports')) }}</td>
+                        <td class="text-right" style="font-size: 11px;">{{ number_format($reportData->sum('closing_stock')) }}</td>
                         <td class="text-right" style="font-size: 11px;">{{ number_format($reportData->sum('current_stock')) }}</td>
                         <td class="text-right" style="font-size: 11px;">
                             @php
                                 $totalDiff = $reportData->sum('current_stock') - $reportData->sum('closing_stock');
                             @endphp
-                            {{ $totalDiff > 0 ? '+' : '' }}{{ number_format($totalDiff) }}
+                            @if($totalDiff >= 0)
+                                +{{ number_format($totalDiff) }}
+                            @else
+                                {{ number_format($totalDiff) }}
+                            @endif
                         </td>
                     </tr>
                 </tfoot>
             </table>
         @else
             <div class="no-data">
-                <i class="fas fa-inbox" style="font-size: 24px; margin-bottom: 10px; color: #bdc3c7;"></i><br>
-                Không có dữ liệu để hiển thị trong kỳ báo cáo này
+                <div style="text-align: center; padding: 40px 20px;">
+                    <div style="font-size: 24px; color: #bdc3c7; margin-bottom: 15px;">📋</div>
+                    <div style="font-size: 16px; font-weight: bold; color: #7f8c8d; margin-bottom: 10px;">
+                        Không có dữ liệu để hiển thị
+                    </div>
+                    <div style="font-size: 12px; color: #95a5a6;">
+                        Thử thay đổi bộ lọc hoặc kỳ báo cáo để xem kết quả khác
+                    </div>
+                </div>
             </div>
         @endif
     </div>
@@ -407,6 +441,7 @@
                         Danh mục: "{{ $category }}"
                     </span>
                 @endif
+                <br><small style="color: #7f8c8d; font-size: 9px;">Báo cáo này chỉ hiển thị dữ liệu theo bộ lọc đã áp dụng</small>
             </div>
         @endif
     </div>
