@@ -194,55 +194,40 @@
     </div>
 
     <!-- Thông tin bảo hành -->
+    @if($maintenanceRequest->warranty)
     <div class="bg-white rounded-xl shadow-md p-6 mt-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin bảo hành</h2>
-        @if($maintenanceRequest->warranty)
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <p class="text-sm text-gray-500">Mã bảo hành</p>
-                    <p class="font-medium">{{ $maintenanceRequest->warranty->warranty_code }}</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Loại bảo hành</p>
-                    <p class="font-medium">{{ $maintenanceRequest->warranty->type ?? 'Tiêu chuẩn' }}</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Thời gian bảo hành</p>
-                    <p class="font-medium">
-                        @if($maintenanceRequest->warranty && $maintenanceRequest->warranty->warranty_start_date && $maintenanceRequest->warranty->warranty_end_date)
-                            @php
-                                $startDate = \Carbon\Carbon::parse($maintenanceRequest->warranty->warranty_start_date);
-                                $endDate = \Carbon\Carbon::parse($maintenanceRequest->warranty->warranty_end_date);
-                                $months = $startDate->diffInMonths($endDate);
-                            @endphp
-                            {{ $months }} tháng
-                        @else
-                            12 tháng
-                        @endif
-                    </p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Ngày hết hạn</p>
-                    <p class="font-medium">{{ $maintenanceRequest->warranty->warranty_end_date ? date('d/m/Y', strtotime($maintenanceRequest->warranty->warranty_end_date)) : 'Không có' }}</p>
-                </div>
+        <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin dự án bảo hành</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm text-gray-500">Mã bảo hành</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->warranty_code }}</p>
             </div>
-        @else
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <p class="text-sm text-gray-500">Loại bảo hành</p>
-                    <p class="font-medium">Tiêu chuẩn</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Thời gian bảo hành</p>
-                    <p class="font-medium">12 tháng</p>
-                </div>
-                <div>
-                    <p class="text-sm text-gray-500">Ngày hết hạn</p>
-                    <p class="font-medium">{{ $maintenanceRequest->maintenance_date->addMonths(12)->format('d/m/Y') }}</p>
-                </div>
+            <div>
+                <p class="text-sm text-gray-500">Loại bảo hành</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->type ?? 'Tiêu chuẩn' }}</p>
             </div>
-        @endif
+            <div>
+                <p class="text-sm text-gray-500">Thời gian bảo hành</p>
+                <p class="font-medium">
+                    @if($maintenanceRequest->warranty && $maintenanceRequest->warranty->warranty_start_date && $maintenanceRequest->warranty->warranty_end_date)
+                        @php
+                            $startDate = \Carbon\Carbon::parse($maintenanceRequest->warranty->warranty_start_date);
+                            $endDate = \Carbon\Carbon::parse($maintenanceRequest->warranty->warranty_end_date);
+                            $months = $startDate->diffInMonths($endDate);
+                        @endphp
+                        {{ $months }} tháng
+                    @else
+                        12 tháng
+                    @endif
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Ngày hết hạn</p>
+                <p class="font-medium">{{ $maintenanceRequest->warranty->warranty_end_date ? date('d/m/Y', strtotime($maintenanceRequest->warranty->warranty_end_date)) : 'Không có' }}</p>
+            </div>
+        </div>
     </div>
+    @endif
 
     <!-- Danh sách thiết bị -->
     <div class="bg-white rounded-xl shadow-md p-6 mt-6">
@@ -304,8 +289,67 @@
         </div>
     </div>
 
+    <!-- Phần xử lý phiếu bảo trì -->
+    @if($maintenanceRequest->status === 'pending')
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Xử lý phiếu bảo trì</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Duyệt phiếu -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-700 mb-3">Duyệt phiếu bảo trì</h3>
+                    <form action="{{ route('requests.maintenance.approve', $maintenanceRequest->id) }}" method="POST">
+                        @csrf
+                        <input type="hidden" name="implementer_id" value="{{ $maintenanceRequest->proposer_id }}">
+                        <p class="mb-4 text-gray-700">Kỹ thuật viên: <span class="font-medium">{{ $maintenanceRequest->proposer ? $maintenanceRequest->proposer->name : 'Không có' }}</span></p>
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-check mr-2"></i> Duyệt phiếu
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Từ chối phiếu -->
+                <div>
+                    <h3 class="text-md font-medium text-gray-700 mb-3">Từ chối phiếu bảo trì</h3>
+                    <form action="{{ route('requests.maintenance.reject', $maintenanceRequest->id) }}" method="POST">
+                        @csrf
+                        <div class="mb-4">
+                            <label for="reject_reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối</label>
+                            <textarea name="reject_reason" id="reject_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            @error('reject_reason')
+                                <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-times mr-2"></i> Từ chối phiếu
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- Hiển thị thông tin phiếu sửa chữa đã tạo -->
-    @if($maintenanceRequest->repairs && $maintenanceRequest->repairs->count() > 0)
+    @php
+        $repairs = $maintenanceRequest->repairs;
+        $repairsCount = $repairs ? $repairs->count() : 0;
+    @endphp
+    
+    <!-- Debug info -->
+    @if(config('app.debug'))
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 rounded">
+            <div class="flex">
+                <div class="py-1"><i class="fas fa-info-circle text-yellow-500"></i></div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium">Debug Info:</p>
+                    <p class="text-sm">Maintenance Request ID: {{ $maintenanceRequest->id }}</p>
+                    <p class="text-sm">Repairs count: {{ $repairsCount }}</p>
+                    <p class="text-sm">Status: {{ $maintenanceRequest->status }}</p>
+                </div>
+            </div>
+        </div>
+    @endif
+    
+    @if($repairs && $repairsCount > 0)
         <div class="bg-white rounded-xl shadow-md p-6 mt-6">
             <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Phiếu sửa chữa & bảo trì đã tạo</h2>
             <div class="overflow-x-auto">
@@ -320,7 +364,7 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($maintenanceRequest->repairs as $repair)
+                        @foreach($repairs as $repair)
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $repair->repair_code }}
@@ -345,6 +389,17 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+        </div>
+    @else
+        <div class="bg-white rounded-xl shadow-md p-6 mt-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Phiếu sửa chữa & bảo trì</h2>
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-tools text-4xl mb-2"></i>
+                <p>Chưa có phiếu sửa chữa nào được tạo từ phiếu bảo trì này</p>
+                @if($maintenanceRequest->status === 'pending')
+                    <p class="text-sm mt-2">Phiếu bảo trì cần được duyệt để tạo phiếu sửa chữa</p>
+                @endif
             </div>
         </div>
     @endif
