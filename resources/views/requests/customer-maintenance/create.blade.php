@@ -62,7 +62,7 @@
         </div>
     @endif
     
-    <form action="{{ route('customer-maintenance.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
+    <form action="{{ route('requests.customer-maintenance.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
                 @csrf
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">

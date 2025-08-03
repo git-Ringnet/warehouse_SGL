@@ -246,7 +246,7 @@ class CustomerMaintenanceRequestController extends Controller
                 $admin->id,
                 'customer_maintenance_request',
                 $maintenanceRequest->id,
-                route('customer-maintenance.show', $maintenanceRequest->id)
+                route('requests.customer-maintenance.show', $maintenanceRequest->id)
             );
         }
 
@@ -323,7 +323,7 @@ class CustomerMaintenanceRequestController extends Controller
         
         // Chỉ cho phép chỉnh sửa khi phiếu còn ở trạng thái chờ duyệt
         if ($request->status !== 'pending') {
-            return redirect()->route('customer-maintenance.show', $id)
+            return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Không thể chỉnh sửa phiếu yêu cầu đã được duyệt.');
         }
         
@@ -353,7 +353,7 @@ class CustomerMaintenanceRequestController extends Controller
         
         // Chỉ cho phép cập nhật khi phiếu còn ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
-            return redirect()->route('customer-maintenance.show', $id)
+            return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Không thể cập nhật phiếu yêu cầu đã được duyệt.');
         }
         
@@ -418,7 +418,7 @@ class CustomerMaintenanceRequestController extends Controller
             );
         }
 
-        return redirect()->route('customer-maintenance.show', $maintenanceRequest->id)
+        return redirect()->route('requests.customer-maintenance.show', $maintenanceRequest->id)
             ->with('success', 'Cập nhật phiếu yêu cầu bảo trì thành công!');
     }
 
@@ -435,7 +435,7 @@ class CustomerMaintenanceRequestController extends Controller
         
         // Chỉ cho phép xóa khi phiếu còn ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
-            return redirect()->route('customer-maintenance.show', $id)
+            return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Không thể xóa phiếu yêu cầu đã được duyệt.');
         }
         
@@ -511,7 +511,7 @@ class CustomerMaintenanceRequestController extends Controller
         $oldData = $maintenanceRequest->toArray();
         
         if ($maintenanceRequest->status !== 'pending') {
-            return redirect()->route('customer-maintenance.show', $id)
+            return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Phiếu yêu cầu này không ở trạng thái chờ duyệt.');
         }
         
@@ -522,7 +522,7 @@ class CustomerMaintenanceRequestController extends Controller
             $maintenanceRequest->approved_by = Auth::guard('web')->id();
         } else {
             // Trường hợp không phải nhân viên (không nên xảy ra do middleware)
-            return redirect()->route('customer-maintenance.show', $id)
+            return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Bạn không có quyền duyệt phiếu yêu cầu này.');
         }
         
@@ -542,7 +542,7 @@ class CustomerMaintenanceRequestController extends Controller
             );
         }
         
-        return redirect()->route('customer-maintenance.show', $id)
+        return redirect()->route('requests.customer-maintenance.show', $id)
             ->with('success', 'Đã duyệt phiếu yêu cầu bảo trì thành công!');
     }
 
@@ -557,7 +557,7 @@ class CustomerMaintenanceRequestController extends Controller
         $oldData = $maintenanceRequest->toArray();
         
         if ($maintenanceRequest->status !== 'pending') {
-            return redirect()->route('customer-maintenance.show', $id)
+            return redirect()->route('requests.customer-maintenance.show', $id)
                 ->with('error', 'Phiếu yêu cầu này không ở trạng thái chờ duyệt.');
         }
         
@@ -582,7 +582,7 @@ class CustomerMaintenanceRequestController extends Controller
             );
         }
         
-        return redirect()->route('customer-maintenance.show', $id)
+        return redirect()->route('requests.customer-maintenance.show', $id)
             ->with('success', 'Đã từ chối phiếu yêu cầu bảo trì thành công!');
     }
 

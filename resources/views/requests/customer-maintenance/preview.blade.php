@@ -14,7 +14,7 @@
             </div>
         </div>
         <div class="flex space-x-2">
-            <a href="{{ route('requests.customer-maintenance.show', $request->id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center transition-colors">
+            <a href="{{ route('requests.customer-maintenance.show', $request->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-arrow-left mr-2"></i> Quay lại
             </a>
             

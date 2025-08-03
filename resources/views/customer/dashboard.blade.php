@@ -44,14 +44,15 @@
         <div class="bg-white rounded-xl shadow-md p-6">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-semibold text-gray-800">Yêu cầu bảo trì</h2>
-                <a href="{{ route('customer-maintenance.create') }}" class="text-blue-500 hover:text-blue-600">
-                    <i class="fas fa-plus"></i>
+                <a href="{{ route('requests.customer-maintenance.create') }}" class="text-blue-500 hover:text-blue-600">
+                    <i class="fas fa-plus mr-1"></i>
+                    Tạo phiếu yêu cầu bảo trì mới
                 </a>
             </div>
             <p class="text-sm text-gray-600 mb-4">
                 Tạo phiếu yêu cầu bảo trì cho thiết bị của bạn
             </p>
-            <a href="{{ route('customer-maintenance.create') }}" class="inline-flex items-center text-sm text-blue-500 hover:text-blue-600">
+            <a href="{{ route('requests.customer-maintenance.create') }}" class="inline-flex items-center text-sm text-blue-500 hover:text-blue-600">
                 Tạo phiếu mới
                 <i class="fas fa-arrow-right ml-1"></i>
             </a>
@@ -87,7 +88,7 @@
     <div class="mt-8">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold text-gray-800">Phiếu yêu cầu bảo trì của bạn</h2>
-            <a href="{{ route('customer-maintenance.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+            <a href="{{ route('requests.customer-maintenance.create') }}" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
                 <i class="fas fa-plus mr-2"></i> Tạo phiếu mới
             </a>
         </div>
@@ -149,7 +150,7 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        <a href="{{ route('customer-maintenance.show', $request->id) }}" class="text-blue-600 hover:text-blue-900">Xem chi tiết</a>
+                                        <a href="{{ route('requests.customer-maintenance.show', $request->id) }}" class="text-blue-600 hover:text-blue-900">Xem chi tiết</a>
                                     </td>
                                 </tr>
                             @endforeach
@@ -160,7 +161,7 @@
         @else
             <div class="bg-white rounded-xl shadow-md p-6 text-center">
                 <p class="text-gray-500">Bạn chưa tạo phiếu yêu cầu bảo trì nào.</p>
-                <a href="{{ route('customer-maintenance.create') }}" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                <a href="{{ route('requests.customer-maintenance.create') }}" class="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
                     <i class="fas fa-plus mr-2"></i> Tạo phiếu mới
                 </a>
             </div>

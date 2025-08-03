@@ -66,7 +66,7 @@
                                 </a>
                             @endif
                             @if ($canCreateCustomerMaintenance)
-                                <a href="{{ url('/requests/customer-maintenance/create') }}"
+                                <a href="{{ route('requests.customer-maintenance.create') }}"
                                     class="block px-4 py-2 text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-user-cog mr-2"></i> Khách yêu cầu bảo trì
                                 </a>
