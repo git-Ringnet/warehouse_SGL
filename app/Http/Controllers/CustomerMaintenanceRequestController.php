@@ -185,7 +185,7 @@ class CustomerMaintenanceRequestController extends Controller
                 );
             }
             
-            return redirect()->route('customer-maintenance.show', $newRequest->id)
+            return redirect()->route('customer.dashboard')
                 ->with('success', 'Đã sao chép phiếu yêu cầu bảo trì thành công.');
         }
         
@@ -263,7 +263,7 @@ class CustomerMaintenanceRequestController extends Controller
             );
         }
 
-        return redirect()->route('customer-maintenance.show', $maintenanceRequest->id)
+        return redirect()->route('customer.dashboard')
             ->with('success', 'Đã tạo phiếu yêu cầu bảo trì thành công.');
     }
 

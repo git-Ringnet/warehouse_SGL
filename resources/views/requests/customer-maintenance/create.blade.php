@@ -62,7 +62,7 @@
         </div>
     @endif
     
-    <form action="{{ route('requests.customer-maintenance.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
+    <form action="{{ route('customer-maintenance.store') }}" method="POST" class="bg-white rounded-xl shadow-md p-6">
                 @csrf
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
@@ -403,15 +403,15 @@
                         console.log(`Item: ${item.name}, Quantity: ${quantity}`);
                         for (let i = 0; i < quantity; i++) {
                             htmlRows += `
-                                <tr>
-                                    <td class="px-6 py-4">
-                                        <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
-                                    </td>
-                                    <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
+                        <tr>
+                            <td class="px-6 py-4">
+                                <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
+                            </td>
+                            <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
                                     <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
-                                    <td class="px-6 py-4">${projectCode}</td>
+                            <td class="px-6 py-4">${projectCode}</td>
                                     <td class="px-6 py-4">${item.description || 'N/A'}</td>
-                                </tr>
+                        </tr>
                             `;
                             totalRows++;
                         }
@@ -458,15 +458,15 @@
                         console.log(`Item: ${item.name}, Quantity: ${quantity}`);
                         for (let i = 0; i < quantity; i++) {
                             htmlRows += `
-                                <tr>
-                                    <td class="px-6 py-4">
-                                        <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
-                                    </td>
-                                    <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
+                        <tr>
+                            <td class="px-6 py-4">
+                                <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
+                            </td>
+                            <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
                                     <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
-                                    <td class="px-6 py-4">${rentalCode}</td>
+                            <td class="px-6 py-4">${rentalCode}</td>
                                     <td class="px-6 py-4">${item.description || 'N/A'}</td>
-                                </tr>
+                        </tr>
                             `;
                             totalRows++;
                         }
