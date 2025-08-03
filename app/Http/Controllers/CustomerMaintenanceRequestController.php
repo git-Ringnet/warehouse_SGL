@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\User;
 use App\Models\Employee;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class CustomerMaintenanceRequestController extends Controller
 {
@@ -116,155 +117,169 @@ class CustomerMaintenanceRequestController extends Controller
      */
     public function store(Request $request)
     {
-        // Kiểm tra quyền truy cập
-        if (Auth::guard('web')->check()) {
-            // Nếu là nhân viên, chuyển hướng về trang index với thông báo
-            return redirect()->route('requests.index')
-                ->with('warning', 'Tính năng tạo phiếu yêu cầu bảo trì chỉ dành cho khách hàng.');
-        }
-        
-        if (!Auth::guard('customer')->check()) {
-            return redirect()->route('login')
-                ->with('error', 'Vui lòng đăng nhập với tài khoản khách hàng để sử dụng chức năng này.');
-        }
-        
-        $customerUser = Auth::guard('customer')->user();
-        $customer = $customerUser->customer;
-        
-        if (!$customer) {
-            return redirect()->route('customer.dashboard')
-                ->with('error', 'Không tìm thấy thông tin khách hàng của bạn.');
-        }
-        // Nếu là sao chép từ phiếu khác
-        if ($request->has('copy_from')) {
-            $originalRequest = CustomerMaintenanceRequest::findOrFail($request->copy_from);
-            
-            // Sử dụng transaction để tránh race condition
-            $newRequest = null;
-            DB::transaction(function () use ($originalRequest, &$newRequest) {
-                // Tạo mã phiếu mới an toàn
-                $requestCode = $this->generateUniqueRequestCode();
-                
-                // Tạo phiếu mới với thông tin từ phiếu cũ
-                $newRequest = new CustomerMaintenanceRequest();
-                $newRequest->request_code = $requestCode;
-                $newRequest->customer_id = $originalRequest->customer_id;
-                $newRequest->customer_name = $originalRequest->customer_name;
-                $newRequest->customer_phone = $originalRequest->customer_phone;
-                $newRequest->customer_email = $originalRequest->customer_email;
-                $newRequest->customer_address = $originalRequest->customer_address;
-                $newRequest->project_name = $originalRequest->project_name;
-                $newRequest->project_description = $originalRequest->project_description;
-                $newRequest->request_date = now();
-                $newRequest->maintenance_reason = $originalRequest->maintenance_reason;
-                $newRequest->maintenance_details = $originalRequest->maintenance_details;
-                $newRequest->priority = $originalRequest->priority;
-                $newRequest->status = 'pending';
-                $newRequest->notes = $originalRequest->notes;
-                
-                $newRequest->save();
-            });
-            
-            // Kiểm tra xem phiếu đã được tạo thành công chưa
-            if (!$newRequest) {
-                return redirect()->back()
-                    ->with('error', 'Có lỗi xảy ra khi sao chép phiếu yêu cầu bảo trì.')
-                    ->withInput();
+        try {
+            // Kiểm tra quyền truy cập
+            if (Auth::guard('web')->check()) {
+                // Nếu là nhân viên, chuyển hướng về trang index với thông báo
+                return redirect()->route('requests.index')
+                    ->with('warning', 'Tính năng tạo phiếu yêu cầu bảo trì chỉ dành cho khách hàng.');
             }
             
-            // Ghi nhật ký tạo phiếu yêu cầu bảo trì từ sao chép
+            if (!Auth::guard('customer')->check()) {
+                return redirect()->route('login')
+                    ->with('error', 'Vui lòng đăng nhập với tài khoản khách hàng để sử dụng chức năng này.');
+            }
+            
+            $customerUser = Auth::guard('customer')->user();
+            $customer = $customerUser->customer;
+            
+            if (!$customer) {
+                return redirect()->route('customer.dashboard')
+                    ->with('error', 'Không tìm thấy thông tin khách hàng của bạn.');
+            }
+            // Nếu là sao chép từ phiếu khác
+            if ($request->has('copy_from')) {
+                $originalRequest = CustomerMaintenanceRequest::findOrFail($request->copy_from);
+                
+                // Sử dụng transaction để tránh race condition
+                $newRequest = null;
+                DB::transaction(function () use ($originalRequest, &$newRequest) {
+                    // Tạo mã phiếu mới an toàn
+                    $requestCode = $this->generateUniqueRequestCode();
+                    
+                    // Tạo phiếu mới với thông tin từ phiếu cũ
+                    $newRequest = new CustomerMaintenanceRequest();
+                    $newRequest->request_code = $requestCode;
+                    $newRequest->customer_id = $originalRequest->customer_id;
+                    $newRequest->customer_name = $originalRequest->customer_name;
+                    $newRequest->customer_phone = $originalRequest->customer_phone;
+                    $newRequest->customer_email = $originalRequest->customer_email;
+                    $newRequest->customer_address = $originalRequest->customer_address;
+                    $newRequest->project_name = $originalRequest->project_name;
+                    $newRequest->project_description = $originalRequest->project_description;
+                    $newRequest->request_date = now();
+                    $newRequest->maintenance_reason = $originalRequest->maintenance_reason;
+                    $newRequest->maintenance_details = $originalRequest->maintenance_details;
+                    $newRequest->priority = $originalRequest->priority;
+                    $newRequest->status = 'pending';
+                    $newRequest->notes = $originalRequest->notes;
+                    
+                    $newRequest->save();
+                });
+                
+                // Kiểm tra xem phiếu đã được tạo thành công chưa
+                if (!$newRequest) {
+                    return redirect()->back()
+                        ->with('error', 'Có lỗi xảy ra khi sao chép phiếu yêu cầu bảo trì.')
+                        ->withInput();
+                }
+                
+                // Ghi nhật ký tạo phiếu yêu cầu bảo trì từ sao chép
+                if (Auth::guard('customer')->check()) {
+                    $userId = Auth::guard('customer')->user()->id;
+                    \App\Models\UserLog::logActivity(
+                        $userId,
+                        'create',
+                        'customer_maintenance_requests',
+                        'Tạo phiếu khách yêu cầu bảo trì (sao chép): ' . $newRequest->request_code,
+                        null,
+                        $newRequest->toArray()
+                    );
+                }
+                
+                return redirect()->route('customer.dashboard')
+                    ->with('success', 'Đã sao chép phiếu yêu cầu bảo trì thành công.');
+            }
+            
+            // Xử lý tạo phiếu mới
+            $rules = [
+                'project_name' => 'required|string|max:255',
+                'project_description' => 'nullable|string',
+                'maintenance_reason' => 'required|string',
+                'maintenance_details' => 'nullable|string',
+                'priority' => 'required|in:low,medium,high,urgent',
+                'notes' => 'nullable|string',
+                'item_source' => 'required|in:project,rental',
+            ];
+
+            // Thêm validation cho project_id hoặc rental_id tùy theo item_source
+            if ($request->item_source === 'project') {
+                $rules['project_id'] = 'required|exists:projects,id';
+            } elseif ($request->item_source === 'rental') {
+                $rules['rental_id'] = 'required|exists:rentals,id';
+            }
+
+            $validatedData = $request->validate($rules);
+
+            // Sử dụng transaction để tránh race condition
+            $maintenanceRequest = null;
+            DB::transaction(function () use ($validatedData, $customer, &$maintenanceRequest) {
+                // Tạo mã phiếu mới an toàn trong transaction
+                $requestCode = $this->generateUniqueRequestCode();
+
+                // Thêm thông tin khách hàng và các trường bổ sung
+                $validatedData['request_code'] = $requestCode;
+                $validatedData['request_date'] = now();
+                $validatedData['status'] = 'pending';
+                $validatedData['customer_id'] = $customer->id;
+                $validatedData['customer_name'] = $customer->company_name ?? $customer->name;
+                $validatedData['customer_phone'] = $customer->phone;
+                $validatedData['customer_email'] = $customer->email;
+                $validatedData['customer_address'] = $customer->address;
+
+                // Lưu phiếu yêu cầu
+                $maintenanceRequest = CustomerMaintenanceRequest::create($validatedData);
+            });
+
+            // Kiểm tra xem phiếu đã được tạo thành công chưa
+            if (!$maintenanceRequest) {
+                return redirect()->back()
+                    ->with('error', 'Có lỗi xảy ra khi tạo phiếu yêu cầu bảo trì.')
+                    ->withInput();
+            }
+
+            // Gửi thông báo cho tất cả admin
+            $admins = Employee::where('role', 'admin')->where('is_active', true)->get();
+            foreach ($admins as $admin) {
+                Notification::createNotification(
+                    'Phiếu khách yêu cầu bảo trì mới',
+                    'Khách hàng ' . $maintenanceRequest->customer_name . ' đã tạo phiếu yêu cầu bảo trì ' . $maintenanceRequest->project_name,
+                    'info',
+                    $admin->id,
+                    'customer_maintenance_request',
+                    $maintenanceRequest->id,
+                    route('requests.customer-maintenance.show', $maintenanceRequest->id)
+                );
+            }
+
+            // Ghi nhật ký tạo phiếu yêu cầu bảo trì mới
             if (Auth::guard('customer')->check()) {
                 $userId = Auth::guard('customer')->user()->id;
                 \App\Models\UserLog::logActivity(
                     $userId,
                     'create',
                     'customer_maintenance_requests',
-                    'Tạo phiếu khách yêu cầu bảo trì (sao chép): ' . $newRequest->request_code,
+                    'Tạo phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
                     null,
-                    $newRequest->toArray()
+                    $maintenanceRequest->toArray()
                 );
             }
-            
+
             return redirect()->route('customer.dashboard')
-                ->with('success', 'Đã sao chép phiếu yêu cầu bảo trì thành công.');
-        }
-        
-        // Xử lý tạo phiếu mới
-        $rules = [
-            'project_name' => 'required|string|max:255',
-            'project_description' => 'nullable|string',
-            'maintenance_reason' => 'required|string',
-            'maintenance_details' => 'nullable|string',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'notes' => 'nullable|string',
-            'item_source' => 'required|in:project,rental',
-        ];
-
-        // Thêm validation cho project_id hoặc rental_id tùy theo item_source
-        if ($request->item_source === 'project') {
-            $rules['project_id'] = 'required|exists:projects,id';
-        } elseif ($request->item_source === 'rental') {
-            $rules['rental_id'] = 'required|exists:rentals,id';
-        }
-
-        $validatedData = $request->validate($rules);
-
-        // Sử dụng transaction để tránh race condition
-        $maintenanceRequest = null;
-        DB::transaction(function () use ($validatedData, $customer, &$maintenanceRequest) {
-            // Tạo mã phiếu mới an toàn trong transaction
-            $requestCode = $this->generateUniqueRequestCode();
-
-            // Thêm thông tin khách hàng và các trường bổ sung
-            $validatedData['request_code'] = $requestCode;
-            $validatedData['request_date'] = now();
-            $validatedData['status'] = 'pending';
-            $validatedData['customer_id'] = $customer->id;
-            $validatedData['customer_name'] = $customer->company_name ?? $customer->name;
-            $validatedData['customer_phone'] = $customer->phone;
-            $validatedData['customer_email'] = $customer->email;
-            $validatedData['customer_address'] = $customer->address;
-
-            // Lưu phiếu yêu cầu
-            $maintenanceRequest = CustomerMaintenanceRequest::create($validatedData);
-        });
-
-        // Kiểm tra xem phiếu đã được tạo thành công chưa
-        if (!$maintenanceRequest) {
+                ->with('success', 'Đã tạo phiếu yêu cầu bảo trì thành công.');
+                
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return redirect()->back()
-                ->with('error', 'Có lỗi xảy ra khi tạo phiếu yêu cầu bảo trì.')
+                ->withErrors($e->validator)
+                ->withInput();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('CustomerMaintenanceRequest store error: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Stack trace: ' . $e->getTraceAsString());
+            
+            return redirect()->back()
+                ->with('error', 'Có lỗi xảy ra: ' . $e->getMessage())
                 ->withInput();
         }
-
-        // Gửi thông báo cho tất cả admin
-        $admins = Employee::where('role', 'admin')->where('is_active', true)->get();
-        foreach ($admins as $admin) {
-            Notification::createNotification(
-                'Phiếu khách yêu cầu bảo trì mới',
-                'Khách hàng ' . $maintenanceRequest->customer_name . ' đã tạo phiếu yêu cầu bảo trì ' . $maintenanceRequest->project_name,
-                'info',
-                $admin->id,
-                'customer_maintenance_request',
-                $maintenanceRequest->id,
-                route('requests.customer-maintenance.show', $maintenanceRequest->id)
-            );
-        }
-
-        // Ghi nhật ký tạo phiếu yêu cầu bảo trì mới
-        if (Auth::guard('customer')->check()) {
-            $userId = Auth::guard('customer')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'create',
-                'customer_maintenance_requests',
-                'Tạo phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
-                null,
-                $maintenanceRequest->toArray()
-            );
-        }
-
-        return redirect()->route('customer.dashboard')
-            ->with('success', 'Đã tạo phiếu yêu cầu bảo trì thành công.');
     }
 
     /**
