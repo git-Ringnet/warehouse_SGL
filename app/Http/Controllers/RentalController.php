@@ -169,10 +169,7 @@ class RentalController extends Controller
         $backupItems = collect();
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
             ->whereIn('status', ['approved', 'completed'])
-            ->where(function($query) use ($rental) {
-                $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                    ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-            })
+            ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
             
         foreach ($dispatches as $dispatch) {
@@ -455,10 +452,7 @@ class RentalController extends Controller
         // Lấy danh sách thiết bị từ các phiếu xuất kho của đơn thuê
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
             ->whereIn('status', ['approved', 'completed'])
-            ->where(function($query) use ($rental) {
-                $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                    ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-            })
+            ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
             
         $allItems = collect();
@@ -511,14 +505,13 @@ class RentalController extends Controller
     private function getBackupItemsCount($rentalId)
     {
         // Lấy tất cả phiếu xuất kho của rental
+        $rental = \App\Models\Rental::find($rentalId);
+        if (!$rental) {
+            return 0;
+        }
+        
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
-            ->where(function($query) use ($rentalId) {
-                $rental = \App\Models\Rental::find($rentalId);
-                if ($rental) {
-                    $query->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                        ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                }
-            })
+            ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
         
         $backupItemsCount = 0;

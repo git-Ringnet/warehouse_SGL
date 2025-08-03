@@ -198,7 +198,7 @@
                                 <div class="ml-3">
                                     <h3 class="text-md font-medium text-green-800">Phiếu xuất kho</h3>
                                     @php
-                                        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%phiếu đề xuất dự án #' . $projectRequest->id . '%')->first();
+                                        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%phiếu đề xuất%#' . $projectRequest->id . '%')->first();
                                     @endphp
                                     
                                     @if(isset($dispatch) && $dispatch)

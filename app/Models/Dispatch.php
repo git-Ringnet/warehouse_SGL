@@ -51,6 +51,14 @@ class Dispatch extends Model
     }
 
     /**
+     * Get the rental for this dispatch.
+     */
+    public function rental(): BelongsTo
+    {
+        return $this->belongsTo(Rental::class, 'project_id');
+    }
+
+    /**
      * Get the user who created this dispatch.
      */
     public function creator(): BelongsTo
