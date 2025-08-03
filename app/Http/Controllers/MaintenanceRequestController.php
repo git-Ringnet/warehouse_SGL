@@ -742,7 +742,7 @@ class MaintenanceRequestController extends Controller
     public function reject(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'reject_reason' => 'required|string|min:10',
+            'rejection_reason' => 'required|string',
         ]);
         
         if ($validator->fails()) {
@@ -763,7 +763,7 @@ class MaintenanceRequestController extends Controller
         try {
             $maintenanceRequest->update([
                 'status' => 'rejected',
-                'reject_reason' => $request->reject_reason,
+                'reject_reason' => $request->rejection_reason,
             ]);
 
             // Ghi nhật ký từ chối phiếu bảo trì

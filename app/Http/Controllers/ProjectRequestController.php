@@ -943,10 +943,9 @@ class ProjectRequestController extends Controller
     public function reject(Request $request, $id)
     {
         $request->validate([
-            'reject_reason' => 'required|string|min:5',
+            'rejection_reason' => 'required|string',
         ], [
-            'reject_reason.required' => 'Vui lòng nhập lý do từ chối',
-            'reject_reason.min' => 'Lý do từ chối phải có ít nhất 5 ký tự',
+            'rejection_reason.required' => 'Vui lòng nhập lý do từ chối',
         ]);
         
         try {
@@ -963,7 +962,7 @@ class ProjectRequestController extends Controller
             
             // Cập nhật ghi chú với lý do từ chối
             $notes = $projectRequest->notes ?? '';
-            $notes .= "\n[" . date('Y-m-d H:i:s') . "] Từ chối: " . $request->reject_reason;
+            $notes .= "\n[" . date('Y-m-d H:i:s') . "] Từ chối: " . $request->rejection_reason;
             
             $projectRequest->update([
                 'notes' => trim($notes),

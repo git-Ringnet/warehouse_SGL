@@ -325,9 +325,9 @@
                     <form action="{{ route('requests.project.reject', $projectRequest->id) }}" method="POST">
                         @csrf
                         <div class="mb-4">
-                            <label for="reject_reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối</label>
-                            <textarea name="reject_reason" id="reject_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                            @error('reject_reason')
+                            <label for="rejection_reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do từ chối</label>
+                            <textarea name="rejection_reason" id="rejection_reason" rows="3" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                            @error('rejection_reason')
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
                         </div>
