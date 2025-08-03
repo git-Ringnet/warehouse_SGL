@@ -150,10 +150,7 @@
                         </span>
                     </div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">Ngày dự kiến hoàn thành</div>
-                    <div class="info-value">{{ $request->expected_completion_date ? $request->expected_completion_date->format('d/m/Y') : 'Chưa xác định' }}</div>
-                </div>
+
                 @if($request->estimated_cost)
                 <div class="info-item">
                     <div class="info-label">Chi phí dự kiến</div>

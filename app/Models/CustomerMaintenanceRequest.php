@@ -22,7 +22,7 @@ class CustomerMaintenanceRequest extends Model
         'request_date',
         'maintenance_reason',
         'maintenance_details',
-        'expected_completion_date',
+
         'estimated_cost',
         'priority',
         'status',
@@ -34,7 +34,7 @@ class CustomerMaintenanceRequest extends Model
 
     protected $casts = [
         'request_date' => 'date',
-        'expected_completion_date' => 'date',
+
         'approved_at' => 'datetime',
         'estimated_cost' => 'decimal:2',
     ];

@@ -154,20 +154,10 @@
                         <input type="radio" name="item_source" value="rental" class="form-radio" onchange="handleItemSourceChange(this)">
                         <span class="ml-2">Từ thuê thiết bị</span>
                     </label>
-                    <label class="inline-flex items-center ml-4">
-                        <input type="radio" name="item_source" value="none" class="form-radio" checked onchange="handleItemSourceChange(this)">
-                        <span class="ml-2">Không chọn</span>
-                    </label>
                 </div>
             </div>
             
-            <!-- Tên dự án/thiết bị -->
-            <div id="project_name_container" class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Tên dự án/thiết bị <span class="text-red-500">*</span>
-                </label>
-                <input type="text" name="project_name" id="project_name" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-            </div>
+
             
             <!-- Chọn dự án -->
             <div id="project_selection" class="mb-4 hidden">
@@ -202,7 +192,6 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên thiết bị</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số serial</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã dự án/đơn thuê</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mô tả thiết bị</th>
                             </tr>
                         </thead>
@@ -213,6 +202,10 @@
                 </div>
             </div>
             @endif
+            
+            <!-- Trường ẩn để lưu tên dự án/thiết bị -->
+            <input type="hidden" name="project_name" id="project_name" value="">
+            <input type="hidden" name="item_source" id="item_source" value="">
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                
@@ -249,16 +242,6 @@
                     </div>
                 </div>
                 
-                <div class="mb-6 border-b border-gray-200 pb-4">
-            <h2 class="text-lg font-semibold text-gray-800 mb-3">Thời gian</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Ngày hoàn thành dự kiến</label>
-                    <input type="date" name="expected_completion_date" class="form-input w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('expected_completion_date', $request->expected_completion_date) }}">
-                        </div>
-                    </div>
-                </div>
-                
                 <div class="mb-6">
                     <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú bổ sung</label>
             <textarea name="notes" id="notes" rows="4" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('notes', $request->notes) }}</textarea>
@@ -268,7 +251,7 @@
             <a href="{{ route('requests.index') }}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center">
                 <i class="fas fa-times mr-2"></i> Hủy bỏ
             </a>
-                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center" onclick="return validateForm()">
                         <i class="fas fa-save mr-2"></i> Lưu phiếu
                     </button>
                 </div>
@@ -363,23 +346,7 @@
             });
         }
         
-        // Cập nhật thông tin khi chọn thiết bị từ dự án
-        if (projectItemSelect) {
-            projectItemSelect.addEventListener('change', function() {
-                if (this.value) {
-                    projectNameInput.value = projectSelect.options[projectSelect.selectedIndex].text + ' - ' + this.options[this.selectedIndex].text;
-                }
-            });
-        }
-        
-        // Cập nhật thông tin khi chọn thiết bị từ đơn thuê
-        if (rentalItemSelect) {
-            rentalItemSelect.addEventListener('change', function() {
-                if (this.value) {
-                    projectNameInput.value = 'Thuê thiết bị: ' + rentalSelect.options[rentalSelect.selectedIndex].text + ' - ' + this.options[this.selectedIndex].text;
-                }
-            });
-        }
+
     });
 
     function handleItemSourceChange(radio) {
@@ -387,10 +354,9 @@
         document.querySelector('select[name="project_id"]').value = '';
         document.querySelector('select[name="rental_id"]').value = '';
         document.getElementById('items_list').innerHTML = '';
-        document.getElementById('project_name').value = '';
         
-        // Show/hide project name input
-        document.getElementById('project_name_container').style.display = radio.value === 'none' ? 'block' : 'none';
+        // Cập nhật item_source
+        document.getElementById('item_source').value = radio.value;
         
         // Hide all sections first
         document.getElementById('project_selection').classList.add('hidden');
@@ -409,7 +375,6 @@
         if (!projectId) {
             document.getElementById('items_table').classList.add('hidden');
             document.getElementById('items_list').innerHTML = '';
-            document.getElementById('project_name').value = '';
             return;
         }
         
@@ -425,68 +390,39 @@
                 
                 document.getElementById('items_table').classList.remove('hidden');
                 
-                // Hiển thị danh sách thiết bị trong dropdown nếu có
-                const projectItemSelect = document.getElementById('project_item_id');
-                if (projectItemSelect) {
-                    projectItemSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
-                    items.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = `${item.type}:${item.id}`;
-                        option.textContent = `${item.name} (${item.type === 'product' ? 'Thiết bị' : item.type === 'material' ? 'Vật tư' : 'Hàng hóa'})`;
-                        projectItemSelect.appendChild(option);
-                    });
-                    
-                    const projectItemsContainer = document.getElementById('project_items_container');
-                    if (projectItemsContainer) {
-                        projectItemsContainer.classList.remove('hidden');
-                    }
-                    
-                    // Cập nhật tên dự án
-                    const projectNameInput = document.getElementById('project_name');
-                    if (projectNameInput) {
-                        projectNameInput.value = projectSelect.options[projectSelect.selectedIndex].text;
-                    }
-                }
+                // Cập nhật tên dự án vào trường ẩn
+                document.getElementById('project_name').value = projectSelect.options[projectSelect.selectedIndex].text;
                 
-                // Nhóm các thiết bị theo tên để đếm số lượng
-                const groupedItems = {};
-                items.forEach(item => {
-                    const itemKey = `${item.type}:${item.name}`;
-                    if (!groupedItems[itemKey]) {
-                        groupedItems[itemKey] = {
-                            name: item.name,
-                            serial_number: item.serial_number || 'N/A',
-                            projectCode: projectCode,
-                            description: item.description || 'N/A',
-                            count: 1,
-                            type: item.type,
-                            id: item.id
-                        };
-                    } else {
-                        groupedItems[itemKey].count++;
-                    }
-                });
-                
-                if (Object.keys(groupedItems).length === 0) {
-                    document.getElementById('items_list').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">Không tìm thấy thiết bị nào trong dự án này</td></tr>';
+                if (items.length === 0) {
+                    document.getElementById('items_list').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">Không tìm thấy thiết bị nào trong dự án này</td></tr>';
                 } else {
-                    document.getElementById('items_list').innerHTML = Object.values(groupedItems).map(item => `
-                        <tr>
-                            <td class="px-6 py-4">
-                                <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
-                            </td>
-                            <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
-                            <td class="px-6 py-4">${item.serial_number}</td>
-                            <td class="px-6 py-4">${projectCode}</td>
-                            <td class="px-6 py-4">${item.count}</td>
-                            <td class="px-6 py-4">${item.description}</td>
-                        </tr>
-                    `).join('');
+                    let htmlRows = '';
+                    let totalRows = 0;
+                    items.forEach(item => {
+                        const quantity = item.quantity || 1;
+                        console.log(`Item: ${item.name}, Quantity: ${quantity}`);
+                        for (let i = 0; i < quantity; i++) {
+                            htmlRows += `
+                                <tr>
+                                    <td class="px-6 py-4">
+                                        <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
+                                    </td>
+                                    <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
+                                    <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
+                                    <td class="px-6 py-4">${projectCode}</td>
+                                    <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                                </tr>
+                            `;
+                            totalRows++;
+                        }
+                    });
+                    console.log(`Total rows created: ${totalRows}`);
+                    document.getElementById('items_list').innerHTML = htmlRows;
                 }
             })
             .catch(error => {
                 console.error("Lỗi khi lấy dữ liệu thiết bị:", error);
-                document.getElementById('items_list').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải dữ liệu</td></tr>';
+                document.getElementById('items_list').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải dữ liệu</td></tr>';
             });
     }
 
@@ -494,7 +430,6 @@
         if (!rentalId) {
             document.getElementById('items_table').classList.add('hidden');
             document.getElementById('items_list').innerHTML = '';
-            document.getElementById('project_name').value = '';
             return;
         }
         
@@ -510,68 +445,39 @@
                 
                 document.getElementById('items_table').classList.remove('hidden');
                 
-                // Hiển thị danh sách thiết bị trong dropdown nếu có
-                const rentalItemSelect = document.getElementById('rental_item_id');
-                if (rentalItemSelect) {
-                    rentalItemSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
-                    items.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = `${item.type}:${item.id}`;
-                        option.textContent = `${item.name} (${item.type === 'product' ? 'Thiết bị' : item.type === 'material' ? 'Vật tư' : 'Hàng hóa'})`;
-                        rentalItemSelect.appendChild(option);
-                    });
-                    
-                    const rentalItemsContainer = document.getElementById('rental_items_container');
-                    if (rentalItemsContainer) {
-                        rentalItemsContainer.classList.remove('hidden');
-                    }
-                    
-                    // Cập nhật tên thiết bị thuê
-                    const projectNameInput = document.getElementById('project_name');
-                    if (projectNameInput) {
-                        projectNameInput.value = 'Thuê thiết bị: ' + rentalSelect.options[rentalSelect.selectedIndex].text;
-                    }
-                }
+                // Cập nhật tên thiết bị thuê vào trường ẩn
+                document.getElementById('project_name').value = 'Thuê thiết bị: ' + rentalSelect.options[rentalSelect.selectedIndex].text;
                 
-                // Nhóm các thiết bị theo tên để đếm số lượng
-                const groupedItems = {};
-                items.forEach(item => {
-                    const itemKey = `${item.type}:${item.name}`;
-                    if (!groupedItems[itemKey]) {
-                        groupedItems[itemKey] = {
-                            name: item.name,
-                            serial_number: item.serial_number || 'N/A',
-                            rentalCode: rentalCode,
-                            description: item.description || 'N/A',
-                            count: 1,
-                            type: item.type,
-                            id: item.id
-                        };
-                    } else {
-                        groupedItems[itemKey].count++;
-                    }
-                });
-                
-                if (Object.keys(groupedItems).length === 0) {
-                    document.getElementById('items_list').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center">Không tìm thấy thiết bị nào trong đơn thuê này</td></tr>';
+                if (items.length === 0) {
+                    document.getElementById('items_list').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center">Không tìm thấy thiết bị nào trong đơn thuê này</td></tr>';
                 } else {
-                    document.getElementById('items_list').innerHTML = Object.values(groupedItems).map(item => `
-                        <tr>
-                            <td class="px-6 py-4">
-                                <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
-                            </td>
-                            <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
-                            <td class="px-6 py-4">${item.serial_number}</td>
-                            <td class="px-6 py-4">${rentalCode}</td>
-                            <td class="px-6 py-4">${item.count}</td>
-                            <td class="px-6 py-4">${item.description}</td>
-                        </tr>
-                    `).join('');
+                    let htmlRows = '';
+                    let totalRows = 0;
+                    items.forEach(item => {
+                        const quantity = item.quantity || 1;
+                        console.log(`Item: ${item.name}, Quantity: ${quantity}`);
+                        for (let i = 0; i < quantity; i++) {
+                            htmlRows += `
+                                <tr>
+                                    <td class="px-6 py-4">
+                                        <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
+                                    </td>
+                                    <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
+                                    <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
+                                    <td class="px-6 py-4">${rentalCode}</td>
+                                    <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                                </tr>
+                            `;
+                            totalRows++;
+                        }
+                    });
+                    console.log(`Total rows created: ${totalRows}`);
+                    document.getElementById('items_list').innerHTML = htmlRows;
                 }
             })
             .catch(error => {
                 console.error("Lỗi khi lấy dữ liệu thiết bị thuê:", error);
-                document.getElementById('items_list').innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải dữ liệu</td></tr>';
+                document.getElementById('items_list').innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải dữ liệu</td></tr>';
             });
     }
 
@@ -580,5 +486,27 @@
             document.getElementById('project_name').value = `${itemName} (${code})`;
         }
     }
+
+    function validateForm() {
+        const itemSource = document.querySelector('input[name="item_source"]:checked');
+        if (!itemSource) {
+            alert('Vui lòng chọn nguồn thiết bị (Từ dự án hoặc Từ thuê thiết bị).');
+            return false;
+        }
+        
+        const projectId = document.querySelector('select[name="project_id"]').value;
+        const rentalId = document.querySelector('select[name="rental_id"]').value;
+
+        if (itemSource.value === 'project' && !projectId) {
+            alert('Vui lòng chọn dự án để lấy thiết bị.');
+            return false;
+        }
+        if (itemSource.value === 'rental' && !rentalId) {
+            alert('Vui lòng chọn đơn thuê để lấy thiết bị.');
+            return false;
+        }
+        return true;
+    }
+
     </script>
 @endsection 

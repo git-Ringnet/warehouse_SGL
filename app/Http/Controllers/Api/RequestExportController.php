@@ -107,8 +107,7 @@ class RequestExportController extends Controller
         $sheet->setCellValue('B14', $request->project_name);
         $sheet->setCellValue('A15', 'Mức độ ưu tiên:');
         $sheet->setCellValue('B15', $this->getPriorityText($request->priority));
-        $sheet->setCellValue('A16', 'Ngày hoàn thành dự kiến:');
-        $sheet->setCellValue('B16', $request->expected_completion_date ? $request->expected_completion_date->format('d/m/Y') : '');
+
 
         // Chi tiết yêu cầu
         $sheet->mergeCells('A18:G18');

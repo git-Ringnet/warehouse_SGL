@@ -478,18 +478,18 @@ class ProjectController extends Controller
         }
 
         // Lấy danh sách thiết bị từ các phiếu xuất kho của dự án
-        $dispatches = \App\Models\Dispatch::where('project_id', $projectId)
-            ->whereIn('status', ['approved', 'completed'])
+        $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
+            ->where('project_id', $projectId)
             ->get();
 
         $allItems = collect();
 
         foreach ($dispatches as $dispatch) {
-            // Lấy danh sách products (thiết bị)
+            // Lấy danh sách products (thiết bị) - chỉ lấy category = 'contract'
             $products = $dispatch->items()
                 ->with(['product'])
-                ->where('category', 'contract')
                 ->where('item_type', 'product')
+                ->where('category', 'contract')
                 ->get()
                 ->map(function ($item) use ($dispatch) {
                     return [
@@ -499,15 +499,16 @@ class ProjectController extends Controller
                         'serial_number' => $item->serial_number,
                         'description' => $item->product->description,
                         'project_name' => $dispatch->project_name,
-                        'dispatch_code' => $dispatch->dispatch_code
+                        'dispatch_code' => $dispatch->dispatch_code,
+                        'quantity' => $item->quantity
                     ];
                 });
             
-            // Lấy danh sách goods (hàng hóa)
+            // Lấy danh sách goods (hàng hóa) - chỉ lấy category = 'contract'
             $goods = $dispatch->items()
                 ->with(['good'])
-                ->where('category', 'contract')
                 ->where('item_type', 'good')
+                ->where('category', 'contract')
                 ->get()
                 ->map(function ($item) use ($dispatch) {
                     return [
@@ -517,7 +518,8 @@ class ProjectController extends Controller
                         'serial_number' => $item->serial_number,
                         'description' => $item->good->description,
                         'project_name' => $dispatch->project_name,
-                        'dispatch_code' => $dispatch->dispatch_code
+                        'dispatch_code' => $dispatch->dispatch_code,
+                        'quantity' => $item->quantity
                     ];
                 });
 

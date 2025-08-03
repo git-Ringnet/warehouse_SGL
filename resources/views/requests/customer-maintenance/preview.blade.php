@@ -61,10 +61,7 @@
                         <td class="py-2 text-gray-600">Ngày yêu cầu:</td>
                         <td class="py-2 font-medium">{{ $request->request_date->format('d/m/Y') }}</td>
                     </tr>
-                    <tr>
-                        <td class="py-2 text-gray-600">Ngày hoàn thành dự kiến:</td>
-                        <td class="py-2 font-medium">{{ $request->expected_completion_date ? $request->expected_completion_date->format('d/m/Y') : 'Không có' }}</td>
-                    </tr>
+
                     <tr>
                         <td class="py-2 text-gray-600">Mức độ ưu tiên:</td>
                         <td class="py-2">

@@ -187,12 +187,8 @@
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thời gian và chi phí</h2>
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Chi phí</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label for="expected_completion_date" class="block text-sm font-medium text-gray-700 mb-1">Ngày hoàn thành dự kiến</label>
-                            <input type="date" name="expected_completion_date" id="expected_completion_date" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('expected_completion_date', $request->expected_completion_date ? $request->expected_completion_date->format('Y-m-d') : '') }}">
-                        </div>
                         <div>
                             <label for="estimated_cost" class="block text-sm font-medium text-gray-700 mb-1">Chi phí dự kiến (VNĐ)</label>
                             <input type="number" name="estimated_cost" id="estimated_cost" min="0" step="1000" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('estimated_cost', $request->estimated_cost) }}">

@@ -465,18 +465,17 @@ class RentalController extends Controller
         
         // Lấy danh sách thiết bị từ các phiếu xuất kho của đơn thuê
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
-            ->whereIn('status', ['approved', 'completed'])
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
             
         $allItems = collect();
         
         foreach ($dispatches as $dispatch) {
-            // Lấy danh sách products (thiết bị)
+            // Lấy danh sách products (thiết bị) - chỉ lấy category = 'contract'
             $products = $dispatch->items()
                 ->with(['product'])
-                ->where('category', 'contract')
                 ->where('item_type', 'product')
+                ->where('category', 'contract')
                 ->get()
                 ->map(function ($item) use ($rental) {
                     return [
@@ -485,15 +484,16 @@ class RentalController extends Controller
                         'name' => $item->product->name,
                         'serial_number' => $item->serial_number,
                         'description' => $item->product->description,
-                        'rental_code' => $rental->rental_code
+                        'rental_code' => $rental->rental_code,
+                        'quantity' => $item->quantity
                     ];
                 });
             
-            // Lấy danh sách goods (hàng hóa)
+            // Lấy danh sách goods (hàng hóa) - chỉ lấy category = 'contract'
             $goods = $dispatch->items()
                 ->with(['good'])
-                ->where('category', 'contract')
                 ->where('item_type', 'good')
+                ->where('category', 'contract')
                 ->get()
                 ->map(function ($item) use ($rental) {
                     return [
@@ -502,7 +502,8 @@ class RentalController extends Controller
                         'name' => $item->good->name,
                         'serial_number' => $item->serial_number,
                         'description' => $item->good->description,
-                        'rental_code' => $rental->rental_code
+                        'rental_code' => $rental->rental_code,
+                        'quantity' => $item->quantity
                     ];
                 });
             

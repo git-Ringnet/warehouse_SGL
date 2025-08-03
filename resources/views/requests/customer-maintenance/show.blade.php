@@ -102,10 +102,7 @@
                     <p class="text-sm text-gray-500">Ngày yêu cầu</p>
                     <p class="font-medium">{{ $request->request_date->format('d/m/Y') }}</p>
                 </div>
-                <div>
-                    <p class="text-sm text-gray-500">Ngày hoàn thành dự kiến</p>
-                    <p class="font-medium">{{ $request->expected_completion_date ? $request->expected_completion_date->format('d/m/Y') : 'Không có' }}</p>
-                </div>
+
                 <div>
                     <p class="text-sm text-gray-500">Mức độ ưu tiên</p>
                     <p class="font-medium">
