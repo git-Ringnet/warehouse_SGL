@@ -606,6 +606,37 @@ class CustomerMaintenanceRequestController extends Controller
      */
     private function generateUniqueRequestCode()
     {
+        $maxAttempts = 10;
+        $attempt = 0;
+        
+        do {
+            $attempt++;
+            
+            // Sử dụng timestamp để tránh race condition
+            $timestamp = now()->format('ymdHis');
+            $random = str_pad(mt_rand(0, 999), 3, '0', STR_PAD_LEFT);
+            $requestCode = 'CUST-MAINT-' . $timestamp . '-' . $random;
+            
+            // Kiểm tra xem mã này đã tồn tại chưa
+            $exists = CustomerMaintenanceRequest::where('request_code', $requestCode)->exists();
+            
+            if (!$exists) {
+                return $requestCode;
+            }
+            
+            // Nếu đã thử quá nhiều lần, sử dụng fallback method
+            if ($attempt >= $maxAttempts) {
+                return $this->generateFallbackRequestCode();
+            }
+            
+        } while (true);
+    }
+    
+    /**
+     * Fallback method để tạo mã khi timestamp method thất bại
+     */
+    private function generateFallbackRequestCode()
+    {
         do {
             // Lấy phiếu cuối cùng để tạo số tiếp theo
             $latestRequest = CustomerMaintenanceRequest::orderBy('id', 'desc')->first();
