@@ -353,6 +353,9 @@ class ProjectController extends Controller
 
             // Kiểm tra và gửi thông báo về bảo hành nếu thông tin bảo hành đã thay đổi
             if ($startDateChanged || $warrantyPeriodChanged) {
+                // Đồng bộ thông tin warranty khi project thay đổi
+                $this->syncWarrantiesFromProject($project);
+                
                 // Sử dụng ProjectObserver để kiểm tra và gửi thông báo
                 $observer = new \App\Observers\ProjectObserver();
 
@@ -547,5 +550,85 @@ class ProjectController extends Controller
                 ]
             ]
         ]);
+    }
+
+    /**
+     * Đồng bộ thông tin bảo hành từ dự án
+     */
+    private function syncWarrantiesFromProject(Project $project)
+    {
+        // Cast warranty_period thành integer để tránh lỗi Carbon
+        $warrantyPeriod = (int) $project->warranty_period;
+        $startDate = \Carbon\Carbon::parse($project->start_date);
+        $endDate = $startDate->copy()->addMonths($warrantyPeriod);
+        
+        // Cập nhật tất cả warranty liên quan đến project này
+        $warranties = \App\Models\Warranty::where('project_name', 'like', '%' . $project->project_name . '%')
+            ->orWhereHas('dispatch', function($q) use ($project) {
+                $q->where('project_id', $project->id);
+            })
+            ->get();
+            
+        foreach ($warranties as $warranty) {
+            $warranty->update([
+                'warranty_start_date' => $startDate->toDateString(),
+                'warranty_end_date' => $endDate->toDateString(),
+                'warranty_period_months' => $warrantyPeriod,
+                'project_name' => $project->project_name,
+            ]);
+        }
+        
+        // Lấy danh sách thiết bị dự phòng/bảo hành từ dự án
+        $dispatches = \App\Models\Dispatch::where('project_id', $project->id)
+            ->whereIn('status', ['approved', 'completed'])
+            ->get();
+
+        foreach ($dispatches as $dispatch) {
+            $items = $dispatch->items()
+                ->where('category', 'backup')
+                ->get();
+
+            foreach ($items as $item) {
+                // Tìm hoặc tạo Warranty dựa trên dispatch_item_id
+                $warranty = \App\Models\Warranty::firstOrCreate(
+                    [
+                        'dispatch_item_id' => $item->id,
+                    ],
+                    [
+                        'warranty_code' => 'BH' . date('Ymd') . str_pad($item->id, 4, '0', STR_PAD_LEFT),
+                        'dispatch_id' => $dispatch->id,
+                        'item_type' => $item->item_type,
+                        'item_id' => $item->item_id,
+                        'serial_number' => $item->serial_numbers ? json_encode($item->serial_numbers) : null,
+                        'customer_name' => $project->customer->name ?? '',
+                        'customer_phone' => $project->customer->phone ?? '',
+                        'customer_email' => $project->customer->email ?? '',
+                        'customer_address' => $project->customer->address ?? '',
+                        'project_name' => $project->project_name,
+                        'purchase_date' => $dispatch->dispatch_date,
+                        'warranty_start_date' => $startDate->toDateString(),
+                        'warranty_end_date' => $endDate->toDateString(),
+                        'warranty_period_months' => $warrantyPeriod,
+                        'warranty_type' => 'standard',
+                        'status' => 'active',
+                        'created_by' => Auth::id(),
+                    ]
+                );
+
+                // Cập nhật thông tin bảo hành nếu cần
+                if ($warranty->warranty_start_date != $startDate->toDateString() || $warranty->warranty_end_date != $endDate->toDateString()) {
+                    $warranty->update([
+                        'warranty_start_date' => $startDate->toDateString(),
+                        'warranty_end_date' => $endDate->toDateString(),
+                        'warranty_period_months' => $warrantyPeriod,
+                        'project_name' => $project->project_name,
+                        'customer_name' => $project->customer->name ?? '',
+                        'customer_phone' => $project->customer->phone ?? '',
+                        'customer_email' => $project->customer->email ?? '',
+                        'customer_address' => $project->customer->address ?? '',
+                    ]);
+                }
+            }
+        }
     }
 }

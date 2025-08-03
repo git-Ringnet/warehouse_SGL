@@ -6,6 +6,7 @@ use App\Models\Rental;
 use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\UserLog;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -297,8 +298,21 @@ class RentalController extends Controller
                 );
             }
 
-            // Đồng bộ bảo hành
+            // Đồng bộ thông tin warranty khi rental thay đổi
             $this->syncWarrantiesFromRental($rental);
+
+            // Tạo thông báo khi cập nhật phiếu cho thuê
+            if ($rental->employee_id) {
+                Notification::createNotification(
+                    'Phiếu cho thuê được cập nhật',
+                    "Phiếu cho thuê #{$rental->rental_code} - {$rental->rental_name} đã được cập nhật thông tin.",
+                    'info',
+                    $rental->employee_id,
+                    'rental',
+                    $rental->id,
+                    route('rentals.show', $rental->id)
+                );
+            }
 
             return redirect()->route('rentals.show', $rental->id)
                 ->with('success', 'Phiếu cho thuê đã được cập nhật thành công.');

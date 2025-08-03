@@ -50,6 +50,14 @@ class Rental extends Model
     }
 
     /**
+     * Lấy các phiếu xuất kho của phiếu cho thuê này
+     */
+    public function dispatches()
+    {
+        return $this->hasMany(Dispatch::class, 'project_id');
+    }
+
+    /**
      * Kiểm tra xem phiếu cho thuê có quá hạn không.
      */
     public function isOverdue()

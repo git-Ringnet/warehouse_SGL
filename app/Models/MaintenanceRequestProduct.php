@@ -19,6 +19,8 @@ class MaintenanceRequestProduct extends Model
         'product_id',
         'product_name',
         'product_code',
+        'serial_number',
+        'type',
         'quantity',
         'unit',
         'description'

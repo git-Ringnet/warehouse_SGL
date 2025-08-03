@@ -34,22 +34,18 @@ class MaintenanceRequestController extends Controller
         // Lấy danh sách thành phẩm
         $products = Product::where('status', 'active')->orderBy('name')->get();
         
-        // Lấy các bảo hành còn hiệu lực (cả dự án và phiếu cho thuê)
-        $warranties = Warranty::with([
-                'dispatch' => function($query) {
-                    $query->with(['project', 'project.customer']);
-                }
-            ])
-            ->where('status', 'active')
-            ->whereDate('warranty_end_date', '>=', now()) // Chỉ lấy bảo hành chưa hết hạn
+        // Lấy danh sách dự án (tất cả, bao gồm cả đã quá hạn)
+        $projects = \App\Models\Project::with(['customer'])
+            ->select('*', \DB::raw('DATE_ADD(end_date, INTERVAL warranty_period MONTH) as warranty_end_date'))
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->unique(function ($item) {
-                // Loại bỏ trùng lặp dựa trên dispatch_id và project_id
-                return $item->dispatch_id . '_' . ($item->dispatch->project_id ?? 'null');
-            });
+            ->get();
+            
+        // Lấy danh sách phiếu cho thuê (tất cả, bao gồm cả đã quá hạn)
+        $rentals = \App\Models\Rental::with(['customer'])
+            ->orderBy('created_at', 'desc')
+            ->get();
         
-        return view('requests.maintenance.create', compact('employees', 'customers', 'products', 'warranties'));
+        return view('requests.maintenance.create', compact('employees', 'customers', 'products', 'projects', 'rentals'));
     }
 
     /**
@@ -57,107 +53,120 @@ class MaintenanceRequestController extends Controller
      */
     public function store(Request $request)
     {
-        // Kiểm tra nếu là sao chép từ phiếu đã tồn tại
-        if ($request->has('copy_from')) {
-            $sourceRequest = MaintenanceRequest::with(['products'])->findOrFail($request->copy_from);
-            
-            try {
-                DB::beginTransaction();
+        try {
+            // Kiểm tra nếu là sao chép từ phiếu đã tồn tại
+            if ($request->has('copy_from')) {
+                $sourceRequest = MaintenanceRequest::with(['products'])->findOrFail($request->copy_from);
                 
-                // Tạo phiếu bảo trì mới từ phiếu nguồn
-                $newRequest = $sourceRequest->replicate();
-                $newRequest->request_code = MaintenanceRequest::generateRequestCode();
-                $newRequest->request_date = now();
-                $newRequest->status = 'pending';
-                $newRequest->save();
-                
-                // Sao chép các thành phẩm từ phiếu nguồn
-                foreach ($sourceRequest->products as $product) {
-                    $newProduct = $product->replicate();
-                    $newProduct->maintenance_request_id = $newRequest->id;
-                    $newProduct->save();
-                }
-                
-                DB::commit();
-                
-                // Ghi nhật ký tạo phiếu bảo trì từ sao chép
-                if (Auth::check()) {
-                    \App\Models\UserLog::logActivity(
-                        Auth::id(),
-                        'create',
-                        'maintenance_requests',
-                        'Tạo phiếu bảo trì dự án (sao chép): ' . $newRequest->request_code,
-                        null,
-                        $newRequest->toArray()
-                    );
-                }
-                
-                return redirect()->route('requests.maintenance.show', $newRequest->id)
-                    ->with('success', 'Phiếu bảo trì đã được sao chép thành công.');
+                try {
+                    DB::beginTransaction();
                     
-            } catch (\Exception $e) {
-                DB::rollBack();
-                
-                // Log lỗi chi tiết
-                Log::error('Lỗi khi sao chép phiếu bảo trì: ' . $e->getMessage());
-                Log::error($e->getTraceAsString());
-                
+                    // Tạo phiếu bảo trì mới từ phiếu nguồn
+                    $newRequest = $sourceRequest->replicate();
+                    $newRequest->request_code = MaintenanceRequest::generateRequestCode();
+                    $newRequest->request_date = now();
+                    $newRequest->status = 'pending';
+                    $newRequest->save();
+                    
+                    // Sao chép các thành phẩm từ phiếu nguồn
+                    foreach ($sourceRequest->products as $product) {
+                        $newProduct = $product->replicate();
+                        $newProduct->maintenance_request_id = $newRequest->id;
+                        $newProduct->save();
+                    }
+                    
+                    DB::commit();
+                    
+                    // Ghi nhật ký tạo phiếu bảo trì từ sao chép
+                    if (Auth::check()) {
+                        \App\Models\UserLog::logActivity(
+                            Auth::id(),
+                            'create',
+                            'maintenance_requests',
+                            'Tạo phiếu bảo trì dự án (sao chép): ' . $newRequest->request_code,
+                            null,
+                            $newRequest->toArray()
+                        );
+                    }
+                    
+                    return redirect()->route('requests.maintenance.show', $newRequest->id)
+                        ->with('success', 'Phiếu bảo trì đã được sao chép thành công.');
+                        
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    
+                    // Log lỗi chi tiết
+                    Log::error('Lỗi khi sao chép phiếu bảo trì: ' . $e->getMessage());
+                    Log::error($e->getTraceAsString());
+                    
+                    return redirect()->back()
+                        ->with('error', 'Có lỗi xảy ra khi sao chép phiếu: ' . $e->getMessage())
+                        ->withInput();
+                }
+            }
+            
+            // Validation cơ bản - cập nhật validation rule cho products nếu sử dụng thiết bị từ bảo hành
+            $validationRules = [
+                'request_date' => 'required|date',
+                'proposer_id' => 'required|exists:employees,id',
+                'project_name' => 'nullable|string|max:255', // Bỏ required vì tự động điền
+                'customer_id' => 'required|exists:customers,id',
+                'maintenance_date' => 'required|date',
+                'customer_name' => 'required|string|max:255',
+                'customer_phone' => 'required|string|max:20',
+                'customer_email' => 'nullable|email|max:255',
+                'customer_address' => 'required|string|max:255',
+                'notes' => 'nullable|string',
+                'selected_devices' => 'required|string', // Thêm validation cho selected_devices
+            ];
+            
+            // Validation cho loại dự án và dự án được chọn
+            $validationRules['project_type'] = 'required|in:project,rental';
+            $validationRules['project_id'] = 'required|integer';
+            
+            // Validation khác nhau phụ thuộc vào loại dự án
+            if ($request->project_type === 'project') {
+                $validationRules['project_id'] = 'required|integer|exists:projects,id';
+            } else {
+                $validationRules['project_id'] = 'required|integer|exists:rentals,id';
+            }
+            
+            $validator = Validator::make($request->all(), $validationRules);
+            
+            if ($validator->fails()) {
                 return redirect()->back()
-                    ->with('error', 'Có lỗi xảy ra khi sao chép phiếu: ' . $e->getMessage())
+                    ->withErrors($validator)
                     ->withInput();
             }
-        }
-        
-        // Validation cơ bản - cập nhật validation rule cho products nếu sử dụng thiết bị từ bảo hành
-        $validationRules = [
-            'request_date' => 'required|date',
-            'proposer_id' => 'required|exists:employees,id',
-            'project_name' => 'nullable|string|max:255', // Bỏ required vì tự động điền
-            'customer_id' => 'required|exists:customers,id',
-            'maintenance_date' => 'required|date',
-            'maintenance_reason' => 'required|string',
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'nullable|email|max:255',
-            'customer_address' => 'required|string|max:255',
-            'notes' => 'nullable|string',
-        ];
-        
-        // Validation khác nhau phụ thuộc vào việc có warranty_id hay không
-        if ($request->filled('warranty_id')) {
-            // Nếu có warranty_id, yêu cầu ít nhất một thiết bị được chọn
-            $validationRules['selected_devices'] = 'required|array|min:1';
-            $validationRules['selected_devices.*'] = 'integer|exists:dispatch_items,id';
-        } else {
-            // Nếu không có warranty_id, bắt buộc phải có products
-            $validationRules['products'] = 'required|array|min:1';
-            $validationRules['products.*.id'] = 'required|exists:products,id';
-            $validationRules['products.*.quantity'] = 'required|integer|min:1';
-        }
-        
-        $validator = Validator::make($request->all(), $validationRules);
-        
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
-        
-        try {
+            
             DB::beginTransaction();
+            
+            // Lấy thông tin dự án/phiếu cho thuê
+            $projectName = '';
+            $customerId = null;
+            
+            if ($request->project_type === 'project') {
+                $project = \App\Models\Project::with('customer')->findOrFail($request->project_id);
+                $projectName = $project->project_name;
+                $customerId = $project->customer_id;
+            } else {
+                $rental = \App\Models\Rental::with('customer')->findOrFail($request->project_id);
+                $projectName = $rental->rental_name;
+                $customerId = $rental->customer_id;
+            }
             
             // Tạo phiếu bảo trì mới
             $maintenanceRequest = MaintenanceRequest::create([
                 'request_code' => MaintenanceRequest::generateRequestCode(),
                 'request_date' => $request->request_date, // Sử dụng request_date
                 'proposer_id' => $request->proposer_id,
-                'project_name' => $request->project_name,
-                'customer_id' => $request->customer_id,
-                'warranty_id' => $request->warranty_id,
+                'project_name' => $projectName,
+                'customer_id' => $customerId,
+                'warranty_id' => null, // Không còn sử dụng warranty_id
                 'project_address' => $request->customer_address,
                 'maintenance_date' => $request->maintenance_date,
                 'maintenance_type' => $request->maintenance_type ?? 'maintenance', // Mặc định là maintenance
-                'maintenance_reason' => $request->maintenance_reason,
+                'maintenance_reason' => $request->notes ?? '', // Sử dụng notes làm maintenance_reason
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
                 'customer_email' => $request->customer_email,
@@ -166,80 +175,49 @@ class MaintenanceRequestController extends Controller
                 'status' => 'pending',
             ]);
             
-            // Lưu danh sách thiết bị được chọn từ bảo hành
-            if ($request->filled('warranty_id')) {
-                // Lấy thông tin warranty
-                $warranty = Warranty::with(['dispatch.items' => function($query) {
-                    $query->where('category', 'contract');
-                }, 'dispatch.items.product', 'dispatch.items.material', 'dispatch.items.good'])->findOrFail($request->warranty_id);
-                
-                // Lấy các thiết bị được chọn từ form
-                $selectedDevices = $request->input('selected_devices', []);
-                
-                // Lấy các thiết bị từ warranty
-                if ($warranty->dispatch && $warranty->dispatch->items) {
-                    foreach ($warranty->dispatch->items as $dispatchItem) {
-                        // Chỉ lưu các thiết bị được chọn
-                        if (in_array($dispatchItem->id, $selectedDevices)) {
-                            $itemDetail = null;
-                            $itemName = '';
-                            $itemCode = '';
-                            $itemType = '';
-                            
-                            switch ($dispatchItem->item_type) {
-                                case 'product':
-                                    if ($dispatchItem->product) {
-                                        $itemDetail = $dispatchItem->product;
-                                        $itemName = $itemDetail->name;
-                                        $itemCode = $itemDetail->code;
-                                        $itemType = 'Thành phẩm';
-                                    }
-                                    break;
-                                case 'material':
-                                    if ($dispatchItem->material) {
-                                        $itemDetail = $dispatchItem->material;
-                                        $itemName = $itemDetail->name;
-                                        $itemCode = $itemDetail->code;
-                                        $itemType = 'Vật tư';
-                                    }
-                                    break;
-                                case 'good':
-                                    if ($dispatchItem->good) {
-                                        $itemDetail = $dispatchItem->good;
-                                        $itemName = $itemDetail->name;
-                                        $itemCode = $itemDetail->code;
-                                        $itemType = 'Hàng hóa';
-                                    }
-                                    break;
-                            }
-                            
-                            if ($itemDetail) {
-                                MaintenanceRequestProduct::create([
-                                    'maintenance_request_id' => $maintenanceRequest->id,
-                                    'product_id' => $dispatchItem->item_id,
-                                    'product_name' => $itemName,
-                                    'product_code' => $itemCode,
-                                    'quantity' => 1,
-                                    'unit' => $itemDetail->unit ?? 'cái',
-                                    'description' => $itemDetail->description ?? ''
-                                ]);
-                            }
+            // Xử lý thiết bị đã chọn
+            $selectedDevices = json_decode($request->selected_devices, true);
+            if ($selectedDevices && is_array($selectedDevices)) {
+                foreach ($selectedDevices as $deviceId) {
+                    // Tách deviceId để lấy item_id và index
+                    $parts = explode('_', $deviceId);
+                    $itemId = $parts[0];
+                    $index = isset($parts[1]) ? $parts[1] : 0;
+                    
+                    // Lấy thông tin item từ dispatch_items
+                    $dispatchItem = \App\Models\DispatchItem::with(['product', 'good'])->find($itemId);
+                    if ($dispatchItem) {
+                        $deviceCode = '';
+                        $deviceName = '';
+                        $deviceType = '';
+                        
+                        if ($dispatchItem->item_type === 'product' && $dispatchItem->product) {
+                            $deviceCode = $dispatchItem->product->code;
+                            $deviceName = $dispatchItem->product->name;
+                            $deviceType = 'Thành phẩm';
+                        } elseif ($dispatchItem->item_type === 'good' && $dispatchItem->good) {
+                            $deviceCode = $dispatchItem->good->code;
+                            $deviceName = $dispatchItem->good->name;
+                            $deviceType = 'Hàng hoá';
                         }
+                        
+                        // Lấy serial number
+                        $serialNumber = 'N/A';
+                        if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
+                            $serialNumber = $dispatchItem->serial_numbers[$index] ?? 'N/A';
+                        }
+                        
+                        // Tạo MaintenanceRequestProduct
+                        MaintenanceRequestProduct::create([
+                            'maintenance_request_id' => $maintenanceRequest->id,
+                            'product_id' => $dispatchItem->item_id, // Thêm product_id
+                            'product_code' => $deviceCode,
+                            'product_name' => $deviceName,
+                            'serial_number' => $serialNumber,
+                            'type' => $deviceType,
+                            'quantity' => 1,
+                        ]);
                     }
-                }
-            } elseif ($request->has('products')) {
-                // Xử lý cách cũ nếu không có warranty_items
-                foreach ($request->products as $product) {
-                    $productModel = Product::findOrFail($product['id']);
-                    MaintenanceRequestProduct::create([
-                        'maintenance_request_id' => $maintenanceRequest->id,
-                        'product_id' => $product['id'],
-                        'product_name' => $productModel->name,
-                        'product_code' => $productModel->code,
-                        'quantity' => $product['quantity'],
-                        'unit' => $productModel->unit,
-                        'description' => $productModel->description
-                    ]);
                 }
             }
             
@@ -276,7 +254,7 @@ class MaintenanceRequestController extends Controller
             
             // Log lỗi chi tiết
             Log::error('Lỗi khi tạo phiếu bảo trì: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return redirect()->back()
                 ->with('error', 'Có lỗi xảy ra khi tạo phiếu: ' . $e->getMessage())
@@ -314,8 +292,36 @@ class MaintenanceRequestController extends Controller
     {
         $maintenanceRequest = MaintenanceRequest::with(['proposer', 'customer', 'products'])
             ->findOrFail($id);
+        
+        // Lấy danh sách projects và rentals giống như trong create
+        $projects = \App\Models\Project::with('customer')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($project) {
+                $warrantyEndDate = \Carbon\Carbon::parse($project->start_date)->addMonths($project->warranty_period);
+                return [
+                    'id' => $project->id,
+                    'project_code' => $project->project_code,
+                    'project_name' => $project->project_name,
+                    'customer' => $project->customer,
+                    'warranty_end_date' => $warrantyEndDate->format('Y-m-d'),
+                ];
+            });
+        
+        $rentals = \App\Models\Rental::with('customer')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($rental) {
+                return [
+                    'id' => $rental->id,
+                    'rental_code' => $rental->rental_code,
+                    'rental_name' => $rental->rental_name,
+                    'customer' => $rental->customer,
+                    'due_date' => $rental->due_date ? \Carbon\Carbon::parse($rental->due_date)->format('Y-m-d') : null,
+                ];
+            });
             
-        return view('requests.maintenance.edit', compact('maintenanceRequest'));
+        return view('requests.maintenance.edit', compact('maintenanceRequest', 'projects', 'rentals'));
     }
 
     /**
@@ -325,8 +331,18 @@ class MaintenanceRequestController extends Controller
     {
         $maintenanceRequest = MaintenanceRequest::findOrFail($id);
         
-        // Lưu dữ liệu cũ trước khi cập nhật
+        // Lưu dữ liệu cũ trước khi cập nhật - load products để có thông tin đầy đủ
+        $maintenanceRequest->load('products');
         $oldData = $maintenanceRequest->toArray();
+        
+        // Log để kiểm tra oldData
+        Log::info('=== OLD DATA DEBUG ===');
+        Log::info('Old data keys: ' . json_encode(array_keys($oldData)));
+        Log::info('Old data has products: ' . (isset($oldData['products']) ? 'YES' : 'NO'));
+        if (isset($oldData['products'])) {
+            Log::info('Old products count: ' . count($oldData['products']));
+            Log::info('Old products: ' . json_encode($oldData['products']));
+        }
         
         // Chỉ cho phép cập nhật nếu phiếu đang ở trạng thái chờ duyệt
         if ($maintenanceRequest->status !== 'pending') {
@@ -334,17 +350,15 @@ class MaintenanceRequestController extends Controller
                 ->with('error', 'Chỉ có thể chỉnh sửa phiếu bảo trì ở trạng thái chờ duyệt.');
         }
         
-        // Validation cơ bản
+        // Validation cơ bản - cho phép chỉnh sửa toàn bộ
         $validator = Validator::make($request->all(), [
             'request_date' => 'required|date',
-            'project_name' => 'nullable|string|max:255', // Bỏ required vì tự động điền
+            'project_type' => 'nullable|in:project,rental', // Bỏ required vì phiếu cũ có thể không có
+            'project_id' => 'nullable|integer', // Bỏ required vì phiếu cũ có thể không có
+            'project_name' => 'nullable|string|max:255',
             'maintenance_date' => 'required|date',
             'maintenance_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
-            'maintenance_reason' => 'required|string',
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'nullable|email|max:255',
-            'customer_address' => 'required|string|max:255',
+            'selected_devices' => 'required|string',
             'notes' => 'nullable|string',
         ]);
         
@@ -357,20 +371,124 @@ class MaintenanceRequestController extends Controller
         try {
             DB::beginTransaction();
             
-            // Cập nhật phiếu bảo trì
-            $maintenanceRequest->update([
-                'request_date' => $request->request_date, // Sử dụng request_date
-                'project_name' => $request->project_name,
-                'project_address' => $request->customer_address,
+            // Cập nhật phiếu bảo trì - chỉ cập nhật các trường có dữ liệu
+            $updateData = [
+                'request_date' => $request->request_date,
                 'maintenance_date' => $request->maintenance_date,
                 'maintenance_type' => $request->maintenance_type,
-                'maintenance_reason' => $request->maintenance_reason,
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'customer_address' => $request->customer_address,
                 'notes' => $request->notes,
-            ]);
+            ];
+            
+            // Chỉ cập nhật project_type và project_id nếu có dữ liệu
+            if ($request->project_type) {
+                $updateData['project_type'] = $request->project_type;
+            }
+            if ($request->project_id) {
+                $updateData['project_id'] = $request->project_id;
+            }
+            if ($request->project_name) {
+                $updateData['project_name'] = $request->project_name;
+            }
+            
+            $maintenanceRequest->update($updateData);
+            
+            // Log trước khi xóa products
+            Log::info('=== UPDATE MAINTENANCE REQUEST DEBUG ===');
+            Log::info('Maintenance Request ID: ' . $maintenanceRequest->id);
+            Log::info('Selected devices raw: ' . $request->selected_devices);
+            Log::info('Current products count before delete: ' . $maintenanceRequest->products()->count());
+            
+            // Xóa thiết bị cũ và tạo thiết bị mới
+            $maintenanceRequest->products()->delete();
+            
+            // Xử lý thiết bị đã chọn
+            $selectedDevices = json_decode($request->selected_devices, true);
+            Log::info('Selected devices decoded: ' . json_encode($selectedDevices));
+            Log::info('Selected devices count: ' . (is_array($selectedDevices) ? count($selectedDevices) : 0));
+            
+            if ($selectedDevices && is_array($selectedDevices)) {
+                foreach ($selectedDevices as $deviceId) {
+                    Log::info('Processing device ID: ' . $deviceId);
+                    
+                    // Kiểm tra xem deviceId có chứa '_' không (format của DispatchItem)
+                    if (strpos($deviceId, '_') !== false) {
+                        // Format: itemId_index (từ API devices)
+                        $parts = explode('_', $deviceId);
+                        $itemId = $parts[0];
+                        $index = isset($parts[1]) ? $parts[1] : 0;
+                        
+                        Log::info('DispatchItem format - Item ID: ' . $itemId . ', Index: ' . $index);
+                        
+                        // Lấy thông tin item từ dispatch_items
+                        $dispatchItem = \App\Models\DispatchItem::with(['product', 'good'])->find($itemId);
+                        if ($dispatchItem) {
+                            $deviceCode = '';
+                            $deviceName = '';
+                            $deviceType = '';
+                            
+                            if ($dispatchItem->item_type === 'product' && $dispatchItem->product) {
+                                $deviceCode = $dispatchItem->product->code;
+                                $deviceName = $dispatchItem->product->name;
+                                $deviceType = 'Thành phẩm';
+                            } elseif ($dispatchItem->item_type === 'good' && $dispatchItem->good) {
+                                $deviceCode = $dispatchItem->good->code;
+                                $deviceName = $dispatchItem->good->name;
+                                $deviceType = 'Hàng hoá';
+                            }
+                            
+                            // Lấy serial number
+                            $serialNumber = 'N/A';
+                            if (!empty($dispatchItem->serial_numbers) && is_array($dispatchItem->serial_numbers)) {
+                                $serialNumber = $dispatchItem->serial_numbers[$index] ?? 'N/A';
+                            }
+                            
+                            Log::info('Creating MaintenanceRequestProduct - Code: ' . $deviceCode . ', Name: ' . $deviceName);
+                            
+                            // Tạo MaintenanceRequestProduct
+                            MaintenanceRequestProduct::create([
+                                'maintenance_request_id' => $maintenanceRequest->id,
+                                'product_id' => $dispatchItem->item_id,
+                                'product_code' => $deviceCode,
+                                'product_name' => $deviceName,
+                                'serial_number' => $serialNumber,
+                                'type' => $deviceType,
+                                'quantity' => 1,
+                            ]);
+                        } else {
+                            Log::warning('DispatchItem not found for ID: ' . $itemId);
+                        }
+                    } else {
+                        // Format: MaintenanceRequestProduct ID (từ existing products)
+                        Log::info('MaintenanceRequestProduct format - ID: ' . $deviceId);
+                        
+                        // Lấy thông tin từ oldData thay vì tìm trong database
+                        $oldProducts = collect($oldData['products'] ?? []);
+                        $existingProduct = $oldProducts->firstWhere('id', $deviceId);
+                        
+                        if ($existingProduct) {
+                            Log::info('Creating MaintenanceRequestProduct from existing - Code: ' . $existingProduct['product_code'] . ', Name: ' . $existingProduct['product_name']);
+                            
+                            // Tạo lại product với thông tin hiện có
+                            MaintenanceRequestProduct::create([
+                                'maintenance_request_id' => $maintenanceRequest->id,
+                                'product_id' => $existingProduct['product_id'],
+                                'product_code' => $existingProduct['product_code'],
+                                'product_name' => $existingProduct['product_name'],
+                                'serial_number' => $existingProduct['serial_number'],
+                                'type' => $existingProduct['type'],
+                                'quantity' => $existingProduct['quantity'],
+                            ]);
+                        } else {
+                            Log::warning('Existing MaintenanceRequestProduct not found for ID: ' . $deviceId);
+                        }
+                    }
+                }
+            } else {
+                Log::warning('No selected devices or invalid format');
+            }
+            
+            // Log sau khi tạo products
+            Log::info('Products count after creation: ' . $maintenanceRequest->products()->count());
             
             DB::commit();
             
@@ -748,5 +866,163 @@ class MaintenanceRequestController extends Controller
             ->findOrFail($id);
             
         return view('requests.maintenance.preview', compact('maintenanceRequest'));
+    }
+
+    /**
+     * Lấy thiết bị từ project hoặc rental
+     */
+    public function getDevices(Request $request)
+    {
+        Log::info('=== GET DEVICES API CALLED ===');
+        Log::info('Request data:', $request->all());
+        
+        $validator = Validator::make($request->all(), [
+            'project_type' => 'required|in:project,rental',
+            'project_id' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            Log::error('Validation failed:', $validator->errors()->toArray());
+            return response()->json(['error' => 'Dữ liệu không hợp lệ'], 400);
+        }
+
+        try {
+            $devices = [];
+
+            if ($request->project_type === 'project') {
+                Log::info('Processing PROJECT type');
+                $project = \App\Models\Project::with(['customer'])->findOrFail($request->project_id);
+                Log::info('Project found:', ['id' => $project->id, 'name' => $project->project_name]);
+                
+                // Lấy thiết bị từ dispatches có dispatch_type = 'project' và project_id = project->id
+                $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
+                    ->where('project_id', $project->id)
+                    ->with(['items.product', 'items.good'])
+                    ->get();
+                
+                Log::info('Project dispatches found:', ['count' => $dispatches->count()]);
+                foreach($dispatches as $dispatch) {
+                    Log::info('Dispatch:', ['id' => $dispatch->id, 'code' => $dispatch->dispatch_code, 'type' => $dispatch->dispatch_type]);
+                }
+                
+                foreach ($dispatches as $dispatch) {
+                    foreach ($dispatch->items as $item) {
+                        Log::info('Processing item:', ['id' => $item->id, 'type' => $item->item_type, 'item_id' => $item->item_id, 'quantity' => $item->quantity]);
+                        
+                        if ($item->item_type === 'product' && $item->product) {
+                            // Tạo từng record riêng biệt cho mỗi quantity
+                            for ($i = 0; $i < $item->quantity; $i++) {
+                                // Lấy serial number từ array nếu có
+                                $serialNumber = 'N/A';
+                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                                }
+                                
+                                $device = [
+                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
+                                    'code' => $item->product->code,
+                                    'name' => $item->product->name,
+                                    'serial_number' => $serialNumber,
+                                    'type' => 'Thành phẩm',
+                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
+                                ];
+                                $devices[] = $device;
+                                Log::info('Added product device:', $device);
+                            }
+                        } elseif ($item->item_type === 'good' && $item->good) {
+                            // Tạo từng record riêng biệt cho mỗi quantity
+                            for ($i = 0; $i < $item->quantity; $i++) {
+                                // Lấy serial number từ array nếu có
+                                $serialNumber = 'N/A';
+                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                                }
+                                
+                                $device = [
+                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
+                                    'code' => $item->good->code,
+                                    'name' => $item->good->name,
+                                    'serial_number' => $serialNumber,
+                                    'type' => 'Hàng hoá',
+                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
+                                ];
+                                $devices[] = $device;
+                                Log::info('Added good device:', $device);
+                            }
+                        }
+                    }
+                }
+            } else { // rental
+                Log::info('Processing RENTAL type');
+                $rental = \App\Models\Rental::with(['customer'])->findOrFail($request->project_id);
+                Log::info('Rental found:', ['id' => $rental->id, 'name' => $rental->rental_name]);
+                
+                // Lấy thiết bị từ dispatches có dispatch_type = 'rental' và project_id = rental->id
+                $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
+                    ->where('project_id', $rental->id)
+                    ->with(['items.product', 'items.good'])
+                    ->get();
+                
+                Log::info('Rental dispatches found:', ['count' => $dispatches->count()]);
+                foreach($dispatches as $dispatch) {
+                    Log::info('Dispatch:', ['id' => $dispatch->id, 'code' => $dispatch->dispatch_code, 'type' => $dispatch->dispatch_type]);
+                }
+                
+                foreach ($dispatches as $dispatch) {
+                    foreach ($dispatch->items as $item) {
+                        Log::info('Processing item:', ['id' => $item->id, 'type' => $item->item_type, 'item_id' => $item->item_id, 'quantity' => $item->quantity]);
+                        
+                        if ($item->item_type === 'product' && $item->product) {
+                            // Tạo từng record riêng biệt cho mỗi quantity
+                            for ($i = 0; $i < $item->quantity; $i++) {
+                                // Lấy serial number từ array nếu có
+                                $serialNumber = 'N/A';
+                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                                }
+                                
+                                $device = [
+                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
+                                    'code' => $item->product->code,
+                                    'name' => $item->product->name,
+                                    'serial_number' => $serialNumber,
+                                    'type' => 'Thành phẩm',
+                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
+                                ];
+                                $devices[] = $device;
+                                Log::info('Added product device:', $device);
+                            }
+                        } elseif ($item->item_type === 'good' && $item->good) {
+                            // Tạo từng record riêng biệt cho mỗi quantity
+                            for ($i = 0; $i < $item->quantity; $i++) {
+                                // Lấy serial number từ array nếu có
+                                $serialNumber = 'N/A';
+                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                                }
+                                
+                                $device = [
+                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
+                                    'code' => $item->good->code,
+                                    'name' => $item->good->name,
+                                    'serial_number' => $serialNumber,
+                                    'type' => 'Hàng hoá',
+                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
+                                ];
+                                $devices[] = $device;
+                                Log::info('Added good device:', $device);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Log::info('Final devices array:', ['count' => count($devices), 'devices' => $devices]);
+            return response()->json(['devices' => $devices]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy thiết bị: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->json(['error' => 'Có lỗi xảy ra khi lấy thiết bị: ' . $e->getMessage()], 500);
+        }
     }
 } 

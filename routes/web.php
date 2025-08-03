@@ -570,6 +570,9 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
             Route::post('/{id}/reject', [MaintenanceRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
             Route::post('/{id}/status', [MaintenanceRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.update_status');
             Route::get('/{id}/preview', [MaintenanceRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
+            
+            // API route để lấy thiết bị từ project/rental
+            Route::post('/api/devices', [MaintenanceRequestController::class, 'getDevices'])->name('api.devices')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.maintenance.create');
         });
 
         // Customer Maintenance Request routes
