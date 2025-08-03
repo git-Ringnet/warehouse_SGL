@@ -39,6 +39,14 @@
             $user &&
             ($user->role === 'admin' ||
                 ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('requests.copy')));
+        $canApprove =
+            $user &&
+            ($user->role === 'admin' ||
+                ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('requests.approve')));
+        $canReject =
+            $user &&
+            ($user->role === 'admin' ||
+                ($user->role_id && $user->roleGroup && $user->roleGroup->hasPermission('requests.reject')));
     @endphp
 
     <div class="container-fluid px-6 py-4">
@@ -167,6 +175,10 @@
                         <tr>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                STT
+                            </th>
+                            <th scope="col"
+                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Mã phiếu
                             </th>
                             <th scope="col"
@@ -175,7 +187,7 @@
                             </th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Tên dự án
+                                Tên dự án / phiếu cho thuê
                             </th>
                             <th scope="col"
                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -197,8 +209,11 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @if (isset($requests) && count($requests) > 0)
-                            @foreach ($requests as $request)
+                            @foreach ($requests as $index => $request)
                                 <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {{ ($requests->currentPage() - 1) * $requests->perPage() + $loop->iteration }}
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {{ $request->request_code }}
                                     </td>
@@ -218,7 +233,11 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {{ $request->project_name }}
+                                        @if ($request->type == 'customer_maintenance')
+                                            {{ $request->customer ? $request->customer->company_name : $request->customer_name }}
+                                        @else
+                                            {{ $request->project_name }}
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ $request->customer ? $request->customer->company_name : $request->customer_name }}
@@ -300,6 +319,22 @@
                                                 </a>
                                             @endif
 
+                                            @if ($request->status === 'pending' && $canApprove)
+                                                <a href="#" onclick="approveRequest('project', '{{ $request->id }}')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
+                                                    title="Duyệt">
+                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                                </a>
+                                            @endif
+
+                                            @if ($request->status === 'pending' && $canReject)
+                                                <a href="#" onclick="rejectRequest('project', '{{ $request->id }}')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 hover:bg-orange-500 transition-colors group"
+                                                    title="Từ chối">
+                                                    <i class="fas fa-times text-orange-500 group-hover:text-white"></i>
+                                                </a>
+                                            @endif
+
                                             @if ($request->status === 'pending' && $canEdit)
                                                 <a href="{{ route('requests.project.edit', $request->id) }}"
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
@@ -362,6 +397,22 @@
                                                     class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
                                                     title="Xuất PDF">
                                                     <i class="fas fa-file-pdf text-red-500 group-hover:text-white"></i>
+                                                </a>
+                                            @endif
+
+                                            @if ($request->status === 'pending' && $canApprove)
+                                                <a href="#" onclick="approveRequest('maintenance', '{{ $request->id }}')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
+                                                    title="Duyệt">
+                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                                </a>
+                                            @endif
+
+                                            @if ($request->status === 'pending' && $canReject)
+                                                <a href="#" onclick="rejectRequest('maintenance', '{{ $request->id }}')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 hover:bg-orange-500 transition-colors group"
+                                                    title="Từ chối">
+                                                    <i class="fas fa-times text-orange-500 group-hover:text-white"></i>
                                                 </a>
                                             @endif
 
@@ -430,6 +481,22 @@
                                                 </a>
                                             @endif
 
+                                            @if ($request->status === 'pending' && $canApprove)
+                                                <a href="#" onclick="approveRequest('customer-maintenance', '{{ $request->id }}')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
+                                                    title="Duyệt">
+                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                                </a>
+                                            @endif
+
+                                            @if ($request->status === 'pending' && $canReject)
+                                                <a href="#" onclick="rejectRequest('customer-maintenance', '{{ $request->id }}')"
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-orange-100 hover:bg-orange-500 transition-colors group"
+                                                    title="Từ chối">
+                                                    <i class="fas fa-times text-orange-500 group-hover:text-white"></i>
+                                                </a>
+                                            @endif
+
                                             @if ($request->status === 'pending' && $canDelete)
                                                 <form
                                                     action="{{ route('requests.customer-maintenance.destroy', $request->id) }}"
@@ -463,7 +530,7 @@
                             @endforeach
                         @else
                             <tr>
-                                <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
+                                <td colspan="8" class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500">
                                     Không có phiếu yêu cầu nào
                                 </td>
                             </tr>
@@ -474,7 +541,13 @@
 
             @if (isset($requests) && $requests->hasPages())
                 <div class="px-6 py-4 border-t border-gray-200">
-                    {{ $requests->links() }}
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-700">
+                            Hiển thị {{ $requests->firstItem() ?? 0 }} đến {{ $requests->lastItem() ?? 0 }} 
+                            trong tổng số {{ $requests->total() }} phiếu yêu cầu
+                        </div>
+                        {{ $requests->links() }}
+                    </div>
                 </div>
             @endif
         </div>
@@ -504,6 +577,37 @@
 
         function exportToPDF(type, id) {
             window.location.href = `/requests/${type}/${id}/export-pdf`;
+        }
+
+        function approveRequest(type, id) {
+            if (confirm('Bạn có chắc chắn muốn duyệt phiếu yêu cầu này?')) {
+                window.location.href = `/requests/${type}/${id}/approve`;
+            }
+        }
+
+        function rejectRequest(type, id) {
+            const reason = prompt('Vui lòng nhập lý do từ chối:');
+            if (reason !== null) {
+                // Tạo form ẩn để submit
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/requests/${type}/${id}/reject`;
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                form.appendChild(csrfToken);
+                
+                const reasonInput = document.createElement('input');
+                reasonInput.type = 'hidden';
+                reasonInput.name = 'rejection_reason';
+                reasonInput.value = reason;
+                form.appendChild(reasonInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
     </script>
 @endsection
