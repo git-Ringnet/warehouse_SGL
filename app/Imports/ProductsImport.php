@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\Product;
+use App\Models\Warehouse;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -52,11 +53,15 @@ class ProductsImport implements ToCollection, WithHeadingRow
                 
                 // Note: Products can have duplicate codes, so we don't check for duplicates
                 
+                // Parse inventory warehouses
+                $inventoryWarehouses = $this->parseInventoryWarehouses($row['kho_dung_de_tinh_ton_kho'] ?? 'all');
+                
                 // Create new product
                 $product = Product::create([
                     'code' => $row['ma_thanh_pham'],
                     'name' => $row['ten_thanh_pham'],
                     'description' => $row['mo_ta'] ?? null,
+                    'inventory_warehouses' => $inventoryWarehouses,
                     'status' => 'active',
                     'is_hidden' => false
                 ]);
@@ -86,6 +91,37 @@ class ProductsImport implements ToCollection, WithHeadingRow
         return $this->importResults;
     }
     
+    protected function parseInventoryWarehouses($value)
+    {
+        if (empty($value) || strtolower($value) === 'all') {
+            return ['all'];
+        }
+
+        // If specific warehouse codes are provided (comma separated)
+        $warehouseCodes = explode(',', $value);
+        $warehouseCodes = array_map('trim', $warehouseCodes);
+        $warehouseCodes = array_filter($warehouseCodes);
+
+        if (empty($warehouseCodes)) {
+            return ['all'];
+        }
+
+        // Lấy danh sách kho theo mã và chưa bị xóa
+        $warehouses = Warehouse::whereIn('code', $warehouseCodes)
+            ->where('status', '!=', 'deleted')
+            ->get();
+
+        // Kiểm tra các mã kho không hợp lệ
+        $existingCodes = $warehouses->pluck('code')->toArray();
+        $invalidCodes = array_diff($warehouseCodes, $existingCodes);
+        if (!empty($invalidCodes)) {
+            throw new \Exception('Mã kho không tồn tại hoặc đã bị xóa: ' . implode(', ', $invalidCodes));
+        }
+
+        // Trả về mảng ID của các kho
+        return $warehouses->pluck('id')->toArray();
+    }
+
     protected function resetResults()
     {
         $this->importResults = [

@@ -155,7 +155,7 @@
                         @forelse($roles as $role)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $loop->iteration }}
+                                    {{ ($roles->currentPage() - 1) * $roles->perPage() + $loop->iteration }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $role->name }}

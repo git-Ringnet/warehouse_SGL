@@ -53,6 +53,9 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
             // Get inventory quantity from warehouse_materials table
             $product->inventory_quantity = WarehouseMaterial::where('material_id', $product->id)
                 ->where('item_type', 'product')
+                ->whereHas('warehouse', function($query) {
+                    $query->where('status', 'active');
+                })
                 ->sum('quantity');
         }
 
@@ -82,6 +85,7 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
             'Mã thành phẩm',
             'Tên thành phẩm',
             'Tổng tồn kho',
+            'Kho dùng để tính tồn kho',
         ];
     }
 
@@ -94,11 +98,27 @@ class ProductsExport implements FromCollection, WithHeadings, WithMapping, WithS
         static $counter = 0;
         $counter++;
 
+        // Lấy thông tin kho dùng để tính tồn kho
+        $inventoryWarehouses = $product->inventory_warehouses ?? ['all'];
+        $warehouseInfo = '';
+        
+        if (in_array('all', $inventoryWarehouses)) {
+            $warehouseInfo = 'all';
+        } else {
+            // Lấy tên kho từ ID
+            $warehouseNames = \App\Models\Warehouse::whereIn('id', $inventoryWarehouses)
+                ->where('status', '!=', 'deleted')
+                ->pluck('code')
+                ->toArray();
+            $warehouseInfo = implode(',', $warehouseNames);
+        }
+
         return [
             $counter,
             $product->code,
             $product->name,
             number_format($product->inventory_quantity, 0, ',', '.'),
+            $warehouseInfo,
         ];
     }
 

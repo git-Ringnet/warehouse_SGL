@@ -44,12 +44,7 @@ class GoodController extends Controller
                     ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
             });
             
-            // Nếu search là số, thêm tìm kiếm theo tổng tồn kho
-            if (is_numeric($searchTerm)) {
-                $query->orWhereHas('warehouseMaterials', function($q) use ($searchTerm) {
-                    $q->where('quantity', '<=', (int)$searchTerm);
-                });
-            }
+
         }
 
         // Apply category filter
@@ -62,18 +57,65 @@ class GoodController extends Controller
             $query->where('unit', $request->unit);
         }
 
-        // Apply stock filter at database level
+
+
+        // Lọc theo số lượng tồn kho nếu có - áp dụng trước khi paginate
+        $stockFilter = null;
         if ($request->has('stock') && is_numeric($request->stock)) {
-            $query->whereHas('warehouseMaterials', function($q) use ($request) {
-                $q->where('quantity', '<=', (int)$request->stock);
-            });
+            $stockFilter = (int)$request->stock;
+        } elseif ($request->has('search') && is_numeric($request->search)) {
+            $stockFilter = (int)$request->search;
+        }
+
+        if ($stockFilter !== null) {
+            // Lấy tất cả goods để tính inventory quantity
+            $allGoods = $query->get();
+            
+            // Tính inventory quantity cho mỗi good
+            foreach ($allGoods as $good) {
+                $good->inventory_quantity = $good->getInventoryQuantity();
+            }
+            
+            // Lọc theo stock filter
+            $filteredGoodIds = $allGoods->filter(function ($good) use ($stockFilter) {
+                // Nếu stockFilter = 0, chỉ lấy những cái có inventory chính xác bằng 0
+                if ($stockFilter === 0) {
+                    return $good->inventory_quantity == 0;
+                }
+                // Nếu stockFilter > 0, lấy những cái có inventory <= stockFilter
+                return $good->inventory_quantity <= $stockFilter;
+            })->pluck('id');
+            
+            // Query lại với IDs đã lọc
+            $query = Good::where('status', 'active')
+                ->where('is_hidden', false)
+                ->whereIn('id', $filteredGoodIds);
+                
+            // Re-apply search filter (textual)
+            if ($request->has('search') && !empty($request->search) && !is_numeric($request->search)) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('code', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('category', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+            
+            // Re-apply category filter
+            if ($request->has('category') && !empty($request->category)) {
+                $query->where('category', $request->category);
+            }
+
+            // Re-apply unit filter
+            if ($request->has('unit') && !empty($request->unit)) {
+                $query->where('unit', $request->unit);
+            }
         }
 
         // Get goods with pagination
-        $goods = $query->orderBy('id', 'desc')->paginate(10);
-
-        // Add query parameters to pagination links
-        $goods->appends($request->query());
+        $goods = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
 
         // Initialize grand totals
         $grandTotalQuantity = 0;

@@ -38,18 +38,63 @@ class ProductController extends Controller
             });
         }
 
+        // Lọc theo số lượng tồn kho nếu có - áp dụng trước khi paginate
+        if (!empty($stockQuantity) && $stockQuantity >= 0) {
+            // Lấy tất cả products để tính inventory quantity
+            $allProducts = $query->get();
+            
+            // Tính inventory quantity cho mỗi product
+            foreach ($allProducts as $product) {
+                $product->inventory_quantity = $product->getInventoryQuantity();
+            }
+            
+            // Lọc theo stock quantity
+            $filteredProductIds = $allProducts->filter(function ($product) use ($stockQuantity) {
+                // Nếu stockQuantity = 0, chỉ lấy những cái có inventory chính xác bằng 0
+                if ($stockQuantity === 0) {
+                    return $product->inventory_quantity == 0;
+                }
+                // Nếu stockQuantity > 0, lấy những cái có inventory <= stockQuantity
+                return $product->inventory_quantity <= $stockQuantity;
+            })->pluck('id');
+            
+
+            
+            // Query lại với IDs đã lọc
+            $query = Product::where('status', 'active')
+                ->where('is_hidden', false)
+                ->whereIn('id', $filteredProductIds);
+                
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('code', 'LIKE', "%{$search}%")
+                        ->orWhere('name', 'LIKE', "%{$search}%")
+                        ->orWhere('description', 'LIKE', "%{$search}%");
+                });
+            }
+        }
+
         $products = $query->orderBy('id', 'desc')->paginate(10)->withQueryString();
 
         // Add inventory quantity to each product
         foreach ($products as $product) {
             $product->inventory_quantity = $product->getInventoryQuantity();
         }
-
-        // Lọc theo số lượng tồn kho nếu có
-        if (!empty($stockQuantity) && $stockQuantity >= 0) {
-            $products = $products->filter(function ($product) use ($stockQuantity) {
-                return $product->inventory_quantity <= $stockQuantity;
-            });
+        
+        // Nếu đang lọc theo stock_quantity = 0, kiểm tra lại để đảm bảo không có product nào có inventory > 0
+        if (!empty($stockQuantity) && $stockQuantity == 0) {
+            $productsWithInventory = $products->filter(function($p) { return $p->inventory_quantity > 0; });
+            if ($productsWithInventory->count() > 0) {
+                // Log để debug
+                Log::warning('Found products with inventory > 0 when filtering for stock_quantity = 0', [
+                    'products' => $productsWithInventory->map(function($p) { 
+                        return ['id' => $p->id, 'code' => $p->code, 'inventory' => $p->inventory_quantity]; 
+                    })->toArray()
+                ]);
+                
+                // Nếu có product có inventory > 0, loại bỏ chúng khỏi collection
+                $products = $products->filter(function($p) { return $p->inventory_quantity == 0; });
+            }
         }
 
         return view('products.index', compact('products'));
@@ -597,42 +642,7 @@ class ProductController extends Controller
     /**
      * Search products via API for AJAX requests
      */
-    public function searchProductsApi(Request $request)
-    {
-        $search = $request->get('search', '');
-        $stockQuantity = $request->get('stock_quantity', '');
 
-        $query = Product::where('status', 'active')
-            ->where('is_hidden', false);
-
-        // Apply search filter
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('code', 'LIKE', "%{$search}%")
-                    ->orWhere('name', 'LIKE', "%{$search}%")
-                    ->orWhere('description', 'LIKE', "%{$search}%");
-            });
-        }
-
-        $products = $query->orderBy('created_at', 'desc')->get();
-
-        // Add inventory quantity to each product
-        foreach ($products as $product) {
-            $product->inventory_quantity = $product->getInventoryQuantity();
-        }
-
-        // Apply stock quantity filter after getting inventory quantities
-        if (!empty($stockQuantity) && $stockQuantity >= 0) {
-            $products = $products->filter(function ($product) use ($stockQuantity) {
-                return $product->inventory_quantity <= $stockQuantity;
-            });
-        }
-
-        return response()->json([
-            'products' => $products->values(),
-            'total' => $products->count()
-        ]);
-    }
 
     /**
      * Export products list to PDF

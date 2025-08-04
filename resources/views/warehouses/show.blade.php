@@ -86,7 +86,7 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Người quản lý</p>
-                        <p class="text-gray-900">{{ $warehouse->manager }}</p>
+                        <p class="text-gray-900">{{ $warehouse->managerEmployee->name }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>

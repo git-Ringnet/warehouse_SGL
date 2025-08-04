@@ -126,13 +126,8 @@ class RoleSeeder extends Seeder
             // Phiếu yêu cầu - quyền chung
             'requests.view',
             'requests.view_detail',
-            'requests.edit',
-            'requests.delete',
-            'requests.approve',
-            'requests.reject',
             'requests.export',
             'requests.copy',
-            'requests.update_status',
 
             // Phiếu đề xuất dự án
             'requests.project.create',
@@ -236,8 +231,7 @@ class RoleSeeder extends Seeder
                         'testing.create',
                         'testing.edit',
                         'testing.delete',
-                        'testing.approve',
-                        'testing.reject',
+
                         'testing.receive',
                         'testing.complete',
                         'testing.update_inventory',
@@ -306,10 +300,7 @@ class RoleSeeder extends Seeder
                     'scope.project',
                     'scope.region',
 
-                    // Phiếu yêu cầu - thêm quyền duyệt/từ chối
-                    'requests.edit',
-                    'requests.approve',
-                    'requests.reject',
+
                 ];
 
                 $permissionsToAssign = array_merge($commonPermissions, $projectPermissions);

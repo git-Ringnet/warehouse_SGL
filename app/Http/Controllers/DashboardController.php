@@ -1151,7 +1151,10 @@ class DashboardController extends Controller
             
             return $materials->map(function($material) use ($includeOutOfStock) {
                 $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
-                    ->where('item_type', 'material');
+                    ->where('item_type', 'material')
+                    ->whereHas('warehouse', function($query) {
+                        $query->where('status', 'active');
+                    });
                     
                 if (!$includeOutOfStock) {
                     $warehouseQuery->where('quantity', '>', 0);
@@ -1181,6 +1184,9 @@ class DashboardController extends Controller
                         'supplier' => $material->supplier ? $material->supplier->name : 'N/A',
                         'quantity' => WarehouseMaterial::where('material_id', $material->id)
                             ->where('item_type', 'material')
+                            ->whereHas('warehouse', function($query) {
+                                $query->where('status', 'active');
+                            })
                             ->sum('quantity'),
                         'unit' => $material->unit
                     ]
@@ -1240,7 +1246,10 @@ class DashboardController extends Controller
             
             return $products->map(function($product) use ($includeOutOfStock) {
                 $warehouseQuery = WarehouseMaterial::where('material_id', $product->id)
-                    ->where('item_type', 'product');
+                    ->where('item_type', 'product')
+                    ->whereHas('warehouse', function($query) {
+                        $query->where('status', 'active');
+                    });
                     
                 if (!$includeOutOfStock) {
                     $warehouseQuery->where('quantity', '>', 0);
@@ -1270,6 +1279,9 @@ class DashboardController extends Controller
                         'manufactureDate' => $product->created_at->format('d/m/Y'),
                         'quantity' => WarehouseMaterial::where('material_id', $product->id)
                             ->where('item_type', 'product')
+                            ->whereHas('warehouse', function($query) {
+                                $query->where('status', 'active');
+                            })
                             ->sum('quantity'),
                         'project' => 'N/A' // Có thể cập nhật nếu có thông tin dự án
                     ]
@@ -1329,7 +1341,10 @@ class DashboardController extends Controller
             
             return $goods->map(function($good) use ($includeOutOfStock) {
                 $warehouseQuery = WarehouseMaterial::where('material_id', $good->id)
-                    ->where('item_type', 'good');
+                    ->where('item_type', 'good')
+                    ->whereHas('warehouse', function($query) {
+                        $query->where('status', 'active');
+                    });
                     
                 if (!$includeOutOfStock) {
                     $warehouseQuery->where('quantity', '>', 0);
@@ -1360,6 +1375,9 @@ class DashboardController extends Controller
                         'price' => 'Liên hệ',
                         'quantity' => WarehouseMaterial::where('material_id', $good->id)
                             ->where('item_type', 'good')
+                            ->whereHas('warehouse', function($query) {
+                                $query->where('status', 'active');
+                            })
                             ->sum('quantity')
                     ]
                 ];

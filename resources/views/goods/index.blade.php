@@ -263,7 +263,7 @@
                     <tbody class="bg-white divide-y divide-gray-100">
                         @foreach ($goods as $index => $good)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ ($goods->currentPage() - 1) * $goods->perPage() + $loop->iteration }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $good->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $good->name }}</td>

@@ -239,18 +239,10 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // API route for product inventory quantity
     Route::get('/api/products/inventory', [ProductController::class, 'getInventoryQuantity']);
 
-    // API route for product search
-    Route::get('/api/products/search', [ProductController::class, 'searchProductsApi'])->name('products.search.api');
-
     //Warehouses routes với middleware bảo vệ từng quyền cụ thể
     Route::get('/warehouses', [WarehouseController::class, 'index'])->name('warehouses.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view');
     Route::get('/warehouses/create', [WarehouseController::class, 'create'])->name('warehouses.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.create');
     Route::post('/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.create');
-    
-    // API routes for warehouses - phải đặt trước các route có tham số
-    Route::get('/warehouses/api-search', [WarehouseController::class, 'apiSearch'])
-        ->name('warehouses.api-search')
-        ->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view');
     
     Route::get('/warehouses/{warehouse}', [WarehouseController::class, 'show'])->name('warehouses.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view_detail');
     Route::get('/warehouses/{warehouse}/edit', [WarehouseController::class, 'edit'])->name('warehouses.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');

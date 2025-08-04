@@ -43,7 +43,10 @@ class Product extends Model
     public function warehouseMaterials(): HasMany
     {
         return $this->hasMany(WarehouseMaterial::class, 'material_id')
-            ->where('item_type', 'product');
+            ->where('item_type', 'product')
+            ->whereHas('warehouse', function($query) {
+                $query->where('status', 'active');
+            });
     }
     
     /**

@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\Good;
 use App\Models\Supplier;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -179,23 +180,29 @@ class GoodsImport implements ToCollection, WithHeadingRow
             return [];
         }
         
-        // Lấy danh sách nhà cung cấp và sắp xếp theo thứ tự hiển thị trên giao diện
+        // Lấy danh sách nhà cung cấp theo thứ tự hiển thị trên web
+        // Sử dụng cùng logic như trong SupplierController->index() (không có filter)
         $suppliers = Supplier::query()
-            ->orderByRaw("CASE WHEN name = 'Kho Bảo Hành' THEN 0 ELSE 1 END")
-            ->orderBy('id', 'asc')
+            ->latest() // Sắp xếp theo thứ tự mới nhất trước (giống như trên web)
             ->get()
-            ->values()
-            ->map(function ($supplier, $index) {
-                $supplier->display_number = $index + 1;
-                return $supplier;
-            });
+            ->values();
+            
+        // Tạo mapping STT -> ID dựa trên thứ tự hiển thị trên web
+        $supplierMapping = [];
+        foreach ($suppliers as $index => $supplier) {
+            // STT trên web = index + 1 (vì index bắt đầu từ 0)
+            $supplierMapping[$index + 1] = $supplier->id;
+        }
             
         // Lấy ID của nhà cung cấp dựa trên STT hiển thị
         $supplierIds = [];
         foreach ($supplierNumbers as $number) {
-            $supplier = $suppliers->firstWhere('display_number', (int)$number);
-            if ($supplier) {
-                $supplierIds[] = $supplier->id;
+            $number = (int)$number;
+            if (isset($supplierMapping[$number])) {
+                $supplierIds[] = $supplierMapping[$number];
+            } else {
+                // Log để debug nếu STT không tìm thấy
+                Log::warning("STT nhà cung cấp không tìm thấy: {$number}. Mapping hiện tại: " . json_encode($supplierMapping));
             }
         }
         

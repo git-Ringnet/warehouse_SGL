@@ -87,6 +87,8 @@ class PermissionSeeder extends Seeder
             $this->createPermission('inventory_imports.view_detail', 'Xem chi tiết nhập kho', 'Xem chi tiết phiếu nhập kho', 'Vận hành kho'),
             $this->createPermission('inventory_imports.edit', 'Sửa nhập kho', 'Chỉnh sửa phiếu nhập kho', 'Vận hành kho'),
             $this->createPermission('inventory_imports.delete', 'Xóa nhập kho', 'Xóa phiếu nhập kho', 'Vận hành kho'),
+            $this->createPermission('inventory_imports.approve', 'Duyệt nhập kho', 'Duyệt phiếu nhập kho', 'Vận hành kho'),
+            $this->createPermission('inventory_imports.cancel', 'Huỷ nhập kho', 'Huỷ phiếu nhập kho', 'Vận hành kho'),
 
             // Xuất kho
             $this->createPermission('inventory.view', 'Xem danh sách xuất kho', 'Xem danh sách phiếu xuất kho', 'Vận hành kho'),
@@ -103,6 +105,7 @@ class PermissionSeeder extends Seeder
             $this->createPermission('warehouse-transfers.create', 'Thêm chuyển kho', 'Tạo chuyển kho mới', 'Vận hành kho'),
             $this->createPermission('warehouse-transfers.edit', 'Sửa chuyển kho', 'Chỉnh sửa thông tin chuyển kho', 'Vận hành kho'),
             $this->createPermission('warehouse-transfers.delete', 'Xóa chuyển kho', 'Xóa chuyển kho khỏi hệ thống', 'Vận hành kho'),
+            $this->createPermission('warehouse-transfers.approve', 'Duyệt chuyển kho', 'Duyệt phiếu chuyển kho', 'Vận hành kho'),
 
             // ===== SẢN XUẤT & KIỂM THỬ =====
             // Lắp ráp
@@ -111,6 +114,8 @@ class PermissionSeeder extends Seeder
             $this->createPermission('assembly.create', 'Thêm lắp ráp', 'Tạo lắp ráp mới', 'Sản xuất & Kiểm thử'),
             $this->createPermission('assembly.edit', 'Sửa lắp ráp', 'Chỉnh sửa thông tin lắp ráp', 'Sản xuất & Kiểm thử'),
             $this->createPermission('assembly.delete', 'Xóa lắp ráp', 'Xóa phiếu lắp ráp', 'Sản xuất & Kiểm thử'),
+            $this->createPermission('assembly.approve', 'Duyệt lắp ráp', 'Duyệt phiếu lắp ráp', 'Sản xuất & Kiểm thử'),
+            $this->createPermission('assembly.cancel', 'Huỷ lắp ráp', 'Huỷ phiếu lắp ráp', 'Sản xuất & Kiểm thử'),
             $this->createPermission('assembly.export', 'Xuất file lắp ráp', 'Xuất phiếu lắp ráp ra file Excel, PDF', 'Sản xuất & Kiểm thử'),
 
             // Kiểm thử
@@ -119,8 +124,6 @@ class PermissionSeeder extends Seeder
             $this->createPermission('testing.create', 'Thêm kiểm thử', 'Tạo phiếu kiểm thử mới', 'Sản xuất & Kiểm thử'),
             $this->createPermission('testing.edit', 'Sửa kiểm thử', 'Chỉnh sửa thông tin phiếu kiểm thử', 'Sản xuất & Kiểm thử'),
             $this->createPermission('testing.delete', 'Xóa kiểm thử', 'Xóa phiếu kiểm thử', 'Sản xuất & Kiểm thử'),
-            $this->createPermission('testing.approve', 'Duyệt kiểm thử', 'Duyệt phiếu kiểm thử', 'Sản xuất & Kiểm thử'),
-            $this->createPermission('testing.reject', 'Từ chối kiểm thử', 'Từ chối phiếu kiểm thử', 'Sản xuất & Kiểm thử'),
             $this->createPermission('testing.receive', 'Tiếp nhận kiểm thử', 'Tiếp nhận phiếu kiểm thử để thực hiện', 'Sản xuất & Kiểm thử'),
             $this->createPermission('testing.complete', 'Hoàn thành kiểm thử', 'Đánh dấu hoàn thành phiếu kiểm thử', 'Sản xuất & Kiểm thử'),
             $this->createPermission('testing.update_inventory', 'Cập nhật kho kiểm thử', 'Cập nhật kết quả kiểm thử vào kho', 'Sản xuất & Kiểm thử'),
@@ -133,6 +136,7 @@ class PermissionSeeder extends Seeder
             $this->createPermission('repairs.create', 'Thêm sửa chữa', 'Tạo phiếu sửa chữa mới', 'Bảo trì & Sửa chữa'),
             $this->createPermission('repairs.edit', 'Sửa phiếu sửa chữa', 'Chỉnh sửa thông tin phiếu sửa chữa', 'Bảo trì & Sửa chữa'),
             $this->createPermission('repairs.delete', 'Xóa phiếu sửa chữa', 'Xóa phiếu sửa chữa khỏi hệ thống', 'Bảo trì & Sửa chữa'),
+            $this->createPermission('repairs.complete', 'Hoàn thành sửa chữa', 'Đánh dấu hoàn thành phiếu sửa chữa', 'Bảo trì & Sửa chữa'),
 
             // Bảo hành điện tử
             $this->createPermission('warranties.view', 'Xem bảo hành', 'Xem thông tin bảo hành', 'Bảo trì & Sửa chữa'),
@@ -157,13 +161,8 @@ class PermissionSeeder extends Seeder
             // Phiếu yêu cầu
             $this->createPermission('requests.view', 'Xem phiếu yêu cầu', 'Xem danh sách phiếu yêu cầu', 'Phiếu yêu cầu'),
             $this->createPermission('requests.view_detail', 'Xem chi tiết phiếu yêu cầu', 'Xem chi tiết phiếu yêu cầu', 'Phiếu yêu cầu'),
-            $this->createPermission('requests.edit', 'Sửa phiếu yêu cầu', 'Chỉnh sửa phiếu yêu cầu', 'Phiếu yêu cầu'),
-            $this->createPermission('requests.delete', 'Xóa phiếu yêu cầu', 'Xóa phiếu yêu cầu', 'Phiếu yêu cầu'),
-            $this->createPermission('requests.approve', 'Duyệt phiếu yêu cầu', 'Phê duyệt phiếu yêu cầu', 'Phiếu yêu cầu'),
-            $this->createPermission('requests.reject', 'Từ chối phiếu yêu cầu', 'Từ chối phiếu yêu cầu', 'Phiếu yêu cầu'),
             $this->createPermission('requests.export', 'Xuất file phiếu yêu cầu', 'Xuất phiếu yêu cầu ra file Excel/PDF', 'Phiếu yêu cầu'),
             $this->createPermission('requests.copy', 'Sao chép phiếu yêu cầu', 'Sao chép phiếu yêu cầu', 'Phiếu yêu cầu'),
-            $this->createPermission('requests.update_status', 'Cập nhật trạng thái', 'Cập nhật trạng thái phiếu yêu cầu', 'Phiếu yêu cầu'),
 
             // Phiếu đề xuất dự án
             $this->createPermission('requests.project.create', 'Tạo phiếu đề xuất dự án', 'Tạo mới phiếu đề xuất triển khai dự án', 'Phiếu yêu cầu'),

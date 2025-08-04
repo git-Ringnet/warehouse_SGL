@@ -19,13 +19,13 @@
             class="bg-white shadow-sm py-4 px-6 flex flex-col md:flex-row md:justify-between md:items-center sticky top-0 z-40 gap-4">
             <h1 class="text-xl font-bold text-gray-800">Quản lý thành phẩm</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                <div class="flex gap-2 w-full md:w-auto">
+                <form action="{{ route('products.index') }}" method="GET" class="flex gap-2 w-full md:w-auto">
                     <!-- Ô tìm kiếm -->
                     <div class="relative flex-1 flex">
-                        <input type="text" id="searchInput" placeholder="Tìm kiếm..." value="{{ request('search') }}"
+                        <input type="text" name="search" placeholder="Tìm kiếm..." value="{{ request('search') }}"
                             class="flex-1 border border-gray-300 rounded-l-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700" />
                         <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <button id="searchButton" type="button" 
+                        <button type="submit" 
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-lg border border-blue-500 transition-colors">
                             <i class="fas fa-search"></i>
                         </button>
@@ -42,15 +42,16 @@
                             <div class="p-4 space-y-3">
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn hoặc bằng)</label>
-                                    <input type="number" id="stockQuantityFilter" min="0" placeholder="Nhập số lượng" 
+                                    <input type="number" name="stock_quantity" min="0" placeholder="Nhập số lượng" 
+                                        value="{{ request('stock_quantity') }}"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
-                                    <button id="clearFiltersInDropdown"
+                                    <a href="{{ route('products.index') }}"
                                         class="text-gray-500 hover:text-gray-700 text-sm">
                                         <i class="fas fa-times mr-1"></i> Xóa bộ lọc
-                                    </button>
-                                    <button id="applyFilters"
+                                    </a>
+                                    <button type="submit"
                                         class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
                                         Áp dụng
                                     </button>
@@ -58,7 +59,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </form>
                 <div class="flex flex-wrap gap-2 items-center">
                     <!-- Dropdown menu cho các action phụ -->
                     <div class="relative inline-block text-left">
@@ -182,7 +183,7 @@
                     <tbody id="productsTableBody" class="bg-white divide-y divide-gray-200">
                         @foreach ($products as $index => $product)
                             <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $index + 1 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ ($products->currentPage() - 1) * $products->perPage() + $loop->iteration }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $product->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm text-gray-900">{{ $product->name }}</div>
@@ -236,19 +237,6 @@
                         @endforeach
                     </tbody>
                 </table>
-
-                <!-- Loading state -->
-                <div id="loadingState" class="hidden p-8 text-center">
-                    <i class="fas fa-spinner fa-spin text-gray-400 text-2xl mb-2"></i>
-                    <p class="text-gray-500">Đang tìm kiếm...</p>
-                </div>
-
-                <!-- No results state -->
-                <div id="noResultsState" class="hidden p-8 text-center">
-                    <i class="fas fa-search text-gray-300 text-4xl mb-4"></i>
-                    <h3 class="text-lg font-medium text-gray-700 mb-2">Không tìm thấy thành phẩm nào</h3>
-                    <p class="text-gray-500">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
-                </div>
             </div>
             <div class="mt-4">
                 {{ $products->links() }}
@@ -398,169 +386,13 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('searchInput');
-            const searchButton = document.getElementById('searchButton');
             const filterDropdownButton = document.getElementById('filterDropdownButton');
             const filterDropdown = document.getElementById('filterDropdown');
-            const clearFiltersInDropdown = document.getElementById('clearFiltersInDropdown');
-            const applyFilters = document.getElementById('applyFilters');
-            const productsTableBody = document.getElementById('productsTableBody');
-            const productCount = document.getElementById('productCount');
-            const filterTags = document.getElementById('filterTags');
-            const loadingState = document.getElementById('loadingState');
-            const noResultsState = document.getElementById('noResultsState');
-            const stockQuantityFilter = document.getElementById('stockQuantityFilter'); // New input for stock quantity
-
-            let currentFilters = {
-                search: '',
-                stockQuantity: '' // Changed from 'stock' to 'stockQuantity'
-            };
-
-            function performSearch() {
-                const searchTerm = searchInput.value.trim();
-                const stockQuantity = stockQuantityFilter.value.trim(); // Use new input
-                
-                currentFilters.search = searchTerm;
-                currentFilters.stockQuantity = stockQuantity; // Update current filters
-                
-                showLoading();
-                updateFilterTags();
-
-                const params = new URLSearchParams();
-                if (searchTerm) params.append('search', searchTerm);
-                if (stockQuantity) params.append('stock_quantity', stockQuantity); // Append new parameter
-
-                fetch(`{{ route('products.search.api') }}?${params.toString()}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        hideLoading();
-                        updateTable(data.products);
-                        updateProductCount(data.total);
-                        
-                        if (data.products.length === 0) {
-                            showNoResults();
-                        } else {
-                            hideNoResults();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Search error:', error);
-                        hideLoading();
-                        showNoResults();
-                    });
-            }
-
-            function updateTable(products) {
-                productsTableBody.innerHTML = '';
-                
-                if (products.length === 0) {
-                    return;
-                }
-                
-                products.forEach((product, index) => {
-                    const row = createProductRow(product, index + 1);
-                    productsTableBody.appendChild(row);
-                });
-            }
-
-            function createProductRow(product, index) {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 transition-colors';
-                
-                const inventoryClass = product.inventory_quantity > 50 ? 'bg-green-100 text-green-800' :
-                                     product.inventory_quantity > 20 ? 'bg-yellow-100 text-yellow-800' :
-                                     'bg-red-100 text-red-800';
-                
-                // Get permissions from PHP
-                const isAdmin = {{ $isAdmin ? 'true' : 'false' }};
-                const canViewDetail = {{ (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('products.view_detail')) ? 'true' : 'false' }};
-                const canEdit = {{ (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('products.edit')) ? 'true' : 'false' }};
-                const canDelete = {{ (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('products.delete')) ? 'true' : 'false' }};
-                
-                let actionButtons = '';
-                
-                if (isAdmin || canViewDetail) {
-                    actionButtons += `
-                        <a href="/products/${product.id}">
-                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                            </button>
-                        </a>
-                    `;
-                }
-
-                // Thêm nút xem hình ảnh
-                actionButtons += `
-                    <button onclick="openProductImages('${product.id}', '${product.name}')" 
-                        class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" 
-                        title="Xem hình ảnh">
-                        <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
-                    </button>
-                `;
-                
-                if (isAdmin || canEdit) {
-                    actionButtons += `
-                        <a href="/products/${product.id}/edit">
-                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                            </button>
-                        </a>
-                    `;
-                }
-                
-                if (isAdmin || canDelete) {
-                    actionButtons += `
-                        <button onclick="openDeleteModal('${product.id}', '${product.code}', ${product.inventory_quantity})" class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                        </button>
-                    `;
-                }
-                
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${index}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${product.code}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm text-gray-900">${product.name}</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2.5 py-1 rounded-md text-sm font-medium ${inventoryClass}">
-                            ${new Intl.NumberFormat('vi-VN').format(product.inventory_quantity)}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-                        <div class="flex justify-start space-x-2">
-                            ${actionButtons}
-                        </div>
-                    </td>
-                `;
-                
-                return row;
-            }
-
-            function updateProductCount(count) {
-                productCount.textContent = count;
-            }
-
-            function updateFilterTags() {
-                let tagsHtml = '';
-
-                if (currentFilters.search || currentFilters.stockQuantity) {
-                    tagsHtml += ' | Đang lọc ';
-
-                    if (currentFilters.search) {
-                        tagsHtml += `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs ml-1">Từ khóa: "${currentFilters.search}"</span>`;
-                    }
-                    if (currentFilters.stockQuantity) {
-                        tagsHtml += `<span class="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs ml-1">Tồn kho ≤ ${currentFilters.stockQuantity}</span>`;
-                    }
-                }
-
-                filterTags.innerHTML = tagsHtml;
-            }
+            const stockQuantityFilter = document.querySelector('input[name="stock_quantity"]');
 
             function updateFilterButtonText() {
                 const activeFilters = [];
-                if (stockQuantityFilter.value) activeFilters.push('Tồn kho');
+                if (stockQuantityFilter && stockQuantityFilter.value) activeFilters.push('Tồn kho');
                 
                 if (activeFilters.length > 0) {
                     filterDropdownButton.innerHTML = `<i class="fas fa-filter mr-2"></i> Bộ lọc (${activeFilters.length}) <i class="fas fa-chevron-down ml-auto"></i>`;
@@ -572,54 +404,11 @@
                     filterDropdownButton.classList.add('bg-gray-50', 'border-gray-300', 'text-gray-700');
                 }
             }
-
-            function showLoading() {
-                productsTableBody.style.display = 'none';
-                noResultsState.classList.add('hidden');
-                loadingState.classList.remove('hidden');
-            }
-
-            function hideLoading() {
-                loadingState.classList.add('hidden');
-                productsTableBody.style.display = '';
-            }
-
-            function showNoResults() {
-                productsTableBody.style.display = 'none';
-                noResultsState.classList.remove('hidden');
-            }
-
-            function hideNoResults() {
-                noResultsState.classList.add('hidden');
-                productsTableBody.style.display = '';
-            }
-
-            // Search on button click or Enter key
-            searchButton.addEventListener('click', performSearch);
-            
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    performSearch();
-                }
-            });
             
             // Filter dropdown toggle
             filterDropdownButton.addEventListener('click', function(e) {
                 e.stopPropagation();
                 filterDropdown.classList.toggle('hidden');
-            });
-            
-            // Apply filters button  
-            applyFilters.addEventListener('click', function() {
-                filterDropdown.classList.add('hidden');
-                updateFilterButtonText();
-                performSearch();
-            });
-            
-            // Clear filters in dropdown
-            clearFiltersInDropdown.addEventListener('click', function() {
-                window.location.href = window.location.pathname + '?per_page=10';
             });
             
             // Close dropdown when clicking outside
@@ -631,28 +420,6 @@
             filterDropdown.addEventListener('click', function(e) {
                 e.stopPropagation();
             });
-            
-            // Initialize
-            updateFilterButtonText();
-            updateFilterTags();
-
-            // Load current values from URL params
-            const urlParams = new URLSearchParams(window.location.search);
-            const searchFromUrl = urlParams.get('search');
-            const stockQuantityFromUrl = urlParams.get('stock_quantity');
-            
-            if (searchFromUrl) {
-                searchInput.value = searchFromUrl;
-                currentFilters.search = searchFromUrl;
-            }
-            
-            if (stockQuantityFromUrl) {
-                document.getElementById('stockQuantityFilter').value = stockQuantityFromUrl;
-                currentFilters.stockQuantity = stockQuantityFromUrl;
-            }
-            
-            // Update filter tags
-            updateFilterTags();
         });
 
         // More actions dropdown functionality
@@ -752,40 +519,18 @@
 
             // Export button handlers
             document.getElementById('exportExcelButton').addEventListener('click', function() {
-                const params = new URLSearchParams();
-                const searchValue = document.getElementById('searchInput').value;
-                const stockQuantityValue = document.getElementById('stockQuantityFilter').value;
-                
-                if (searchValue) params.append('search', searchValue);
-                if (stockQuantityValue) params.append('stock_quantity', stockQuantityValue);
-                
+                const params = new URLSearchParams(window.location.search);
                 window.location.href = `{{ route('products.export.excel') }}?${params.toString()}`;
                 exportDropdown.classList.add('hidden');
             });
 
             document.getElementById('exportPdfButton').addEventListener('click', function() {
-                const params = new URLSearchParams();
-                const searchValue = document.getElementById('searchInput').value;
-                const stockQuantityValue = document.getElementById('stockQuantityFilter').value;
-                
-                if (searchValue) params.append('search', searchValue);
-                if (stockQuantityValue) params.append('stock_quantity', stockQuantityValue);
-                
+                const params = new URLSearchParams(window.location.search);
                 window.location.href = `{{ route('products.export.pdf') }}?${params.toString()}`;
                 exportDropdown.classList.add('hidden');
             });
 
-            // document.getElementById('exportFdfButton').addEventListener('click', function() {
-            //     const params = new URLSearchParams();
-            //     const searchValue = document.getElementById('searchInput').value;
-            //     const stockValue = document.getElementById('stockFilter').value;
-                
-            //     if (searchValue) params.append('search', searchValue);
-            //     if (stockValue) params.append('stock_filter', stockValue);
-                
-            //     window.location.href = `{{ route('products.export.fdf') }}?${params.toString()}`;
-            //     exportDropdown.classList.add('hidden');
-            // });
+
         });
 
         // Import Data button functionality

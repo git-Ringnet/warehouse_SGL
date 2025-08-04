@@ -21,17 +21,20 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
             [
                 'TP001',
                 'Máy bơm nước ly tâm',
-                'Máy bơm nước ly tâm công suất 1HP, áp lực cao'
+                'Máy bơm nước ly tâm công suất 1HP, áp lực cao',
+                'Kho 1'
             ],
             [
                 'TP002', 
                 'Động cơ điện 3 pha',
-                'Động cơ điện 3 pha 5HP, 380V, tốc độ 1450 vòng/phút'
+                'Động cơ điện 3 pha 5HP, 380V, tốc độ 1450 vòng/phút',
+                'Kho 2'
             ],
             [
                 'TP003',
                 'Hệ thống điều khiển tự động',
-                'Hệ thống điều khiển tự động với PLC và màn hình HMI'
+                'Hệ thống điều khiển tự động với PLC và màn hình HMI',
+                'Kho 3'
             ]
         ];
     }
@@ -41,14 +44,15 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
         return [
             'Mã thành phẩm (*)',
             'Tên thành phẩm (*)', 
-            'Mô tả'
+            'Mô tả',
+            'Kho dùng để tính tồn kho'
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
         // Style for header row
-        $sheet->getStyle('A1:C1')->applyFromArray([
+        $sheet->getStyle('A1:D1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF']
@@ -70,7 +74,7 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
         ]);
 
         // Style for data rows
-        $sheet->getStyle('A2:C4')->applyFromArray([
+        $sheet->getStyle('A2:D4')->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
@@ -88,7 +92,8 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
         $sheet->setCellValue('A8', '• Mã thành phẩm: Có thể trùng lặp');
         $sheet->setCellValue('A9', '• Tên thành phẩm: Tối đa 255 ký tự');
         $sheet->setCellValue('A10', '• Mô tả: Mô tả chi tiết về thành phẩm (không bắt buộc)');
-        $sheet->setCellValue('A11', '• Xóa các dòng mẫu này trước khi import');
+        $sheet->setCellValue('A11', '• Kho dùng để tính tồn kho: Chọn kho dùng để tính tồn kho');
+        $sheet->setCellValue('A12', '• Xóa các dòng mẫu này trước khi import');
 
         // Style instructions
         $sheet->getStyle('A6')->applyFromArray([
@@ -99,7 +104,7 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
             ]
         ]);
 
-        $sheet->getStyle('A7:A11')->applyFromArray([
+        $sheet->getStyle('A7:A12')->applyFromArray([
             'font' => [
                 'color' => ['rgb' => '666666'],
                 'size' => 10
@@ -115,6 +120,7 @@ class ProductsTemplateExport implements FromArray, WithHeadings, WithStyles, Wit
             'A' => 20,  // Mã thành phẩm
             'B' => 35,  // Tên thành phẩm
             'C' => 50,  // Mô tả
+            'D' => 20,  // Kho dùng để tính tồn kho
         ];
     }
 

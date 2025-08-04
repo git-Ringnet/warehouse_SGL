@@ -46,25 +46,60 @@ class WarehouseController extends Controller
             });
         }
 
-        $warehouses = $query->with('managerEmployee')->get();
-
-        // Calculate total quantity and apply inventory status filter if needed
+        // Apply inventory status filter before pagination
         if ($request->filled('inventory_status')) {
+            // Get all warehouses to calculate total quantity
+            $allWarehouses = $query->with('managerEmployee')->get();
+            
             // Calculate total quantity for each warehouse
-            $warehouses->each(function ($warehouse) {
+            $allWarehouses->each(function ($warehouse) {
                 $warehouse->total_quantity = $warehouse->warehouseMaterials()->sum('quantity');
             });
-
+            
+            // Filter by inventory status
             if ($request->inventory_status === 'has_inventory') {
-                $warehouses = $warehouses->filter(function ($warehouse) {
+                $filteredWarehouseIds = $allWarehouses->filter(function ($warehouse) {
                     return $warehouse->total_quantity > 0;
-                })->values();
+                })->pluck('id');
             } elseif ($request->inventory_status === 'no_inventory') {
-                $warehouses = $warehouses->filter(function ($warehouse) {
+                $filteredWarehouseIds = $allWarehouses->filter(function ($warehouse) {
                     return $warehouse->total_quantity <= 0;
-                })->values();
+                })->pluck('id');
+            }
+            
+            // Query again with filtered IDs
+            $query = Warehouse::where('is_hidden', false)
+                ->where('status', 'active')
+                ->whereIn('id', $filteredWarehouseIds);
+                
+            // Re-apply search filter
+            if ($request->filled('search')) {
+                $searchTerm = $request->search;
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('code', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('address', 'LIKE', "%{$searchTerm}%")
+                        ->orWhereHas('managerEmployee', function ($q) use ($searchTerm) {
+                            $q->where('name', 'LIKE', "%{$searchTerm}%");
+                        })
+                        ->orWhere('description', 'LIKE', "%{$searchTerm}%");
+                });
+            }
+            
+            // Re-apply manager filter
+            if ($request->filled('manager')) {
+                $query->whereHas('managerEmployee', function ($q) use ($request) {
+                    $q->where('name', $request->manager);
+                });
             }
         }
+
+        $warehouses = $query->with('managerEmployee')->paginate(10)->withQueryString();
+
+        // Calculate total quantity for display
+        $warehouses->each(function ($warehouse) {
+            $warehouse->total_quantity = $warehouse->warehouseMaterials()->sum('quantity');
+        });
 
         // Get unique managers for filter dropdown
         $managers = \App\Models\Employee::whereHas('warehouses', function($q) {
@@ -137,7 +172,7 @@ class WarehouseController extends Controller
             $query->where('manager', $request->manager);
         }
 
-        $warehouses = $query->get();
+        $warehouses = $query->paginate(10);
 
         // Get unique managers for filter dropdown
         $managers = Warehouse::where('status', 'deleted')
@@ -538,71 +573,5 @@ class WarehouseController extends Controller
         }
     }
 
-    /**
-     * Search warehouses via API for AJAX requests
-     */
-    public function apiSearch(Request $request)
-    {
-        // Start with base query for active warehouses that are not hidden
-        $query = Warehouse::where('is_hidden', false)
-            ->where('status', 'active');
 
-        // Apply search filter
-        if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            $query->where(function ($q) use ($searchTerm) {
-                $q->where('code', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('name', 'LIKE', "%{$searchTerm}%")
-                    ->orWhere('address', 'LIKE', "%{$searchTerm}%")
-                    ->orWhereHas('managerEmployee', function ($q) use ($searchTerm) {
-                        $q->where('name', 'LIKE', "%{$searchTerm}%");
-                    })
-                    ->orWhere('description', 'LIKE', "%{$searchTerm}%");
-            });
-        }
-
-        // Apply manager filter
-        if ($request->filled('manager')) {
-            $query->whereHas('managerEmployee', function ($q) use ($request) {
-                $q->where('name', $request->manager);
-            });
-        }
-
-        $warehouses = $query->with('managerEmployee')->get();
-
-        // Calculate total quantity for each warehouse
-        $warehouses->each(function ($warehouse) {
-            $warehouse->total_quantity = $warehouse->warehouseMaterials()->sum('quantity');
-            // Thêm tên người quản lý vào dữ liệu trả về
-            $warehouse->manager_name = optional($warehouse->managerEmployee)->name ?? 'N/A';
-        });
-
-        // Apply inventory status filter
-        if ($request->filled('inventory_status')) {
-            if ($request->inventory_status === 'has_inventory') {
-                $warehouses = $warehouses->filter(function ($warehouse) {
-                    return $warehouse->total_quantity > 0;
-                });
-            } elseif ($request->inventory_status === 'no_inventory') {
-                $warehouses = $warehouses->filter(function ($warehouse) {
-                    return $warehouse->total_quantity <= 0;
-                });
-            }
-        }
-
-        // Get unique managers for filter dropdown
-        $managers = \App\Models\Employee::whereHas('warehouses', function($q) {
-            $q->where('is_hidden', false)
-              ->where('status', 'active');
-        })->pluck('name')->toArray();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'warehouses' => $warehouses->values(),
-                'managers' => $managers,
-                'totalCount' => $warehouses->count()
-            ]
-        ]);
-    }
 }

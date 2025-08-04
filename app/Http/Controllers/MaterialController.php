@@ -69,11 +69,17 @@ class MaterialController extends Controller
             // Total quantity across all locations (warehouses, projects, rentals, repairs, etc.)
             $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material')
+                ->whereHas('warehouse', function($query) {
+                    $query->where('status', 'active');
+                })
                 ->sum('quantity');
 
             // Total quantity only in warehouses based on inventory_warehouses setting
             $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
-                ->where('item_type', 'material');
+                ->where('item_type', 'material')
+                ->whereHas('warehouse', function($query) {
+                    $query->where('status', 'active');
+                });
 
             // Check if inventory_warehouses is an array and contains specific warehouses
             if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
@@ -107,6 +113,11 @@ class MaterialController extends Controller
             } elseif (is_numeric($useStock)) {
                 $threshold = (int) $useStock;
                 $materials = $materials->filter(function ($material) use ($threshold) {
+                    // Nếu threshold = 0, chỉ lấy những cái có inventory chính xác bằng 0
+                    if ($threshold === 0) {
+                        return $material->inventory_quantity == 0;
+                    }
+                    // Nếu threshold > 0, lấy những cái có inventory <= threshold
                     return $material->inventory_quantity <= $threshold;
                 });
             }
@@ -542,7 +553,10 @@ class MaterialController extends Controller
             }
 
             $query = WarehouseMaterial::where('material_id', $materialId)
-                ->where('item_type', 'material');
+                ->where('item_type', 'material')
+                ->whereHas('warehouse', function($q) {
+                    $q->where('status', 'active');
+                });
 
             // If warehouse ID is provided and not 'all', filter by warehouse
             if ($warehouseId && $warehouseId !== 'all') {
@@ -1070,11 +1084,17 @@ class MaterialController extends Controller
             // Total quantity across all locations
             $material->total_quantity = WarehouseMaterial::where('material_id', $material->id)
                 ->where('item_type', 'material')
+                ->whereHas('warehouse', function($query) {
+                    $query->where('status', 'active');
+                })
                 ->sum('quantity');
 
             // Total quantity only in warehouses based on inventory_warehouses setting
             $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
-                ->where('item_type', 'material');
+                ->where('item_type', 'material')
+                ->whereHas('warehouse', function($query) {
+                    $query->where('status', 'active');
+                });
 
             if (is_array($material->inventory_warehouses) && !in_array('all', $material->inventory_warehouses) && !empty($material->inventory_warehouses)) {
                 $warehouseQuery->whereIn('warehouse_id', $material->inventory_warehouses);

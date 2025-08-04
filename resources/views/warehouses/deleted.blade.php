@@ -89,16 +89,13 @@
                                 Tình trạng tồn kho</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Thông tin xóa</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Thao tác</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         @foreach ($warehouses as $index => $warehouse)
                             <tr class="hover:bg-gray-50">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ ($warehouses->currentPage() - 1) * $warehouses->perPage() + $loop->iteration }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $warehouse->code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $warehouse->name }}
@@ -123,22 +120,6 @@
                                         </span>
                                     @endif
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    <div class="space-y-1">
-                                        <div>
-                                            <span class="font-medium">Xóa bởi:</span>
-                                            {{ optional($warehouse->deletedByUser)->name ?? 'N/A' }}
-                                        </div>
-                                        <div>
-                                            <span class="font-medium">Thời gian:</span>
-                                            {{ $warehouse->deleted_at ? $warehouse->deleted_at->format('d/m/Y H:i') : 'N/A' }}
-                                        </div>
-                                        <div>
-                                            <span class="font-medium">Lý do:</span>
-                                            {{ $warehouse->delete_reason ?: 'Không có' }}
-                                        </div>
-                                    </div>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
                                     @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('warehouses.view_detail')))
                                     <a href="{{ route('warehouses.show', $warehouse->id) }}">
@@ -162,6 +143,9 @@
                         @endif
                     </tbody>
                 </table>
+            </div>
+            <div class="mt-4">
+                {{ $warehouses->links() }}
             </div>
         </main>
     </div>
