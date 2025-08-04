@@ -44,10 +44,13 @@ class DashboardController extends Controller
      */
     private function getMaterialStats()
     {
-        // Tổng nhập kho vật tư - chỉ tính từ các kho active
+        // Tổng nhập kho vật tư - chỉ tính từ các kho active và vật tư active
         $totalImport = WarehouseMaterial::where('item_type', 'material')
             ->whereHas('warehouse', function($query) {
                 $query->where('status', 'active');
+            })
+            ->whereHas('material', function($query) {
+                $query->where('status', '!=', 'deleted');
             })
             ->sum('quantity');
 
@@ -73,10 +76,13 @@ class DashboardController extends Controller
      */
     private function getProductStats() 
     {
-        // Tổng nhập kho thành phẩm - chỉ tính từ các kho active
+        // Tổng nhập kho thành phẩm - chỉ tính từ các kho active và thành phẩm active
         $totalImport = WarehouseMaterial::where('item_type', 'product')
             ->whereHas('warehouse', function($query) {
                 $query->where('status', 'active');
+            })
+            ->whereHas('product', function($query) {
+                $query->where('status', '!=', 'deleted');
             })
             ->sum('quantity');
 
@@ -102,10 +108,13 @@ class DashboardController extends Controller
      */
     private function getGoodStats()
     {
-        // Tổng nhập kho hàng hóa - chỉ tính từ các kho active
+        // Tổng nhập kho hàng hóa - chỉ tính từ các kho active và hàng hóa active
         $totalImport = WarehouseMaterial::where('item_type', 'good')
             ->whereHas('warehouse', function($query) {
                 $query->where('status', 'active');
+            })
+            ->whereHas('good', function($query) {
+                $query->where('status', '!=', 'deleted');
             })
             ->sum('quantity');
 
@@ -590,6 +599,9 @@ class DashboardController extends Controller
                         ->whereHas('warehouse', function($query) {
                             $query->where('status', 'active');
                         })
+                        ->whereHas('material', function($query) {
+                            $query->where('status', '!=', 'deleted');
+                        })
                         ->sum('quantity');
                     
                     // Tổng xuất kho (số lượng đã sử dụng trong lắp ráp)
@@ -625,8 +637,10 @@ class DashboardController extends Controller
                     if ($importCount == 0) {
                         $warehouseCount = DB::table('warehouse_materials')
                             ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                            ->join('materials', 'materials.id', '=', 'warehouse_materials.material_id')
                             ->where('warehouse_materials.item_type', 'material')
                             ->where('warehouses.status', 'active')
+                            ->where('materials.status', '!=', 'deleted')
                             ->where('warehouse_materials.created_at', '>=', $startDate)
                             ->where('warehouse_materials.created_at', '<=', $endDate)
                             ->sum('warehouse_materials.quantity');
@@ -715,6 +729,9 @@ class DashboardController extends Controller
                         ->whereHas('warehouse', function($query) {
                             $query->where('status', 'active');
                         })
+                        ->whereHas('product', function($query) {
+                            $query->where('status', '!=', 'deleted');
+                        })
                         ->sum('quantity');
                     
                     // Tổng xuất kho
@@ -749,8 +766,10 @@ class DashboardController extends Controller
                     if ($importCount == 0) {
                         $warehouseCount = DB::table('warehouse_materials')
                             ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                            ->join('products', 'products.id', '=', 'warehouse_materials.material_id')
                             ->where('warehouse_materials.item_type', 'product')
                             ->where('warehouses.status', 'active')
+                            ->where('products.status', '!=', 'deleted')
                             ->where('warehouse_materials.created_at', '>=', $startDate)
                             ->where('warehouse_materials.created_at', '<=', $endDate)
                             ->sum('warehouse_materials.quantity');
@@ -838,6 +857,9 @@ class DashboardController extends Controller
                         ->whereHas('warehouse', function($query) {
                             $query->where('status', 'active');
                         })
+                        ->whereHas('good', function($query) {
+                            $query->where('status', '!=', 'deleted');
+                        })
                         ->sum('quantity');
                     
                     // Tổng xuất kho
@@ -875,8 +897,10 @@ class DashboardController extends Controller
                     if ($importCount == 0) {
                         $warehouseCount = DB::table('warehouse_materials')
                             ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                            ->join('goods', 'goods.id', '=', 'warehouse_materials.material_id')
                             ->where('warehouse_materials.item_type', 'good')
                             ->where('warehouses.status', 'active')
+                            ->where('goods.status', '!=', 'deleted')
                             ->where('warehouse_materials.created_at', '>=', $startDate)
                             ->where('warehouse_materials.created_at', '<=', $endDate)
                             ->sum('warehouse_materials.quantity');
@@ -1159,6 +1183,9 @@ class DashboardController extends Controller
                       });
                 });
             }
+            
+            // Chỉ lấy vật tư có trạng thái không phải deleted
+            $materials->where('status', '!=', 'deleted');
                 
             // Áp dụng các bộ lọc
             if (!empty($filters['warehouse_id'])) {
@@ -1173,7 +1200,7 @@ class DashboardController extends Controller
                 });
             }
             
-            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng materials
+            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng materials và không phải là 'all'
             if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('materials', 'status')) {
                 $materials->where('status', $filters['status']);
             }
@@ -1260,6 +1287,9 @@ class DashboardController extends Controller
                       });
                 });
             }
+            
+            // Chỉ lấy thành phẩm có trạng thái không phải deleted
+            $products->where('status', '!=', 'deleted');
                 
             // Áp dụng các bộ lọc
             if (!empty($filters['warehouse_id'])) {
@@ -1274,7 +1304,7 @@ class DashboardController extends Controller
                 });
             }
             
-            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng products
+            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng products và không phải là 'all'
             if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('products', 'status')) {
                 $products->where('status', $filters['status']);
             }
@@ -1361,6 +1391,9 @@ class DashboardController extends Controller
                       });
                 });
             }
+            
+            // Chỉ lấy hàng hóa có trạng thái không phải deleted
+            $goods->where('status', '!=', 'deleted');
                 
             // Áp dụng các bộ lọc
             if (!empty($filters['warehouse_id'])) {
@@ -1375,7 +1408,7 @@ class DashboardController extends Controller
                 });
             }
             
-            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng goods
+            // Chỉ áp dụng bộ lọc trạng thái nếu cột status tồn tại trong bảng goods và không phải là 'all'
             if (!empty($filters['status']) && $filters['status'] !== 'all' && Schema::hasColumn('goods', 'status')) {
                 $goods->where('status', $filters['status']);
             }
@@ -1721,12 +1754,25 @@ class DashboardController extends Controller
     {
         $itemType = $this->getItemTypeByCategory($category);
         
-        return DB::table('warehouse_materials')
+        $query = DB::table('warehouse_materials')
             ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
             ->where('warehouse_materials.item_type', $itemType)
             ->where('warehouses.status', 'active')
-            ->whereDate('warehouse_materials.created_at', $date)
-            ->sum('warehouse_materials.quantity');
+            ->whereDate('warehouse_materials.created_at', $date);
+            
+        // Thêm join và điều kiện theo loại item
+        if ($itemType === 'material') {
+            $query->join('materials', 'materials.id', '=', 'warehouse_materials.material_id')
+                  ->where('materials.status', '!=', 'deleted');
+        } elseif ($itemType === 'product') {
+            $query->join('products', 'products.id', '=', 'warehouse_materials.material_id')
+                  ->where('products.status', '!=', 'deleted');
+        } elseif ($itemType === 'good') {
+            $query->join('goods', 'goods.id', '=', 'warehouse_materials.material_id')
+                  ->where('goods.status', '!=', 'deleted');
+        }
+        
+        return $query->sum('warehouse_materials.quantity');
     }
 
     /**
@@ -1776,12 +1822,25 @@ class DashboardController extends Controller
     {
         $itemType = $this->getItemTypeByCategory($category);
         
-        return DB::table('warehouse_materials')
+        $query = DB::table('warehouse_materials')
             ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
             ->where('warehouse_materials.item_type', $itemType)
             ->where('warehouses.status', 'active')
-            ->whereBetween('warehouse_materials.created_at', [$startDate, $endDate])
-            ->sum('warehouse_materials.quantity');
+            ->whereBetween('warehouse_materials.created_at', [$startDate, $endDate]);
+            
+        // Thêm join và điều kiện theo loại item
+        if ($itemType === 'material') {
+            $query->join('materials', 'materials.id', '=', 'warehouse_materials.material_id')
+                  ->where('materials.status', '!=', 'deleted');
+        } elseif ($itemType === 'product') {
+            $query->join('products', 'products.id', '=', 'warehouse_materials.material_id')
+                  ->where('products.status', '!=', 'deleted');
+        } elseif ($itemType === 'good') {
+            $query->join('goods', 'goods.id', '=', 'warehouse_materials.material_id')
+                  ->where('goods.status', '!=', 'deleted');
+        }
+        
+        return $query->sum('warehouse_materials.quantity');
     }
 
     /**

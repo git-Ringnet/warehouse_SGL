@@ -244,6 +244,9 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/warehouses/create', [WarehouseController::class, 'create'])->name('warehouses.create')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.create');
     Route::post('/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.create');
     
+    // API route for warehouse search - phải đặt trước các route có parameter
+    Route::get('/warehouses/api-search', [WarehouseController::class, 'apiSearch'])->middleware(['auth', \App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view']);
+    
     Route::get('/warehouses/{warehouse}', [WarehouseController::class, 'show'])->name('warehouses.show')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.view_detail');
     Route::get('/warehouses/{warehouse}/edit', [WarehouseController::class, 'edit'])->name('warehouses.edit')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
     Route::put('/warehouses/{warehouse}', [WarehouseController::class, 'update'])->name('warehouses.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':warehouses.edit');
@@ -609,7 +612,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/assemblies/product-materials/{productId}', [AssemblyController::class, 'getProductMaterials'])->name('assemblies.product-materials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
     Route::get('/assemblies/product-serials', [AssemblyController::class, 'getProductSerials'])->name('assemblies.product-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
     Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
-    Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    // Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create'); // REMOVED - Stock checking disabled
     Route::match(['get', 'post'], '/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
 
     // Assembly routes với middleware bảo vệ từng quyền cụ thể

@@ -515,6 +515,40 @@ class WarehouseController extends Controller
     }
 
     /**
+     * API endpoint to get list of warehouses for search/filter
+     */
+    public function apiSearch(Request $request)
+    {
+        try {
+            $warehouses = Warehouse::where('status', 'active')
+                ->where('is_hidden', false)
+                ->select('id', 'name', 'code', 'address')
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'warehouses' => $warehouses
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in warehouse apiSearch', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Có lỗi xảy ra khi lấy danh sách kho',
+                'data' => [
+                    'warehouses' => []
+                ]
+            ], 500);
+        }
+    }
+
+    /**
      * Get materials for a specific warehouse
      */
     public function getMaterials($warehouseId, Request $request)
