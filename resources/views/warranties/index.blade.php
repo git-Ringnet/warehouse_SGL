@@ -80,12 +80,25 @@
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
-                                        <div>{{ $warranty->project_name }}</div>
+                                        <div>
+                                            @php
+                                                $projectName = $warranty->project_name;
+                                                $customerName = 'N/A';
+                                                $projectDisplay = $projectName;
+                                                
+                                                // Tách tên khách hàng từ trong ngoặc đơn
+                                                if (preg_match('/\((.*?)\)$/', $projectName, $matches)) {
+                                                    $customerName = trim($matches[1]);
+                                                    $projectDisplay = trim(str_replace('(' . $matches[1] . ')', '', $projectName));
+                                                }
+                                            @endphp
+                                            {{ $customerName }}
+                                        </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
-                                        <div>{{ $warranty->project_name }}</div>
+                                        <div>{{ $projectDisplay }}</div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
