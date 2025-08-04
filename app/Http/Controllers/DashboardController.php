@@ -44,8 +44,11 @@ class DashboardController extends Controller
      */
     private function getMaterialStats()
     {
-        // Tổng nhập kho vật tư
+        // Tổng nhập kho vật tư - chỉ tính từ các kho active
         $totalImport = WarehouseMaterial::where('item_type', 'material')
+            ->whereHas('warehouse', function($query) {
+                $query->where('status', 'active');
+            })
             ->sum('quantity');
 
         // Tổng xuất kho vật tư (số lượng đã sử dụng trong lắp ráp)
@@ -70,8 +73,11 @@ class DashboardController extends Controller
      */
     private function getProductStats() 
     {
-        // Tổng nhập kho thành phẩm
+        // Tổng nhập kho thành phẩm - chỉ tính từ các kho active
         $totalImport = WarehouseMaterial::where('item_type', 'product')
+            ->whereHas('warehouse', function($query) {
+                $query->where('status', 'active');
+            })
             ->sum('quantity');
 
         // Tổng xuất kho thành phẩm
@@ -96,8 +102,11 @@ class DashboardController extends Controller
      */
     private function getGoodStats()
     {
-        // Tổng nhập kho hàng hóa
+        // Tổng nhập kho hàng hóa - chỉ tính từ các kho active
         $totalImport = WarehouseMaterial::where('item_type', 'good')
+            ->whereHas('warehouse', function($query) {
+                $query->where('status', 'active');
+            })
             ->sum('quantity');
 
         // Tổng xuất kho hàng hóa  
@@ -577,7 +586,11 @@ class DashboardController extends Controller
                 // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
                 if ($i == 0) {
                     // Tổng nhập kho vật tư - lấy giống hàm getMaterialStats
-                    $importCount = WarehouseMaterial::where('item_type', 'material')->sum('quantity');
+                    $importCount = WarehouseMaterial::where('item_type', 'material')
+                        ->whereHas('warehouse', function($query) {
+                            $query->where('status', 'active');
+                        })
+                        ->sum('quantity');
                     
                     // Tổng xuất kho (số lượng đã sử dụng trong lắp ráp)
                     $exportCount = DB::table('assembly_materials')->sum('quantity');
@@ -611,10 +624,12 @@ class DashboardController extends Controller
                     // Nếu không có dữ liệu, thử cách 2: Kiểm tra trong warehouse_materials
                     if ($importCount == 0) {
                         $warehouseCount = DB::table('warehouse_materials')
-                            ->where('item_type', 'material')
-                            ->where('created_at', '>=', $startDate)
-                            ->where('created_at', '<=', $endDate)
-                            ->sum('quantity');
+                            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                            ->where('warehouse_materials.item_type', 'material')
+                            ->where('warehouses.status', 'active')
+                            ->where('warehouse_materials.created_at', '>=', $startDate)
+                            ->where('warehouse_materials.created_at', '<=', $endDate)
+                            ->sum('warehouse_materials.quantity');
                         
                         if ($warehouseCount > 0) {
                             $importCount = $warehouseCount;
@@ -696,7 +711,11 @@ class DashboardController extends Controller
                 // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
                 if ($i == 0) {
                     // Tổng nhập kho thành phẩm - lấy giống hàm getProductStats
-                    $importCount = WarehouseMaterial::where('item_type', 'product')->sum('quantity');
+                    $importCount = WarehouseMaterial::where('item_type', 'product')
+                        ->whereHas('warehouse', function($query) {
+                            $query->where('status', 'active');
+                        })
+                        ->sum('quantity');
                     
                     // Tổng xuất kho
                     $exportCount = DB::table('dispatch_items')
@@ -729,10 +748,12 @@ class DashboardController extends Controller
                     // Nếu không có dữ liệu, thử kiểm tra trong warehouse_materials
                     if ($importCount == 0) {
                         $warehouseCount = DB::table('warehouse_materials')
-                            ->where('item_type', 'product')
-                            ->where('created_at', '>=', $startDate)
-                            ->where('created_at', '<=', $endDate)
-                            ->sum('quantity');
+                            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                            ->where('warehouse_materials.item_type', 'product')
+                            ->where('warehouses.status', 'active')
+                            ->where('warehouse_materials.created_at', '>=', $startDate)
+                            ->where('warehouse_materials.created_at', '<=', $endDate)
+                            ->sum('warehouse_materials.quantity');
                         
                         if ($warehouseCount > 0) {
                             $importCount = $warehouseCount;
@@ -813,7 +834,11 @@ class DashboardController extends Controller
                 // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
                 if ($i == 0) {
                     // Tổng nhập kho hàng hóa - lấy giống hàm getGoodStats
-                    $importCount = WarehouseMaterial::where('item_type', 'good')->sum('quantity');
+                    $importCount = WarehouseMaterial::where('item_type', 'good')
+                        ->whereHas('warehouse', function($query) {
+                            $query->where('status', 'active');
+                        })
+                        ->sum('quantity');
                     
                     // Tổng xuất kho
                     $exportCount = DB::table('dispatch_items')
@@ -849,10 +874,12 @@ class DashboardController extends Controller
                     // Nếu không có dữ liệu, thử kiểm tra trong warehouse_materials
                     if ($importCount == 0) {
                         $warehouseCount = DB::table('warehouse_materials')
-                            ->where('item_type', 'good')
-                            ->where('created_at', '>=', $startDate)
-                            ->where('created_at', '<=', $endDate)
-                            ->sum('quantity');
+                            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                            ->where('warehouse_materials.item_type', 'good')
+                            ->where('warehouses.status', 'active')
+                            ->where('warehouse_materials.created_at', '>=', $startDate)
+                            ->where('warehouse_materials.created_at', '<=', $endDate)
+                            ->sum('warehouse_materials.quantity');
                         
                         if ($warehouseCount > 0) {
                             $importCount = $warehouseCount;
@@ -1126,14 +1153,20 @@ class DashboardController extends Controller
             // Chỉ lấy vật tư có trong kho (số lượng > 0) nếu không bao gồm hàng ngoài kho
             if (!$includeOutOfStock) {
                 $materials->whereHas('warehouseMaterials', function($q) {
-                    $q->where('quantity', '>', 0);
+                    $q->where('quantity', '>', 0)
+                      ->whereHas('warehouse', function($warehouseQuery) {
+                          $warehouseQuery->where('status', 'active');
+                      });
                 });
             }
                 
             // Áp dụng các bộ lọc
             if (!empty($filters['warehouse_id'])) {
                 $materials->whereHas('warehouseMaterials', function($q) use ($filters, $includeOutOfStock) {
-                    $q->where('warehouse_id', $filters['warehouse_id']);
+                    $q->where('warehouse_id', $filters['warehouse_id'])
+                      ->whereHas('warehouse', function($warehouseQuery) {
+                          $warehouseQuery->where('status', 'active');
+                      });
                     if (!$includeOutOfStock) {
                         $q->where('quantity', '>', 0);
                     }
@@ -1221,14 +1254,20 @@ class DashboardController extends Controller
             // Chỉ lấy thành phẩm có trong kho (số lượng > 0) nếu không bao gồm hàng ngoài kho
             if (!$includeOutOfStock) {
                 $products->whereHas('warehouseMaterials', function($q) {
-                    $q->where('quantity', '>', 0);
+                    $q->where('quantity', '>', 0)
+                      ->whereHas('warehouse', function($warehouseQuery) {
+                          $warehouseQuery->where('status', 'active');
+                      });
                 });
             }
                 
             // Áp dụng các bộ lọc
             if (!empty($filters['warehouse_id'])) {
                 $products->whereHas('warehouseMaterials', function($q) use ($filters, $includeOutOfStock) {
-                    $q->where('warehouse_id', $filters['warehouse_id']);
+                    $q->where('warehouse_id', $filters['warehouse_id'])
+                      ->whereHas('warehouse', function($warehouseQuery) {
+                          $warehouseQuery->where('status', 'active');
+                      });
                     if (!$includeOutOfStock) {
                         $q->where('quantity', '>', 0);
                     }
@@ -1316,14 +1355,20 @@ class DashboardController extends Controller
             // Chỉ lấy hàng hóa có trong kho (số lượng > 0) nếu không bao gồm hàng ngoài kho
             if (!$includeOutOfStock) {
                 $goods->whereHas('warehouseMaterials', function($q) {
-                    $q->where('quantity', '>', 0);
+                    $q->where('quantity', '>', 0)
+                      ->whereHas('warehouse', function($warehouseQuery) {
+                          $warehouseQuery->where('status', 'active');
+                      });
                 });
             }
                 
             // Áp dụng các bộ lọc
             if (!empty($filters['warehouse_id'])) {
                 $goods->whereHas('warehouseMaterials', function($q) use ($filters, $includeOutOfStock) {
-                    $q->where('warehouse_id', $filters['warehouse_id']);
+                    $q->where('warehouse_id', $filters['warehouse_id'])
+                      ->whereHas('warehouse', function($warehouseQuery) {
+                          $warehouseQuery->where('status', 'active');
+                      });
                     if (!$includeOutOfStock) {
                         $q->where('quantity', '>', 0);
                     }
@@ -1677,9 +1722,11 @@ class DashboardController extends Controller
         $itemType = $this->getItemTypeByCategory($category);
         
         return DB::table('warehouse_materials')
-            ->where('item_type', $itemType)
-            ->whereDate('created_at', $date)
-            ->sum('quantity');
+            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+            ->where('warehouse_materials.item_type', $itemType)
+            ->where('warehouses.status', 'active')
+            ->whereDate('warehouse_materials.created_at', $date)
+            ->sum('warehouse_materials.quantity');
     }
 
     /**
@@ -1730,9 +1777,11 @@ class DashboardController extends Controller
         $itemType = $this->getItemTypeByCategory($category);
         
         return DB::table('warehouse_materials')
-            ->where('item_type', $itemType)
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->sum('quantity');
+            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+            ->where('warehouse_materials.item_type', $itemType)
+            ->where('warehouses.status', 'active')
+            ->whereBetween('warehouse_materials.created_at', [$startDate, $endDate])
+            ->sum('warehouse_materials.quantity');
     }
 
     /**
