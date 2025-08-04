@@ -83,10 +83,10 @@
                                         <div>
                                             @php
                                                 $projectName = $warranty->project_name;
-                                                $customerName = 'N/A';
+                                                $customerName = $warranty->customer_name ?: 'N/A';
                                                 $projectDisplay = $projectName;
                                                 
-                                                // Tách tên khách hàng từ trong ngoặc đơn
+                                                // Tách tên khách hàng từ trong ngoặc đơn nếu có
                                                 if (preg_match('/\((.*?)\)$/', $projectName, $matches)) {
                                                     $customerName = trim($matches[1]);
                                                     $projectDisplay = trim(str_replace('(' . $matches[1] . ')', '', $projectName));
