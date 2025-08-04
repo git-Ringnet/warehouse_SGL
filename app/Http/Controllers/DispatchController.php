@@ -1471,15 +1471,6 @@ class DispatchController extends Controller
      */
     private function createWarrantyForDispatchItem(Dispatch $dispatch, DispatchItem $dispatchItem, Request $request)
     {
-        Log::info('=== CREATING WARRANTY FOR DISPATCH ITEM ===', [
-            'dispatch_id' => $dispatch->id,
-            'dispatch_code' => $dispatch->dispatch_code,
-            'project_id' => $dispatch->project_id,
-            'item_type' => $dispatchItem->item_type,
-            'item_id' => $dispatchItem->item_id,
-            'quantity' => $dispatchItem->quantity
-        ]);
-
         // Determine warranty period
         if ($dispatch->dispatch_type === 'rental') {
             // Lấy thời gian từ phiếu cho thuê

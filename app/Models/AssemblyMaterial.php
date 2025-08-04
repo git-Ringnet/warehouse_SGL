@@ -23,6 +23,7 @@ class AssemblyMaterial extends Model
         'serial_id',
         'note',
         'product_unit',
+        'warehouse_id',
     ];
 
     /**
@@ -55,5 +56,13 @@ class AssemblyMaterial extends Model
     public function serial()
     {
         return $this->belongsTo(Serial::class, 'serial_id');
+    }
+
+    /**
+     * Get the warehouse for this assembly material.
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 } 
