@@ -381,7 +381,7 @@ class WarehouseController extends Controller
             );
         }
 
-        return redirect()->route('warehouses.show', $warehouse->id)
+        return redirect()->route('warehouses.index')
             ->with('success', 'Kho hàng đã được cập nhật thành công.');
     }
 
@@ -451,8 +451,8 @@ class WarehouseController extends Controller
                     'delete_reason' => $request->input('delete_reason', 'Xóa bởi người dùng')
                 ]);
 
-                // Thực hiện soft delete
-                $warehouse->delete();
+                // // Thực hiện soft delete
+                // $warehouse->delete();
 
                 $message = 'Kho hàng đã được xóa thành công.';
 

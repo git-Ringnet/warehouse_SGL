@@ -39,65 +39,74 @@
             <h1 class="text-xl font-bold text-gray-800">Quản lý hàng hóa</h1>
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div class="flex gap-2 w-full md:w-auto">
-                    <!-- Ô tìm kiếm -->
-                    <div class="relative flex-1 flex">
-                        <input type="text" id="searchInput" placeholder="Tìm kiếm..."
-                            class="flex-1 border border-gray-300 rounded-l-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700" />
-                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                        <button id="searchButton" type="button"
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-lg border border-blue-500 transition-colors">
-                            <i class="fas fa-search"></i>
-                        </button>
-                    </div>
-                    <!-- Dropdown bộ lọc -->
-                    <div class="relative inline-block text-left">
-                        <button id="filterDropdownButton" type="button"
-                            class="border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center transition-colors min-w-[120px]">
-                            <i class="fas fa-filter mr-2"></i> Bộ lọc
-                            <i class="fas fa-chevron-down ml-auto"></i>
-                        </button>
-                        <div id="filterDropdown"
-                            class="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-30 hidden border border-gray-200">
-                            <div class="p-4 space-y-3">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Loại hàng hóa</label>
-                                    <select id="categoryFilter"
-                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                                        <option value="">Tất cả loại</option>
-                                        @foreach ($categories ?? [] as $category)
-                                            <option value="{{ $category }}">{{ $category }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Đơn vị</label>
-                                    <select id="unitFilter"
-                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
-                                        <option value="">Tất cả đơn vị</option>
-                                        @foreach ($units ?? [] as $unit)
-                                            <option value="{{ $unit }}">{{ $unit }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn
-                                        hoặc bằng)</label>
-                                    <input type="number" id="stockFilter" min="0" placeholder="Nhập số lượng..."
-                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700" />
-                                </div>
-                                <div class="flex justify-between pt-2 border-t border-gray-200">
-                                    <button id="clearFiltersInDropdown"
-                                        class="text-gray-500 hover:text-gray-700 text-sm">
-                                        <i class="fas fa-times mr-1"></i> Xóa bộ lọc
-                                    </button>
-                                    <button id="applyFilters"
-                                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
-                                        Áp dụng
-                                    </button>
+                    <!-- Form tìm kiếm -->
+                    <form id="searchForm" action="{{ route('goods.index') }}" method="GET" class="flex gap-2 w-full md:w-auto">
+                        <!-- Ô tìm kiếm -->
+                        <div class="relative flex-1 flex">
+                            <input type="text" id="searchInput" name="search" value="{{ request('search') }}" placeholder="Tìm kiếm..." 
+                                class="flex-1 border border-gray-300 rounded-l-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
+                            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <button id="searchButton" type="submit" 
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-r-lg border border-blue-500 transition-colors">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <!-- Dropdown bộ lọc -->
+                        <div class="relative inline-block text-left">
+                            <button id="filterDropdownButton" type="button" 
+                                class="border border-gray-300 rounded-lg px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center transition-colors min-w-[120px]">
+                                <i class="fas fa-filter mr-2"></i> Bộ lọc 
+                                <i class="fas fa-chevron-down ml-auto"></i>
+                            </button>
+                            <div id="filterDropdown" class="absolute left-0 mt-2 w-64 bg-white rounded-md shadow-lg z-30 hidden border border-gray-200">
+                                <div class="p-4 space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Loại hàng hóa</label>
+                                        <select id="categoryFilter" name="category" 
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                            <option value="">Tất cả loại</option>
+                                            @foreach ($categories ?? [] as $category)
+                                                <option value="{{ $category }}" {{ request('category') == $category ? 'selected' : '' }}>{{ $category }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Đơn vị</label>
+                                        <select id="unitFilter" name="unit" 
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
+                                            <option value="">Tất cả đơn vị</option>
+                                            @foreach ($units ?? [] as $unit)
+                                                <option value="{{ $unit }}" {{ request('unit') == $unit ? 'selected' : '' }}>{{ $unit }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Tổng tồn kho (bé hơn hoặc bằng)</label>
+                                        <input type="number" id="stockFilter" name="stock" value="{{ request('stock') }}" min="0" 
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700" 
+                                            placeholder="Nhập số lượng">
+                                    </div>
+                                    <div class="flex justify-between pt-2 border-t border-gray-200">
+                                        <button id="clearFiltersInDropdown" type="button" 
+                                            class="text-gray-500 hover:text-gray-700 text-sm">
+                                            <i class="fas fa-times mr-1"></i> Xóa bộ lọc
+                                        </button>
+                                        <button id="applyFilters" type="submit" 
+                                            class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                            Áp dụng
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </form>
+                    <!-- Nút xóa bộ lọc -->
+                    @if(request('search') || request('category') || request('unit') || request('stock'))
+                        <a href="{{ route('goods.index') }}" 
+                           class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg border border-gray-500 transition-colors">
+                            <i class="fas fa-times mr-1"></i> Xóa bộ lọc
+                        </a>
+                    @endif
                 </div>
                 <div class="flex flex-wrap gap-2 items-center">
                     <!-- Dropdown menu cho các action phụ -->
@@ -319,8 +328,15 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4">
-                {{ $goods->links() }}   
+            <div class="mt-4" id="paginationContainer">
+                @if(method_exists($goods, 'links'))
+                    {{ $goods->links() }}
+                @else
+                    <div class="text-center text-gray-500 text-sm py-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Hiển thị kết quả đã lọc (không phân trang)
+                    </div>
+                @endif
             </div>
         </main>
     </div>
@@ -701,235 +717,65 @@
             }
         });
 
-        // Search and filter functionality with AJAX
+        // Simple JavaScript for dropdowns and other functionality
         document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('searchInput');
-            const searchButton = document.getElementById('searchButton');
-            const goodsTableBody = document.querySelector('.goods-table tbody');
-            const grandTotalsRow = document.querySelector('.grand-totals-row');
-            let searchTimeout = null;
-
-            // Search form with AJAX
-            if (searchButton) {
-                searchButton.addEventListener('click', function() {
-                    performAjaxSearch();
-                });
-            }
-
-            if (searchInput) {
-                searchInput.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        performAjaxSearch();
-                    }
-                });
-
-                // Debounced search as user types (optional)
-                searchInput.addEventListener('input', function() {
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(performAjaxSearch, 500);
-                });
-            }
-
-            function performAjaxSearch() {
-                const searchValue = searchInput ? searchInput.value.trim() : '';
-                const categoryValue = document.getElementById('categoryFilter') ? document.getElementById(
-                    'categoryFilter').value : '';
-                const unitValue = document.getElementById('unitFilter') ? document.getElementById('unitFilter')
-                    .value : '';
-                const stockValue = document.getElementById('stockFilter') ? document.getElementById('stockFilter')
-                    .value : '';
-
-                // Build query parameters
-                const params = new URLSearchParams();
-                if (searchValue) params.append('search', searchValue);
-                if (categoryValue) params.append('category', categoryValue);
-                if (unitValue) params.append('unit', unitValue);
-                if (stockValue) params.append('stock', stockValue);
-
-                // Update URL without page reload
-                const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
-                history.pushState(null, '', newUrl);
-
-                // Show loading indicator
-                if (goodsTableBody) {
-                    goodsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="8" class="text-center py-8">
-                                <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i>
-                                <p class="text-gray-500">Đang tìm kiếm...</p>
-                            </td>
-                        </tr>
-                    `;
-                }
-
-                // Make AJAX request
-                fetch(`{{ route('goods.api.search') }}?${params.toString()}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            updateGoodsTable(data.data);
-                        } else {
-                            console.error('Search failed:', data.message);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Search error:', error);
-                        if (goodsTableBody) {
-                            goodsTableBody.innerHTML = `
-                                <tr>
-                                    <td colspan="8" class="text-center py-8 text-red-500">
-                                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                                        <p>Có lỗi xảy ra khi tìm kiếm</p>
-                                    </td>
-                                </tr>
-                            `;
-                        }
-                    });
-            }
-
-            function updateGoodsTable(data) {
-                const {
-                    goods,
-                    grandTotalQuantity,
-                    grandInventoryQuantity,
-                    totalCount
-                } = data;
-
-                if (!goodsTableBody) return;
-
-                // Clear current table content
-                goodsTableBody.innerHTML = '';
-
-                if (goods.length === 0) {
-                    // Show no results message
-                    goodsTableBody.innerHTML = `
-                        <tr>
-                            <td colspan="8" class="text-center py-8 text-gray-500">
-                                <i class="fas fa-search text-4xl mb-4 opacity-50"></i>
-                                <p class="text-lg">Không tìm thấy hàng hóa nào</p>
-                                <p class="text-sm">Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
-                            </td>
-                        </tr>
-                    `;
-                } else {
-                    // Render goods rows
-                    goods.forEach((good, index) => {
-                        const row = createGoodRow(good, index + 1);
-                        goodsTableBody.appendChild(row);
-                    });
-                }
-
-                // Update grand totals row
-                const totalQuantityElement = document.querySelector('.grand-total-quantity');
-                const inventoryQuantityElement = document.querySelector('.grand-inventory-quantity');
-
-                if (totalQuantityElement) {
-                    totalQuantityElement.textContent = new Intl.NumberFormat('vi-VN').format(grandTotalQuantity);
-                }
-                if (inventoryQuantityElement) {
-                    inventoryQuantityElement.textContent = new Intl.NumberFormat('vi-VN').format(
-                        grandInventoryQuantity);
-                }
-            }
-
-            function createGoodRow(good, index) {
-                const row = document.createElement('tr');
-                row.className = 'border-b border-gray-200 hover:bg-gray-50 transition-colors';
-
-                const stockStatus = good.inventory_quantity > 0 ?
-                    '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Còn hàng</span>' :
-                    '<span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Hết hàng</span>';
-
-                const escapedCode = good.code.replace(/'/g, "\\'");
-                const escapedName = good.name.replace(/'/g, "\\'");
-
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${index}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${good.code}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${good.name}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${good.category || '-'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${good.unit || '-'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                        <span class="font-medium px-2 py-1 rounded ${good.inventory_quantity > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}"
-                              title="Tồn kho hiện tại">
-                            ${new Intl.NumberFormat('vi-VN').format(good.inventory_quantity)}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap flex space-x-2">
-                        <a href="/goods/${good.id}">
-                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group" title="Xem">
-                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                            </button>
-                        </a>
-                        <a href="/goods/${good.id}/edit">
-                            <button class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group" title="Sửa">
-                                <i class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                            </button>
-                        </a>
-                        <button type="button" onclick="showImagesModal('${good.id}', '${escapedName}')"
-                                class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group" title="Xem hình ảnh">
-                            <i class="fas fa-images text-purple-500 group-hover:text-white"></i>
-                        </button>
-                        <button onclick="openDeleteModal(${good.id}, '${escapedCode}', ${good.inventory_quantity})" 
-                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group" title="Xóa">
-                            <i class="fas fa-trash text-red-500 group-hover:text-white"></i>
-                        </button>
-                    </td>
-                `;
-
-                return row;
-            }
-
-            // Filter functionality
-            const categoryFilter = document.getElementById('categoryFilter');
-            const unitFilter = document.getElementById('unitFilter');
-            const stockFilter = document.getElementById('stockFilter');
-            const applyFilters = document.getElementById('applyFilters');
+            // Filter dropdown functionality
+            const filterDropdownButton = document.getElementById('filterDropdownButton');
+            const filterDropdown = document.getElementById('filterDropdown');
             const clearFiltersInDropdown = document.getElementById('clearFiltersInDropdown');
+            const applyFilters = document.getElementById('applyFilters');
 
-            // Set initial filter values from URL
-            if (categoryFilter && unitFilter && stockFilter) {
-                const urlParams = new URLSearchParams(window.location.search);
-
-                if (urlParams.has('category')) {
-                    categoryFilter.value = urlParams.get('category');
-                }
-
-                if (urlParams.has('unit')) {
-                    unitFilter.value = urlParams.get('unit');
-                }
-
-                if (urlParams.has('stock')) {
-                    stockFilter.value = urlParams.get('stock');
-                }
-            }
-
-            if (applyFilters) {
-                applyFilters.addEventListener('click', function() {
-                    const params = new URLSearchParams();
-                    if (categoryFilter.value) params.set('category', categoryFilter.value);
-                    if (unitFilter.value) params.set('unit', unitFilter.value);
-                    if (stockFilter.value !== '') params.set('stock', stockFilter.value);
-                    // Reload page with filters
-                    window.location.search = params.toString();
+            if (filterDropdownButton) {
+                filterDropdownButton.addEventListener('click', function() {
+                    filterDropdown.classList.toggle('hidden');
                 });
             }
 
             if (clearFiltersInDropdown) {
                 clearFiltersInDropdown.addEventListener('click', function() {
-                    window.location.href = window.location.pathname + '?per_page=10';
+                    // Clear all filter values
+                    document.getElementById('categoryFilter').value = '';
+                    document.getElementById('unitFilter').value = '';
+                    document.getElementById('stockFilter').value = '';
+                    // Submit form to clear filters
+                    document.getElementById('searchForm').submit();
                 });
             }
 
-            function preserveFilters(url) {
-                const filters = ['category', 'unit', 'stock'];
-                const urlParams = new URLSearchParams(window.location.search);
+            if (applyFilters) {
+                applyFilters.addEventListener('click', function() {
+                    // Submit form to apply filters
+                    document.getElementById('searchForm').submit();
+                });
+            }
 
-                filters.forEach(filter => {
-                    if (urlParams.has(filter)) {
-                        url.searchParams.set(filter, urlParams.get(filter));
-                    }
+            // Import functionality
+            const importDataButton = document.getElementById('importDataButton');
+            const importModal = document.getElementById('importModal');
+
+            if (importDataButton && importModal) {
+                importDataButton.addEventListener('click', function() {
+                    importModal.classList.remove('hidden');
+                });
+            }
+
+            // Dropdown functionality
+            const exportDropdownButton = document.getElementById('exportDropdownButton');
+            const exportDropdown = document.getElementById('exportDropdown');
+
+            if (exportDropdownButton) {
+                exportDropdownButton.addEventListener('click', function() {
+                    exportDropdown.classList.toggle('hidden');
+                });
+            }
+
+            // More actions dropdown
+            const moreActionsButton = document.getElementById('moreActionsButton');
+            const moreActionsDropdown = document.getElementById('moreActionsDropdown');
+
+            if (moreActionsButton && moreActionsDropdown) {
+                moreActionsButton.addEventListener('click', function() {
+                    moreActionsDropdown.classList.toggle('hidden');
                 });
             }
 
@@ -971,52 +817,16 @@
                     if (urlParams.has(filter)) {
                         url.searchParams.set(filter, urlParams.get(filter));
                     }
-
-                });
-            }
-
-            // Import functionality
-            const importDataButton = document.getElementById('importDataButton');
-            const importModal = document.getElementById('importModal');
-
-            if (importDataButton && importModal) {
-                importDataButton.addEventListener('click', function() {
-                    importModal.classList.remove('hidden');
-                });
-            }
-
-            // Dropdown functionality
-            const exportDropdownButton = document.getElementById('exportDropdownButton');
-            const exportDropdown = document.getElementById('exportDropdown');
-
-            if (exportDropdownButton) {
-                exportDropdownButton.addEventListener('click', function() {
-                    exportDropdown.classList.toggle('hidden');
-                });
-            }
-
-            // More actions dropdown
-            const moreActionsButton = document.getElementById('moreActionsButton');
-            const moreActionsDropdown = document.getElementById('moreActionsDropdown');
-
-            if (moreActionsButton) {
-                moreActionsButton.addEventListener('click', function() {
-                    moreActionsDropdown.classList.toggle('hidden');
-                });
-            }
-
-            // Filter dropdown
-            const filterDropdownButton = document.getElementById('filterDropdownButton');
-            const filterDropdown = document.getElementById('filterDropdown');
-
-            if (filterDropdownButton) {
-                filterDropdownButton.addEventListener('click', function() {
-                    filterDropdown.classList.toggle('hidden');
                 });
             }
 
             // Close dropdowns when clicking outside
             document.addEventListener('click', function(event) {
+                if (filterDropdownButton && !filterDropdownButton.contains(event.target) && !filterDropdown
+                    .contains(event.target)) {
+                    filterDropdown.classList.add('hidden');
+                }
+
                 if (exportDropdownButton && !exportDropdownButton.contains(event.target) && !exportDropdown
                     .contains(event.target)) {
                     exportDropdown.classList.add('hidden');
@@ -1025,11 +835,6 @@
                 if (moreActionsButton && !moreActionsButton.contains(event.target) && !moreActionsDropdown
                     .contains(event.target)) {
                     moreActionsDropdown.classList.add('hidden');
-                }
-
-                if (filterDropdownButton && !filterDropdownButton.contains(event.target) && !filterDropdown
-                    .contains(event.target)) {
-                    filterDropdown.classList.add('hidden');
                 }
             });
         });

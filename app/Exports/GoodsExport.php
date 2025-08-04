@@ -32,6 +32,8 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
         // Apply search filter
         if ($this->request && $this->request->has('search') && !empty($this->request->search)) {
             $searchTerm = $this->request->search;
+            
+            // Tìm kiếm theo text (luôn luôn thực hiện)
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('code', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('name', 'LIKE', "%{$searchTerm}%")
@@ -39,6 +41,13 @@ class GoodsExport implements FromCollection, WithHeadings, WithMapping, WithStyl
                     ->orWhere('unit', 'LIKE', "%{$searchTerm}%")
                     ->orWhere('notes', 'LIKE', "%{$searchTerm}%");
             });
+            
+            // Nếu search là số, thêm tìm kiếm theo tổng tồn kho
+            if (is_numeric($searchTerm)) {
+                $query->orWhereHas('warehouseMaterials', function($q) use ($searchTerm) {
+                    $q->where('quantity', '<=' , (int)$searchTerm);
+                });
+            }
         }
 
         // Apply category filter

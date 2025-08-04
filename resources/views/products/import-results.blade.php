@@ -14,7 +14,7 @@
 <body>
     <x-sidebar-component />
     <div class="min-h-screen bg-gray-50">
-        <div class="lg:ml-64 flex-1">
+        <div class="lg:ml-64 flex-1 mt-[4rem]">
             <header class="bg-white shadow-sm border-b border-gray-200 p-6">
                 <div class="flex items-center justify-between">
                     <div>

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class Good extends Model
 {
@@ -104,14 +105,19 @@ class Good extends Model
      */
     public function getInventoryQuantity(): int
     {
-        $query = $this->warehouseMaterials();
-        
-        // Apply warehouse filter if configured
-        if (is_array($this->inventory_warehouses) && !in_array('all', $this->inventory_warehouses) && !empty($this->inventory_warehouses)) {
-            $query->whereIn('warehouse_id', $this->inventory_warehouses);
+        try {
+            $query = $this->warehouseMaterials();
+            
+            // Apply warehouse filter if configured
+            if (is_array($this->inventory_warehouses) && !in_array('all', $this->inventory_warehouses) && !empty($this->inventory_warehouses)) {
+                $query->whereIn('warehouse_id', $this->inventory_warehouses);
+            }
+            
+            return (int) $query->sum('quantity');
+        } catch (\Exception $e) {
+            Log::error('Error getting inventory quantity for good ' . $this->id . ': ' . $e->getMessage());
+            return 0;
         }
-        
-        return $query->sum('quantity');
     }
     
     /**

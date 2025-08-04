@@ -698,7 +698,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/goods/template/download', [GoodController::class, 'downloadTemplate'])->name('goods.template.download')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
     Route::post('/goods/import', [GoodController::class, 'import'])->name('goods.import')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
     Route::get('/goods/import/results', [GoodController::class, 'showImportResults'])->name('goods.import.results')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':goods.create');
-    Route::get('/api/goods/search', [GoodController::class, 'apiSearch'])->name('goods.api.search');
+    
 
     // Equipment service routes (bảo hành, thay thế, thu hồi)
     Route::prefix('equipment-service')->name('equipment.')->group(function () {
