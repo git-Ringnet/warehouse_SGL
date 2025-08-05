@@ -55,22 +55,84 @@
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <form action="{{ route('warehouse-transfers.index') }}" method="GET"
                     class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
-                    <div class="flex gap-2 w-full md:w-auto">
-                        <input type="text" name="search" placeholder="Tìm kiếm theo mã, vật tư..."
-                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64"
-                            value="{{ $search ?? '' }}" />
-                        <select name="filter"
+                    <div class="flex flex-col md:flex-row gap-2 w-full">
+                        <!-- Bộ lọc -->
+                        <select name="filter" id="filter"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
-                            <option value="">Bộ lọc</option>
-                            <option value="material" {{ isset($filter) && $filter == 'material' ? 'selected' : '' }}>Vật tư</option>
-                            <option value="source" {{ isset($filter) && $filter == 'source' ? 'selected' : '' }}>Kho nguồn</option>
-                            <option value="destination" {{ isset($filter) && $filter == 'destination' ? 'selected' : '' }}>Kho đích</option>
-                            <option value="status" {{ isset($filter) && $filter == 'status' ? 'selected' : '' }}>Trạng thái</option>
+                            <option value="">Tất cả</option>
+                            <option value="transfer_code" {{ request('filter') == 'transfer_code' ? 'selected' : '' }}>
+                                Mã chuyển kho
+                            </option>
+                            <option value="material" {{ request('filter') == 'material' ? 'selected' : '' }}>
+                                Vật tư
+                            </option>
+                            <option value="source" {{ request('filter') == 'source' ? 'selected' : '' }}>
+                                Kho nguồn
+                            </option>
+                            <option value="destination" {{ request('filter') == 'destination' ? 'selected' : '' }}>
+                                Kho đích
+                            </option>
+                            <option value="employee" {{ request('filter') == 'employee' ? 'selected' : '' }}>
+                                Nhân viên thực hiện
+                            </option>
+                            <option value="notes" {{ request('filter') == 'notes' ? 'selected' : '' }}>
+                                Ghi chú
+                            </option>
+                            <option value="date" {{ request('filter') == 'date' ? 'selected' : '' }}>
+                                Ngày chuyển
+                            </option>
+                            <option value="status" {{ request('filter') == 'status' ? 'selected' : '' }}>
+                                Trạng thái
+                            </option>
                         </select>
+
+                        <!-- Ô tìm kiếm cho mã chuyển kho, vật tư, ghi chú -->
+                        <input type="text" name="search" id="search_text"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64"
+                            value="{{ request('search') }}" placeholder="Nhập từ khóa tìm kiếm..." />
+
+                        <!-- Dropdown nhân viên -->
+                        <select name="employee_id" id="employee_select"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 hidden">
+                            <option value="">Chọn nhân viên</option>
+                            @foreach($employees as $employee)
+                                <option value="{{ $employee->id }}" {{ request('employee_id') == $employee->id ? 'selected' : '' }}>
+                                    {{ $employee->name }}
+                                </option>
+                            @endforeach
+                        </select>
+
+                        <!-- Dropdown trạng thái -->
+                        <select name="status" id="status_select"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 hidden">
+                            <option value="">Chọn trạng thái</option>
+                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Chờ xử lý</option>
+                            <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang chuyển</option>
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành</option>
+                            <option value="canceled" {{ request('status') == 'canceled' ? 'selected' : '' }}>Đã hủy</option>
+                        </select>
+
+                        <!-- Input date range -->
+                        <div id="date_range" class="flex gap-2 hidden">
+                            <input type="date" name="start_date" id="start_date"
+                                class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
+                                value="{{ request('start_date') }}" />
+                            <span class="flex items-center">đến</span>
+                            <input type="date" name="end_date" id="end_date"
+                                class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
+                                value="{{ request('end_date') }}" />
+                        </div>
+
                         <button type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-search"></i> Tìm kiếm
+                            <i class="fas fa-search mr-2"></i> Tìm kiếm
                         </button>
+                        
+                        <!-- Nút xóa bộ lọc -->
+                        <a href="{{ route('warehouse-transfers.index') }}"
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-times mr-2"></i> Xóa bộ lọc
+                        </a>
                     </div>
                 </form>
                 @if ($canCreate)
@@ -268,6 +330,93 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const filterSelect = document.getElementById('filter');
+            const searchText = document.getElementById('search_text');
+            const employeeSelect = document.getElementById('employee_select');
+            const statusSelect = document.getElementById('status_select');
+            const dateRange = document.getElementById('date_range');
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
+
+            function updateSearchFields() {
+                // Hide all search fields first
+                searchText.classList.add('hidden');
+                employeeSelect.classList.add('hidden');
+                statusSelect.classList.add('hidden');
+                dateRange.classList.add('hidden');
+
+                // Show appropriate search field based on filter
+                switch (filterSelect.value) {
+                    case 'transfer_code':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập mã chuyển kho...';
+                        break;
+                    case 'material':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập tên vật tư...';
+                        break;
+                    case 'source':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập tên kho nguồn...';
+                        break;
+                    case 'destination':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập tên kho đích...';
+                        break;
+                    case 'employee':
+                        employeeSelect.classList.remove('hidden');
+                        break;
+                    case 'notes':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập ghi chú...';
+                        break;
+                    case 'date':
+                        dateRange.classList.remove('hidden');
+                        break;
+                    case 'status':
+                        statusSelect.classList.remove('hidden');
+                        break;
+                    default:
+                        // Khi chọn "Tất cả", hiển thị ô tìm kiếm tổng quát
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Tìm kiếm tất cả...';
+                }
+            }
+
+            // Initial setup
+            updateSearchFields();
+
+            // Update on filter change
+            filterSelect.addEventListener('change', updateSearchFields);
+
+            // Auto-submit form when date range is selected
+            startDate.addEventListener('change', function() {
+                if (filterSelect.value === 'date' && startDate.value && endDate.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+
+            endDate.addEventListener('change', function() {
+                if (filterSelect.value === 'date' && startDate.value && endDate.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+
+            // Auto-submit form when employee or status is selected
+            employeeSelect.addEventListener('change', function() {
+                if (filterSelect.value === 'employee' && employeeSelect.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+
+            statusSelect.addEventListener('change', function() {
+                if (filterSelect.value === 'status' && statusSelect.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+        });
+
         // Khởi tạo modal khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
             initDeleteModal();

@@ -27,72 +27,24 @@ class WarehouseTransferController extends Controller
     {
         $query = WarehouseTransfer::query()->with(['source_warehouse', 'destination_warehouse', 'material', 'employee', 'materials']);
 
-        // Tìm kiếm
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $filter = $request->filter ?? '';
+        // Xử lý tìm kiếm
+        if ($request->filled('filter')) {
+            switch ($request->filter) {
+                case 'transfer_code':
+                    if ($request->filled('search')) {
+                        $search = strtolower($request->search);
+                        $query->whereRaw('LOWER(transfer_code) LIKE ?', ['%' . $search . '%']);
+                    }
+                    break;
 
-            switch ($filter) {
-                case 'serial':
-                    $query->where('serial', 'like', "%{$search}%");
-                    break;
                 case 'material':
-                    $query->where(function ($q) use ($search) {
-                        // Tìm trong bảng materials
-                        $q->whereHas('material', function ($subQ) use ($search) {
-                            $subQ->where('name', 'like', "%{$search}%")
-                                ->orWhere('code', 'like', "%{$search}%");
-                        })
-                        // Hoặc tìm trong bảng products
-                        ->orWhereExists(function ($subQ) use ($search) {
-                            $subQ->select(DB::raw(1))
-                                ->from('products')
-                                ->whereRaw('products.id = warehouse_transfers.material_id')
-                                ->where(function ($productQ) use ($search) {
-                                    $productQ->where('name', 'like', "%{$search}%")
-                            ->orWhere('code', 'like', "%{$search}%");
-                                });
-                        })
-                        // Hoặc tìm trong bảng goods
-                        ->orWhereExists(function ($subQ) use ($search) {
-                            $subQ->select(DB::raw(1))
-                                ->from('goods')
-                                ->whereRaw('goods.id = warehouse_transfers.material_id')
-                                ->where(function ($goodQ) use ($search) {
-                                    $goodQ->where('name', 'like', "%{$search}%")
-                                        ->orWhere('code', 'like', "%{$search}%");
-                                });
-                        });
-                    });
-                    break;
-                case 'source':
-                    $query->whereHas('source_warehouse', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
-                    break;
-                case 'destination':
-                    $query->whereHas('destination_warehouse', function ($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
-                    break;
-                case 'status':
-                    $status = match (strtolower($search)) {
-                        'chờ xác nhận', 'cho xac nhan' => 'pending',
-                        'đang chuyển', 'dang chuyen' => 'in_progress',
-                        'hoàn thành', 'hoan thanh' => 'completed',
-                        'đã hủy', 'da huy' => 'canceled',
-                        default => $search
-                    };
-                    $query->where('status', 'like', "%{$status}%");
-                    break;
-                default:
-                    $query->where(function ($q) use ($search) {
-                        $q->where('transfer_code', 'like', "%{$search}%")
-                            ->orWhere('serial', 'like', "%{$search}%")
+                    if ($request->filled('search')) {
+                        $search = strtolower($request->search);
+                        $query->where(function ($q) use ($search) {
                             // Tìm trong bảng materials
-                            ->orWhereHas('material', function ($subQ) use ($search) {
-                                $subQ->where('name', 'like', "%{$search}%")
-                                    ->orWhere('code', 'like', "%{$search}%");
+                            $q->whereHas('material', function ($subQ) use ($search) {
+                                $subQ->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
+                                    ->orWhereRaw('LOWER(code) LIKE ?', ['%' . $search . '%']);
                             })
                             // Hoặc tìm trong bảng products
                             ->orWhereExists(function ($subQ) use ($search) {
@@ -100,8 +52,8 @@ class WarehouseTransferController extends Controller
                                     ->from('products')
                                     ->whereRaw('products.id = warehouse_transfers.material_id')
                                     ->where(function ($productQ) use ($search) {
-                                        $productQ->where('name', 'like', "%{$search}%")
-                                            ->orWhere('code', 'like', "%{$search}%");
+                                        $productQ->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
+                                            ->orWhereRaw('LOWER(code) LIKE ?', ['%' . $search . '%']);
                                     });
                             })
                             // Hoặc tìm trong bảng goods
@@ -110,17 +62,114 @@ class WarehouseTransferController extends Controller
                                     ->from('goods')
                                     ->whereRaw('goods.id = warehouse_transfers.material_id')
                                     ->where(function ($goodQ) use ($search) {
-                                        $goodQ->where('name', 'like', "%{$search}%")
-                                            ->orWhere('code', 'like', "%{$search}%");
+                                        $goodQ->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
+                                            ->orWhereRaw('LOWER(code) LIKE ?', ['%' . $search . '%']);
                                     });
                             });
-                    });
+                        });
+                    }
+                    break;
+
+                case 'source':
+                    if ($request->filled('search')) {
+                        $search = strtolower($request->search);
+                        $query->whereHas('source_warehouse', function ($q) use ($search) {
+                            $q->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                        });
+                    }
+                    break;
+
+                case 'destination':
+                    if ($request->filled('search')) {
+                        $search = strtolower($request->search);
+                        $query->whereHas('destination_warehouse', function ($q) use ($search) {
+                            $q->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                        });
+                    }
+                    break;
+
+                case 'employee':
+                    if ($request->filled('employee_id')) {
+                        $query->where('employee_id', $request->employee_id);
+                    }
+                    break;
+
+                case 'notes':
+                    if ($request->filled('search')) {
+                        $search = strtolower($request->search);
+                        $query->whereRaw('LOWER(notes) LIKE ?', ['%' . $search . '%']);
+                    }
+                    break;
+
+                case 'date':
+                    if ($request->filled('start_date')) {
+                        $query->whereDate('transfer_date', '>=', $request->start_date);
+                    }
+                    if ($request->filled('end_date')) {
+                        $query->whereDate('transfer_date', '<=', $request->end_date);
+                    }
+                    break;
+
+                case 'status':
+                    if ($request->filled('status')) {
+                        $query->where('status', $request->status);
+                    }
+                    break;
+
+                default:
+                    // Tìm kiếm tổng quát nếu không chọn bộ lọc cụ thể
+                    if ($request->filled('search')) {
+                        $search = strtolower($request->search);
+                        $query->where(function ($q) use ($search) {
+                            $q->whereRaw('LOWER(transfer_code) LIKE ?', ['%' . $search . '%'])
+                                ->orWhereRaw('LOWER(notes) LIKE ?', ['%' . $search . '%'])
+                                ->orWhereHas('source_warehouse', function ($subq) use ($search) {
+                                    $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                                })
+                                ->orWhereHas('destination_warehouse', function ($subq) use ($search) {
+                                    $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                                })
+                                ->orWhereHas('material', function ($subq) use ($search) {
+                                    $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
+                                        ->orWhereRaw('LOWER(code) LIKE ?', ['%' . $search . '%']);
+                                })
+                                ->orWhereHas('employee', function ($subq) use ($search) {
+                                    $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                                });
+                        });
+                    }
+            }
+        } else {
+            // Tìm kiếm tổng quát nếu không chọn bộ lọc
+            if ($request->filled('search')) {
+                $search = strtolower($request->search);
+                $query->where(function ($q) use ($search) {
+                    $q->whereRaw('LOWER(transfer_code) LIKE ?', ['%' . $search . '%'])
+                        ->orWhereRaw('LOWER(notes) LIKE ?', ['%' . $search . '%'])
+                        ->orWhereHas('source_warehouse', function ($subq) use ($search) {
+                            $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                        })
+                        ->orWhereHas('destination_warehouse', function ($subq) use ($search) {
+                            $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                        })
+                        ->orWhereHas('material', function ($subq) use ($search) {
+                            $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%'])
+                                ->orWhereRaw('LOWER(code) LIKE ?', ['%' . $search . '%']);
+                        })
+                        ->orWhereHas('employee', function ($subq) use ($search) {
+                            $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
+                        });
+                });
             }
         }
 
         $warehouseTransfers = $query->orderBy('created_at', 'desc')->paginate(10);
+        $employees = \App\Models\Employee::orderBy('name')->get();
 
-        return view('warehouse-transfers.index', compact('warehouseTransfers'));
+        // Giữ lại tham số tìm kiếm khi phân trang
+        $warehouseTransfers->appends($request->all());
+
+        return view('warehouse-transfers.index', compact('warehouseTransfers', 'employees'));
     }
 
     /**
