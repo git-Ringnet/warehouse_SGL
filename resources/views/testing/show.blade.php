@@ -1261,7 +1261,7 @@
                     
                     @if($testing->is_inventory_updated)
                     <div class="ml-3 px-4 py-2 bg-green-100 text-green-800 rounded-lg flex items-center">
-                        <i class="fas fa-check-circle mr-2"></i> Đã cập nhật vào kho
+                        <i class="fas fa-check-circle mr-2"></i> Đã cập nhật vào kho và tự động duyệt phiếu nhập kho
                         <span class="ml-2">
                             @if($testing->test_type == 'finished_product')
                                 @php
@@ -1339,6 +1339,15 @@
                     </button>
                 </div>
                 
+                <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-info-circle text-blue-500 mr-2"></i>
+                        <p class="text-sm text-blue-700">
+                            <strong>Lưu ý:</strong> Phiếu nhập kho sẽ được tạo tự động và duyệt ngay lập tức khi bạn xác nhận.
+                        </p>
+                    </div>
+                </div>
+                
                 <form action="{{ route('testing.update-inventory', $testing->id) }}" method="POST">
                     @csrf
                     <div class="mb-4">
@@ -1387,7 +1396,9 @@
 
                     <div class="flex justify-end space-x-2">
                         <button type="button" onclick="closeInventoryModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Hủy</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Xác nhận</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                            <i class="fas fa-check mr-2"></i> Xác nhận và tự động duyệt
+                        </button>
                     </div>
                 </form>
                 </div>

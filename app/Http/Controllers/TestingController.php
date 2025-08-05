@@ -1380,9 +1380,9 @@ class TestingController extends Controller
             // Tạo thông báo thành công tùy theo loại kiểm thử và mục đích lắp ráp
             if ($testing->test_type == 'finished_product' && $testing->assembly && $testing->assembly->purpose == 'project') {
                 $projectName = $testing->assembly->project_name ?? 'Dự án';
-                $successMessage = "Đã cập nhật vào kho (Dự án cho Thành phẩm đạt: {$projectName}, Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
+                $successMessage = "Đã cập nhật vào kho và tự động duyệt phiếu nhập kho (Dự án cho Thành phẩm đạt: {$projectName}, Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
             } else {
-                $successMessage = "Đã cập nhật vào kho (Kho lưu Thành phẩm đạt: " . ($successWarehouse->name ?? 'Chưa có') . ", Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
+                $successMessage = "Đã cập nhật vào kho và tự động duyệt phiếu nhập kho (Kho lưu Thành phẩm đạt: " . ($successWarehouse->name ?? 'Chưa có') . ", Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
             }
 
             return redirect()->route('testing.show', $testing->id)
@@ -2024,11 +2024,14 @@ class TestingController extends Controller
                 'import_date' => now(),
                 'order_code' => 'Từ phiếu kiểm thử: ' . $testing->test_code,
                 'notes' => $notes,
-                'status' => 'completed'
+                'status' => 'approved' // Tự động duyệt phiếu nhập kho từ kiểm thử
             ]);
 
             // Thêm materials vào phiếu nhập kho
             $this->addMaterialsToInventoryImport($inventoryImport, $testing, $type);
+
+            // Tự động cập nhật kho khi phiếu được duyệt
+            $this->approveInventoryImportAutomatically($inventoryImport);
 
             return $inventoryImport;
 
@@ -2095,6 +2098,91 @@ class TestingController extends Controller
                     ]);
                 }
             }
+        }
+    }
+
+    /**
+     * Tự động duyệt phiếu nhập kho và cập nhật kho
+     */
+    private function approveInventoryImportAutomatically($inventoryImport)
+    {
+        try {
+            // Cập nhật số lượng tồn kho và serial numbers
+            foreach ($inventoryImport->materials as $material) {
+                // Cập nhật số lượng vật tư/thành phẩm/hàng hóa trong kho
+                $warehouseMaterial = \App\Models\WarehouseMaterial::firstOrNew([
+                    'warehouse_id' => $material->warehouse_id,
+                    'material_id' => $material->material_id,
+                    'item_type' => $material->item_type
+                ]);
+
+                $currentQty = $warehouseMaterial->quantity ?? 0;
+                $warehouseMaterial->quantity = $currentQty + $material->quantity;
+
+                // Cập nhật serial_number vào warehouse_materials nếu có serial
+                if (!empty($material->serial_numbers)) {
+                    $serials = is_array($material->serial_numbers) ? $material->serial_numbers : json_decode($material->serial_numbers, true);
+                    $currentSerials = [];
+                    if (!empty($warehouseMaterial->serial_number)) {
+                        $currentSerials = json_decode($warehouseMaterial->serial_number, true) ?: [];
+                    }
+                    // Gộp serial cũ và mới, loại bỏ trùng lặp
+                    $mergedSerials = array_unique(array_merge($currentSerials, $serials));
+                    $warehouseMaterial->serial_number = json_encode($mergedSerials);
+                }
+                $warehouseMaterial->save();
+
+                // Lưu serial numbers vào bảng serials (nếu có)
+                if (!empty($material->serial_numbers)) {
+                    foreach ($material->serial_numbers as $serialNumber) {
+                        \App\Models\Serial::create([
+                            'serial_number' => $serialNumber,
+                            'product_id' => $material->material_id,
+                            'type' => $material->item_type,
+                            'status' => 'active',
+                            'notes' => $material->notes ?? null,
+                            'warehouse_id' => $material->warehouse_id,
+                        ]);
+                    }
+                }
+
+                // Lưu nhật ký thay đổi khi phiếu được duyệt
+                $itemType = $material->item_type;
+                $itemId = $material->material_id;
+
+                if ($itemType == 'material') {
+                    $materialLS = \App\Models\Material::find($itemId);
+                } else if ($itemType == 'good') {
+                    $materialLS = \App\Models\Good::find($itemId);
+                }
+
+                if ($materialLS) {
+                    // Lấy thông tin kho nhập để đưa vào description
+                    $warehouse = \App\Models\Warehouse::find($material->warehouse_id);
+                    $warehouseName = $warehouse ? $warehouse->name : 'Không xác định';
+
+                    \App\Helpers\ChangeLogHelper::nhapKho(
+                        $materialLS->code,
+                        $materialLS->name,
+                        $material->quantity,
+                        $inventoryImport->import_code,
+                        $warehouseName,
+                        $material->notes
+                    );
+                }
+            }
+
+            // Ghi log tự động duyệt phiếu nhập kho
+            \Log::info('Tự động duyệt phiếu nhập kho từ kiểm thử', [
+                'import_code' => $inventoryImport->import_code,
+                'warehouse_id' => $inventoryImport->warehouse_id,
+                'materials_count' => $inventoryImport->materials->count()
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Lỗi khi tự động duyệt phiếu nhập kho: ' . $e->getMessage(), [
+                'import_code' => $inventoryImport->import_code
+            ]);
         }
     }
 }
