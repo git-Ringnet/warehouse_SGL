@@ -1828,14 +1828,17 @@
                 }
             }
 
-            // Hàm kiểm tra serial numbers có bị trùng lặp không (kiểm tra trong từng category riêng biệt)
+            // Hàm kiểm tra serial numbers có bị trùng lặp không (kiểm tra toàn bộ phiếu, không phân biệt category)
             function validateSerialNumbers() {
-                // Kiểm tra từng category riêng biệt
-                const contractDuplicates = validateCategorySerialNumbers('contract');
-                const backupDuplicates = validateCategorySerialNumbers('backup');
-
-                // Gộp các kết quả lại (không kiểm tra trùng lặp giữa các category)
-                return [...contractDuplicates, ...backupDuplicates];
+                const seen = new Set();
+                const duplicates = new Set();
+                document.querySelectorAll('select[name*="_serials"]').forEach(sel => {
+                    const val = (sel.value || '').trim();
+                    if (!val) return;
+                    if (seen.has(val)) duplicates.add(val);
+                    else seen.add(val);
+                });
+                return Array.from(duplicates);
             }
 
             // Hàm kiểm tra serial trùng lặp cho từng category

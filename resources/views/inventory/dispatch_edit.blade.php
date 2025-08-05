@@ -934,6 +934,11 @@
                 setTimeout(function() {
                     updateSerialOptionsAvailability();
                 }, 500);
+
+                // If phiếu ở trạng thái pending, cần lấy thêm danh sách kho và serial khả dụng
+                @if ($dispatch->status === 'pending')
+                    loadAvailableItems(); // Lấy tồn kho và serial dropdown
+                @endif
             }, 100);
             });
             
@@ -964,8 +969,7 @@
 
             // Load available items from API
             async function loadAvailableItems() {
-                console.log('loadAvailableItems called - TEMPORARILY DISABLED');
-                return; // TEMPORARILY RETURN EARLY
+                // Re-enabled: fetch available items from API
                 try {
                     const response = await fetch('/api/dispatch/items/all');
                     const data = await response.json();
@@ -998,10 +1002,17 @@
                     console.log('Device codes response:', deviceCodesData);
                     const deviceCodes = deviceCodesData.success ? deviceCodesData.deviceCodes : [];
                     
-                    // Create a map of item_id to updated serial
+                    // Create a map of item_id to array of updated serials
+                    // Map: key = `${category}_${item_id}` to avoid mixing contract & backup
                     const updatedSerials = {};
-                    deviceCodes.forEach(deviceCode => {
-                        updatedSerials[deviceCode.item_id] = deviceCode.serial_main;
+                    deviceCodes.forEach(dc => {
+                        const key = `${dc.category}_${dc.item_id}`;
+                        if (!updatedSerials[key]) {
+                            updatedSerials[key] = [];
+                        }
+                        if (dc.serial_main) {
+                            updatedSerials[key].push(dc.serial_main);
+                        }
                     });
                     console.log('Updated serials map:', updatedSerials);
 
@@ -1027,10 +1038,11 @@
                         is_existing: true // Mark as existing item
                     };
 
-                                            // Update serial if there's an updated one from device_codes
-                    if (updatedSerials[{{ $item->item_id }}]) {
-                        existingItem.serial_numbers = [updatedSerials[{{ $item->item_id }}]];
-                        console.log('Updated serial for item {{ $item->item_id }}:', updatedSerials[{{ $item->item_id }}]);
+                                            // Update serials if there are updated ones from device_codes
+                    const keyItem = `{{ $item->category }}_{{ $item->item_id }}`;
+                        if (updatedSerials[keyItem]) {
+                        existingItem.serial_numbers = updatedSerials[keyItem];
+                        console.log('Updated serials for item {{ $item->item_id }}:', updatedSerials[{{ $item->item_id }}]);
                     }
 
                         @if ($item->category === 'contract')
@@ -1051,11 +1063,8 @@
                 console.log('Final counts - Contract items:', selectedContractProducts.length, 'Backup items:', selectedBackupProducts.length);
                 
                 // Load available serials after rendering to populate dropdowns
-                // TEMPORARILY COMMENTED OUT TO TEST IF THIS IS OVERRIDING UPDATED SERIALS
-                // if ('{{ $dispatch->status }}' === 'pending') {
-                //     console.log('About to load available serials - this might override updated serials');
-                //     loadAvailableSerials();
-                // }
+                // After rendering tables, load available serials for dropdowns
+                 loadAvailableSerials();
                 } catch (error) {
                     console.error('Error loading device codes:', error);
                     // Fallback to original loading if API fails
@@ -1465,8 +1474,6 @@
             // Hàm load available serial numbers cho tất cả serial selects
             // TEMPORARILY DISABLED TO TEST SERIAL OVERRIDE ISSUE
             async function loadAvailableSerials() {
-                console.log('loadAvailableSerials called - TEMPORARILY DISABLED');
-                return; // TEMPORARILY RETURN EARLY
                 const serialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
 
                 for (const select of serialSelects) {
@@ -3282,12 +3289,14 @@
                         row.setAttribute('data-product-id', product.id);
                         row.setAttribute('data-row-index', i);
                         
+                        const serialMainValue = (product.serial_numbers && product.serial_numbers[i]) ? product.serial_numbers[i] : '';
                         row.innerHTML = `
                             ${firstRowExtra}
                             <td class="px-2 py-2 border border-gray-200">
                                 <input type="text" 
                                     name="${type}_serial_main[${product.id}][${i}]" 
                                     placeholder="Seri chính ${i + 1}"
+                                    value="${serialMainValue}"
                                     class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                             </td>
                             <td class="px-2 py-2 border border-gray-200">

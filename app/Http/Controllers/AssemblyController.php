@@ -175,14 +175,26 @@ class AssemblyController extends Controller
             'components.*.quantity' => 'required|integer|min:1',
             'components.*.product_id' => 'required',
             'components.*.warehouse_id' => 'required|exists:warehouses,id', // Each component must have its own warehouse
+            'components.*.product_unit' => 'nullable|integer|min:0', // Product unit for multi-unit assemblies
         ]);
+
 
         // Debug: Log request data
         Log::info('Assembly Store Request Debug', [
             'products' => $request->products,
             'components' => $request->components,
+            'components_with_units' => collect($request->components)->map(function($comp) {
+                return [
+                    'id' => $comp['id'],
+                    'product_id' => $comp['product_id'],
+                    'product_unit' => $comp['product_unit'] ?? 'not_set',
+                    'quantity' => $comp['quantity']
+                ];
+            })->toArray(),
             'request_all' => $request->all()
         ]);
+
+        
 
         DB::beginTransaction();
         try {
@@ -364,132 +376,77 @@ class AssemblyController extends Controller
 
                 $productQty = intval($productData['quantity']);
                 $componentQty = intval($component['quantity']);
-                $totalRequiredQty = $componentQty * $productQty; // Calculate total quantity needed
-
-                // Create assembly material record
+                $productUnit = intval($component['product_unit'] ?? 0);
+                
+                // Debug: Log product_unit value
+                Log::info('Processing component product_unit', [
+                    'component_id' => $component['id'],
+                    'raw_product_unit' => $component['product_unit'] ?? 'not_set',
+                    'parsed_product_unit' => $productUnit,
+                    'component_data' => $component
+                ]);
+                
+                // Calculate serials for this specific unit
+                $unitSerials = [];
+                $unitSerialIds = [];
+                
+                if (isset($component['serials']) && is_array($component['serials'])) {
+                    $filteredSerials = array_filter($component['serials']);
+                    
+                    // For multi-unit assemblies, each unit should have its own serials
+                    // The frontend should send separate components for each unit
+                    // So we just use the serials as they are for this specific unit
+                    $unitSerials = $filteredSerials;
+                    
+                    // Get serial IDs for this unit
+                    if (isset($component['serial_ids']) && is_array($component['serial_ids'])) {
+                        $filteredSerialIds = array_filter($component['serial_ids']);
+                        $unitSerialIds = $filteredSerialIds;
+                    }
+                } elseif (isset($component['serial'])) {
+                    $unitSerials = [$component['serial']];
+                    if (isset($component['serial_id']) && !empty($component['serial_id'])) {
+                        $unitSerialIds = [$component['serial_id']];
+                    }
+                }
+                
+                $unitSerial = !empty($unitSerials) ? implode(',', $unitSerials) : null;
+                
+                // Create assembly material record for this specific unit
                 $assemblyMaterialData = [
                     'assembly_id' => $assembly->id,
                     'material_id' => $component['id'],
                     'target_product_id' => $componentProductId, // Link component to specific product
+                    'product_unit' => $productUnit, // Store product unit for multi-unit assemblies
                     'quantity' => $componentQty,
-                    'serial' => $serial,
+                    'serial' => $unitSerial,
                     'note' => $component['note'] ?? null,
                     'warehouse_id' => $component['warehouse_id'], // Store warehouse_id for each component
                 ];
 
                 // Add serial_id if provided (for single serial or first serial of multiple)
-                if (!empty($serialIds)) {
-                    $assemblyMaterialData['serial_id'] = $serialIds[0]; // Use first serial_id
+                if (!empty($unitSerialIds)) {
+                    $assemblyMaterialData['serial_id'] = $unitSerialIds[0]; // Use first serial_id for this unit
                 }
+
+                Log::info('Creating assembly material for unit', [
+                    'material_id' => $component['id'],
+                    'product_unit' => $productUnit,
+                    'quantity' => $componentQty,
+                    'unit_serials' => $unitSerials,
+                    'unit_serial' => $unitSerial,
+                    'original_serials' => $component['serials'] ?? 'not_set',
+                    'original_serial_ids' => $component['serial_ids'] ?? 'not_set',
+                    'product_qty' => $productQty
+                ]);
 
                 AssemblyMaterial::create($assemblyMaterialData);
             }
 
-            // Create single testing record for this assembly
-            $testing = $this->createTestingRecordForAssembly($assembly);
-
-            // Create dispatch record if purpose is project
-            $dispatch = null;
-            Log::info('Assembly purpose check', [
-                'purpose' => $assembly->purpose,
-                'target_warehouse_id' => $assembly->target_warehouse_id,
-                'project_id' => $assembly->project_id
-            ]);
-
-            if ($assembly->purpose === 'project') {
-                if ($assembly->project_id) {
-                    Log::info('Creating dispatch for assembly: ' . $assembly->code);
-                    try {
-                        $dispatch = $this->createDispatchForAssembly($assembly);
-                        Log::info('Created dispatch: ' . ($dispatch ? $dispatch->dispatch_code : 'null'));
-                    } catch (\Exception $e) {
-                        Log::error('Error creating dispatch for assembly: ' . $e->getMessage(), [
-                            'assembly_code' => $assembly->code,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
-                        ]);
-                    }
-                } else {
-                    Log::warning('Assembly purpose is project but missing project_id', [
-                        'assembly_code' => $assembly->code,
-                        'target_warehouse_id' => $assembly->target_warehouse_id,
-                        'project_id' => $assembly->project_id
-                    ]);
-                }
-            } else {
-                Log::info('Dispatch not created - purpose is not project', [
-                    'purpose' => $assembly->purpose
-                ]);
-            }
-
-            // Tạo phiếu xuất kho cho vật tư khi lắp ráp lưu kho
-            Log::info('Checking assembly purpose for material export slip', [
-                'assembly_id' => $assembly->id,
-                'assembly_code' => $assembly->code,
-                'purpose' => $assembly->purpose,
-                'purpose_type' => gettype($assembly->purpose),
-                'purpose_comparison' => $assembly->purpose === 'storage'
-            ]);
-            
-            if ($assembly->purpose === 'storage') {
-                Log::info('Creating material export slip for assembly: ' . $assembly->code);
-                try {
-                    $this->createMaterialExportSlipForAssembly($assembly);
-                    Log::info('Created material export slip for assembly: ' . $assembly->code);
-                } catch (\Exception $e) {
-                    Log::error('Error creating material export slip for assembly: ' . $e->getMessage(), [
-                        'assembly_code' => $assembly->code,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                }
-            } else {
-                Log::info('Material export slip not created - purpose is not storage', [
-                    'purpose' => $assembly->purpose,
-                    'assembly_code' => $assembly->code
-                ]);
-            }
-
             DB::commit();
 
-            // Tạo thông báo thành công với link đến phiếu kiểm thử và phiếu xuất kho
-            $successMessage = 'Phiếu lắp ráp đã được tạo thành công!';
-
-            // Nếu có phiếu kiểm thử được tạo, thêm thông báo và link
-            if ($testing) {
-                $testingUrl = route('testing.show', $testing->id);
-                $successMessage .= ' <a href="' . $testingUrl . '" class="text-blue-600 hover:underline">Phiếu kiểm thử</a> đã được tạo tự động.';
-
-                // Tạo thông báo cho người kiểm thử
-                Notification::createNotification(
-                    'Phiếu kiểm thử mới',
-                    'Phiếu kiểm thử #' . $testing->test_code . ' đã được tạo từ phiếu lắp ráp #' . $assembly->code,
-                    'info',
-                    $testing->receiver_id,
-                    'testing',
-                    $testing->id,
-                    $testingUrl
-                );
-            }
-
-            // Nếu có phiếu xuất kho được tạo, thêm thông báo và link
-            if ($dispatch) {
-                $dispatchUrl = route('inventory.dispatch.show', $dispatch->id);
-                $successMessage .= ' <a href="' . $dispatchUrl . '" class="text-blue-600 hover:underline">Phiếu xuất kho</a> đã được tạo tự động.';
-
-                // Tạo thông báo cho người phụ trách xuất kho
-                if ($dispatch->company_representative_id) {
-                    Notification::createNotification(
-                        'Phiếu xuất kho mới',
-                        'Phiếu xuất kho #' . $dispatch->dispatch_code . ' đã được tạo từ phiếu lắp ráp #' . $assembly->code,
-                        'info',
-                        $dispatch->company_representative_id,
-                        'dispatch',
-                        $dispatch->id,
-                        $dispatchUrl
-                    );
-                }
-            }
+            // Tạo thông báo thành công - chuyển sang workflow duyệt
+            $successMessage = 'Phiếu lắp ráp đã được tạo thành công! Chờ duyệt để tạo phiếu kiểm thử và xuất kho.';
 
             // Tạo thông báo cho người được phân công lắp ráp
             Notification::createNotification(
@@ -1920,5 +1877,144 @@ class AssemblyController extends Controller
 
         return redirect()->route('testing.show', $testing->id)
             ->with('success', 'Đã tạo phiếu kiểm thử tự động từ phiếu lắp ráp.');
+    }
+
+    /**
+     * Check if a formula already exists in products
+     */
+    public function checkFormula(Request $request)
+    {
+        try {
+            $formula = $request->input('formula', []);
+            
+            Log::info('Check formula request:', ['formula' => $formula]);
+            
+            if (empty($formula)) {
+                return response()->json([
+                    'exists' => false,
+                    'message' => 'No formula provided'
+                ]);
+            }
+
+            // Get all products with their materials
+            $products = Product::with('materials')->get();
+            
+            Log::info('Checking against products:', ['total_products' => $products->count()]);
+            
+            foreach ($products as $product) {
+                $productMaterials = $product->materials;
+                
+                Log::info('Checking product:', [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'product_materials_count' => $productMaterials->count(),
+                    'formula_count' => count($formula)
+                ]);
+                
+                // Check if the number of materials matches
+                if (count($productMaterials) !== count($formula)) {
+                    Log::info('Material count mismatch, skipping product');
+                    continue;
+                }
+                
+                // Check if all materials and quantities match
+                $matches = true;
+                foreach ($formula as $formulaItem) {
+                    $materialId = $formulaItem['material_id'];
+                    $quantity = $formulaItem['quantity'];
+                    
+                    $productMaterial = $productMaterials->where('material_id', $materialId)->first();
+                    
+                    if (!$productMaterial || $productMaterial->quantity != $quantity) {
+                        $matches = false;
+                        Log::info('Material/quantity mismatch:', [
+                            'material_id' => $materialId,
+                            'quantity' => $quantity,
+                            'product_material' => $productMaterial ? $productMaterial->toArray() : null
+                        ]);
+                        break;
+                    }
+                }
+                
+                if ($matches) {
+                    Log::info('Formula match found:', ['product_id' => $product->id, 'product_name' => $product->name]);
+                    return response()->json([
+                        'exists' => true,
+                        'product' => [
+                            'id' => $product->id,
+                            'name' => $product->name,
+                            'code' => $product->code
+                        ],
+                        'message' => 'Formula already exists in product: ' . $product->name
+                    ]);
+                }
+            }
+            
+            Log::info('No matching formula found');
+            return response()->json([
+                'exists' => false,
+                'message' => 'Formula not found in existing products'
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Error checking formula: ' . $e->getMessage());
+            return response()->json([
+                'exists' => false,
+                'error' => 'Error checking formula: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Approve assembly and create testing/dispatch records
+     */
+    public function approve(Assembly $assembly)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Check if assembly is already approved
+            if ($assembly->status === 'approved') {
+                return back()->withErrors(['error' => 'Phiếu lắp ráp đã được duyệt trước đó.']);
+            }
+
+            // Create testing record
+            $testing = $this->createTestingRecordForAssembly($assembly);
+
+            // Create dispatch record if purpose is project
+            $dispatch = null;
+            if ($assembly->purpose === 'project' && $assembly->project_id) {
+                $dispatch = $this->createDispatchForAssembly($assembly);
+            }
+
+            // Create material export slip if purpose is storage
+            if ($assembly->purpose === 'storage') {
+                $this->createMaterialExportSlipForAssembly($assembly);
+            }
+
+            // Update assembly status to approved
+            $assembly->update(['status' => 'approved']);
+
+            DB::commit();
+
+            // Create success message
+            $successMessage = 'Phiếu lắp ráp đã được duyệt thành công!';
+
+            if ($testing) {
+                $testingUrl = route('testing.show', $testing->id);
+                $successMessage .= ' <a href="' . $testingUrl . '" class="text-blue-600 hover:underline">Phiếu kiểm thử</a> đã được tạo.';
+            }
+
+            if ($dispatch) {
+                $dispatchUrl = route('inventory.dispatch.show', $dispatch->id);
+                $successMessage .= ' <a href="' . $dispatchUrl . '" class="text-blue-600 hover:underline">Phiếu xuất kho</a> đã được tạo.';
+            }
+
+            return redirect()->route('assemblies.show', $assembly->id)->with('success', $successMessage);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->withErrors(['error' => 'Có lỗi xảy ra khi duyệt: ' . $e->getMessage()]);
+        }
     }
 }

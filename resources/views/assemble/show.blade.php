@@ -235,57 +235,67 @@
                 </h2>
 
                 @php
-                    // Group materials by product
+                    // Group materials by product and product_unit
                     $materialsByProduct = [];
 
-                    // Debug: Let's see what data we have
-// dd([
-//     'assembly_id' => $assembly->id,
-//     'products' => $assembly->products->pluck('product_id', 'id')->toArray(),
-//     'materials' => $assembly->materials->pluck('target_product_id', 'material_id')->toArray(),
-//     'materials_with_details' => $assembly->materials->map(function($m) {
-//         return [
-//             'id' => $m->id,
-//             'material_id' => $m->material_id,
-//             'target_product_id' => $m->target_product_id,
-//             'material_name' => $m->material->name ?? 'Unknown'
-//         ];
-//     })->toArray()
-// ]);
+                    // If assembly has products relationship (new structure)
+                    if ($assembly->products && $assembly->products->count() > 0) {
+                        // Initialize arrays for each product
+                        foreach ($assembly->products as $product) {
+                            $materialsByProduct[$product->product_id] = [
+                                'product' => $product,
+                                'units' => [], // Group by product_unit
+                            ];
+                        }
 
-// If assembly has products relationship (new structure)
-if ($assembly->products && $assembly->products->count() > 0) {
-    // Initialize arrays for each product - using product_id not id
-    foreach ($assembly->products as $product) {
-        $materialsByProduct[$product->product_id] = [
-            'product' => $product,
-            'materials' => [],
-        ];
-    }
-
-    // Group materials by target_product_id
-    foreach ($assembly->materials as $material) {
-        $productId = $material->target_product_id ?? $assembly->products->first()->product_id;
-        if (isset($materialsByProduct[$productId])) {
-            $materialsByProduct[$productId]['materials'][] = $material;
-        } else {
-            // If target_product_id doesn't match any product, assign to first product
+                        // Group materials by target_product_id and product_unit
+                        foreach ($assembly->materials as $material) {
+                            $productId = $material->target_product_id ?? $assembly->products->first()->product_id;
+                            $productUnit = $material->product_unit ?? 0;
+                            
+                            if (isset($materialsByProduct[$productId])) {
+                                if (!isset($materialsByProduct[$productId]['units'][$productUnit])) {
+                                    $materialsByProduct[$productId]['units'][$productUnit] = [];
+                                }
+                                $materialsByProduct[$productId]['units'][$productUnit][] = $material;
+                            } else {
+                                // If target_product_id doesn't match any product, assign to first product
                                 $firstProductId = $assembly->products->first()->product_id;
-                                $materialsByProduct[$firstProductId]['materials'][] = $material;
+                                if (!isset($materialsByProduct[$firstProductId]['units'][$productUnit])) {
+                                    $materialsByProduct[$firstProductId]['units'][$productUnit] = [];
+                                }
+                                $materialsByProduct[$firstProductId]['units'][$productUnit][] = $material;
                             }
                         }
                     } else {
                         // Legacy structure - show all materials under single product
                         $materialsByProduct['legacy'] = [
                             'product' => $assembly->product,
-                            'materials' => $assembly->materials->toArray(),
+                            'units' => [0 => $assembly->materials->toArray()],
                         ];
                     }
                 @endphp
 
+                @php
+                    // Debug: Log materials grouping
+                    Log::info('Materials grouping debug', [
+                        'assembly_id' => $assembly->id,
+                        'products_count' => $assembly->products->count(),
+                        'materials_count' => $assembly->materials->count(),
+                        'materialsByProduct_keys' => array_keys($materialsByProduct),
+                        'materialsByProduct_details' => array_map(function($data) {
+                            return [
+                                'product_name' => $data['product']->product->name ?? 'unknown',
+                                'units_count' => count($data['units']),
+                                'total_materials' => array_sum(array_map('count', $data['units']))
+                            ];
+                        }, $materialsByProduct)
+                    ]);
+                @endphp
+
                 @if (count($materialsByProduct) > 0)
                     @foreach ($materialsByProduct as $productId => $productData)
-                        @if (count($productData['materials']) > 0)
+                        @if (count($productData['units']) > 0)
                             <!-- Product Header -->
                             <div class="mb-6">
                                 <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg mb-4">
@@ -305,44 +315,61 @@ if ($assembly->products && $assembly->products->count() > 0) {
                                             </p>
                                         </div>
                                         <div class="text-sm text-blue-600">
-                                            {{ count($productData['materials']) }} vật tư
+                                            @php
+                                                $totalMaterials = 0;
+                                                foreach ($productData['units'] as $unitMaterials) {
+                                                    $totalMaterials += count($unitMaterials);
+                                                }
+                                            @endphp
+                                            {{ $totalMaterials }} vật tư
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Materials Table for this Product -->
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    STT</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Mã</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Loại vật tư</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Tên vật tư</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Số lượng</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Serial</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Ghi chú</th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Thao tác</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="bg-white divide-y divide-gray-200">
-                                            @foreach ($productData['materials'] as $index => $material)
+                                <!-- Materials by Product Unit -->
+                                @foreach ($productData['units'] as $unitIndex => $unitMaterials)
+                                    @if (count($unitMaterials) > 0)
+                                        <!-- Unit Header -->
+                                        <div class="bg-green-50 border-l-4 border-green-400 p-3 rounded-lg mb-3">
+                                            <h4 class="text-md font-medium text-green-800">
+                                                <i class="fas fa-cube mr-2"></i>
+                                                Đơn vị thành phẩm {{ $unitIndex + 1 }}
+                                            </h4>
+                                        </div>
+
+                                        <!-- Materials Table for this Unit -->
+                                        <div class="overflow-x-auto mb-6">
+                                            <table class="min-w-full divide-y divide-gray-200">
+                                                <thead class="bg-gray-50">
+                                                    <tr>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            STT</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Mã</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Loại vật tư</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Tên vật tư</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Số lượng</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Serial</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Ghi chú</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Thao tác</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="bg-white divide-y divide-gray-200">
+                                                    @foreach ($unitMaterials as $index => $material)
                                                 <tr class="hover:bg-gray-50">
                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                         {{ $index + 1 }}</td>
@@ -401,6 +428,8 @@ if ($assembly->products && $assembly->products->count() > 0) {
                                         </tbody>
                                     </table>
                                 </div>
+                                    @endif
+                                @endforeach
                             </div>
                         @endif
                     @endforeach
@@ -424,6 +453,23 @@ if ($assembly->products && $assembly->products->count() > 0) {
                             class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
                             <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                         </a>
+                    @endif
+
+                    @if ($assembly->status !== 'approved' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.approve'))))
+                        <form action="{{ route('assemblies.approve', $assembly->id) }}" method="POST" style="display:inline;">
+                            @csrf
+                            <button type="submit" 
+                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                                onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu lắp ráp này? Khi duyệt sẽ tạo phiếu kiểm thử và xuất kho.')">
+                                <i class="fas fa-check mr-2"></i> Duyệt phiếu
+                            </button>
+                        </form>
+                    @endif
+
+                    @if ($assembly->status === 'approved')
+                        <div class="px-4 py-2 bg-green-100 text-green-800 rounded-lg flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i> Đã duyệt
+                        </div>
                     @endif
 
                     @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assemblies.export')))

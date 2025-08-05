@@ -614,6 +614,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::get('/assemblies/employees', [AssemblyController::class, 'getEmployees'])->name('assemblies.employees')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
     // Route::post('/assemblies/warehouse-stock/{warehouseId}', [AssemblyController::class, 'getWarehouseMaterialsStock'])->name('assemblies.warehouse-stock')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create'); // REMOVED - Stock checking disabled
     Route::match(['get', 'post'], '/assemblies/material-serials', [AssemblyController::class, 'getMaterialSerials'])->name('assemblies.material-serials')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
+    Route::post('/assemblies/check-formula', [AssemblyController::class, 'checkFormula'])->name('assemblies.check-formula')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.create');
 
     // Assembly routes với middleware bảo vệ từng quyền cụ thể
     Route::get('/assemblies', [AssemblyController::class, 'index'])->name('assemblies.index')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.view');
@@ -624,6 +625,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     Route::put('/assemblies/{assembly}', [AssemblyController::class, 'update'])->name('assemblies.update')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.edit');
     Route::patch('/assemblies/{assembly}', [AssemblyController::class, 'update'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.edit');
     Route::delete('/assemblies/{assembly}', [AssemblyController::class, 'destroy'])->name('assemblies.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.delete');
+    Route::post('/assemblies/{assembly}/approve', [AssemblyController::class, 'approve'])->name('assemblies.approve')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.approve');
 
     // Assembly export routes
     Route::get('/assemblies/{assembly}/export/excel', [AssemblyController::class, 'exportExcel'])
