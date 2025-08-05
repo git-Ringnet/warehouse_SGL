@@ -64,3 +64,9 @@ Route::get('/check-stock/{itemType}/{itemId}', [App\Http\Controllers\Api\StockCo
 
 // Device codes route
 Route::get('/device-codes/{dispatchId}', [App\Http\Controllers\Api\DeviceCodeController::class, 'getDeviceCodes']); 
+
+// Testing API routes
+Route::get('/testing/check-code', [App\Http\Controllers\TestingController::class, 'checkTestCode']);
+Route::get('/testing/materials/{type}', [App\Http\Controllers\TestingController::class, 'getMaterialsByType']);
+Route::get('/inventory/{type}/{id}/{warehouseId}', [App\Http\Controllers\TestingController::class, 'getInventoryInfo']);
+Route::get('/testing/serials', [App\Http\Controllers\TestingController::class, 'getAvailableSerials']);

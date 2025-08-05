@@ -150,22 +150,25 @@
                         <tr>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                STT</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Mã phiếu</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Loại kiểm thử</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Vật tư/Hàng hóa</th>
+                                Vật tư / Hàng hoá / Thành phẩm</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Serial/Mã</th>
-                            <th
-                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Người kiểm thử</th>
+                                Người tiếp nhận</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Ngày kiểm thử</th>
+                            <th
+                                class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Ghi chú</th>
                             <th
                                 class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Trạng thái</th>
@@ -178,8 +181,10 @@
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        @forelse($testings as $testing)
+                        @forelse($testings as $index => $testing)
                             <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ $index + 1 + ($testings->currentPage() - 1) * $testings->perPage() }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     {{ $testing->test_code }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -190,7 +195,20 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     @if ($testing->items->isNotEmpty())
-                                        {{ $testing->items->first()->item_name }}
+                                        @php
+                                            $item = $testing->items->first();
+                                            $itemLabel = '';
+                                            if ($item->item_type == 'material' && $item->material) {
+                                                $itemLabel = $item->material->name;
+                                            } elseif ($item->item_type == 'product' && $item->product) {
+                                                $itemLabel = $item->product->name;
+                                            } elseif ($item->item_type == 'product' && $item->good) {
+                                                $itemLabel = $item->good->name;
+                                            } elseif ($item->item_type == 'finished_product' && $item->good) {
+                                                $itemLabel = $item->good->name;
+                                            }
+                                        @endphp
+                                        {{ $itemLabel ?: 'N/A' }}
                                         @if ($testing->items->count() > 1)
                                             <span class="text-xs text-gray-500">(+{{ $testing->items->count() - 1 }}
                                                 khác)</span>
@@ -200,16 +218,11 @@
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    @if ($testing->items->isNotEmpty() && $testing->items->first()->serial_number)
-                                        {{ $testing->items->first()->serial_number }}
-                                    @else
-                                        N/A
-                                    @endif
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ $testing->tester->name ?? 'N/A' }}</td>
+                                    {{ $testing->receiverEmployee->name ?? 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $testing->test_date->format('d/m/Y') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    {{ Str::limit($testing->notes, 50) ?: 'N/A' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <span
                                         class="px-2 py-1 
@@ -256,61 +269,33 @@
                                         </a>
                                     @endif
 
-                                    @if ($testing->status == 'pending')
-                                        @if ($canApprove)
-                                            <form action="{{ route('testing.approve', $testing->id) }}" method="POST"
-                                                class="inline">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
-                                                    title="Duyệt">
-                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-
-                                        @if ($canReject)
-                                            <form action="{{ route('testing.reject', $testing->id) }}" method="POST"
-                                                class="inline">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group"
-                                                    title="Từ chối">
-                                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                                </button>
-                                            </form>
-                                        @endif
+                                    @if ($testing->status == 'pending' && $canReceive)
+                                        <form action="{{ route('testing.receive', $testing->id) }}" method="POST"
+                                            class="inline">
+                                            @csrf
+                                            <button type="submit"
+                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group"
+                                                title="Tiếp nhận">
+                                                <i class="fas fa-clipboard-check text-teal-500 group-hover:text-white"></i>
+                                            </button>
+                                        </form>
                                     @endif
 
-                                    @if ($testing->status == 'in_progress')
-                                        @if ($canReceive)
-                                            <form action="{{ route('testing.receive', $testing->id) }}"
-                                                method="POST" class="inline">
-                                                @csrf
-                                                <button type="submit"
-                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-teal-100 hover:bg-teal-500 transition-colors group"
-                                                    title="Tiếp nhận">
-                                                    <i
-                                                        class="fas fa-clipboard-check text-teal-500 group-hover:text-white"></i>
-                                                </button>
-                                            </form>
-                                        @endif
-
-                                        @if ($canComplete)
-                                            <button data-testing-id="{{ $testing->id }}"
-                                                onclick="openCompleteModal(this.dataset.testingId)"
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
-                                                title="Hoàn thành">
-                                                <i
-                                                    class="fas fa-flag-checkered text-green-500 group-hover:text-white"></i>
-                                            </button>
-                                        @endif
+                                    @if ($testing->status == 'in_progress' && $canComplete)
+                                        <button data-testing-id="{{ $testing->id }}"
+                                            onclick="openCompleteModal(this.dataset.testingId)"
+                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group"
+                                            title="Hoàn thành">
+                                            <i
+                                                class="fas fa-flag-checkered text-green-500 group-hover:text-white"></i>
+                                        </button>
                                     @endif
 
                                     @if ($testing->status == 'completed' && !$testing->is_inventory_updated && $canUpdateInventory)
                                         <button data-testing-id="{{ $testing->id }}"
                                             data-test-code="{{ $testing->test_code }}"
-                                            onclick="openUpdateInventory(this.dataset.testingId, this.dataset.testCode)"
+                                            data-test-type="{{ $testing->test_type }}"
+                                            onclick="openUpdateInventory(this.dataset.testingId, this.dataset.testCode, this.dataset.testType)"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
                                             title="Cập nhật về kho">
                                             <i class="fas fa-warehouse text-purple-500 group-hover:text-white"></i>
@@ -325,7 +310,7 @@
                                         </a>
                                     @endif
 
-                                    @if ($testing->status != 'completed' && $canDelete)
+                                    @if ($testing->status != 'in_progress' && $testing->status != 'completed' && !$testing->assembly_id && $canDelete)
                                         <form action="{{ route('testing.destroy', $testing->id) }}" method="POST"
                                             id="delete-form-{{ $testing->id }}" class="inline">
                                             @csrf
@@ -342,7 +327,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ
+                                <td colspan="10" class="px-6 py-4 text-center text-sm text-gray-500">Không có dữ
                                     liệu phiếu kiểm thử</td>
                             </tr>
                         @endforelse
@@ -420,7 +405,7 @@
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             required>
                             <option value="">-- Chọn kho --</option>
-                            @foreach (\App\Models\Warehouse::all() as $warehouse)
+                            @foreach (\App\Models\Warehouse::where('status', 'active')->get() as $warehouse)
                                 <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                             @endforeach
                         </select>
@@ -433,7 +418,7 @@
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             required>
                             <option value="">-- Chọn kho --</option>
-                            @foreach (\App\Models\Warehouse::all() as $warehouse)
+                            @foreach (\App\Models\Warehouse::where('status', 'active')->get() as $warehouse)
                                 <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                             @endforeach
                         </select>
@@ -510,10 +495,23 @@
         }
 
         // Update Inventory Modal functions
-        function openUpdateInventory(testingId, testCode) {
+        function openUpdateInventory(testingId, testCode, testType) {
             document.getElementById('testing_id').value = testingId;
             document.getElementById('test_code_display').textContent = testCode;
             document.getElementById('updateInventoryForm').action = `/testing/${testingId}/update-inventory`;
+            
+            // Cập nhật label dựa trên loại kiểm thử
+            const successLabel = document.querySelector('label[for="success_warehouse_id"]');
+            const failLabel = document.querySelector('label[for="fail_warehouse_id"]');
+            
+            if (testType === 'finished_product') {
+                successLabel.textContent = 'Kho lưu Thành phẩm đạt';
+                failLabel.textContent = 'Kho lưu Module Vật tư lắp ráp không đạt';
+            } else {
+                successLabel.textContent = 'Kho lưu thiết bị Đạt';
+                failLabel.textContent = 'Kho lưu thiết bị Không đạt';
+            }
+            
             document.getElementById('updateInventoryModal').classList.remove('hidden');
         }
 

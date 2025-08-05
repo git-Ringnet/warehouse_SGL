@@ -14,6 +14,8 @@ class TestingDetail extends Model
         'test_item_name',
         'result',
         'notes',
+        'test_pass_quantity',
+        'test_fail_quantity',
     ];
 
     /**

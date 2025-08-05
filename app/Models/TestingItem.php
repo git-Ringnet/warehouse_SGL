@@ -15,12 +15,16 @@ class TestingItem extends Model
         'material_id',
         'product_id',
         'good_id',
+        'warehouse_id',
         'assembly_id',
         'serial_number',
         'supplier_id',
         'batch_number',
         'quantity',
         'result',
+        'pass_quantity',
+        'fail_quantity',
+        'serial_results',
     ];
 
     /**
@@ -53,6 +57,14 @@ class TestingItem extends Model
     public function good()
     {
         return $this->belongsTo(Good::class);
+    }
+
+    /**
+     * Get the warehouse associated with this testing item.
+     */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     /**

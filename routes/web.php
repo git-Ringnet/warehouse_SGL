@@ -502,7 +502,9 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::post('/testing/{testing}/receive', [TestingController::class, 'receive'])->name('testing.receive')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.receive');
         Route::post('/testing/{testing}/complete', [TestingController::class, 'complete'])->name('testing.complete')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.complete');
         Route::post('/testing/{testing}/update-inventory', [TestingController::class, 'updateInventory'])->name('testing.update-inventory')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.update_inventory');
+        Route::post('/testing/{testing}/save-to-warehouse', [TestingController::class, 'saveToWarehouse'])->name('testing.save-to-warehouse')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.complete');
         Route::delete('/testing/{testing}', [TestingController::class, 'destroy'])->name('testing.destroy')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':testing.delete');
+
     });
 
     Route::get('api/testing/materials-by-type', [TestingController::class, 'getMaterialsByType'])->name('api.testing.materials-by-type');
