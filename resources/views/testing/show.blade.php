@@ -123,10 +123,7 @@
                             <p class="text-base text-gray-800 font-semibold">{{ $testing->tester->name ?? 'N/A' }}</p>
                         </div>
                         
-                        <div class="mb-4 pb-4 border-b border-gray-200">
-                            <p class="text-sm text-gray-500 font-medium mb-1">Người phụ trách</p>
-                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
-                        </div>
+                       
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">Người tiếp nhận kiểm thử</p>
@@ -1170,11 +1167,7 @@
                         <p>{{ $testing->tester->name ?? 'N/A' }}</p>
                         <p class="text-sm text-gray-500 mt-2">{{ $testing->test_date ? $testing->test_date->format('d/m/Y') : '' }}</p>
                     </div>
-                    
-                    <div class="text-center">
-                        <p class="font-medium">Người phụ trách</p>
-                        <p>{{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
-                    </div>
+                   
                     
                     <div class="text-center">
                         <p class="font-medium">Người tiếp nhận kiểm thử</p>
