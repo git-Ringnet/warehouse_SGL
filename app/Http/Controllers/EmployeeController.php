@@ -49,7 +49,9 @@ class EmployeeController extends Controller
                         $query->where('department', 'like', "%{$search}%");
                         break;
                     case 'role':
-                        $query->where('role', 'like', "%{$search}%");
+                        $query->whereHas('roleGroup', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        });
                         break;
                     case 'status':
                         $query->where('status', 'like', "%{$search}%");
@@ -63,13 +65,15 @@ class EmployeeController extends Controller
                       ->orWhere('phone', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
                       ->orWhere('department', 'like', "%{$search}%")
-                      ->orWhere('role', 'like', "%{$search}%")
-                      ->orWhere('status', 'like', "%{$search}%");
+                      ->orWhere('status', 'like', "%{$search}%")
+                      ->orWhereHas('roleGroup', function ($subQ) use ($search) {
+                          $subQ->where('name', 'like', "%{$search}%");
+                      });
                 });
             }
         }
         
-        $employees = $query->oldest()->paginate(10);
+        $employees = $query->with('roleGroup')->oldest()->paginate(10);
         
         // Giữ lại tham số tìm kiếm và lọc khi phân trang
         $employees->appends([

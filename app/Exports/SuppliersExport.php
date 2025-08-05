@@ -23,7 +23,8 @@ class SuppliersExport implements FromCollection, WithHeadings, WithMapping, With
     {
         $this->filters = [
             'search' => $params['search'] ?? null,
-            'filter' => $params['filter'] ?? null
+            'filter' => $params['filter'] ?? null,
+            'quantity' => $params['quantity'] ?? null
         ];
         $this->suppliers = $params['suppliers'] ?? null;
     }
@@ -41,32 +42,58 @@ class SuppliersExport implements FromCollection, WithHeadings, WithMapping, With
         // Nếu không, thực hiện query như trước đây
         $query = Supplier::query();
         
-        // Apply search filter
-        if (!empty($this->filters['search'])) {
-            $search = $this->filters['search'];
-            if (!empty($this->filters['filter'])) {
-                switch ($this->filters['filter']) {
-                    case 'name':
-                        $query->where('name', 'like', "%{$search}%");
-                        break;
-                    case 'phone':
-                        $query->where('phone', 'like', "%{$search}%");
-                        break;
-                    case 'email':
-                        $query->where('email', 'like', "%{$search}%");
-                        break;
-                    case 'address':
-                        $query->where('address', 'like', "%{$search}%");
-                        break;
+        // Xử lý tìm kiếm giống như trong SupplierController index()
+        if (!empty($this->filters['search']) || ($this->filters['filter'] === 'total_items' && !empty($this->filters['quantity']))) {
+            if (!empty($this->filters['search'])) {
+                $search = $this->filters['search'];
+                if (!empty($this->filters['filter']) && $this->filters['filter'] !== 'total_items') {
+                    switch ($this->filters['filter']) {
+                        case 'name':
+                            $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'representative':
+                            $query->where('representative', 'like', "%{$search}%");
+                            break;
+                        case 'phone':
+                            $query->where('phone', 'like', "%{$search}%");
+                            break;
+                        case 'email':
+                            $query->where('email', 'like', "%{$search}%");
+                            break;
+                        case 'address':
+                            $query->where('address', 'like', "%{$search}%");
+                            break;
+                    }
+                } elseif (empty($this->filters['filter'])) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('representative', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%");
+                    });
                 }
-            } else {
-                $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('phone', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('address', 'like', "%{$search}%");
-                });
             }
+        }
+        
+        // Xử lý lọc theo tổng số lượng
+        if ($this->filters['filter'] === 'total_items' && !empty($this->filters['quantity'])) {
+            $allSuppliers = $query->latest()->get();
+            
+            // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
+            foreach ($allSuppliers as $supplier) {
+                $materialsCount = $supplier->materials()->distinct()->count();
+                $goodsCount = $supplier->goods()->distinct()->count();
+                $supplier->total_items = $materialsCount + $goodsCount;
+            }
+            
+            // Lọc theo tổng số lượng đã nhập
+            $quantityValue = (int) $this->filters['quantity'];
+            $filteredSuppliers = $allSuppliers->filter(function ($supplier) use ($quantityValue) {
+                return $supplier->total_items >= $quantityValue;
+            })->values();
+            
+            return $filteredSuppliers;
         }
         
         return $query->latest()->get();

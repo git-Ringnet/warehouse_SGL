@@ -298,15 +298,22 @@ class SupplierController extends Controller
     public function exportFDF(Request $request)
     {
         try {
+            $search = $request->input('search');
+            $filter = $request->input('filter');
+            $quantity = $request->input('quantity');
+            
             $query = Supplier::query();
             
-            // Apply search filter
-            if ($request->filled('search')) {
-                $search = $request->search;
-                if ($request->filled('filter')) {
-                    switch ($request->filter) {
+            // Xử lý tìm kiếm giống như trong phương thức index()
+            if ($search || ($filter === 'total_items' && $quantity !== null)) {
+                if ($filter && $filter !== 'total_items') {
+                    // Tìm kiếm theo trường được chọn
+                    switch ($filter) {
                         case 'name':
                             $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'representative':
+                            $query->where('representative', 'like', "%{$search}%");
                             break;
                         case 'phone':
                             $query->where('phone', 'like', "%{$search}%");
@@ -318,9 +325,11 @@ class SupplierController extends Controller
                             $query->where('address', 'like', "%{$search}%");
                             break;
                     }
-                } else {
+                } elseif (!$filter) {
+                    // Tìm kiếm tổng quát nếu không chọn bộ lọc
                     $query->where(function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('representative', 'like', "%{$search}%")
                           ->orWhere('phone', 'like', "%{$search}%")
                           ->orWhere('email', 'like', "%{$search}%")
                           ->orWhere('address', 'like', "%{$search}%");
@@ -328,7 +337,25 @@ class SupplierController extends Controller
                 }
             }
             
-            $suppliers = $query->latest()->get();
+            // Xử lý lọc theo tổng số lượng giống như trong index()
+            if ($filter === 'total_items' && $quantity !== null) {
+                $allSuppliers = $query->latest()->get();
+                
+                // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
+                foreach ($allSuppliers as $supplier) {
+                    $materialsCount = $supplier->materials()->distinct()->count();
+                    $goodsCount = $supplier->goods()->distinct()->count();
+                    $supplier->total_items = $materialsCount + $goodsCount;
+                }
+                
+                // Lọc theo tổng số lượng đã nhập
+                $quantityValue = (int) $quantity;
+                $suppliers = $allSuppliers->filter(function ($supplier) use ($quantityValue) {
+                    return $supplier->total_items >= $quantityValue;
+                })->values();
+            } else {
+                $suppliers = $query->latest()->get();
+            }
             
             // Generate FDF content
             $fdfContent = "%FDF-1.2\n";
@@ -400,15 +427,22 @@ class SupplierController extends Controller
     public function exportExcel(Request $request)
     {
         try {
+            $search = $request->input('search');
+            $filter = $request->input('filter');
+            $quantity = $request->input('quantity');
+            
             $query = Supplier::query();
             
-            // Apply search filter
-            if ($request->filled('search')) {
-                $search = $request->search;
-                if ($request->filled('filter')) {
-                    switch ($request->filter) {
+            // Xử lý tìm kiếm giống như trong phương thức index()
+            if ($search || ($filter === 'total_items' && $quantity !== null)) {
+                if ($filter && $filter !== 'total_items') {
+                    // Tìm kiếm theo trường được chọn
+                    switch ($filter) {
                         case 'name':
                             $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'representative':
+                            $query->where('representative', 'like', "%{$search}%");
                             break;
                         case 'phone':
                             $query->where('phone', 'like', "%{$search}%");
@@ -420,9 +454,11 @@ class SupplierController extends Controller
                             $query->where('address', 'like', "%{$search}%");
                             break;
                     }
-                } else {
+                } elseif (!$filter) {
+                    // Tìm kiếm tổng quát nếu không chọn bộ lọc
                     $query->where(function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('representative', 'like', "%{$search}%")
                           ->orWhere('phone', 'like', "%{$search}%")
                           ->orWhere('email', 'like', "%{$search}%")
                           ->orWhere('address', 'like', "%{$search}%");
@@ -430,17 +466,36 @@ class SupplierController extends Controller
                 }
             }
             
-            // Get suppliers with counts of related materials and goods
-            $suppliers = $query->withCount(['materials', 'goods'])->latest()->get();
-            
-            // Calculate total items for each supplier
-            foreach ($suppliers as $supplier) {
-                $supplier->total_items = $supplier->materials_count + $supplier->goods_count;
+            // Xử lý lọc theo tổng số lượng giống như trong index()
+            if ($filter === 'total_items' && $quantity !== null) {
+                $allSuppliers = $query->latest()->get();
+                
+                // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
+                foreach ($allSuppliers as $supplier) {
+                    $materialsCount = $supplier->materials()->distinct()->count();
+                    $goodsCount = $supplier->goods()->distinct()->count();
+                    $supplier->total_items = $materialsCount + $goodsCount;
+                }
+                
+                // Lọc theo tổng số lượng đã nhập
+                $quantityValue = (int) $quantity;
+                $suppliers = $allSuppliers->filter(function ($supplier) use ($quantityValue) {
+                    return $supplier->total_items >= $quantityValue;
+                })->values();
+            } else {
+                // Get suppliers with counts of related materials and goods
+                $suppliers = $query->withCount(['materials', 'goods'])->latest()->get();
+                
+                // Calculate total items for each supplier
+                foreach ($suppliers as $supplier) {
+                    $supplier->total_items = $supplier->materials_count + $supplier->goods_count;
+                }
             }
 
             return Excel::download(new SuppliersExport([
-                'search' => $request->get('search'),
-                'filter' => $request->get('filter'),
+                'search' => $search,
+                'filter' => $filter,
+                'quantity' => $quantity,
                 'suppliers' => $suppliers
             ]), 'danh-sach-nha-cung-cap-' . date('Y-m-d') . '.xlsx');
         } catch (\Exception $e) {
@@ -454,15 +509,22 @@ class SupplierController extends Controller
     public function exportPDF(Request $request)
     {
         try {
+            $search = $request->input('search');
+            $filter = $request->input('filter');
+            $quantity = $request->input('quantity');
+            
             $query = Supplier::query();
             
-            // Apply search filter
-            if ($request->filled('search')) {
-                $search = $request->search;
-                if ($request->filled('filter')) {
-                    switch ($request->filter) {
+            // Xử lý tìm kiếm giống như trong phương thức index()
+            if ($search || ($filter === 'total_items' && $quantity !== null)) {
+                if ($filter && $filter !== 'total_items') {
+                    // Tìm kiếm theo trường được chọn
+                    switch ($filter) {
                         case 'name':
                             $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'representative':
+                            $query->where('representative', 'like', "%{$search}%");
                             break;
                         case 'phone':
                             $query->where('phone', 'like', "%{$search}%");
@@ -474,9 +536,11 @@ class SupplierController extends Controller
                             $query->where('address', 'like', "%{$search}%");
                             break;
                     }
-                } else {
+                } elseif (!$filter) {
+                    // Tìm kiếm tổng quát nếu không chọn bộ lọc
                     $query->where(function ($q) use ($search) {
                         $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('representative', 'like', "%{$search}%")
                           ->orWhere('phone', 'like', "%{$search}%")
                           ->orWhere('email', 'like', "%{$search}%")
                           ->orWhere('address', 'like', "%{$search}%");
@@ -484,20 +548,39 @@ class SupplierController extends Controller
                 }
             }
             
-            // Get suppliers with counts of related materials and goods
-            $suppliers = $query->withCount(['materials', 'goods'])->latest()->get();
-            
-            // Calculate total items for each supplier
-            foreach ($suppliers as $supplier) {
-                $supplier->total_items = $supplier->materials_count + $supplier->goods_count;
+            // Xử lý lọc theo tổng số lượng giống như trong index()
+            if ($filter === 'total_items' && $quantity !== null) {
+                $allSuppliers = $query->latest()->get();
+                
+                // Tính toán tổng số lượng vật tư và hàng hóa cho mỗi nhà cung cấp
+                foreach ($allSuppliers as $supplier) {
+                    $materialsCount = $supplier->materials()->distinct()->count();
+                    $goodsCount = $supplier->goods()->distinct()->count();
+                    $supplier->total_items = $materialsCount + $goodsCount;
+                }
+                
+                // Lọc theo tổng số lượng đã nhập
+                $quantityValue = (int) $quantity;
+                $suppliers = $allSuppliers->filter(function ($supplier) use ($quantityValue) {
+                    return $supplier->total_items >= $quantityValue;
+                })->values();
+            } else {
+                // Get suppliers with counts of related materials and goods
+                $suppliers = $query->withCount(['materials', 'goods'])->latest()->get();
+                
+                // Calculate total items for each supplier
+                foreach ($suppliers as $supplier) {
+                    $supplier->total_items = $supplier->materials_count + $supplier->goods_count;
+                }
             }
 
             // Generate PDF
             $pdf = FacadePdf::loadView('exports.suppliers-pdf', [
                 'suppliers' => $suppliers,
                 'filters' => [
-                    'search' => $request->get('search'),
-                    'filter' => $request->get('filter')
+                    'search' => $search,
+                    'filter' => $filter,
+                    'quantity' => $quantity
                 ]
             ]);
 

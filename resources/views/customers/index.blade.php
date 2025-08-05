@@ -509,8 +509,22 @@
             // Hiển thị thông báo đang xử lý
             alert('Đang xử lý Excel, vui lòng đợi trong giây lát...');
 
-            // Gửi yêu cầu AJAX để lấy toàn bộ dữ liệu
-            fetch('{{ route("customers.export") }}')
+            // Lấy các tham số tìm kiếm hiện tại
+            const searchParams = new URLSearchParams(window.location.search);
+            const search = searchParams.get('search') || '';
+            const filter = searchParams.get('filter') || '';
+
+            // Tạo URL với các tham số tìm kiếm
+            let exportUrl = '{{ route("customers.export") }}';
+            if (search || filter) {
+                exportUrl += '?' + new URLSearchParams({
+                    search: search,
+                    filter: filter
+                }).toString();
+            }
+
+            // Gửi yêu cầu AJAX để lấy dữ liệu đã được lọc
+            fetch(exportUrl)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Lỗi khi tải dữ liệu: ' + response.status);
@@ -672,8 +686,25 @@
                         // Thêm worksheet vào workbook
                         XLSX.utils.book_append_sheet(wb, finalWs, "Khách hàng");
                         
+                        // Tạo tên file với thông tin tìm kiếm
+                        let fileName = 'danh_sach_khach_hang';
+                        if (data.search_applied) {
+                            fileName += '_tim_kiem';
+                            if (data.filter_applied) {
+                                fileName += '_' + data.filter_applied;
+                            }
+                        }
+                        fileName += '.xlsx';
+                        
                         // Xuất file Excel
-                        XLSX.writeFile(wb, 'danh_sach_khach_hang.xlsx');
+                        XLSX.writeFile(wb, fileName);
+                        
+                        // Hiển thị thông báo thành công với thông tin kết quả
+                        let successMessage = `Xuất Excel thành công! Tổng cộng ${data.total_count} khách hàng`;
+                        if (data.search_applied) {
+                            successMessage += ` (đã áp dụng bộ lọc tìm kiếm)`;
+                        }
+                        alert(successMessage);
                         
                         // Đóng dropdown
                         exportDropdown.classList.add('hidden');

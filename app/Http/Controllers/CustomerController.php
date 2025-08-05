@@ -460,17 +460,55 @@ class CustomerController extends Controller
     }
 
     /**
-     * Export all customers data as JSON
+     * Export customers data as JSON with search filters
      *
+     * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function export()
+    public function export(Request $request)
     {
         try {
-            // Lấy tất cả khách hàng từ database
-            $customers = Customer::select('id', 'name', 'company_name', 'phone', 'email', 'address', 'created_at')
-                ->orderBy('id', 'asc')
-                ->get();
+            $search = $request->input('search');
+            $filter = $request->input('filter');
+            
+            $query = Customer::select('id', 'name', 'company_name', 'phone', 'email', 'address', 'created_at');
+            
+            // Áp dụng bộ lọc tìm kiếm giống như trong phương thức index()
+            if ($search) {
+                if ($filter) {
+                    // Tìm kiếm theo trường được chọn
+                    switch ($filter) {
+                        case 'name':
+                            $query->where('name', 'like', "%{$search}%");
+                            break;
+                        case 'company_name':
+                            $query->where('company_name', 'like', "%{$search}%");
+                            break;
+                        case 'phone':
+                            $query->where('phone', 'like', "%{$search}%");
+                            break;
+                        case 'email':
+                            $query->where('email', 'like', "%{$search}%");
+                            break;
+                        case 'address':
+                            $query->where('address', 'like', "%{$search}%");
+                            break;
+                    }
+                } else {
+                    // Tìm kiếm tổng quát nếu không chọn bộ lọc
+                    $query->where(function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('company_name', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('company_phone', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('address', 'like', "%{$search}%");
+                    });
+                }
+            }
+            
+            // Lấy dữ liệu đã được lọc
+            $customers = $query->orderBy('id', 'asc')->get();
             
             // Format lại ngày tạo để hiển thị đẹp hơn
             $formattedCustomers = [];
@@ -490,7 +528,10 @@ class CustomerController extends Controller
             // Trả về dữ liệu dưới dạng JSON
             return response()->json([
                 'success' => true,
-                'customers' => $formattedCustomers
+                'customers' => $formattedCustomers,
+                'total_count' => $customers->count(),
+                'search_applied' => !empty($search),
+                'filter_applied' => $filter
             ]);
         } catch (\Exception $e) {
             // Log lỗi để debug
