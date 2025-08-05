@@ -460,34 +460,9 @@
 
         // Complete Modal functions
         function openCompleteModal(testingId) {
-            // Kiểm tra xem có thiết bị hoặc hạng mục nào đang pending không
-            fetch(`/testing/${testingId}/check-pending`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.has_pending) {
-                        let message = "Không thể hoàn thành phiếu kiểm thử:";
-
-                        if (data.pending_items > 0) {
-                            message += "\n- Còn " + data.pending_items + " thiết bị chưa có kết quả đánh giá";
-                        }
-                        if (data.pending_details > 0) {
-                            message += "\n- Còn " + data.pending_details + " hạng mục kiểm thử chưa có kết quả";
-                        }
-
-                        message += "\n\nVui lòng cập nhật đầy đủ kết quả trước khi hoàn thành.";
-
-                        alert(message);
-                        return;
-                    }
-
-                    // Nếu không có gì pending, hiển thị modal xác nhận
-                    document.getElementById('completeTestingForm').action = `/testing/${testingId}/complete`;
-                    document.getElementById('completeTestingModal').classList.remove('hidden');
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Có lỗi xảy ra khi kiểm tra trạng thái phiếu kiểm thử.');
-                });
+            // Không kiểm tra pending qua API nữa, chỉ mở modal xác nhận luôn
+            document.getElementById('completeTestingForm').action = `/testing/${testingId}/complete`;
+            document.getElementById('completeTestingModal').classList.remove('hidden');
         }
 
         function closeCompleteModal() {

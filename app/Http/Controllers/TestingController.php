@@ -221,8 +221,8 @@ class TestingController extends Controller
                 $testing->toArray()
             );
 
-            return redirect()->route('testing.show', $testing->id)
-                ->with('success', 'Phiếu kiểm thử đã được tạo thành công.');
+            // Sau khi tạo phiếu kiểm thử thành công
+            return redirect()->route('testing.index')->with('success', 'Tạo phiếu kiểm thử thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Lỗi khi tạo phiếu kiểm thử: ' . $e->getMessage(), [
