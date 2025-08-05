@@ -1202,52 +1202,14 @@ class TestingController extends Controller
 
             // Phân biệt logic theo loại kiểm thử
             if ($testing->test_type == 'material') {
-                // Kiểm thử Vật tư/Hàng hóa: chỉ xử lý các items chính
+                // Kiểm thử Vật tư/Hàng hóa: chỉ tính tổng số lượng, không cập nhật kho trực tiếp
+                // Việc cập nhật kho sẽ được thực hiện thông qua phiếu chuyển kho
                 foreach ($testing->items as $item) {
                     $passQuantity = $item->pass_quantity ?? 0;
                     $failQuantity = $item->fail_quantity ?? 0;
                     
                     $totalPassQuantity += $passQuantity;
                     $totalFailQuantity += $failQuantity;
-
-                    // Xác định đúng item_id và item_type
-                    $itemId = null;
-                    $itemType = null;
-                    
-                    if ($item->material_id) {
-                        $itemId = $item->material_id;
-                        $itemType = 'material';
-                    } elseif ($item->product_id) {
-                        $itemId = $item->product_id;
-                        $itemType = 'product';
-                    } elseif ($item->good_id) {
-                        $itemId = $item->good_id;
-                        $itemType = 'good';
-                    }
-
-                    if ($itemId && $itemType) {
-                        if ($passQuantity > 0) {
-                            // Cập nhật vào kho đạt
-                            $this->updateWarehouseMaterial(
-                                $itemId,
-                                $request->success_warehouse_id,
-                                $passQuantity,
-                                $itemType,
-                                ['item_name' => $item->item_name ?? 'Unknown']
-                            );
-                        }
-
-                        if ($failQuantity > 0) {
-                            // Cập nhật vào kho không đạt
-                            $this->updateWarehouseMaterial(
-                                $itemId,
-                                $request->fail_warehouse_id,
-                                $failQuantity,
-                                $itemType,
-                                ['item_name' => $item->item_name ?? 'Unknown']
-                            );
-                        }
-                    }
                 }
             } else {
                 // Kiểm thử Thành phẩm: xử lý thành phẩm và vật tư lắp ráp
@@ -1368,6 +1330,25 @@ class TestingController extends Controller
                 $createdImports = $this->createInventoryImportsFromTesting($testing, $request->success_warehouse_id, $request->fail_warehouse_id);
             }
 
+            // Tạo phiếu chuyển kho cho phiếu kiểm thử vật tư/hàng hóa
+            $createdTransfers = [];
+            if ($testing->test_type == 'material') {
+                \Log::info('Bắt đầu tạo phiếu chuyển kho cho phiếu kiểm thử vật tư/hàng hóa', [
+                    'testing_id' => $testing->id,
+                    'test_code' => $testing->test_code,
+                    'success_warehouse_id' => $request->success_warehouse_id,
+                    'fail_warehouse_id' => $request->fail_warehouse_id
+                ]);
+                
+                $createdTransfers = $this->createWarehouseTransfersFromTesting($testing, $request->success_warehouse_id, $request->fail_warehouse_id);
+                
+                \Log::info('Kết quả tạo phiếu chuyển kho', [
+                    'testing_id' => $testing->id,
+                    'created_transfers_count' => count($createdTransfers),
+                    'transfer_codes' => collect($createdTransfers)->pluck('transfer_code')->toArray()
+                ]);
+            }
+
             // Cập nhật trạng thái phiếu kiểm thử
             $testing->update([
                 'is_inventory_updated' => true,
@@ -1381,6 +1362,9 @@ class TestingController extends Controller
             if ($testing->test_type == 'finished_product' && $testing->assembly && $testing->assembly->purpose == 'project') {
                 $projectName = $testing->assembly->project_name ?? 'Dự án';
                 $successMessage = "Đã cập nhật vào kho và tự động duyệt phiếu nhập kho (Dự án cho Thành phẩm đạt: {$projectName}, Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
+            } elseif ($testing->test_type == 'material') {
+                $transferInfo = count($createdTransfers) > 0 ? " và tạo " . count($createdTransfers) . " phiếu chuyển kho" : "";
+                $successMessage = "Đã cập nhật vào kho, tự động duyệt phiếu nhập kho{$transferInfo} (Kho lưu Vật tư/Hàng hóa đạt: " . ($successWarehouse->name ?? 'Chưa có') . ", Kho lưu Vật tư/Hàng hóa không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
             } else {
                 $successMessage = "Đã cập nhật vào kho và tự động duyệt phiếu nhập kho (Kho lưu Thành phẩm đạt: " . ($successWarehouse->name ?? 'Chưa có') . ", Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
             }
@@ -2182,6 +2166,326 @@ class TestingController extends Controller
         } catch (\Exception $e) {
             \Log::error('Lỗi khi tự động duyệt phiếu nhập kho: ' . $e->getMessage(), [
                 'import_code' => $inventoryImport->import_code
+            ]);
+        }
+    }
+
+    /**
+     * Tạo phiếu chuyển kho từ phiếu kiểm thử
+     */
+    private function createWarehouseTransfersFromTesting($testing, $successWarehouseId, $failWarehouseId)
+    {
+        $createdTransfers = [];
+        
+        try {
+            // Tạo phiếu chuyển kho cho vật tư/hàng hóa đạt
+            $successTransfer = $this->createWarehouseTransfer(
+                $testing,
+                $successWarehouseId,
+                'Vật tư/Hàng hóa đạt từ phiếu kiểm thử: ' . $testing->test_code,
+                'success'
+            );
+            if ($successTransfer) {
+                $createdTransfers[] = $successTransfer;
+            }
+
+            // Tạo phiếu chuyển kho cho vật tư/hàng hóa không đạt
+            $failTransfer = $this->createWarehouseTransfer(
+                $testing,
+                $failWarehouseId,
+                'Vật tư/Hàng hóa không đạt từ phiếu kiểm thử: ' . $testing->test_code,
+                'fail'
+            );
+            if ($failTransfer) {
+                $createdTransfers[] = $failTransfer;
+            }
+
+            \Log::info('Đã tạo phiếu chuyển kho từ phiếu kiểm thử', [
+                'testing_id' => $testing->id,
+                'test_code' => $testing->test_code,
+                'created_transfers' => count($createdTransfers)
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Lỗi khi tạo phiếu chuyển kho từ phiếu kiểm thử: ' . $e->getMessage(), [
+                'testing_id' => $testing->id,
+                'test_code' => $testing->test_code
+            ]);
+        }
+
+        return $createdTransfers;
+    }
+
+    /**
+     * Tạo một phiếu chuyển kho
+     */
+    private function createWarehouseTransfer($testing, $destinationWarehouseId, $notes, $type)
+    {
+        try {
+            // Tạo mã phiếu chuyển kho
+            $transferCode = $this->generateWarehouseTransferCode();
+            
+            // Lấy items cần chuyển kho
+            $items = [];
+            if ($type == 'success') {
+                // Lấy vật tư/hàng hóa đạt
+                $items = $testing->items->filter(function($item) {
+                    return ($item->pass_quantity ?? 0) > 0;
+                });
+            } else {
+                // Lấy vật tư/hàng hóa không đạt
+                $items = $testing->items->filter(function($item) {
+                    return ($item->fail_quantity ?? 0) > 0;
+                });
+            }
+
+            // Log để debug items được lọc
+            \Log::info('Items được lọc cho phiếu chuyển kho', [
+                'type' => $type,
+                'items_count' => $items->count(),
+                'items_details' => $items->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'item_type' => $item->item_type,
+                        'material_id' => $item->material_id,
+                        'product_id' => $item->product_id,
+                        'good_id' => $item->good_id,
+                        'pass_quantity' => $item->pass_quantity,
+                        'fail_quantity' => $item->fail_quantity,
+                        'warehouse_id' => $item->warehouse_id
+                    ];
+                })->toArray()
+            ]);
+
+            if ($items->isEmpty()) {
+                return null; // Không có gì để chuyển
+            }
+
+            // Kiểm tra kho nguồn và kho đích
+            $sourceWarehouseId = $items->first()->warehouse_id;
+            
+            // Nếu kho nguồn và kho đích giống nhau thì không tạo phiếu chuyển kho
+            if ($sourceWarehouseId == $destinationWarehouseId) {
+                \Log::info('Kho nguồn và kho đích giống nhau, không tạo phiếu chuyển kho', [
+                    'warehouse_id' => $sourceWarehouseId,
+                    'type' => $type
+                ]);
+                return null;
+            }
+
+            // Tạo phiếu chuyển kho
+            $warehouseTransfer = \App\Models\WarehouseTransfer::create([
+                'transfer_code' => $transferCode,
+                'source_warehouse_id' => $sourceWarehouseId, // Kho nguồn (kho ban đầu)
+                'destination_warehouse_id' => $destinationWarehouseId,
+                'material_id' => $items->first()->material_id ?? $items->first()->product_id ?? $items->first()->good_id ?? 1, // Material ID mặc định
+                'employee_id' => $testing->tester_id ?? 1, // Employee ID mặc định nếu không có
+                'quantity' => $items->sum(function($item) use ($type) {
+                    return $type == 'success' ? ($item->pass_quantity ?? 0) : ($item->fail_quantity ?? 0);
+                }),
+                'transfer_date' => now(),
+                'status' => 'completed', // Tự động hoàn thành
+                'notes' => $notes,
+            ]);
+
+            // Thêm materials vào phiếu chuyển kho
+            foreach ($items as $item) {
+                $quantity = $type == 'success' ? ($item->pass_quantity ?? 0) : ($item->fail_quantity ?? 0);
+                
+                if ($quantity > 0) {
+                    // Xác định item_type và material_id
+                    $itemType = $item->item_type;
+                    $materialId = $item->material_id ?? $item->product_id ?? $item->good_id;
+
+                    // Phân biệt đúng loại item dựa trên dữ liệu thực tế
+                    if ($item->item_type == 'product') {
+                        if ($item->good_id) {
+                            // Nếu có good_id thì đây là hàng hóa
+                            $itemType = 'good';
+                            $materialId = $item->good_id;
+                        } elseif ($item->product_id) {
+                            // Nếu có product_id thì đây là thành phẩm
+                            $itemType = 'product';
+                            $materialId = $item->product_id;
+                        }
+                    }
+
+                    // Log để debug việc phân biệt loại item
+                    \Log::info('Phân biệt loại item cho phiếu chuyển kho', [
+                        'original_item_type' => $item->item_type,
+                        'final_item_type' => $itemType,
+                        'material_id' => $item->material_id,
+                        'product_id' => $item->product_id,
+                        'good_id' => $item->good_id,
+                        'final_material_id' => $materialId
+                    ]);
+
+                    if ($materialId) {
+                        // Log trước khi tạo WarehouseTransferMaterial
+                        \Log::info('Tạo WarehouseTransferMaterial', [
+                            'warehouse_transfer_id' => $warehouseTransfer->id,
+                            'material_id' => $materialId,
+                            'quantity' => $quantity,
+                            'type' => $itemType,
+                            'item_details' => [
+                                'item_id' => $item->id,
+                                'item_type' => $item->item_type,
+                                'material_id' => $item->material_id,
+                                'product_id' => $item->product_id,
+                                'good_id' => $item->good_id
+                            ]
+                        ]);
+
+                        \App\Models\WarehouseTransferMaterial::create([
+                            'warehouse_transfer_id' => $warehouseTransfer->id,
+                            'material_id' => $materialId,
+                            'quantity' => $quantity,
+                            'type' => $itemType, // Sử dụng 'type' thay vì 'item_type'
+                            'serial_numbers' => $item->serial_number ? json_encode(explode(',', $item->serial_number)) : null,
+                            'notes' => $type == 'success' ? 'Vật tư/Hàng hóa đạt từ kiểm thử' : 'Vật tư/Hàng hóa không đạt từ kiểm thử',
+                        ]);
+                    }
+                }
+            }
+
+            // Tự động hoàn thành phiếu chuyển kho
+            $this->completeWarehouseTransferAutomatically($warehouseTransfer);
+
+            return $warehouseTransfer;
+
+        } catch (\Exception $e) {
+            \Log::error('Lỗi khi tạo phiếu chuyển kho: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Tạo mã phiếu chuyển kho
+     */
+    private function generateWarehouseTransferCode()
+    {
+        $prefix = 'CT';
+        $date = date('ymd');
+        
+        do {
+            $randomNumber = str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            $newCode = $prefix . $date . $randomNumber;
+            $exists = \App\Models\WarehouseTransfer::where('transfer_code', $newCode)->exists();
+        } while ($exists);
+        
+        return $newCode;
+    }
+
+    /**
+     * Tự động hoàn thành phiếu chuyển kho
+     */
+    private function completeWarehouseTransferAutomatically($warehouseTransfer)
+    {
+        try {
+            // Cập nhật số lượng tồn kho
+            foreach ($warehouseTransfer->materials as $material) {
+                // Giảm số lượng từ kho nguồn
+                $sourceWarehouseMaterial = \App\Models\WarehouseMaterial::where([
+                    'warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                    'material_id' => $material->material_id,
+                    'item_type' => $material->type // Sử dụng 'type' thay vì 'item_type'
+                ])->first();
+
+                if ($sourceWarehouseMaterial) {
+                    $oldQuantity = $sourceWarehouseMaterial->quantity;
+                    $sourceWarehouseMaterial->quantity = max(0, $sourceWarehouseMaterial->quantity - $material->quantity);
+                    $sourceWarehouseMaterial->save();
+                    
+                    \Log::info('Đã trừ số lượng từ kho nguồn', [
+                        'warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                        'material_id' => $material->material_id,
+                        'item_type' => $material->type,
+                        'old_quantity' => $oldQuantity,
+                        'new_quantity' => $sourceWarehouseMaterial->quantity,
+                        'deducted_quantity' => $material->quantity
+                    ]);
+                } else {
+                    \Log::warning('Không tìm thấy vật tư trong kho nguồn để trừ số lượng', [
+                        'warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                        'material_id' => $material->material_id,
+                        'item_type' => $material->type
+                    ]);
+                }
+
+                // Tăng số lượng vào kho đích
+                $destinationWarehouseMaterial = \App\Models\WarehouseMaterial::firstOrNew([
+                    'warehouse_id' => $warehouseTransfer->destination_warehouse_id,
+                    'material_id' => $material->material_id,
+                    'item_type' => $material->type // Sử dụng 'type' thay vì 'item_type'
+                ]);
+
+                $currentQty = $destinationWarehouseMaterial->quantity ?? 0;
+                $destinationWarehouseMaterial->quantity = $currentQty + $material->quantity;
+                
+                \Log::info('Đã tăng số lượng vào kho đích', [
+                    'warehouse_id' => $warehouseTransfer->destination_warehouse_id,
+                    'material_id' => $material->material_id,
+                    'item_type' => $material->type,
+                    'old_quantity' => $currentQty,
+                    'new_quantity' => $destinationWarehouseMaterial->quantity,
+                    'added_quantity' => $material->quantity
+                ]);
+
+                // Cập nhật serial_number vào warehouse_materials nếu có serial
+                if (!empty($material->serial_numbers)) {
+                    $serials = is_array($material->serial_numbers) ? $material->serial_numbers : json_decode($material->serial_numbers, true);
+                    $currentSerials = [];
+                    if (!empty($destinationWarehouseMaterial->serial_number)) {
+                        $currentSerials = json_decode($destinationWarehouseMaterial->serial_number, true) ?: [];
+                    }
+                    // Gộp serial cũ và mới, loại bỏ trùng lặp
+                    $mergedSerials = array_unique(array_merge($currentSerials, $serials));
+                    $destinationWarehouseMaterial->serial_number = json_encode($mergedSerials);
+                }
+                $destinationWarehouseMaterial->save();
+
+                // Lưu nhật ký chuyển kho
+                $itemType = $material->type; // Sử dụng 'type' thay vì 'item_type'
+                $itemId = $material->material_id;
+
+                if ($itemType == 'material') {
+                    $materialLS = \App\Models\Material::find($itemId);
+                } else if ($itemType == 'good') {
+                    $materialLS = \App\Models\Good::find($itemId);
+                }
+
+                if ($materialLS) {
+                    $sourceWarehouse = \App\Models\Warehouse::find($warehouseTransfer->source_warehouse_id);
+                    $destinationWarehouse = \App\Models\Warehouse::find($warehouseTransfer->destination_warehouse_id);
+                    
+                    \App\Helpers\ChangeLogHelper::chuyenKho(
+                        $materialLS->code,
+                        $materialLS->name,
+                        $material->quantity,
+                        $warehouseTransfer->transfer_code,
+                        "Chuyển từ " . ($sourceWarehouse ? $sourceWarehouse->name : 'Kho không xác định') . " sang " . ($destinationWarehouse ? $destinationWarehouse->name : 'Kho không xác định'),
+                        [
+                            'source_warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                            'source_warehouse_name' => $sourceWarehouse ? $sourceWarehouse->name : 'Kho không xác định',
+                            'destination_warehouse_id' => $warehouseTransfer->destination_warehouse_id,
+                            'destination_warehouse_name' => $destinationWarehouse ? $destinationWarehouse->name : 'Kho không xác định',
+                        ],
+                        $warehouseTransfer->notes
+                    );
+                }
+            }
+
+            // Ghi log tự động hoàn thành phiếu chuyển kho
+            \Log::info('Tự động hoàn thành phiếu chuyển kho từ kiểm thử', [
+                'transfer_code' => $warehouseTransfer->transfer_code,
+                'source_warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                'destination_warehouse_id' => $warehouseTransfer->destination_warehouse_id,
+                'materials_count' => $warehouseTransfer->materials->count()
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Lỗi khi tự động hoàn thành phiếu chuyển kho: ' . $e->getMessage(), [
+                'transfer_code' => $warehouseTransfer->transfer_code
             ]);
         }
     }

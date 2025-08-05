@@ -1261,7 +1261,12 @@
                     
                     @if($testing->is_inventory_updated)
                     <div class="ml-3 px-4 py-2 bg-green-100 text-green-800 rounded-lg flex items-center">
-                        <i class="fas fa-check-circle mr-2"></i> Đã cập nhật vào kho và tự động duyệt phiếu nhập kho
+                        <i class="fas fa-check-circle mr-2"></i> 
+                        @if($testing->test_type == 'material')
+                            Đã cập nhật vào kho, tự động duyệt phiếu nhập kho và tạo phiếu chuyển kho
+                        @else
+                            Đã cập nhật vào kho và tự động duyệt phiếu nhập kho
+                        @endif
                         <span class="ml-2">
                             @if($testing->test_type == 'finished_product')
                                 @php
@@ -1342,9 +1347,16 @@
                 <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div class="flex items-center">
                         <i class="fas fa-info-circle text-blue-500 mr-2"></i>
-                        <p class="text-sm text-blue-700">
-                            <strong>Lưu ý:</strong> Phiếu nhập kho sẽ được tạo tự động và duyệt ngay lập tức khi bạn xác nhận.
-                        </p>
+                        <div class="text-sm text-blue-700">
+                            <p><strong>Lưu ý:</strong></p>
+                            <ul class="list-disc list-inside mt-1 space-y-1">
+                                <li>Phiếu nhập kho sẽ được tạo tự động và duyệt ngay lập tức khi bạn xác nhận.</li>
+                                @if($testing->test_type == 'material')
+                                <li>Phiếu chuyển kho sẽ được tạo tự động để ghi lại việc chuyển từ kho ban đầu sang kho đạt/không đạt.</li>
+                                <li>Nếu chuyển về chính kho ban đầu thì sẽ không có phiếu chuyển kho nào được tạo.</li>
+                                @endif
+                            </ul>
+                        </div>
                     </div>
                 </div>
                 
