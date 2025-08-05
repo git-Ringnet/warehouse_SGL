@@ -72,13 +72,15 @@ class InventoryImportController extends Controller
             switch ($request->filter) {
                 case 'import_code':
                     if ($request->filled('search')) {
-                        $query->where('import_code', 'like', '%' . $request->search . '%');
+                        $search = strtolower($request->search);
+                        $query->whereRaw('LOWER(import_code) LIKE ?', ['%' . $search . '%']);
                     }
                     break;
 
                 case 'order_code':
                     if ($request->filled('search')) {
-                        $query->where('order_code', 'like', '%' . $request->search . '%');
+                        $search = strtolower($request->search);
+                        $query->whereRaw('LOWER(order_code) LIKE ?', ['%' . $search . '%']);
                     }
                     break;
 
@@ -90,7 +92,8 @@ class InventoryImportController extends Controller
 
                 case 'notes':
                     if ($request->filled('search')) {
-                        $query->where('notes', 'like', '%' . $request->search . '%');
+                        $search = strtolower($request->search);
+                        $query->whereRaw('LOWER(notes) LIKE ?', ['%' . $search . '%']);
                     }
                     break;
 
@@ -112,13 +115,13 @@ class InventoryImportController extends Controller
                 default:
                     // Tìm kiếm tổng quát nếu không chọn bộ lọc cụ thể
                     if ($request->filled('search')) {
-                        $search = $request->search;
+                        $search = strtolower($request->search);
                         $query->where(function ($q) use ($search) {
-                            $q->where('import_code', 'like', '%' . $search . '%')
-                                ->orWhere('order_code', 'like', '%' . $search . '%')
-                                ->orWhere('notes', 'like', '%' . $search . '%')
+                            $q->whereRaw('LOWER(import_code) LIKE ?', ['%' . $search . '%'])
+                                ->orWhereRaw('LOWER(order_code) LIKE ?', ['%' . $search . '%'])
+                                ->orWhereRaw('LOWER(notes) LIKE ?', ['%' . $search . '%'])
                                 ->orWhereHas('supplier', function ($subq) use ($search) {
-                                    $subq->where('name', 'like', '%' . $search . '%');
+                                    $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
                                 });
                         });
                     }
@@ -126,13 +129,13 @@ class InventoryImportController extends Controller
         } else {
             // Tìm kiếm tổng quát nếu không chọn bộ lọc
             if ($request->filled('search')) {
-                $search = $request->search;
+                $search = strtolower($request->search);
                 $query->where(function ($q) use ($search) {
-                    $q->where('import_code', 'like', '%' . $search . '%')
-                        ->orWhere('order_code', 'like', '%' . $search . '%')
-                        ->orWhere('notes', 'like', '%' . $search . '%')
+                    $q->whereRaw('LOWER(import_code) LIKE ?', ['%' . $search . '%'])
+                        ->orWhereRaw('LOWER(order_code) LIKE ?', ['%' . $search . '%'])
+                        ->orWhereRaw('LOWER(notes) LIKE ?', ['%' . $search . '%'])
                         ->orWhereHas('supplier', function ($subq) use ($search) {
-                            $subq->where('name', 'like', '%' . $search . '%');
+                            $subq->whereRaw('LOWER(name) LIKE ?', ['%' . $search . '%']);
                         });
                 });
             }
@@ -455,12 +458,53 @@ class InventoryImportController extends Controller
     {
         $inventoryImport = InventoryImport::with(['supplier', 'warehouse', 'materials.material'])->findOrFail($id);
         $suppliers = Supplier::all();
-        $warehouses = Warehouse::all();
-        $materials = Material::all();
-        $products = Product::all();
-        $goods = Good::all();
+        
+        // Chỉ lấy kho active (không bị ẩn/xóa) - giống như WarehouseTransferController
+        $warehouses = Warehouse::where('status', 'active')
+            ->where('is_hidden', false)
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get();
+            
+        // Lấy vật tư active và không bị ẩn
+        $materials = Material::where('status', 'active')
+            ->where('is_hidden', 0)
+            ->get()
+            ->map(function($material) {
+                return [
+                    'id' => $material->id,
+                    'code' => $material->code,
+                    'name' => $material->name,
+                    'unit' => $material->unit,
+                    'category' => $material->category,
+                    'status' => $material->status,
+                    'is_hidden' => $material->is_hidden,
+                    'type' => 'material'
+                ];
+            })
+            ->values()
+            ->all();
+            
+        // Lấy hàng hóa active và không bị ẩn    
+        $goods = Good::where('status', 'active')
+            ->where('is_hidden', 0)
+            ->get()
+            ->map(function($good) {
+                return [
+                    'id' => $good->id,
+                    'code' => $good->code,
+                    'name' => $good->name,
+                    'unit' => $good->unit,
+                    'category' => $good->category,
+                    'status' => $good->status,
+                    'is_hidden' => $good->is_hidden,
+                    'type' => 'good'
+                ];
+            })
+            ->values()
+            ->all();
 
-        return view('inventory-imports.edit', compact('inventoryImport', 'suppliers', 'warehouses', 'materials', 'products', 'goods'));
+        return view('inventory-imports.edit', compact('inventoryImport', 'suppliers', 'warehouses', 'materials', 'goods'));
     }
 
     /**
@@ -709,30 +753,8 @@ class InventoryImportController extends Controller
                     'item_type' => $itemType,
                 ]);
 
-                // Cập nhật số lượng vật tư trong kho mới
-                $warehouseMaterial = WarehouseMaterial::firstOrNew([
-                    'warehouse_id' => $warehouseId,
-                    'material_id' => $itemId,
-                    'item_type' => $itemType
-                ]);
-
-                $currentQty = $warehouseMaterial->quantity ?? 0;
-                $warehouseMaterial->quantity = $currentQty + $material['quantity'];
-                $warehouseMaterial->save();
-
-                // Lưu serial numbers vào bảng serials (nếu có)
-                if (!empty($serialNumbers)) {
-                    foreach ($serialNumbers as $serialNumber) {
-                        Serial::create([
-                            'serial_number' => $serialNumber,
-                            'product_id' => $itemId,
-                            'type' => $itemType,
-                            'status' => 'active',
-                            'notes' => $material['notes'] ?? null,
-                            'warehouse_id' => $warehouseId,
-                        ]);
-                    }
-                }
+                // KHÔNG cập nhật tồn kho khi chỉnh sửa phiếu nhập kho
+                // Chỉ cập nhật tồn kho khi duyệt phiếu (method approve)
             }
 
             DB::commit();

@@ -9,7 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
-    <script src="{{ asset('js/delete-modal.js') }}"></script>
 </head>
 
 <body>
@@ -27,22 +26,22 @@
                         <select name="filter" id="filter"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700">
                             <option value="">Tất cả</option>
-                            <option value="import_code" {{ isset($filter) && $filter == 'import_code' ? 'selected' : '' }}>
+                            <option value="import_code" {{ request('filter') == 'import_code' ? 'selected' : '' }}>
                                 Mã phiếu nhập
                             </option>
-                            <option value="order_code" {{ isset($filter) && $filter == 'order_code' ? 'selected' : '' }}>
+                            <option value="order_code" {{ request('filter') == 'order_code' ? 'selected' : '' }}>
                                 Mã đơn hàng
                             </option>
-                            <option value="supplier" {{ isset($filter) && $filter == 'supplier' ? 'selected' : '' }}>
+                            <option value="supplier" {{ request('filter') == 'supplier' ? 'selected' : '' }}>
                                 Nhà cung cấp
                             </option>
-                            <option value="notes" {{ isset($filter) && $filter == 'notes' ? 'selected' : '' }}>
+                            <option value="notes" {{ request('filter') == 'notes' ? 'selected' : '' }}>
                                 Ghi chú
                             </option>
-                            <option value="date" {{ isset($filter) && $filter == 'date' ? 'selected' : '' }}>
+                            <option value="date" {{ request('filter') == 'date' ? 'selected' : '' }}>
                                 Ngày nhập
                             </option>
-                            <option value="status" {{ isset($filter) && $filter == 'status' ? 'selected' : '' }}>
+                            <option value="status" {{ request('filter') == 'status' ? 'selected' : '' }}>
                                 Trạng thái
                             </option>
                         </select>
@@ -73,11 +72,11 @@
 
                         <!-- Input date range -->
                         <div id="date_range" class="flex gap-2 hidden">
-                            <input type="date" name="start_date"
+                            <input type="date" name="start_date" id="start_date"
                                 class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
                                 value="{{ request('start_date') }}" />
                             <span class="flex items-center">đến</span>
-                            <input type="date" name="end_date"
+                            <input type="date" name="end_date" id="end_date"
                                 class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
                                 value="{{ request('end_date') }}" />
                         </div>
@@ -86,6 +85,12 @@
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                             <i class="fas fa-search mr-2"></i> Tìm kiếm
                         </button>
+                        
+                        <!-- Nút xóa bộ lọc -->
+                        <a href="{{ route('inventory-imports.index') }}"
+                            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                            <i class="fas fa-times mr-2"></i> Xóa bộ lọc
+                        </a>
                     </div>
                 </form>
                 @php
@@ -236,7 +241,7 @@
         <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
             <h2 class="text-xl font-bold mb-4">Xác nhận xóa</h2>
             <p class="text-gray-700 mb-6">
-                Bạn có chắc chắn muốn xóa <span id="customerNameToDelete" class="font-semibold"></span>?
+                Bạn có chắc chắn muốn xóa phiếu nhập kho <span id="importCodeToDelete" class="font-semibold"></span>?
             </p>
             <div class="flex justify-end space-x-3">
                 <button onclick="closeDeleteModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors">
@@ -250,12 +255,30 @@
     </div>
 
     <script>
+        // Hàm mở modal xóa
+        function openDeleteModal(id, importCode) {
+            document.getElementById('importCodeToDelete').innerText = importCode;
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                document.getElementById('delete-form-' + id).submit();
+            };
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.add('flex');
+        }
+
+        // Hàm đóng modal xóa
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            document.getElementById('deleteModal').classList.remove('flex');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const filterSelect = document.getElementById('filter');
             const searchText = document.getElementById('search_text');
             const supplierSelect = document.getElementById('supplier_select');
             const statusSelect = document.getElementById('status_select');
             const dateRange = document.getElementById('date_range');
+            const startDate = document.getElementById('start_date');
+            const endDate = document.getElementById('end_date');
 
             function updateSearchFields() {
                 // Hide all search fields first
@@ -267,10 +290,16 @@
                 // Show appropriate search field based on filter
                 switch (filterSelect.value) {
                     case 'import_code':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập mã phiếu nhập...';
+                        break;
                     case 'order_code':
+                        searchText.classList.remove('hidden');
+                        searchText.placeholder = 'Nhập mã đơn hàng...';
+                        break;
                     case 'notes':
                         searchText.classList.remove('hidden');
-                        searchText.placeholder = `Nhập ${filterSelect.options[filterSelect.selectedIndex].text.toLowerCase()}...`;
+                        searchText.placeholder = 'Nhập ghi chú...';
                         break;
                     case 'supplier':
                         supplierSelect.classList.remove('hidden');
@@ -282,8 +311,9 @@
                         dateRange.classList.remove('hidden');
                         break;
                     default:
+                        // Khi chọn "Tất cả", hiển thị ô tìm kiếm tổng quát
                         searchText.classList.remove('hidden');
-                        searchText.placeholder = 'Tìm kiếm...';
+                        searchText.placeholder = 'Tìm kiếm tất cả...';
                 }
             }
 
@@ -292,6 +322,32 @@
 
             // Update on filter change
             filterSelect.addEventListener('change', updateSearchFields);
+
+            // Auto-submit form when date range is selected
+            startDate.addEventListener('change', function() {
+                if (filterSelect.value === 'date' && startDate.value && endDate.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+
+            endDate.addEventListener('change', function() {
+                if (filterSelect.value === 'date' && startDate.value && endDate.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+
+            // Auto-submit form when supplier or status is selected
+            supplierSelect.addEventListener('change', function() {
+                if (filterSelect.value === 'supplier' && supplierSelect.value) {
+                    document.querySelector('form').submit();
+                }
+            });
+
+            statusSelect.addEventListener('change', function() {
+                if (filterSelect.value === 'status' && statusSelect.value) {
+                    document.querySelector('form').submit();
+                }
+            });
         });
     </script>
 </body>
