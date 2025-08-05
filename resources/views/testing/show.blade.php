@@ -459,19 +459,42 @@
                                             }
                                             
                                             if ($productId) {
-                                                $assemblyMaterials = $testing->assembly->materials
-                                                    ->where('target_product_id', $productId)
-                                                    ->map(function($asmMaterial) use ($testingItems) {
-                                                        $testingItem = $testingItems->get($asmMaterial->material_id);
-                                                        return (object)[
-                                                            'material' => $asmMaterial->material,
-                                                            'material_id' => $asmMaterial->material_id,
-                                                            'quantity' => $asmMaterial->quantity,
-                                                            'serial' => $asmMaterial->serial,
-                                                            'testing_item' => $testingItem
-                                                        ];
-                                                    });
-                                            }
+                                               // Tính toán số lượng thành phẩm cụ thể này
+                                               $currentProductQuantity = $item->quantity ?? 1;
+                                               
+                                               // Lấy tổng số lượng thành phẩm từ phiếu lắp ráp
+                                               $totalAssemblyProductQuantity = 0;
+                                               if ($testing->assembly->products && $testing->assembly->products->count() > 0) {
+                                                   $totalAssemblyProductQuantity = $testing->assembly->products
+                                                       ->where('product_id', $productId)
+                                                       ->sum('quantity');
+                                               } else {
+                                                   // Fallback cho trường hợp assembly cũ
+                                                   $totalAssemblyProductQuantity = $testing->assembly->quantity ?? 1;
+                                               }
+                                               
+                                               // Tính tỉ lệ để chia vật tư
+                                               $ratio = $totalAssemblyProductQuantity > 0 ? $currentProductQuantity / $totalAssemblyProductQuantity : 1;
+                                               
+                                               $assemblyMaterials = $testing->assembly->materials
+                                                   ->where('target_product_id', $productId)
+                                                   ->map(function($asmMaterial) use ($testingItems, $ratio) {
+                                                       $testingItem = $testingItems->get($asmMaterial->material_id);
+                                                       
+                                                       // Tính số lượng vật tư cho thành phẩm này
+                                                       $adjustedQuantity = round($asmMaterial->quantity * $ratio);
+                                                       
+                                                       return (object)[
+                                                           'material' => $asmMaterial->material,
+                                                           'material_id' => $asmMaterial->material_id,
+                                                           'quantity' => $adjustedQuantity,
+                                                           'original_quantity' => $asmMaterial->quantity,
+                                                           'ratio' => $ratio,
+                                                           'serial' => $asmMaterial->serial,
+                                                           'testing_item' => $testingItem
+                                                       ];
+                                                   });
+                                           }
                                         }
                                         
                                         if ($assemblyMaterials->isEmpty()) {
@@ -505,9 +528,18 @@
                                     @if($assemblyMaterials->isNotEmpty())
                                         @foreach($assemblyMaterials as $materialIndex => $material)
                                         <div class="border border-gray-200 rounded-lg p-3 mb-3">
-                                            <div class="flex justify-between items-center mb-3">
-                                                <h6 class="font-medium text-gray-700">{{ $materialIndex + 1 }}. {{ $material->material->code }} - {{ $material->material->name }} (map từ phiếu Lắp ráp)</h6>
+                                         <div class="flex justify-between items-center mb-3">
+                                            <div>
+                                                <h6 class="font-medium text-gray-700">{{ $materialIndex + 1 }}. {{ $material->material->code }} - {{ $material->material->name }}</h6>
+                                                <p class="text-xs text-blue-600 mt-1">
+                                                    📦 Vật tư cho thành phẩm: <strong>{{ $item->item_type == 'finished_product' ? ($item->good->name ?? 'N/A') : ($item->product->name ?? 'N/A') }}</strong>
+                                                    @if(isset($material->ratio) && $material->ratio != 1)
+                                                        <span class="text-orange-600">(Tỉ lệ: {{ number_format($material->ratio, 2) }} - {{ $material->quantity }}/{{ $material->original_quantity }})</span>
+                                                    @endif
+                                                </p>
                                             </div>
+                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Map từ phiếu Lắp ráp</span>
+                                         </div>
                                             
                                             <div class="mb-3">
                                                 <label class="block text-sm font-medium text-gray-700 mb-1">SERIAL</label>
@@ -787,14 +819,37 @@
                                             }
                                             
                                             if ($productId) {
+                                                // Tính toán số lượng thành phẩm cụ thể này
+                                                $currentProductQuantity = $item->quantity ?? 1;
+                                                
+                                                // Lấy tổng số lượng thành phẩm từ phiếu lắp ráp
+                                                $totalAssemblyProductQuantity = 0;
+                                                if ($testing->assembly->products && $testing->assembly->products->count() > 0) {
+                                                    $totalAssemblyProductQuantity = $testing->assembly->products
+                                                        ->where('product_id', $productId)
+                                                        ->sum('quantity');
+                                                } else {
+                                                    // Fallback cho trường hợp assembly cũ
+                                                    $totalAssemblyProductQuantity = $testing->assembly->quantity ?? 1;
+                                                }
+                                                
+                                                // Tính tỉ lệ để chia vật tư
+                                                $ratio = $totalAssemblyProductQuantity > 0 ? $currentProductQuantity / $totalAssemblyProductQuantity : 1;
+                                                
                                                 $assemblyMaterials = $testing->assembly->materials
                                                     ->where('target_product_id', $productId)
-                                                    ->map(function($asmMaterial) use ($testingItems) {
+                                                    ->map(function($asmMaterial) use ($testingItems, $ratio) {
                                                         $testingItem = $testingItems->get($asmMaterial->material_id);
+                                                        
+                                                        // Tính số lượng vật tư cho thành phẩm này
+                                                        $adjustedQuantity = round($asmMaterial->quantity * $ratio);
+                                                        
                                                         return (object)[
                                                             'material' => $asmMaterial->material,
                                                             'material_id' => $asmMaterial->material_id,
-                                                            'quantity' => $asmMaterial->quantity,
+                                                            'quantity' => $adjustedQuantity,
+                                                            'original_quantity' => $asmMaterial->quantity,
+                                                            'ratio' => $ratio,
                                                             'serial' => $asmMaterial->serial,
                                                             'testing_item' => $testingItem
                                                         ];

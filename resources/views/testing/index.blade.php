@@ -23,23 +23,76 @@
             <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 w-full md:w-auto">
                 <div class="flex gap-2 w-full md:w-auto">
                     <form action="{{ route('testing.index') }}" method="GET" class="flex gap-2 w-full">
-                        <input type="text" name="search" placeholder="Tìm kiếm mã phiếu, thiết bị..."
+                        <input type="text" name="search" placeholder="Tìm kiếm mã phiếu, ghi chú, người tiếp nhận..."
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 w-full md:w-64 h-10"
                             value="{{ request('search') }}">
                         <select name="test_type"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
-                            <option value="">Loại kiểm thử</option>
+                            <option value="">Tất cả loại kiểm thử</option>
                             <option value="material" {{ request('test_type') == 'material' ? 'selected' : '' }}>Vật
                                 tư/Hàng hóa</option>
                             <option value="finished_product"
                                 {{ request('test_type') == 'finished_product' ? 'selected' : '' }}>Thiết bị thành phẩm
                             </option>
                         </select>
+                        <select name="status"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700 h-10">
+                            <option value="">Tất cả trạng thái</option>
+                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Chờ xử lý</option>
+                            <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang thực hiện</option>
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành</option>
+                        </select>
+                        <!-- Ẩn các tham số khác để giữ lại khi submit -->
+                        @if(request('date_from'))
+                            <input type="hidden" name="date_from" value="{{ request('date_from') }}">
+                        @endif
+                        @if(request('date_to'))
+                            <input type="hidden" name="date_to" value="{{ request('date_to') }}">
+                        @endif
                         <button type="submit"
                             class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors h-10">
                             <i class="fas fa-search mr-2"></i> Tìm
                         </button>
                     </form>
+                </div>
+                
+                <!-- Bộ lọc nâng cao -->
+                <div class="mt-2">
+                    <button onclick="toggleAdvancedSearch()" class="text-blue-600 hover:text-blue-800 text-sm flex items-center">
+                        <i class="fas fa-filter mr-1"></i> Bộ lọc nâng cao
+                    </button>
+                    <div id="advancedSearch" class="hidden mt-2 p-3 bg-gray-50 rounded-lg">
+                        <form action="{{ route('testing.index') }}" method="GET" class="flex gap-2 items-end">
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Từ ngày</label>
+                                <input type="date" name="date_from" 
+                                    class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value="{{ request('date_from') }}">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-600 mb-1">Đến ngày</label>
+                                <input type="date" name="date_to" 
+                                    class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value="{{ request('date_to') }}">
+                            </div>
+                            <!-- Ẩn các tham số khác để giữ lại khi submit -->
+                            @if(request('search'))
+                                <input type="hidden" name="search" value="{{ request('search') }}">
+                            @endif
+                            @if(request('test_type'))
+                                <input type="hidden" name="test_type" value="{{ request('test_type') }}">
+                            @endif
+                            @if(request('status'))
+                                <input type="hidden" name="status" value="{{ request('status') }}">
+                            @endif
+                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-search mr-1"></i> Lọc
+                            </button>
+                            <a href="{{ route('testing.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                <i class="fas fa-times mr-1"></i> Xóa bộ lọc
+                            </a>
+                        </form>
+                    </div>
                 </div>
                 @php
                     $user = Auth::guard('web')->user();
@@ -135,12 +188,7 @@
                             Hoàn thành
                         </a>
                     </li>
-                    <li>
-                        <a href="{{ route('testing.index', ['status' => 'cancelled']) }}"
-                            class="inline-block p-4 {{ request('status') == 'cancelled' ? 'text-blue-600 border-b-2 border-blue-600 active' : 'text-gray-500 hover:text-gray-600 hover:border-gray-300 border-b-2 border-transparent' }}">
-                            Đã hủy
-                        </a>
-                    </li>
+
                 </ul>
             </div>
 
@@ -505,6 +553,16 @@
             document.getElementById('confirmDeleteBtn').setAttribute('onclick', `deleteCustomer('${id}')`);
             document.getElementById('deleteModal').classList.add('show');
             document.body.style.overflow = 'hidden';
+        }
+
+        // Toggle advanced search
+        function toggleAdvancedSearch() {
+            const advancedSearch = document.getElementById('advancedSearch');
+            if (advancedSearch.classList.contains('hidden')) {
+                advancedSearch.classList.remove('hidden');
+            } else {
+                advancedSearch.classList.add('hidden');
+            }
         }
 
         // Close modals when clicking outside

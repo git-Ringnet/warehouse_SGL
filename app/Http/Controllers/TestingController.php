@@ -31,25 +31,40 @@ class TestingController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Testing::with(['tester', 'items']);
+        $query = Testing::with(['tester', 'items', 'receiverEmployee']);
 
         // Apply filters
-        if ($request->has('search')) {
+        if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('test_code', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    ->orWhereHas('receiverEmployee', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    })
                     ->orWhereHas('items', function ($q2) use ($search) {
                         $q2->where('serial_number', 'like', "%{$search}%");
                     });
             });
         }
 
-        if ($request->has('test_type')) {
+        // Filter by test type - chỉ áp dụng khi có giá trị cụ thể
+        if ($request->has('test_type') && !empty($request->test_type)) {
             $query->where('test_type', $request->test_type);
         }
 
-        if ($request->has('status')) {
+        // Filter by status - loại bỏ trạng thái 'cancelled'
+        if ($request->has('status') && !empty($request->status)) {
             $query->where('status', $request->status);
+        }
+
+        // Filter by date range
+        if ($request->has('date_from') && !empty($request->date_from)) {
+            $query->where('test_date', '>=', $request->date_from);
+        }
+        
+        if ($request->has('date_to') && !empty($request->date_to)) {
+            $query->where('test_date', '<=', $request->date_to);
         }
 
         $testings = $query->orderBy('created_at', 'desc')->paginate(10);
