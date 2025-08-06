@@ -163,7 +163,7 @@
                                             value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
                                             data-project-id="{{ $project->id }}"
                                             data-warranty-period="{{ $project->warranty_period }}"
-                                            {{ $dispatch->project_receiver == $project->project_code . ' - ' . $project->project_name . ' (' . ($project->customer->name ?? 'N/A') . ')' ? 'selected' : '' }}>
+                                            @if ($dispatch->project_id == $project->id) selected @endif>
                                             {{ $project->project_code }} - {{ $project->project_name }}
                                             ({{ $project->customer->name ?? 'N/A' }})
                                         </option>

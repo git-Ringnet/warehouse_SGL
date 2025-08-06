@@ -36,6 +36,19 @@
             </div>
         </header>
 
+        <div id="notificationArea">
+            @if (session('success'))
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4" id="successAlert">
+                    {!! session('success') !!}
+                </div>
+            @endif
+            @if ($errors->has('error'))
+                <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" id="errorAlert">
+                    {{ $errors->first('error') }}
+                </div>
+            @endif
+        </div>
+
         <main class="p-6">
             <!-- Header Info -->
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
@@ -150,6 +163,18 @@
                                 <span class="text-sm text-gray-700">{{ $assembly->project->project_name ?? '' }}</span>
                             </div>
                         @endif
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Người tạo phiếu:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->creator->name ?? ($assembly->created_by ?? 'N/A') }}</span>
+                        </div>
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Ngày tạo phiếu:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->created_at ? $assembly->created_at->format('H:i d/m/Y') : '' }}</span>
+                        </div>
+                        <div class="flex items-center mb-2">
+                            <span class="text-sm font-medium text-gray-700 mr-2">Chỉnh sửa lần cuối:</span>
+                            <span class="text-sm text-gray-700">{{ $assembly->updated_at ? $assembly->updated_at->format('H:i d/m/Y') : '' }}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -252,7 +277,7 @@
                         foreach ($assembly->materials as $material) {
                             $productId = $material->target_product_id ?? $assembly->products->first()->product_id;
                             $productUnit = $material->product_unit ?? 0;
-                            
+
                             if (isset($materialsByProduct[$productId])) {
                                 if (!isset($materialsByProduct[$productId]['units'][$productUnit])) {
                                     $materialsByProduct[$productId]['units'][$productUnit] = [];
@@ -260,37 +285,20 @@
                                 $materialsByProduct[$productId]['units'][$productUnit][] = $material;
                             } else {
                                 // If target_product_id doesn't match any product, assign to first product
-                                $firstProductId = $assembly->products->first()->product_id;
-                                if (!isset($materialsByProduct[$firstProductId]['units'][$productUnit])) {
-                                    $materialsByProduct[$firstProductId]['units'][$productUnit] = [];
-                                }
-                                $materialsByProduct[$firstProductId]['units'][$productUnit][] = $material;
-                            }
-                        }
-                    } else {
-                        // Legacy structure - show all materials under single product
-                        $materialsByProduct['legacy'] = [
-                            'product' => $assembly->product,
-                            'units' => [0 => $assembly->materials->toArray()],
+            $firstProductId = $assembly->products->first()->product_id;
+            if (!isset($materialsByProduct[$firstProductId]['units'][$productUnit])) {
+                $materialsByProduct[$firstProductId]['units'][$productUnit] = [];
+            }
+            $materialsByProduct[$firstProductId]['units'][$productUnit][] = $material;
+        }
+    }
+} else {
+    // Legacy structure - show all materials under single product
+    $materialsByProduct['legacy'] = [
+        'product' => $assembly->product,
+        'units' => [0 => $assembly->materials->toArray()],
                         ];
                     }
-                @endphp
-
-                @php
-                    // Debug: Log materials grouping
-                    Log::info('Materials grouping debug', [
-                        'assembly_id' => $assembly->id,
-                        'products_count' => $assembly->products->count(),
-                        'materials_count' => $assembly->materials->count(),
-                        'materialsByProduct_keys' => array_keys($materialsByProduct),
-                        'materialsByProduct_details' => array_map(function($data) {
-                            return [
-                                'product_name' => $data['product']->product->name ?? 'unknown',
-                                'units_count' => count($data['units']),
-                                'total_materials' => array_sum(array_map('count', $data['units']))
-                            ];
-                        }, $materialsByProduct)
-                    ]);
                 @endphp
 
                 @if (count($materialsByProduct) > 0)
@@ -347,7 +355,7 @@
                                                             STT</th>
                                                         <th scope="col"
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Mã</th>
+                                                            Mã vật tư</th>
                                                         <th scope="col"
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Loại vật tư</th>
@@ -362,6 +370,9 @@
                                                             Serial</th>
                                                         <th scope="col"
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Kho xuất</th>
+                                                        <th scope="col"
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Ghi chú</th>
                                                         <th scope="col"
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -370,64 +381,75 @@
                                                 </thead>
                                                 <tbody class="bg-white divide-y divide-gray-200">
                                                     @foreach ($unitMaterials as $index => $material)
-                                                <tr class="hover:bg-gray-50">
-                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {{ $index + 1 }}</td>
-                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {{ is_object($material) ? $material->material->code : $material['material']['code'] }}
-                                                    </td>
-                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {{ is_object($material) ? $material->material->category : $material['material']['category'] }}
-                                                    </td>
-                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {{ is_object($material) ? $material->material->name : $material['material']['name'] }}
-                                                    </td>
-                                                    <td
-                                                        class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">
-                                                        {{ is_object($material) ? $material->quantity : $material['quantity'] }}
-                                                    </td>
-                                                    <td class="px-6 py-4 text-sm text-gray-500">
-                                                        @php
-                                                            $serialValue = is_object($material)
-                                                                ? $material->serial
-                                                                : $material['serial'];
-                                                        @endphp
-                                                        @if ($serialValue && str_contains($serialValue, ','))
-                                                            <div class="space-y-1">
-                                                                @foreach (explode(',', $serialValue) as $serial)
-                                                                    @if (!empty(trim($serial)))
-                                                                        <div class="bg-gray-50 px-2 py-1 rounded">
-                                                                            {{ trim($serial) }}</div>
-                                                                    @endif
-                                                                @endforeach
-                                                            </div>
-                                                            <div class="text-xs text-gray-400 mt-1">
-                                                                {{ count(array_filter(explode(',', $serialValue), 'trim')) }}
-                                                                serial
-                                                            </div>
-                                                        @else
-                                                            {{ $serialValue }}
-                                                        @endif
-                                                    </td>
-                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {{ is_object($material) ? $material->note : $material['note'] }}
-                                                    </td>
-                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        @php
-                                                            $materialId = is_object($material)
-                                                                ? $material->material_id
-                                                                : $material['material_id'];
-                                                        @endphp
-                                                        <a href="{{ route('materials.show', $materialId) }}"
-                                                            class="text-blue-500 hover:text-blue-600">
-                                                            Xem chi tiết
-                                                        </a>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                        <tr class="hover:bg-gray-50">
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {{ $index + 1 }}</td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {{ is_object($material) ? $material->material->code : $material['material']['code'] }}
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {{ is_object($material) ? $material->material->category : $material['material']['category'] }}
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {{ is_object($material) ? $material->material->name : $material['material']['name'] }}
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">
+                                                                {{ is_object($material) ? $material->quantity : $material['quantity'] }}
+                                                            </td>
+                                                            <td class="px-6 py-4 text-sm text-gray-500">
+                                                                @php
+                                                                    $serialValue = is_object($material)
+                                                                        ? $material->serial
+                                                                        : $material['serial'];
+                                                                @endphp
+                                                                @if ($serialValue && str_contains($serialValue, ','))
+                                                                    <div class="space-y-1">
+                                                                        @foreach (explode(',', $serialValue) as $serial)
+                                                                            @if (!empty(trim($serial)))
+                                                                                <div
+                                                                                    class="bg-gray-50 px-2 py-1 rounded">
+                                                                                    {{ trim($serial) }}</div>
+                                                                            @endif
+                                                                        @endforeach
+                                                                    </div>
+                                                                    <div class="text-xs text-gray-400 mt-1">
+                                                                        {{ count(array_filter(explode(',', $serialValue), 'trim')) }}
+                                                                        serial
+                                                                    </div>
+                                                                @else
+                                                                    {{ $serialValue }}
+                                                                @endif
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {{ is_object($material) ? ($material->warehouse->name ?? '') : ($material['warehouse']['name'] ?? '') }}
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                {{ is_object($material) ? $material->note : $material['note'] }}
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                                @php
+                                                                    $materialId = is_object($material)
+                                                                        ? $material->material_id
+                                                                        : $material['material_id'];
+                                                                @endphp
+                                                                <a href="{{ route('materials.show', $materialId) }}"
+                                                                    class="text-blue-500 hover:text-blue-600">
+                                                                    Xem chi tiết
+                                                                </a>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     @endif
                                 @endforeach
                             </div>
@@ -441,84 +463,92 @@
                 @endif
             </div>
 
+            @if(isset($dispatches) && $dispatches->count())
+                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-truck text-indigo-500 mr-2"></i>
+                        Phiếu xuất kho liên quan
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã phiếu xuất</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày xuất</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                @foreach($dispatches as $dispatch)
+                                    <tr>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $dispatch->dispatch_code }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $dispatch->dispatch_date ? \Carbon\Carbon::parse($dispatch->dispatch_date)->format('d/m/Y') : '' }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $dispatch->getStatusLabelAttribute() }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}" class="text-indigo-600 hover:text-indigo-900">Xem chi tiết</a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+
             <!-- Buttons -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 no-print">
                 @php
                     $user = auth()->user();
                     $isAdmin = $user->role === 'admin';
+                    $isOwner = $assembly->assigned_employee_id == $user->id;
                 @endphp
                 <div class="flex flex-wrap gap-3">
-                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.edit')))
-                        <a href="{{ route('assemblies.edit', $assembly->id) }}"
-                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
+                    @if (($assembly->status === 'pending' || $assembly->status === 'in_progress') && ($isAdmin || $isOwner))
+                        <a href="{{ route('assemblies.edit', $assembly->id) }}" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
                             <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                         </a>
                     @endif
-
-                    @if ($assembly->status !== 'approved' && ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.approve'))))
+                    @if ($assembly->status === 'pending' && ($isAdmin || $isOwner))
                         <form action="{{ route('assemblies.approve', $assembly->id) }}" method="POST" style="display:inline;">
                             @csrf
-                            <button type="submit" 
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
-                                onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu lắp ráp này? Khi duyệt sẽ tạo phiếu kiểm thử và xuất kho.')">
+                            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center" onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu lắp ráp này? Khi duyệt sẽ tạo phiếu kiểm thử và xuất kho.')">
                                 <i class="fas fa-check mr-2"></i> Duyệt phiếu
                             </button>
                         </form>
-                    @endif
-
-                    @if ($assembly->status === 'approved')
-                        <div class="px-4 py-2 bg-green-100 text-green-800 rounded-lg flex items-center">
-                            <i class="fas fa-check-circle mr-2"></i> Đã duyệt
-                        </div>
-                    @endif
-
-                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assemblies.export')))
-                        <a href="{{ route('assemblies.export.excel', $assembly->id) }}"
-                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
-                            <i class="fas fa-file-excel mr-2"></i> Xuất Excel
-                        </a>
-
-                        <a href="{{ route('assemblies.export.pdf', $assembly->id) }}"
-                            class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
-                            <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
-                        </a>
-                    @endif
-
-                    {{-- <button onclick="window.print()" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center">
-                        <i class="fas fa-print mr-2"></i> In phiếu
-                    </button> --}}
-
-                    @php
-                        $testing = $assembly->testings->first();
-                    @endphp
-                    @if ($testing)
-                        <a href="{{ route('testing.show', $testing->id) }}"
-                            class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
-                            <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
-                        </a>
-                    @else
-                        <form action="{{ route('assemblies.create-testing', $assembly->id) }}" method="POST"
-                            style="display:inline;">
+                        <form action="{{ route('assemblies.cancel', $assembly->id) }}" method="POST" style="display:inline;">
                             @csrf
-                            <button type="submit"
-                                class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
-                                <i class="fas fa-vial mr-2"></i> Tạo phiếu kiểm thử
+                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center" onclick="return confirm('Bạn có chắc chắn muốn huỷ phiếu lắp ráp này?')">
+                                <i class="fas fa-times mr-2"></i> Huỷ phiếu
                             </button>
                         </form>
                     @endif
-
-                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.delete')))
-                        @if ($assembly->status !== 'completed')
-                            <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST"
-                                onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit"
-                                    class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
-                                    <i class="fas fa-trash-alt mr-2"></i> Xóa
-                                </button>
-                            </form>
+                    @if ($assembly->status === 'in_progress')
+                        @if ($assembly->testings && $assembly->testings->count() > 0)
+                            <a href="{{ route('testing.show', $assembly->testings->first()->id) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                                <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
+                            </a>
                         @endif
+                        @if ($assembly->dispatches && $assembly->dispatches->count() > 0)
+                            <a href="{{ route('inventory.dispatch.show', $assembly->dispatches->first()->id) }}" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
+                                <i class="fas fa-truck mr-2"></i> Xem phiếu xuất kho
+                            </a>
+                        @endif
+                    @endif
+                    <a href="{{ route('assemblies.export.excel', $assembly->id) }}" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
+                        <i class="fas fa-file-excel mr-2"></i> Xuất Excel
+                    </a>
+                    <a href="{{ route('assemblies.export.pdf', $assembly->id) }}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                        <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
+                    </a>
+                    @if ($assembly->status === 'cancelled' && ($isAdmin || ($user->roleGroup && $user->roleGroup->hasPermission('assembly.delete'))))
+                        <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                                <i class="fas fa-trash-alt mr-2"></i> Xóa
+                            </button>
+                        </form>
                     @endif
                 </div>
             </div>

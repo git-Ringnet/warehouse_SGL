@@ -91,10 +91,9 @@
                                     </div>
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
-                                    <button id="clearFiltersInDropdown"
-                                        class="text-gray-500 hover:text-gray-700 text-sm">
+                                    <a href="{{ route('assemblies.index') }}" class="text-gray-500 hover:text-gray-700 text-sm">
                                         <i class="fas fa-times mr-1"></i> Xóa bộ lọc
-                                    </button>
+                                    </a>
                                     <button id="applyFilters"
                                         class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
                                         Áp dụng
@@ -123,9 +122,9 @@
                         {!! session('success') !!}
                     </div>
                 @endif
-                @if (session('error'))
+                @if ($errors->has('error'))
                     <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" id="errorAlert">
-                        {{ session('error') }}
+                        {{ $errors->first('error') }}
                     </div>
                 @endif
             </div>
@@ -214,34 +213,6 @@
                 }, 5000);
             }
 
-            // Function to show notification
-            function showNotification(message, type = 'success') {
-                const notificationArea = document.getElementById('notificationArea');
-                
-                // Remove existing notifications
-                const existingAlerts = notificationArea.querySelectorAll('.alert-notification');
-                existingAlerts.forEach(alert => alert.remove());
-                
-                const alertClass = type === 'success' 
-                    ? 'bg-green-100 border-green-200 text-green-700' 
-                    : 'bg-red-100 border-red-200 text-red-700';
-                
-                const alertDiv = document.createElement('div');
-                alertDiv.className = `${alertClass} px-4 py-3 rounded-lg mb-4 alert-notification`;
-                alertDiv.innerHTML = message;
-                
-                notificationArea.appendChild(alertDiv);
-                
-                // Auto-hide after 5 seconds
-                setTimeout(() => {
-                    alertDiv.style.transition = 'opacity 0.5s ease-out';
-                    alertDiv.style.opacity = '0';
-                    setTimeout(() => {
-                        alertDiv.remove();
-                    }, 500);
-                }, 5000);
-            }
-
             // Toggle filter dropdown
             filterDropdownButton.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -279,8 +250,59 @@
                 e.stopPropagation();
             });
 
-            // Search functionality
-            function performSearch() {
+            // Handle approve forms with AJAX
+            document.addEventListener('submit', function(e) {
+                if (e.target.action && e.target.action.includes('/approve')) {
+                    e.preventDefault();
+                    
+                    const form = e.target;
+                    const button = form.querySelector('button[type="submit"]');
+                    const originalText = button.innerHTML;
+                    
+                    // Show loading state
+                    button.disabled = true;
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                    
+                    fetch(form.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                            'Accept': 'application/json'
+                        },
+                        body: new FormData(form)
+                    })
+                    .then(response => {
+                        if (response.redirected) {
+                            // If redirected, follow the redirect
+                            window.location.href = response.url;
+                        } else {
+                            return response.json();
+                        }
+                    })
+                    .then(data => {
+                        if (data && data.success) {
+                            // Reload the table
+                            window.location.reload();
+                        } else if (data && data.error) {
+                            // Reload the table
+                            window.location.reload();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Reload the table
+                        window.location.reload();
+                    })
+                    .finally(() => {
+                        // Restore button state
+                        button.disabled = false;
+                        button.innerHTML = originalText;
+                    });
+                }
+            });
+
+            // Search button click
+            searchButton.addEventListener('click', function() {
                 const searchTerm = searchInput.value;
                 const statusFilter = document.getElementById('statusFilter').value;
                 const employeeFilter = document.getElementById('employeeFilter').value;
@@ -288,75 +310,60 @@
                 const dateToFilter = document.getElementById('dateToFilter').value;
 
                 const params = new URLSearchParams();
-
                 if (searchTerm) params.append('search', searchTerm);
                 if (statusFilter) params.append('status', statusFilter);
                 if (employeeFilter) params.append('employee', employeeFilter);
                 if (dateFromFilter) params.append('date_from', dateFromFilter);
                 if (dateToFilter) params.append('date_to', dateToFilter);
 
-                // Show loading state
-                assemblyTableContainer.innerHTML =
-                    '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i><p class="text-gray-500 mt-2">Đang tìm kiếm...</p></div>';
-
-                // Make AJAX request
-                fetch(`{{ route('assemblies.index') }}?${params.toString()}`, {
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json'
-                        }
-                    })
-                    .then(response => response.text())
-                    .then(html => {
-                        assemblyTableContainer.innerHTML = html;
-
-                        // Update result count
-                        const rows = assemblyTableContainer.querySelectorAll('tbody tr');
-                        const count = rows.length > 0 && !rows[0].querySelector('td[colspan]') ? rows.length :
-                        0;
-                        resultCount.textContent = count;
-
-                        // Update URL without page reload
-                        const newUrl =
-                            `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
-                        window.history.pushState({}, '', newUrl);
-
-                        // Update filter tags
-                        updateFilterTags();
-                    })
-                    .catch(error => {
-                        console.error('Search error:', error);
-                        assemblyTableContainer.innerHTML =
-                            '<div class="text-center py-8 text-red-500"><i class="fas fa-exclamation-triangle text-2xl"></i><p class="mt-2">Có lỗi xảy ra khi tìm kiếm</p></div>';
-                    });
-            }
-
-            // Search button click
-            searchButton.addEventListener('click', performSearch);
+                const newUrl =
+                    `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+                window.history.pushState({}, '', newUrl);
+                window.location.reload();
+            });
 
             // Search on Enter key
             searchInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
-                    performSearch();
+                    const searchTerm = searchInput.value;
+                    const statusFilter = document.getElementById('statusFilter').value;
+                    const employeeFilter = document.getElementById('employeeFilter').value;
+                    const dateFromFilter = document.getElementById('dateFromFilter').value;
+                    const dateToFilter = document.getElementById('dateToFilter').value;
+
+                    const params = new URLSearchParams();
+                    if (searchTerm) params.append('search', searchTerm);
+                    if (statusFilter) params.append('status', statusFilter);
+                    if (employeeFilter) params.append('employee', employeeFilter);
+                    if (dateFromFilter) params.append('date_from', dateFromFilter);
+                    if (dateToFilter) params.append('date_to', dateToFilter);
+
+                    const newUrl =
+                        `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+                    window.history.pushState({}, '', newUrl);
+                    window.location.reload();
                 }
             });
 
             // Apply filters
             applyFiltersButton.addEventListener('click', function() {
-                performSearch();
-                filterDropdown.classList.add('hidden');
-            });
+                const searchTerm = searchInput.value;
+                const statusFilter = document.getElementById('statusFilter').value;
+                const employeeFilter = document.getElementById('employeeFilter').value;
+                const dateFromFilter = document.getElementById('dateFromFilter').value;
+                const dateToFilter = document.getElementById('dateToFilter').value;
 
-            // Clear filters
-            clearFiltersButton.addEventListener('click', function() {
-                searchInput.value = '';
-                document.getElementById('statusFilter').value = '';
-                document.getElementById('warehouseFilter').value = '';
-                document.getElementById('employeeFilter').value = '';
-                document.getElementById('dateFromFilter').value = '';
-                document.getElementById('dateToFilter').value = '';
-                performSearch();
-                filterDropdown.classList.add('hidden');
+                const params = new URLSearchParams();
+                if (searchTerm) params.append('search', searchTerm);
+                if (statusFilter) params.append('status', statusFilter);
+                if (employeeFilter) params.append('employee', employeeFilter);
+                if (dateFromFilter) params.append('date_from', dateFromFilter);
+                if (dateToFilter) params.append('date_to', dateToFilter);
+
+                const newUrl =
+                    `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+                window.history.pushState({}, '', newUrl);
+                window.location.reload();
             });
 
             // Update filter tags

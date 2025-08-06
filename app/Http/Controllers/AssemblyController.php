@@ -13,6 +13,7 @@ use App\Models\Notification;
 use App\Models\Product;
 use App\Models\Project;
 use App\Models\Serial;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\WarehouseMaterial;
 use App\Exports\AssemblyExport;
@@ -178,7 +179,6 @@ class AssemblyController extends Controller
             'components.*.product_unit' => 'nullable|integer|min:0', // Product unit for multi-unit assemblies
         ]);
 
-
         // Debug: Log request data
         Log::info('Assembly Store Request Debug', [
             'products' => $request->products,
@@ -193,8 +193,6 @@ class AssemblyController extends Controller
             })->toArray(),
             'request_all' => $request->all()
         ]);
-
-        
 
         DB::beginTransaction();
         try {
@@ -280,6 +278,7 @@ class AssemblyController extends Controller
                 'status' => 'pending',
                 'notes' => $request->assembly_note,
                 'product_serials' => null, // Legacy field for single product assemblies
+                'created_by' => Auth::user()->id,
             ]);
 
             // Ghi nhật ký tạo mới phiếu lắp ráp
@@ -447,6 +446,23 @@ class AssemblyController extends Controller
 
             // Tạo thông báo thành công - chuyển sang workflow duyệt
             $successMessage = 'Phiếu lắp ráp đã được tạo thành công! Chờ duyệt để tạo phiếu kiểm thử và xuất kho.';
+            
+            // Tạo thông báo cho admin/người có quyền duyệt
+            $adminUsers = User::whereHas('roleGroup.permissions', function($query) {
+                $query->where('name', 'assembly.approve');
+            })->orWhere('role', 'admin')->get();
+            
+            foreach ($adminUsers as $adminUser) {
+                Notification::createNotification(
+                    'Phiếu lắp ráp mới cần duyệt',
+                    'Phiếu lắp ráp #' . $assembly->code . ' đã được tạo và cần duyệt.',
+                    'info',
+                    $adminUser->id,
+                    'assembly',
+                    $assembly->id,
+                    route('assemblies.show', $assembly->id)
+                );
+            }
 
             // Tạo thông báo cho người được phân công lắp ráp
             Notification::createNotification(
@@ -473,6 +489,12 @@ class AssemblyController extends Controller
     {
         $assembly->load(['product', 'products.product', 'materials.material', 'assignedEmployee', 'tester', 'warehouse', 'targetWarehouse', 'project']);
 
+        // Lấy các phiếu xuất kho liên quan đến assembly này
+        $dispatches = \App\Models\Dispatch::where('dispatch_note', 'like', '%'.$assembly->code.'%')
+            ->orWhere('project_id', $assembly->project_id)
+            ->orderByDesc('created_at')
+            ->get();
+
         // Ghi nhật ký xem chi tiết phiếu lắp ráp
         if (Auth::check()) {
             UserLog::logActivity(
@@ -485,7 +507,7 @@ class AssemblyController extends Controller
             );
         }
 
-        return view('assemble.show', compact('assembly'));
+        return view('assemble.show', compact('assembly', 'dispatches'));
     }
 
     /**
@@ -773,35 +795,6 @@ class AssemblyController extends Controller
             // Load assembly products if not already loaded
             if (!$assembly->relationLoaded('products')) {
                 $assembly->load('products.product');
-            }
-
-            // Check if any products from this assembly exist in active dispatches (not cancelled)
-            $usedInDispatches = false;
-            $usedProducts = [];
-
-            foreach ($assembly->products as $assemblyProduct) {
-                // Get product name for error message
-                $productName = $assemblyProduct->product->name ?? "ID: {$assemblyProduct->product_id}";
-
-                // Check if this product exists in any active dispatch
-                $dispatchItems = DispatchItem::where('item_type', 'product')
-                    ->where('item_id', $assemblyProduct->product_id)
-                    ->whereHas('dispatch', function ($query) {
-                        $query->whereNotIn('status', ['cancelled']);
-                    })
-                    ->get();
-
-                if ($dispatchItems->count() > 0) {
-                    $usedInDispatches = true;
-                    $usedProducts[] = $productName;
-                }
-            }
-
-            // If any product is used in active dispatches, prevent deletion
-            if ($usedInDispatches) {
-                DB::rollback();
-                $productList = implode(', ', $usedProducts);
-                return back()->withErrors(['error' => "Không thể xóa phiếu lắp ráp vì có thành phẩm ({$productList}) đã được xuất kho. Vui lòng kiểm tra lại phiếu xuất kho."]);
             }
 
             // 1. Return components back to source warehouse
@@ -1412,7 +1405,7 @@ class AssemblyController extends Controller
             'project_receiver' => $assembly->project->project_name ?? 'Dự án',
             'warranty_period' => null, // Có thể thêm logic để set warranty period
             'company_representative_id' => $assembly->assigned_employee_id,
-            'dispatch_note' => 'Tự động tạo từ phiếu lắp ráp ' . $assembly->code,
+            'dispatch_note' => 'Sinh ra từ phiếu lắp ráp ' . $assembly->code,
             'status' => 'pending',
             'created_by' => $currentUserId,
         ]);
@@ -1975,6 +1968,9 @@ class AssemblyController extends Controller
 
             // Check if assembly is already approved
             if ($assembly->status === 'approved') {
+                if (request()->expectsJson()) {
+                    return response()->json(['error' => 'Phiếu lắp ráp đã được duyệt trước đó.'], 400);
+                }
                 return back()->withErrors(['error' => 'Phiếu lắp ráp đã được duyệt trước đó.']);
             }
 
@@ -1984,7 +1980,9 @@ class AssemblyController extends Controller
             // Create dispatch record if purpose is project
             $dispatch = null;
             if ($assembly->purpose === 'project' && $assembly->project_id) {
-                $dispatch = $this->createDispatchForAssembly($assembly);
+                // Always reload assembly from DB to ensure project_id is up-to-date
+                $assemblyFresh = Assembly::with('project')->find($assembly->id);
+                $dispatch = $this->createDispatchForAssembly($assemblyFresh);
             }
 
             // Create material export slip if purpose is storage
@@ -1992,8 +1990,53 @@ class AssemblyController extends Controller
                 $this->createMaterialExportSlipForAssembly($assembly);
             }
 
-            // Update assembly status to approved
-            $assembly->update(['status' => 'approved']);
+            // Update assembly status to in_progress (đang thực hiện)
+            $assembly->update(['status' => 'in_progress']);
+
+            // Tạo thông báo cho người được phân công lắp ráp
+            Notification::createNotification(
+                'Phiếu lắp ráp đã được duyệt',
+                'Phiếu lắp ráp #' . $assembly->code . ' đã được duyệt và tạo phiếu kiểm thử/xuất kho.',
+                'success',
+                $assembly->assigned_employee_id,
+                'assembly',
+                $assembly->id,
+                route('assemblies.show', $assembly->id)
+            );
+
+            // Gửi thông báo cho người phụ trách kho xuất nếu có phiếu xuất kho
+            if ($dispatch) {
+                $warehouse = null;
+                if ($dispatch->project_id && $assembly->warehouse_id) {
+                    $warehouse = Warehouse::find($assembly->warehouse_id);
+                } elseif ($dispatch->project_id && $assembly->target_warehouse_id) {
+                    $warehouse = Warehouse::find($assembly->target_warehouse_id);
+                }
+                if ($warehouse && $warehouse->manager) {
+                    Notification::createNotification(
+                        'Có phiếu xuất kho được tạo',
+                        'Phiếu xuất kho #' . $dispatch->dispatch_code . ' vừa được tạo từ phiếu lắp ráp #' . $assembly->code . '.',
+                        'info',
+                        $warehouse->manager,
+                        'dispatch',
+                        $dispatch->id,
+                        route('inventory.dispatch.show', $dispatch->id)
+                    );
+                }
+            }
+
+            // Gửi thông báo cho người tiếp nhận kiểm thử nếu có phiếu kiểm thử
+            if ($testing && $testing->receiver_id) {
+                Notification::createNotification(
+                    'Có phiếu kiểm thử được tạo',
+                    'Phiếu kiểm thử #' . $testing->test_code . ' vừa được tạo từ phiếu lắp ráp #' . $assembly->code . '.',
+                    'info',
+                    $testing->receiver_id,
+                    'testing',
+                    $testing->id,
+                    route('testing.show', $testing->id)
+                );
+            }
 
             DB::commit();
 
@@ -2010,11 +2053,53 @@ class AssemblyController extends Controller
                 $successMessage .= ' <a href="' . $dispatchUrl . '" class="text-blue-600 hover:underline">Phiếu xuất kho</a> đã được tạo.';
             }
 
-            return redirect()->route('assemblies.show', $assembly->id)->with('success', $successMessage);
+            // Return JSON response for AJAX requests
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'assembly_id' => $assembly->id,
+                    'status' => 'approved'
+                ]);
+            }
+
+            // Redirect về trang gọi (danh sách hoặc chi tiết)
+            return back()->with('success', $successMessage);
 
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->withErrors(['error' => 'Có lỗi xảy ra khi duyệt: ' . $e->getMessage()]);
+            $errorMessage = 'Có lỗi xảy ra khi duyệt: ' . $e->getMessage();
+            
+            if (request()->expectsJson()) {
+                return response()->json(['error' => $errorMessage], 500);
+            }
+            
+            return back()->withErrors(['error' => $errorMessage]);
         }
+    }
+
+    /**
+     * Cancel the specified assembly.
+     */
+    public function cancel(Assembly $assembly)
+    {
+        if (!in_array($assembly->status, ['pending', 'in_progress'])) {
+            return back()->withErrors(['error' => 'Chỉ có thể huỷ phiếu ở trạng thái Chờ xử lý hoặc Đang thực hiện.']);
+        }
+        $assembly->status = 'cancelled';
+        $assembly->save();
+        // Ghi log huỷ phiếu
+        if (Auth::check()) {
+            UserLog::logActivity(
+                Auth::id(),
+                'cancel',
+                'assemblies',
+                'Huỷ phiếu lắp ráp: ' . $assembly->code,
+                null,
+                $assembly->toArray()
+            );
+        }
+        // Redirect về trang gọi (danh sách hoặc chi tiết)
+        return back()->with('success', 'Đã huỷ phiếu lắp ráp thành công!');
     }
 }

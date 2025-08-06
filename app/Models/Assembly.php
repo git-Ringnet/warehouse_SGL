@@ -27,7 +27,8 @@ class Assembly extends Model
         'project_id',
         'purpose',
         'warehouse_id',
-        'target_warehouse_id'
+        'target_warehouse_id',
+        'created_by'
     ];
 
     /**
@@ -102,6 +103,14 @@ class Assembly extends Model
     public function testings()
     {
         return $this->hasMany(Testing::class);
+    }
+
+    /**
+     * Get the creator (người tạo phiếu) for this assembly.
+     */
+    public function creator()
+    {
+        return $this->belongsTo(Employee::class, 'created_by');
     }
 
     /**

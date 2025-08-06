@@ -763,3 +763,5 @@ Route::get('/warranty/check/{warrantyCode}', [WarrantyController::class, 'check'
 Route::get('/api/warranty/check', [WarrantyController::class, 'apiCheck'])->name('api.warranty.check');
 Route::get('/api/dispatch/{dispatchId}/warranties', [WarrantyController::class, 'getDispatchWarranties'])->name('api.dispatch.warranties');
 Route::get('/api/warranty/{warrantyId}/items', [WarrantyController::class, 'getWarrantyItems'])->name('api.warranty.items');
+
+Route::post('/assemblies/{assembly}/cancel', [AssemblyController::class, 'cancel'])->name('assemblies.cancel')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':assembly.cancel');

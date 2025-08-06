@@ -357,7 +357,7 @@
             <td class="signature-box" style="border: none; padding: 20px;">
                 <div class="signature-title">Người lập phiếu</div>
                 <div style="height: 50px;"></div>
-                <div class="signature-name">{{ Auth::user()->employee->name ?? 'Nhân viên' }}</div>
+                <div class="signature-name">{{ $assembly->creator->name ?? 'Nhân viên' }}</div>
             </td>
             <td class="signature-box" style="border: none; padding: 20px;">
                 <div class="signature-title">Người phụ trách</div>

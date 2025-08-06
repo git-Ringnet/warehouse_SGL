@@ -677,6 +677,13 @@
                     return;
                 }
 
+                // Kiểm tra xem thành phẩm đã được thêm chưa
+                const existingProduct = selectedProducts.find(product => product.id === productId);
+                if (existingProduct) {
+                    alert('Thành phẩm "' + productName + '" đã được thêm vào danh sách!');
+                    return;
+                }
+
                 productCounter++;
 
                 // Thêm vào danh sách thành phẩm đã chọn
@@ -2176,15 +2183,19 @@
                         componentList.removeChild(componentList.firstChild);
                     }
 
-                    // Add empty row back
-                    componentList.appendChild(emptyRow);
+                    // Add empty row back if it exists
+                    if (emptyRow) {
+                        componentList.appendChild(emptyRow);
+                    }
 
                     // Show or hide the empty row
-                    if (components.length > 0) {
-                        emptyRow.style.display = 'none';
-                    } else {
-                        emptyRow.style.display = '';
-                        continue; // Skip to next product if no components
+                    if (emptyRow) {
+                        if (components.length > 0) {
+                            emptyRow.style.display = 'none';
+                        } else {
+                            emptyRow.style.display = '';
+                            continue; // Skip to next product if no components
+                        }
                     }
 
                     // Add each component
@@ -2204,10 +2215,10 @@
                             '<input type="number" min="1" step="1" name="components[' + index +
                             '][quantity]" value="' + (
                                 component.quantity || 1) + '"' +
-                            ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 quantity-input"' +
+                            ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 quantity-input component-quantity-input"' +
                             ' data-component-index="' + selectedComponents.indexOf(component) + '">';
 
-                        // Set row HTML
+                        // Set row HTML with warehouse cell
                         row.innerHTML =
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">' +
                             '<input type="hidden" name="components[' + index + '][id]" value="' + component
@@ -2227,11 +2238,14 @@
                             quantityInputHtml +
                             stockWarningHtml +
                             '</td>' +
+                            '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 warehouse-cell">' +
+                            '<!-- Warehouse selector will be added here -->' +
+                            '</td>' +
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 serial-cell">' +
                             '<!-- Serial inputs will be added here -->' +
                             '</td>' +
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
-                            '<input type="text" name="components[${index}][note]" value="' + (component
+                            '<input type="text" name="components[' + index + '][note]" value="' + (component
                                 .note ||
                                 '') + '"' +
                             ' class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 note-input"' +
@@ -2246,6 +2260,12 @@
                             '</td>';
 
                         componentList.appendChild(row);
+
+                        // Add warehouse selector for this component
+                        const warehouseCell = row.querySelector('.warehouse-cell');
+                        if (warehouseCell) {
+                            addWarehouseSelectToCell(warehouseCell, component, index);
+                        }
 
                         // Add serial inputs for this component
                         const serialCell = row.querySelector('.serial-cell');
@@ -2272,6 +2292,12 @@
                 const oldComponentList = document.getElementById('component_list');
                 const noComponentsRow = document.getElementById('no_components_row');
 
+                // Kiểm tra oldComponentList có tồn tại không
+                if (!oldComponentList) {
+                    console.warn('Component list not found');
+                    return;
+                }
+
                 // Remove all rows except the no_components_row
                 Array.from(oldComponentList.children).forEach(child => {
                     if (child.id !== 'no_components_row') {
@@ -2280,11 +2306,13 @@
                 });
 
                 // Show/hide no components message
-                if (selectedComponents.length === 0) {
-                    noComponentsRow.style.display = '';
-                    return;
-                } else {
-                    noComponentsRow.style.display = 'none';
+                if (noComponentsRow) {
+                    if (selectedComponents.length === 0) {
+                        noComponentsRow.style.display = '';
+                        return;
+                    } else {
+                        noComponentsRow.style.display = 'none';
+                    }
                 }
 
                 // Debug: Log selectedComponents before creating form fields
@@ -2347,7 +2375,12 @@
                         '">' +
                         '</td>';
 
-                    oldComponentList.insertBefore(row, noComponentsRow);
+                    // Đảm bảo noComponentsRow vẫn tồn tại trước khi insert
+                    if (noComponentsRow && noComponentsRow.parentNode) {
+                        oldComponentList.insertBefore(row, noComponentsRow);
+                    } else {
+                        oldComponentList.appendChild(row);
+                    }
                 });
             }
 
@@ -3083,29 +3116,14 @@
             // Validation trước khi submit
             document.querySelector('form').addEventListener('submit', function(e) {
                 // Update hidden form data before validation
-                updateHiddenComponentList();
-                updateHiddenProductList();
-                
-                // Debug: Check selectedComponents before submit
-                console.log('=== SUBMIT DEBUG ===');
-                console.log('selectedComponents before submit:', {
-                    total: selectedComponents.length,
-                    components: selectedComponents.map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        productId: c.productId,
-                        productUnit: c.productUnit,
-                        isFromProduct: c.isFromProduct,
-                        isOriginal: c.isOriginal
-                    }))
-                });
+                // updateHiddenComponentList();
+                // updateHiddenProductList();
                 
                 // Check if we have components for all units
                 const productUnits = new Set();
                 selectedComponents.forEach(c => {
                     productUnits.add(c.productUnit);
                 });
-                console.log('Product units found:', Array.from(productUnits).sort());
                 
                 // Check if we have components for each product
                 selectedProducts.forEach(product => {
@@ -3115,36 +3133,6 @@
                         components: productComponents.length,
                         units: productComponents.map(c => c.productUnit)
                     });
-                });
-
-                // Debug: Log data structure before submit
-                console.log('Submit Data Debug:', {
-                    selectedProducts: selectedProducts.map(p => ({
-                        id: p.id,
-                        uniqueId: p.uniqueId,
-                        name: p.name,
-                        quantity: p.quantity,
-                        originalQuantity: p.originalQuantity
-                    })),
-                    selectedComponents: selectedComponents.map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        productId: c.productId,
-                        productUnit: c.productUnit,
-                        quantity: c.quantity,
-                        isFromProduct: c.isFromProduct,
-                        isOriginal: c.isOriginal
-                    })),
-                    hiddenProductInputs: Array.from(document.querySelectorAll(
-                        'input[name^="products["]')).map(i => ({
-                        name: i.name,
-                        value: i.value
-                    })),
-                    hiddenComponentInputs: Array.from(document.querySelectorAll(
-                        'input[name^="components["]')).map(i => ({
-                        name: i.name,
-                        value: i.value
-                    }))
                 });
 
                 // Kiểm tra mã phiếu có hợp lệ không
@@ -3202,8 +3190,6 @@
                     return false;
                 }
 
-
-
                 if (selectedComponents.length === 0) {
                     e.preventDefault();
                     alert('Vui lòng thêm ít nhất một vật tư vào phiếu lắp ráp!');
@@ -3219,10 +3205,7 @@
                         alert(`Số lượng linh kiện "${component.name}" phải là số nguyên dương!`);
                         return false;
                     }
-
-                    // Stock checking removed - no longer validates stock levels
                 }
-
                 return true;
             });
 
@@ -3295,7 +3278,10 @@
                     updateComponentProductDropdown();
 
                     // Update the component list to reflect changes
-                    updateComponentList();
+                    // Call updateProductComponentList for each remaining product to recreate the full structure
+                    selectedProducts.forEach(product => {
+                        updateProductComponentList(product.uniqueId);
+                    });
                 }
             });
 
@@ -4097,33 +4083,42 @@
                         updateComponentQuantities();
                     }
 
-                    // Update serial inputs
-                    const serialCell = document.getElementById(`${productId}_serials`);
-                    if (serialCell) {
-                        const product = selectedProducts.find(p => p.uniqueId === productId);
-                        if (product) {
+                    // Update serial inputs for ALL products
+                    selectedProducts.forEach((product, productIndex) => {
+                        const serialCell = document.getElementById(`${product.uniqueId}_serials`);
+                        if (serialCell) {
                             // Ensure serials array exists and has correct length
                             if (!product.serials) product.serials = [];
-                            while (product.serials.length < quantity) {
+                            while (product.serials.length < product.quantity) {
                                 product.serials.push('');
                             }
-                            product.serials = product.serials.slice(0, quantity);
+                            product.serials = product.serials.slice(0, product.quantity);
 
                             // Update serial inputs
                             serialCell.innerHTML = '<div class="space-y-2">';
-                            for (let i = 0; i < quantity; i++) {
+                            for (let i = 0; i < product.quantity; i++) {
                                 const input = document.createElement('input');
                                 input.type = 'text';
-                                input.name = `products[${selectedProducts.indexOf(product)}][serials][]`;
+                                input.name = `products[${productIndex}][serials][]`;
                                 input.value = product.serials[i] || '';
                                 input.placeholder = `Serial ${i + 1}`;
                                 input.className =
                                     'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
-                                serialCell.querySelector('.space-y-2').appendChild(input);
+                                serialCell.appendChild(input);
+                                
+                                // Add serial validation
+                                addProductSerialValidation(input, product.id);
+                                
+                                // Add event listener to save serial value
+                                input.addEventListener('input', function() {
+                                    // Lưu giá trị serial vào product.serials array
+                                    if (!product.serials) product.serials = [];
+                                    product.serials[i] = this.value;
+                                });
                             }
                             serialCell.innerHTML += '</div>';
                         }
-                    }
+                    });
                 }
             });
 
