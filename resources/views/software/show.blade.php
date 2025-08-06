@@ -19,7 +19,10 @@
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phần mềm</h1>
                 <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    {{ $software->name }} v{{ $software->version }}
+                    {{ $software->name }}
+                    @if(!empty($software->version))
+                        v{{ $software->version }}
+                    @endif
                 </div>
                 <div class="ml-2 px-3 py-1 {{ $software->statusClass }} text-sm rounded-full">
                     {{ $software->statusLabel }}
@@ -72,7 +75,13 @@
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">Phiên bản</p>
-                            <p class="text-base text-gray-800 font-semibold">{{ $software->version }}</p>
+                            <p class="text-base text-gray-800 font-semibold">
+                                @if(!empty($software->version))
+                                    {{ $software->version }}
+                                @else
+                                    <span class="text-gray-500 italic">Không có thông tin</span>
+                                @endif
+                            </p>
                         </div>
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
@@ -82,11 +91,15 @@
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">File</p>
-                            <div class="flex items-center">
-                                <span class="px-2 py-1 {{ $software->fileTypeClass }} rounded text-xs mr-2">{{ strtoupper($software->file_type) }}</span>
-                                <span class="text-base text-gray-800 font-semibold">{{ $software->file_name }}</span>
-                                <span class="ml-2 text-sm text-gray-500">({{ $software->file_size }})</span>
-                            </div>
+                            @if(!empty($software->file_path))
+                                <div class="flex items-center">
+                                    <span class="px-2 py-1 {{ $software->fileTypeClass }} rounded text-xs mr-2">{{ strtoupper($software->file_type) }}</span>
+                                    <span class="text-base text-gray-800 font-semibold">{{ $software->file_name }}</span>
+                                    <span class="ml-2 text-sm text-gray-500">({{ $software->file_size }})</span>
+                                </div>
+                            @else
+                                <p class="text-base text-gray-500 italic">Chưa có file</p>
+                            @endif
                         </div>
                     </div>
                     
@@ -111,9 +124,13 @@
                         
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">Tải xuống</p>
-                            <a href="{{ route('software.download', $software->id) }}" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded flex items-center w-max transition-colors">
-                                <i class="fas fa-download mr-2"></i> Tải xuống
-                            </a>
+                            @if(!empty($software->file_path))
+                                <a href="{{ route('software.download', $software->id) }}" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded flex items-center w-max transition-colors">
+                                    <i class="fas fa-download mr-2"></i> Tải xuống
+                                </a>
+                            @else
+                                <span class="text-gray-500 italic">Chưa có file để tải xuống</span>
+                            @endif
                         </div>
                     </div>
                 </div>

@@ -78,11 +78,27 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $software->firstItem() + $index }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $item->name }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->version }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span class="px-2 py-1 {{ $item->fileTypeClass }} rounded text-xs">{{ strtoupper($item->file_type) }}</span>
+                                @if(!empty($item->version))
+                                    {{ $item->version }}
+                                @else
+                                    <span class="text-gray-400 italic">-</span>
+                                @endif
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->file_size }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                @if(!empty($item->file_path))
+                                    <span class="px-2 py-1 {{ $item->fileTypeClass }} rounded text-xs">{{ strtoupper($item->file_type) }}</span>
+                                @else
+                                    <span class="text-gray-400 italic">Chưa có file</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                @if(!empty($item->file_path))
+                                    {{ $item->file_size }}
+                                @else
+                                    <span class="text-gray-400 italic">-</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ $item->created_at->format('d/m/Y') }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                 <span class="px-2 py-1 {{ $item->statusClass }} rounded text-xs">{{ $item->statusLabel }}</span>

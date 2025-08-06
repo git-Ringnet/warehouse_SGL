@@ -228,3 +228,10 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
 }
+
+/* Required field indicator */
+.required::after {
+    content: " *";
+    color: #ef4444;
+    font-weight: bold;
+}

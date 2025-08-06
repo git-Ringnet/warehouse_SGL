@@ -18,7 +18,10 @@
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chỉnh sửa phần mềm</h1>
                 <div class="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
-                    {{ $software->name }} v{{ $software->version }}
+                    {{ $software->name }}
+                    @if(!empty($software->version))
+                        v{{ $software->version }}
+                    @endif
                 </div>
             </div>
             <a href="{{ route('software.show', $software->id) }}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 h-10 px-4 rounded-lg flex items-center transition-colors">
@@ -58,8 +61,8 @@
                             </div>
                             
                             <div>
-                                <label for="version" class="block text-sm font-medium text-gray-700 mb-1 required">Phiên bản</label>
-                                <input type="text" id="version" name="version" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="VD: 1.0.0" required value="{{ old('version', $software->version) }}">
+                                <label for="version" class="block text-sm font-medium text-gray-700 mb-1">Phiên bản</label>
+                                <input type="text" id="version" name="version" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="VD: 1.0.0" value="{{ old('version', $software->version) }}">
                             </div>
                             
                             <div>
@@ -83,8 +86,9 @@
                             </div>
                             
                             <div>
-                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1 required">Trạng thái</label>
-                                <select id="status" name="status" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                                <select id="status" name="status" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <option value="">-- Chọn trạng thái --</option>
                                     <option value="active" {{ old('status', $software->status) == 'active' ? 'selected' : '' }}>Hoạt động</option>
                                     <option value="inactive" {{ old('status', $software->status) == 'inactive' ? 'selected' : '' }}>Đã ngừng</option>
                                     <option value="beta" {{ old('status', $software->status) == 'beta' ? 'selected' : '' }}>Phiên bản beta</option>
@@ -124,7 +128,7 @@
                             </div>
                         </div>
                         
-                        <h3 class="text-md font-semibold text-gray-800 mb-3">Tải lên file phần mềm mới (không bắt buộc)</h3>
+                        <h3 class="text-md font-semibold text-gray-800 mb-3">Tải lên file phần mềm mới (Không bắt buộc)</h3>
                         <div class="border-dashed border-2 border-gray-300 rounded-lg p-6 bg-gray-50">
                             <div class="space-y-4">
                                 <div class="flex items-center justify-center">
@@ -133,7 +137,7 @@
                                             <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
                                             <p class="text-gray-700 font-medium">Kéo và thả file hoặc</p>
                                             <p class="mt-1 text-sm text-gray-500">
-                                                Hỗ trợ: APK, BIN, ZIP, EXE, DMG, TAR.GZ... (Tối đa 40MB)
+                                                Hỗ trợ: APK, BIN, ZIP, EXE, DMG, TAR.GZ... (Tối đa 500MB)
                                             </p>
                                             <button type="button" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm" id="browseBtn">
                                                 Chọn file
@@ -307,10 +311,10 @@
                         return;
                     }
                     
-                    // Check file size (max 40MB)
-                    const maxSize = 40 * 1024 * 1024; // 40MB in bytes
+                    // Check file size (max 500MB)
+                    const maxSize = 500 * 1024 * 1024; // 500MB in bytes
                     if (file.size > maxSize) {
-                        uploadError.textContent = 'File quá lớn. Kích thước tối đa là 40MB.';
+                        uploadError.textContent = 'File quá lớn. Kích thước tối đa là 500MB.';
                         uploadError.classList.remove('hidden');
                         fileInput.value = '';
                         return;

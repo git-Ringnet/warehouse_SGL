@@ -67,6 +67,10 @@ class Software extends Model
 
     public function getFileTypeClassAttribute()
     {
+        if (empty($this->file_type)) {
+            return 'bg-gray-100 text-gray-800';
+        }
+        
         return match($this->file_type) {
             'apk' => 'bg-green-100 text-green-800',
             'bin' => 'bg-yellow-100 text-yellow-800',

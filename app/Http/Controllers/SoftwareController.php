@@ -50,46 +50,71 @@ class SoftwareController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'version' => 'required|string|max:50',
             'type' => 'required|string',
-            'status' => 'required|string|in:active,inactive,beta',
-            'software_file' => 'required|file|max:40960', // 40MB (để phù hợp với post_max_size của server)
+            'version' => 'nullable|string|max:50',
+            'status' => 'nullable|string|in:active,inactive,beta',
+            'software_file' => 'nullable|file|max:512000', // 500MB (tăng lên để phù hợp với file lớn)
             'manual_file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB cho tài liệu hướng dẫn
             'platform' => 'nullable|string',
             'release_date' => 'nullable|date',
             'description' => 'nullable|string',
             'changelog' => 'nullable|string',
         ]);
+        
+        // Debug: Log validated data
+        Log::info('Validated data:', $validated);
 
         try {
-            $file = $request->file('software_file');
-            $originalFileName = $file->getClientOriginalName();
-            $fileType = strtolower($file->getClientOriginalExtension());
-            $fileSize = $this->formatSizeUnits($file->getSize());
-            
-            // Tạo tên file duy nhất
-            $fileName = Str::slug($request->name) . '-' . $request->version . '-' . time() . '.' . $fileType;
-            
-            // Lưu file vào storage/app/public/software
-            $filePath = $file->storeAs('software', $fileName, 'public');
+            // Debug: Log request data
+            Log::info('Request data:', $request->all());
             
             // Tạo dữ liệu cơ bản
             $data = [
                 'name' => $request->name,
-                'version' => $request->version,
                 'type' => $request->type,
-                'file_path' => $filePath,
-                'file_name' => $originalFileName,
-                'file_size' => $fileSize,
-                'file_type' => $fileType,
-                'release_date' => $request->release_date,
-                'platform' => $request->platform,
-                'status' => $request->status,
-                'description' => $request->description,
-                'changelog' => $request->changelog,
             ];
+            
+            // Thêm các trường không bắt buộc nếu có giá trị
+            if ($request->filled('version')) {
+                $data['version'] = $request->version;
+            }
+            if ($request->filled('release_date')) {
+                $data['release_date'] = $request->release_date;
+            }
+            if ($request->filled('platform')) {
+                $data['platform'] = $request->platform;
+            }
+            if ($request->filled('status')) {
+                $data['status'] = $request->status;
+            }
+            if ($request->filled('description')) {
+                $data['description'] = $request->description;
+            }
+            if ($request->filled('changelog')) {
+                $data['changelog'] = $request->changelog;
+            }
+            
+            // Xử lý file phần mềm nếu có
+            if ($request->hasFile('software_file')) {
+                $file = $request->file('software_file');
+                $originalFileName = $file->getClientOriginalName();
+                $fileType = strtolower($file->getClientOriginalExtension());
+                $fileSize = $this->formatSizeUnits($file->getSize());
+                
+                // Tạo tên file duy nhất
+                $fileName = Str::slug($request->name) . '-' . ($request->version ?? 'unknown') . '-' . time() . '.' . $fileType;
+                
+                // Lưu file vào storage/app/public/software
+                $filePath = $file->storeAs('software', $fileName, 'public');
+                
+                // Thêm thông tin file vào dữ liệu
+                $data['file_path'] = $filePath;
+                $data['file_name'] = $originalFileName;
+                $data['file_size'] = $fileSize;
+                $data['file_type'] = $fileType;
+            }
             
             // Xử lý tài liệu hướng dẫn nếu có
             if ($request->hasFile('manual_file')) {
@@ -99,7 +124,7 @@ class SoftwareController extends Controller
                 $manualFileSize = $this->formatSizeUnits($manualFile->getSize());
                 
                 // Tạo tên file duy nhất
-                $manualFileName = Str::slug($request->name) . '-manual-' . $request->version . '-' . time() . '.' . $manualFileType;
+                $manualFileName = Str::slug($request->name) . '-manual-' . ($request->version ?? 'unknown') . '-' . time() . '.' . $manualFileType;
                 
                 // Lưu file vào storage/app/public/manuals
                 $manualFilePath = $manualFile->storeAs('manuals', $manualFileName, 'public');
@@ -110,7 +135,13 @@ class SoftwareController extends Controller
                 $data['manual_size'] = $manualFileSize;
             }
             
-            Software::create($data);
+            // Debug: Log data trước khi tạo
+            Log::info('Data to create software:', $data);
+            
+            $software = Software::create($data);
+            
+            // Debug: Log kết quả sau khi tạo
+            Log::info('Software created successfully:', $software->toArray());
 
             // Ghi nhật ký tạo mới phần mềm
             if (Auth::check()) {
@@ -124,10 +155,15 @@ class SoftwareController extends Controller
                 );
             }
 
-            return redirect()->route('software.index')->with('success', 'Phần mềm đã được tạo thành công');
+            $message = 'Phần mềm đã được tạo thành công';
+            if (!$request->hasFile('software_file')) {
+                $message .= ' (chưa có file phần mềm)';
+            }
+            return redirect()->route('software.index')->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Lỗi khi tạo phần mềm: ' . $e->getMessage());
-            return back()->with('error', 'Đã xảy ra lỗi khi tạo phần mềm')->withInput();
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return back()->with('error', 'Đã xảy ra lỗi khi tạo phần mềm: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -166,10 +202,10 @@ class SoftwareController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'version' => 'required|string|max:50',
             'type' => 'required|string',
-            'status' => 'required|string|in:active,inactive,beta',
-            'software_file' => 'nullable|file|max:40960', // 40MB (để phù hợp với post_max_size của server)
+            'version' => 'nullable|string|max:50',
+            'status' => 'nullable|string|in:active,inactive,beta',
+            'software_file' => 'nullable|file|max:512000', // 500MB (tăng lên để phù hợp với file lớn)
             'manual_file' => 'nullable|file|mimes:pdf,doc,docx,txt|max:10240', // 10MB cho tài liệu hướng dẫn
             'platform' => 'nullable|string',
             'release_date' => 'nullable|date',
@@ -183,14 +219,28 @@ class SoftwareController extends Controller
 
             $data = [
                 'name' => $request->name,
-                'version' => $request->version,
                 'type' => $request->type,
-                'release_date' => $request->release_date,
-                'platform' => $request->platform,
-                'status' => $request->status,
-                'description' => $request->description,
-                'changelog' => $request->changelog,
             ];
+            
+            // Thêm các trường không bắt buộc nếu có giá trị
+            if ($request->filled('version')) {
+                $data['version'] = $request->version;
+            }
+            if ($request->filled('release_date')) {
+                $data['release_date'] = $request->release_date;
+            }
+            if ($request->filled('platform')) {
+                $data['platform'] = $request->platform;
+            }
+            if ($request->filled('status')) {
+                $data['status'] = $request->status;
+            }
+            if ($request->filled('description')) {
+                $data['description'] = $request->description;
+            }
+            if ($request->filled('changelog')) {
+                $data['changelog'] = $request->changelog;
+            }
             
             // Nếu có file mới được tải lên
             if ($request->hasFile('software_file')) {
@@ -200,10 +250,10 @@ class SoftwareController extends Controller
                 $fileSize = $this->formatSizeUnits($file->getSize());
                 
                 // Tạo tên file duy nhất
-                $fileName = Str::slug($request->name) . '-' . $request->version . '-' . time() . '.' . $fileType;
+                $fileName = Str::slug($request->name) . '-' . ($request->version ?? 'unknown') . '-' . time() . '.' . $fileType;
                 
-                // Xóa file cũ
-                if (Storage::disk('public')->exists($software->file_path)) {
+                // Xóa file cũ nếu có
+                if (!empty($software->file_path) && Storage::disk('public')->exists($software->file_path)) {
                     Storage::disk('public')->delete($software->file_path);
                 }
                 
@@ -225,7 +275,7 @@ class SoftwareController extends Controller
                 $manualFileSize = $this->formatSizeUnits($manualFile->getSize());
                 
                 // Tạo tên file duy nhất
-                $manualFileName = Str::slug($request->name) . '-manual-' . $request->version . '-' . time() . '.' . $manualFileType;
+                $manualFileName = Str::slug($request->name) . '-manual-' . ($request->version ?? 'unknown') . '-' . time() . '.' . $manualFileType;
                 
                 // Xóa file cũ nếu có
                 if (!empty($software->manual_path) && Storage::disk('public')->exists($software->manual_path)) {
@@ -255,7 +305,11 @@ class SoftwareController extends Controller
                 );
             }
             
-            return redirect()->route('software.show', $software)->with('success', 'Phần mềm đã được cập nhật thành công');
+            $message = 'Phần mềm đã được cập nhật thành công';
+            if (!$request->hasFile('software_file') && empty($software->file_path)) {
+                $message .= ' (chưa có file phần mềm)';
+            }
+            return redirect()->route('software.show', $software)->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Lỗi khi cập nhật phần mềm: ' . $e->getMessage());
             return back()->with('error', 'Đã xảy ra lỗi khi cập nhật phần mềm')->withInput();
@@ -272,8 +326,8 @@ class SoftwareController extends Controller
             $oldData = $software->toArray();
             $softwareName = $software->name;
 
-            // Xóa file phần mềm
-            if (Storage::disk('public')->exists($software->file_path)) {
+            // Xóa file phần mềm nếu có
+            if (!empty($software->file_path) && Storage::disk('public')->exists($software->file_path)) {
                 Storage::disk('public')->delete($software->file_path);
             }
             
@@ -309,6 +363,10 @@ class SoftwareController extends Controller
     public function download(Software $software)
     {
         try {
+            if (empty($software->file_path)) {
+                return back()->with('error', 'Phần mềm này chưa có file để tải xuống. Vui lòng tải lên file trước.');
+            }
+            
             $filePath = storage_path('app/public/' . $software->file_path);
             
             if (!file_exists($filePath)) {
