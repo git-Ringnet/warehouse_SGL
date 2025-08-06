@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class EquipmentServiceController extends Controller
@@ -28,16 +29,20 @@ class EquipmentServiceController extends Controller
         // Validate request
         $validatedData = $request->validate([
             'equipment_id' => 'required|exists:dispatch_items,id',
+            'equipment_serial' => 'required|string', // Thêm validation cho serial
             'warehouse_id' => 'required|exists:warehouses,id',
             'reason' => 'required|string',
             'rental_id' => 'nullable|exists:rentals,id',
+            'project_id' => 'nullable|exists:projects,id',
         ], [
             'equipment_id.required' => 'Thiết bị không được để trống',
             'equipment_id.exists' => 'Thiết bị không tồn tại',
+            'equipment_serial.required' => 'Serial thiết bị không được để trống',
             'warehouse_id.required' => 'Kho không được để trống',
             'warehouse_id.exists' => 'Kho không tồn tại',
             'reason.required' => 'Lý do thu hồi không được để trống',
             'rental_id.exists' => 'Phiếu thuê không tồn tại',
+            'project_id.exists' => 'Dự án không tồn tại',
         ]);
 
         DB::beginTransaction();
@@ -45,6 +50,7 @@ class EquipmentServiceController extends Controller
             // Lấy thông tin thiết bị
             $dispatchItem = DispatchItem::with('dispatch')->findOrFail($validatedData['equipment_id']);
             $warehouse = Warehouse::findOrFail($validatedData['warehouse_id']);
+            $serialToReturn = $validatedData['equipment_serial'];
 
             // Kiểm tra thiết bị phải thuộc loại dự phòng/bảo hành
             if ($dispatchItem->category !== 'backup') {
@@ -52,11 +58,20 @@ class EquipmentServiceController extends Controller
                     ->with('error', 'Chỉ có thể thu hồi thiết bị dự phòng/bảo hành.');
             }
 
-            // Kiểm tra thiết bị chưa được sử dụng
-            $isUsed = DispatchReplacement::where('replacement_dispatch_item_id', $dispatchItem->id)->exists();
-            if ($isUsed) {
+            // Kiểm tra serial có tồn tại trong item không
+            $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
+            if (!in_array($serialToReturn, $serialNumbers)) {
                 return redirect()->back()
-                    ->with('error', 'Không thể thu hồi thiết bị đã được sử dụng.');
+                    ->with('error', 'Serial thiết bị không tồn tại trong item này.');
+            }
+
+            // Kiểm tra serial chưa được thu hồi trước đó
+            $isAlreadyReturned = DispatchReturn::where('dispatch_item_id', $dispatchItem->id)
+                ->where('serial_number', $serialToReturn)
+                ->exists();
+            if ($isAlreadyReturned) {
+                return redirect()->back()
+                    ->with('error', 'Serial này đã được thu hồi trước đó.');
             }
 
             // Tạo phiếu thu hồi
@@ -70,28 +85,36 @@ class EquipmentServiceController extends Controller
                 'reason' => $validatedData['reason'],
                 'condition' => 'good', // Mặc định hoạt động tốt
                 'status' => 'completed',
+                'serial_number' => $serialToReturn, // Lưu serial được thu hồi
             ]);
 
-            // Cập nhật số lượng trong kho (không cần phiếu nhập)
+            // Cập nhật số lượng trong kho (chỉ cập nhật 1 serial)
             $item = null;
             switch ($dispatchItem->item_type) {
                 case 'material':
                     $item = Material::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantity('material', $item->id, $warehouse->id, $dispatchItem->quantity);
+                    $this->updateWarehouseQuantity('material', $item->id, $warehouse->id, 1); // Chỉ cập nhật 1
                     break;
                 case 'product':
                     $item = Product::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantity('product', $item->id, $warehouse->id, $dispatchItem->quantity);
+                    $this->updateWarehouseQuantity('product', $item->id, $warehouse->id, 1); // Chỉ cập nhật 1
                     break;
                 case 'good':
                     $item = Good::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantity('good', $item->id, $warehouse->id, $dispatchItem->quantity);
+                    $this->updateWarehouseQuantity('good', $item->id, $warehouse->id, 1); // Chỉ cập nhật 1
                     break;
             }
 
+            // Cập nhật serial_numbers trong dispatch_item (loại bỏ serial đã thu hồi)
+            $updatedSerials = array_values(array_diff($serialNumbers, [$serialToReturn]));
+            $dispatchItem->serial_numbers = $updatedSerials;
+            
+            // Cập nhật quantity để đồng bộ với số lượng serial còn lại
+            $dispatchItem->quantity = count($updatedSerials);
+            
             // Cập nhật ghi chú trong dispatch_item
             $dispatchItem->notes = ($dispatchItem->notes ? $dispatchItem->notes . "\n" : "") . 
-                "Đã thu hồi ngày " . Carbon::now()->format('d/m/Y H:i') . 
+                "Serial {$serialToReturn} đã thu hồi ngày " . Carbon::now()->format('d/m/Y H:i') . 
                 ". Lý do: " . $validatedData['reason'] . 
                 ". Kho thu hồi: " . $warehouse->name;
             $dispatchItem->save();
@@ -111,6 +134,7 @@ class EquipmentServiceController extends Controller
                     'reason' => $validatedData['reason'],
                     'return_date' => $dispatchReturn->return_date->toDateTimeString(),
                     'returned_by' => Auth::id(),
+                    'serial_number' => $serialToReturn, // Thêm serial number vào nhật ký
                 ];
 
                 // Xác định loại item để hiển thị chính xác
@@ -178,65 +202,9 @@ class EquipmentServiceController extends Controller
 
             DB::commit();
 
-            // Redirect với thông báo thành công
-            if ($dispatchItem->dispatch->dispatch_type == 'project') {
-                return redirect()->route('projects.show', $dispatchItem->dispatch->project_id)
-                    ->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
-            } elseif ($dispatchItem->dispatch->dispatch_type == 'rental') {
-                // Sử dụng rental_id từ form nếu có
-                if (isset($validatedData['rental_id'])) {
-                    return redirect()->route('rentals.show', $validatedData['rental_id'])
+            // Redirect về trang hiện tại với thông báo thành công
+            return redirect()->back()
                         ->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
-                }
-                
-                // Fallback: Tìm rental ID từ dispatch nếu không có rental_id
-                Log::info('Debug - Dispatch info for rental return redirect:', [
-                    'dispatch_id' => $dispatchItem->dispatch->id,
-                    'dispatch_note' => $dispatchItem->dispatch->dispatch_note,
-                    'project_receiver' => $dispatchItem->dispatch->project_receiver,
-                    'dispatch_type' => $dispatchItem->dispatch->dispatch_type
-                ]);
-                
-                // Tìm rental ID từ dispatch - thử nhiều cách
-                $rental = null;
-                
-                // Cách 1: Tìm theo dispatch_note
-                if ($dispatchItem->dispatch->dispatch_note) {
-                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->dispatch_note}%")->first();
-                }
-                
-                // Cách 2: Tìm theo project_receiver nếu cách 1 không tìm thấy
-                if (!$rental && $dispatchItem->dispatch->project_receiver) {
-                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$dispatchItem->dispatch->project_receiver}%")->first();
-                }
-                
-                // Cách 3: Tìm tất cả rentals và so sánh
-                if (!$rental) {
-                    $allRentals = \App\Models\Rental::all();
-                    foreach ($allRentals as $r) {
-                        if (strpos($dispatchItem->dispatch->dispatch_note ?? '', $r->rental_code) !== false ||
-                            strpos($dispatchItem->dispatch->project_receiver ?? '', $r->rental_code) !== false) {
-                            $rental = $r;
-                            break;
-                        }
-                    }
-                }
-                
-                Log::info('Debug - Found rental for return:', [
-                    'rental_id' => $rental ? $rental->id : null,
-                    'rental_code' => $rental ? $rental->rental_code : null,
-                    'rental_name' => $rental ? $rental->rental_name : null
-                ]);
-                
-                if ($rental) {
-                    return redirect()->route('rentals.show', $rental->id)
-                        ->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
-                } else {
-                    return redirect()->back()->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
-                }
-            } else {
-                return redirect()->back()->with('success', 'Thiết bị dự phòng đã được thu hồi thành công.');
-            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error returning equipment: ' . $e->getMessage());
@@ -253,63 +221,100 @@ class EquipmentServiceController extends Controller
         // Validate request
         $validatedData = $request->validate([
             'equipment_id' => 'required|exists:dispatch_items,id',
-            'replacement_device_id' => 'required|exists:dispatch_items,id',
+            'equipment_serial' => 'required|string',
+            'replacement_device_id' => 'required|string', // Thay đổi từ exists sang string
+            'replacement_serial' => 'required|string',
             'reason' => 'required|string',
             'rental_id' => 'nullable|exists:rentals,id',
         ], [
             'equipment_id.required' => 'Thiết bị cần thay thế không được để trống',
             'equipment_id.exists' => 'Thiết bị cần thay thế không tồn tại',
+            'equipment_serial.required' => 'Serial thiết bị cần thay thế không được để trống',
             'replacement_device_id.required' => 'Thiết bị thay thế không được để trống',
-            'replacement_device_id.exists' => 'Thiết bị thay thế không tồn tại',
+            'replacement_serial.required' => 'Serial thiết bị thay thế không được để trống',
             'reason.required' => 'Lý do thay thế không được để trống',
             'rental_id.exists' => 'Phiếu thuê không tồn tại',
         ]);
 
         DB::beginTransaction();
         try {
+            // Xử lý format mới: replacement_device_id có thể là "itemId:serialNumber"
+            $replacementDeviceId = $validatedData['replacement_device_id'];
+            if (strpos($replacementDeviceId, ':') !== false) {
+                $replacementDeviceId = explode(':', $replacementDeviceId)[0];
+            }
+            
+            // Validate replacement_device_id sau khi parse
+            if (!DispatchItem::find($replacementDeviceId)) {
+                return redirect()->back()->with('error', 'Thiết bị thay thế không tồn tại.');
+            }
+
             // Lấy thông tin thiết bị
             $originalItem = DispatchItem::with('dispatch')->findOrFail($validatedData['equipment_id']);
-            $replacementItem = DispatchItem::with('dispatch')->findOrFail($validatedData['replacement_device_id']);
+            $replacementItem = DispatchItem::with('dispatch')->findOrFail($replacementDeviceId);
 
             // Kiểm tra thiết bị thay thế phải có cùng mã thiết bị
             $originalCode = $this->getItemCode($originalItem);
             $replacementCode = $this->getItemCode($replacementItem);
-            
             if ($originalCode !== $replacementCode) {
                 return redirect()->back()
                     ->with('error', 'Thiết bị thay thế phải có cùng mã thiết bị với thiết bị cần thay thế.');
             }
 
-            // Kiểm tra thiết bị thay thế phải có trạng thái "Chưa sử dụng"
-            $isReplacementUsed = DispatchReplacement::where('replacement_dispatch_item_id', $replacementItem->id)->exists();
-            if ($isReplacementUsed) {
-                return redirect()->back()
-                    ->with('error', 'Thiết bị thay thế đã được sử dụng, không thể sử dụng lại.');
+            // Kiểm tra serial tồn tại trong từng item
+            $originalSerials = is_array($originalItem->serial_numbers) ? $originalItem->serial_numbers : [];
+            $replacementSerials = is_array($replacementItem->serial_numbers) ? $replacementItem->serial_numbers : [];
+            
+            if (!in_array($validatedData['equipment_serial'], $originalSerials)) {
+                return redirect()->back()->with('error', 'Serial thiết bị hợp đồng không hợp lệ.');
             }
+            if (!in_array($validatedData['replacement_serial'], $replacementSerials)) {
+                return redirect()->back()->with('error', 'Serial thiết bị dự phòng không hợp lệ.');
+            }
+            
+            // Chỉ xóa serial được chọn khỏi mỗi item
+            $originalSerials = array_values(array_diff($originalSerials, [$validatedData['equipment_serial']]));
+            $replacementSerials = array_values(array_diff($replacementSerials, [$validatedData['replacement_serial']]));
+
+            // Thêm serial mới vào từng item (swap chỉ 1 serial)
+            $originalSerials[] = $validatedData['replacement_serial']; // Thiết bị hợp đồng nhận serial dự phòng
+            $replacementSerials[] = $validatedData['equipment_serial']; // Thiết bị dự phòng nhận serial hợp đồng
+
+            // Cập nhật serial_numbers cho từng item
+            $originalItem->serial_numbers = $originalSerials;
+            $replacementItem->serial_numbers = $replacementSerials;
+
+            // Không đổi category, chỉ cập nhật ghi chú cho serial được swap
+            $originalItem->notes = ($originalItem->notes ? $originalItem->notes . "\n" : "") .
+                "Serial {$validatedData['equipment_serial']} đã được thay thế bằng serial {$validatedData['replacement_serial']} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+            $replacementItem->notes = ($replacementItem->notes ? $replacementItem->notes . "\n" : "") .
+                "Serial {$validatedData['replacement_serial']} đã thay thế cho serial {$validatedData['equipment_serial']} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+
+            $originalItem->save();
+            $replacementItem->save();
 
             // Tạo phiếu thay thế
             $replacement = DispatchReplacement::create([
                 'replacement_code' => DispatchReplacement::generateReplacementCode(),
                 'original_dispatch_item_id' => $originalItem->id,
                 'replacement_dispatch_item_id' => $replacementItem->id,
+                'original_serial' => $validatedData['equipment_serial'],
+                'replacement_serial' => $validatedData['replacement_serial'],
                 'user_id' => Auth::id() ?? 1,
                 'replacement_date' => Carbon::now(),
                 'reason' => $validatedData['reason'],
                 'status' => 'completed',
             ]);
 
-            // Cập nhật ghi chú trong original_dispatch_item
-            $originalItem->notes = ($originalItem->notes ? $originalItem->notes . "\n" : "") . 
-                "Đã thay thế ngày " . Carbon::now()->format('d/m/Y H:i') . 
-                ". Lý do: " . $validatedData['reason'] . 
-                ". Thiết bị thay thế: " . $this->getItemCode($replacementItem);
-            $originalItem->save();
-
-            // Cập nhật ghi chú trong replacement_dispatch_item
-            $replacementItem->notes = ($replacementItem->notes ? $replacementItem->notes . "\n" : "") . 
-                "Được sử dụng để thay thế ngày " . Carbon::now()->format('d/m/Y H:i') . 
-                " cho thiết bị: " . $this->getItemCode($originalItem);
-            $replacementItem->save();
+            // Debug log để kiểm tra
+            Log::info('Replacement created:', [
+                'replacement_id' => $replacement->id,
+                'original_item_id' => $originalItem->id,
+                'original_serial' => $validatedData['equipment_serial'],
+                'replacement_item_id' => $replacementItem->id,
+                'replacement_serial' => $validatedData['replacement_serial'],
+                'created_at' => $replacement->created_at
+            ]);
 
             // Tạo phiếu bảo hành nếu chưa có
             // Kiểm tra bảo hành theo logic chia sẻ dự án/phiếu cho thuê
@@ -371,115 +376,66 @@ class EquipmentServiceController extends Controller
                     'replacement_code' => $replacement->replacement_code,
                     'reason' => $validatedData['reason'],
                     'original_item_code' => $originalItemInfo['code'],
-                    'replacement_item_code' => $replacementItemInfo['code']
+                    'original_item_name' => $originalItemInfo['name'],
+                    'replacement_item_code' => $replacementItemInfo['code'],
+                    'replacement_item_name' => $replacementItemInfo['name'],
+                    'original_serial' => $validatedData['equipment_serial'],
+                    'replacement_serial' => $validatedData['replacement_serial'],
                 ];
-
-                if ($originalItem->dispatch->dispatch_type === 'project') {
-                    $project = \App\Models\Project::find($originalItem->dispatch->project_id);
-                    $projectType = 'dự án';
-                    $projectName = $project ? $project->project_name : 'Không xác định';
-                    $detailedInfo['project_id'] = $project ? $project->id : null;
-                    $detailedInfo['project_name'] = $projectName;
-                    $detailedInfo['project_code'] = $project ? $project->project_code : null;
-                } elseif ($originalItem->dispatch->dispatch_type === 'rental') {
-                    $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->dispatch_note}%")
-                        ->orWhere('rental_code', 'LIKE', "%{$originalItem->dispatch->project_receiver}%")
-                        ->first();
+                
+                if ($originalItem->dispatch->dispatch_type === 'rental') {
                     $projectType = 'phiếu cho thuê';
-                    $projectName = $rental ? $rental->rental_name : 'Không xác định';
-                    $detailedInfo['rental_id'] = $rental ? $rental->id : null;
-                    $detailedInfo['rental_name'] = $projectName;
-                    $detailedInfo['rental_code'] = $rental ? $rental->rental_code : null;
+                    $projectName = $originalItem->dispatch->dispatch_note ?? 'Không xác định';
+                } else {
+                    $projectType = 'dự án';
+                    $projectName = $originalItem->dispatch->project_name ?? 'Không xác định';
                 }
-
-                $description = "Thu hồi {$itemTypeLabel} từ {$projectType}: {$projectName}";
 
                 ChangeLogHelper::thuHoi(
                     $originalItemInfo['code'],
                     $originalItemInfo['name'],
                     $originalItem->quantity,
                     $replacement->replacement_code,
-                    $description,
+                    "Thay thế {$itemTypeLabel} trong {$projectType}",
                     $detailedInfo,
-                    "Thu hồi {$itemTypeLabel} - Lý do thay thế: " . $validatedData['reason']
+                    "Thay thế {$itemTypeLabel} {$originalItemInfo['code']} - {$originalItemInfo['name']} (Serial: {$validatedData['equipment_serial']}) bằng {$itemTypeLabel} {$replacementItemInfo['code']} - {$replacementItemInfo['name']} (Serial: {$validatedData['replacement_serial']}) trong {$projectType} {$projectName}"
                 );
-
-                Log::info('Thu hồi vật tư khi thay thế - Đã lưu nhật ký', [
-                    'replacement_code' => $replacement->replacement_code,
-                    'original_item_code' => $originalItemInfo['code'],
-                    'dispatch_type' => $originalItem->dispatch->dispatch_type
-                ]);
-
-            } catch (\Exception $logException) {
-                Log::error('Lỗi khi lưu nhật ký thu hồi vật tư khi thay thế', [
-                    'replacement_code' => $replacement->replacement_code,
-                    'error' => $logException->getMessage(),
-                    'trace' => $logException->getTraceAsString()
-                ]);
-                // Không throw exception để không ảnh hưởng đến quá trình thay thế chính
+            } catch (\Exception $e) {
+                Log::error('Error logging equipment replacement: ' . $e->getMessage());
             }
 
             DB::commit();
 
-            // Redirect với thông báo thành công
-            if ($originalItem->dispatch->dispatch_type == 'project') {
-                return redirect()->route('projects.show', $originalItem->dispatch->project_id)
-                    ->with('success', 'Thiết bị đã được thay thế thành công.');
-            } elseif ($originalItem->dispatch->dispatch_type == 'rental') {
-                // Sử dụng rental_id từ form nếu có
-                if (isset($validatedData['rental_id'])) {
-                    return redirect()->route('rentals.show', $validatedData['rental_id'])
-                        ->with('success', 'Thiết bị đã được thay thế thành công.');
-                }
-                
-                // Fallback: Tìm rental ID từ dispatch nếu không có rental_id
-                Log::info('Debug - Dispatch info for rental redirect:', [
-                    'dispatch_id' => $originalItem->dispatch->id,
-                    'dispatch_note' => $originalItem->dispatch->dispatch_note,
-                    'project_receiver' => $originalItem->dispatch->project_receiver,
-                    'dispatch_type' => $originalItem->dispatch->dispatch_type
-                ]);
-                
-                // Tìm rental ID từ dispatch - thử nhiều cách
+            // Clear cache và session để đảm bảo dữ liệu được refresh
+            Cache::flush();
+            session()->forget(['backup_items_cache', 'contract_items_cache']);
+            
+            // Force refresh database connection
+            DB::disconnect();
+            DB::reconnect();
+
+            // Redirect với timestamp để tránh cache
+            $redirectUrl = '';
+            if ($originalItem->dispatch->dispatch_type === 'rental') {
+                // Tìm rental ID từ dispatch
                 $rental = null;
-                
-                // Cách 1: Tìm theo dispatch_note
                 if ($originalItem->dispatch->dispatch_note) {
                     $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->dispatch_note}%")->first();
                 }
-                
-                // Cách 2: Tìm theo project_receiver nếu cách 1 không tìm thấy
                 if (!$rental && $originalItem->dispatch->project_receiver) {
                     $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->project_receiver}%")->first();
                 }
-                
-                // Cách 3: Tìm tất cả rentals và so sánh
-                if (!$rental) {
-                    $allRentals = \App\Models\Rental::all();
-                    foreach ($allRentals as $r) {
-                        if (strpos($originalItem->dispatch->dispatch_note ?? '', $r->rental_code) !== false ||
-                            strpos($originalItem->dispatch->project_receiver ?? '', $r->rental_code) !== false) {
-                            $rental = $r;
-                            break;
-                        }
-                    }
-                }
-                
-                Log::info('Debug - Found rental:', [
-                    'rental_id' => $rental ? $rental->id : null,
-                    'rental_code' => $rental ? $rental->rental_code : null,
-                    'rental_name' => $rental ? $rental->rental_name : null
-                ]);
-                
                 if ($rental) {
-                    return redirect()->route('rentals.show', $rental->id)
-                        ->with('success', 'Thiết bị đã được thay thế thành công.');
+                    $redirectUrl = route('rentals.show', $rental->id) . '?t=' . time() . '&refresh=1';
                 } else {
-                    return redirect()->back()->with('success', 'Thiết bị đã được thay thế thành công.');
+                    $redirectUrl = route('rentals.index') . '?t=' . time() . '&refresh=1';
                 }
             } else {
-                return redirect()->back()->with('success', 'Thiết bị đã được thay thế thành công.');
+                $redirectUrl = route('projects.show', $originalItem->dispatch->project_id) . '?t=' . time() . '&refresh=1';
             }
+
+            return redirect($redirectUrl)
+                ->with('success', 'Thiết bị đã được thay thế thành công.');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error replacing equipment: ' . $e->getMessage());
@@ -657,9 +613,17 @@ class EquipmentServiceController extends Controller
         $warrantyStartDate = $originalItem->dispatch->dispatch_date;
         $warrantyEndDate = $warrantyStartDate->copy()->addMonths($warrantyPeriodMonths);
 
+        // Sinh mã bảo hành duy nhất
+        $baseCode = 'BH' . date('Ymd') . str_pad($originalItem->id, 4, '0', STR_PAD_LEFT);
+        $warrantyCode = $baseCode;
+        $suffix = 1;
+        while (\App\Models\Warranty::where('warranty_code', $warrantyCode)->exists()) {
+            $warrantyCode = $baseCode . '-' . $suffix++;
+        }
+
         // Tạo phiếu bảo hành
         $warranty = Warranty::create([
-            'warranty_code' => Warranty::generateWarrantyCode(),
+            'warranty_code' => $warrantyCode,
             'dispatch_id' => $originalItem->dispatch_id,
             'dispatch_item_id' => $originalItem->id,
             'item_type' => $originalItem->item_type,
@@ -767,11 +731,13 @@ class EquipmentServiceController extends Controller
                     ->with(['material', 'product', 'good'])
                     ->get()
                     ->map(function ($item) {
-                        // Kiểm tra xem thiết bị đã được sử dụng làm thiết bị thay thế chưa
-                        $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
+                        // Lấy danh sách serial đã được sử dụng làm replacement
+                        $replacementSerials = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
+                            ->pluck('replacement_serial')
+                            ->toArray();
                         
-                        // Thêm thông tin is_used vào item
-                        $item->is_used = $isUsed;
+                        // Thêm thông tin replacement_serials vào item
+                        $item->replacement_serials = $replacementSerials;
                         
                         return $item;
                     });
@@ -814,11 +780,13 @@ class EquipmentServiceController extends Controller
                     ->with(['material', 'product', 'good'])
                     ->get()
                     ->map(function ($item) {
-                        // Kiểm tra xem thiết bị đã được sử dụng làm thiết bị thay thế chưa
-                        $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
+                        // Lấy danh sách serial đã được sử dụng làm replacement
+                        $replacementSerials = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
+                            ->pluck('replacement_serial')
+                            ->toArray();
                         
-                        // Thêm thông tin is_used vào item
-                        $item->is_used = $isUsed;
+                        // Thêm thông tin replacement_serials vào item
+                        $item->replacement_serials = $replacementSerials;
                         
                         return $item;
                     });
@@ -836,5 +804,18 @@ class EquipmentServiceController extends Controller
                 'message' => 'Có lỗi xảy ra khi lấy danh sách thiết bị dự phòng: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * API: Lấy danh sách serial của 1 dispatch item
+     */
+    public function getItemSerials($id)
+    {
+        $item = \App\Models\DispatchItem::find($id);
+        if (!$item) {
+            return response()->json(['serials' => []]);
+        }
+        $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
+        return response()->json(['serials' => $serials]);
     }
 } 

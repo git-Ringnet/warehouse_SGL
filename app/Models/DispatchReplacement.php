@@ -19,6 +19,8 @@ class DispatchReplacement extends Model
         'replacement_code',
         'original_dispatch_item_id',
         'replacement_dispatch_item_id',
+        'original_serial',
+        'replacement_serial',
         'user_id',
         'replacement_date',
         'reason',

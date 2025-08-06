@@ -18,6 +18,7 @@ class DispatchReturn extends Model
     protected $fillable = [
         'return_code',
         'dispatch_item_id',
+        'serial_number',
         'warehouse_id',
         'user_id',
         'return_date',

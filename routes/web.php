@@ -706,6 +706,7 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
         Route::get('/history/{id}', [EquipmentServiceController::class, 'getEquipmentHistory'])->name('history');
         Route::get('/backup-items/project/{projectId}', [EquipmentServiceController::class, 'getBackupItemsForProject'])->name('backup-items.project');
         Route::get('/backup-items/rental/{rentalId}', [EquipmentServiceController::class, 'getBackupItemsForRental'])->name('backup-items.rental');
+        Route::get('/item-serials/{id}', [\App\Http\Controllers\EquipmentServiceController::class, 'getItemSerials'])->name('equipment.itemSerials');
     });
 
     // Export routes

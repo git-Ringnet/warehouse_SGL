@@ -185,7 +185,31 @@
                                             $dispatch = $itemData['dispatch'];
                                             $serialIndex = $itemData['serial_index'];
                                             $serialNumber = $itemData['serial_number'];
-                                            $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                                            
+                                            // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng rental
+                                            $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $serialNumber)
+                                                ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
+                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                })->exists();
+                                            $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $serialNumber)
+                                                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                })->exists();
+                                            $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                                ->where('serial_number', $serialNumber)
+                                                ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
+                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                })->exists();
+                                            
+                                            // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
+                                            $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $serialNumber)
+                                                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                })->exists();
                                         @endphp
                                         <tr class="hover:bg-gray-50">
                                             <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -225,13 +249,8 @@
                                                 @if($isReturned)
                                                     <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
                                                 @else
-                                                    @php
-                                                        // Kiểm tra xem thiết bị có phải là thiết bị gốc trong bảng DispatchReplacement không
-                                                        $isReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
-                                                        $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
-                                                    @endphp
-                                                    @if($isReplaced)
-                                                        <button data-id="{{ $item->id }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
+                                                    @if($isReplaced || $isReplacementSerial)
+                                                        <button data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
                                                             <i class="fas fa-exchange-alt"></i>
                                                             <span>Đã thay thế</span>
                                                         </button>
@@ -246,9 +265,9 @@
                                                 </a>
                                             </td>
                                             <td class="py-2 px-4 border-b">
-                                                @if(!$isReturned)
+                                                @if(!$isReturned && !$isReplaced && !$isReplacementSerial)
                                                 <div class="flex space-x-2">
-                                                    <button type="button" data-id="{{ $item->id }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
+                                                    <button type="button" data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
                                                         <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                                                     </button>
                                                 </div>
@@ -289,9 +308,19 @@
                                 <tbody>
                                     @php
                                         // Lọc ra các thiết bị chưa bị thu hồi
-                                        $visibleBackupItems = $backupItems->filter(function($itemData) {
+                                        $visibleBackupItems = $backupItems->filter(function($itemData) use ($rental) {
                                             $item = $itemData['dispatch_item'];
-                                            return !\App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                                            $serialNumber = $itemData['serial_number'];
+                                            
+                                            // Kiểm tra serial cụ thể chưa được thu hồi - chỉ xem xét records từ cùng rental
+                                            $isSerialReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                                ->where('serial_number', $serialNumber)
+                                                ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
+                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                })->exists();
+                                            
+                                            return !$isSerialReturned;
                                         });
                                         
                                         // Lấy các item từ phiếu bảo hành
@@ -310,7 +339,24 @@
                                             $dispatch = $itemData['dispatch'];
                                             $serialIndex = $itemData['serial_index'];
                                             $serialNumber = $itemData['serial_number'];
-                                            $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->exists();
+                                            
+                                                                                // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng rental
+                                    $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $serialNumber)
+                                        ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                            $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                              ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                        })->exists();
+                                    $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $serialNumber)
+                                        ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
+                                            $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                              ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                        })->exists();
+                                    $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                        ->where('serial_number', $serialNumber)
+                                        ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
+                                            $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                              ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                        })->exists();
                                         @endphp
                                         <tr class="hover:bg-gray-50">
                                             <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -347,26 +393,10 @@
                                                 @if($isReturned)
                                                     <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
                                                 @else
-                                                    @php
-                                                        // Kiểm tra xem thiết bị có phải là thiết bị gốc trong bảng DispatchReplacement không
-                                                        $isReplaced = \App\Models\DispatchReplacement::where('original_dispatch_item_id', $item->id)->exists();
-                                                        $isUsed = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)->exists();
-                                                    @endphp
-                                                    @if($isReplaced)
-                                                        <button data-id="{{ $item->id }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
-                                                            <i class="fas fa-exchange-alt"></i>
-                                                            <span>Đã thay thế</span>
-                                                        </button>
-                                                    @elseif($isUsed)
-                                                        <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs flex items-center justify-center space-x-1">
-                                                            <i class="fas fa-check"></i>
-                                                            <span>Đã sử dụng</span>
-                                                        </span>
+                                                    @if($isUsed || $isOriginalReplaced)
+                                                        <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
                                                     @else
-                                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs flex items-center justify-center space-x-1">
-                                                            <i class="fas fa-box"></i>
-                                                            <span>Chưa sử dụng</span>
-                                                        </span>
+                                                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Chưa sử dụng</span>
                                                     @endif
                                                 @endif
                                             </td>
@@ -376,7 +406,7 @@
                                                 </a>
                                             </td>
                                             <td class="py-2 px-4 border-b">
-                                                @if(!$isReturned && !$isReplaced)
+                                                @if(!$isReturned)
                                                 @php
                                                     $itemCode = '';
                                                     if ($item->item_type == 'material' && $item->material) {
@@ -389,7 +419,7 @@
                                                         $itemCode = 'N/A';
                                                     }
                                                 @endphp
-                                                <button type="button" data-id="{{ $item->id }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
+                                                <button type="button" data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
                                                     <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                                 </button>
                                                 @endif
@@ -567,22 +597,29 @@
                 <form id="warranty-form" action="{{ route('equipment.replace') }}" method="POST">
                     @csrf
                     <input type="hidden" id="warranty-equipment-id" name="equipment_id">
-                    <input type="hidden" name="rental_id" value="{{ $rental->id }}">
-                    
-                    <p class="mb-4">Bạn đang thực hiện bảo hành/thay thế cho thiết bị <span id="warranty-equipment-code" class="font-semibold"></span></p>
-                    
                     <div class="mb-4">
-                        <label for="replacement_device_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị thay thế</label>
+                        <label for="equipment_serial" class="block text-sm font-medium text-gray-700 mb-1">Chọn serial thiết bị hợp đồng</label>
+                        <select id="equipment_serial" name="equipment_serial" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="">-- Chọn serial --</option>
+                        </select>
+                    </div>
+                    <p class="mb-4">Bạn đang thực hiện bảo hành/thay thế cho thiết bị <span id="warranty-equipment-code" class="font-semibold"></span></p>
+                    <div class="mb-4">
+                        <label for="replacement_device_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị dự phòng thay thế</label>
                         <select id="replacement_device_id" name="replacement_device_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                             <option value="">-- Chọn thiết bị --</option>
                         </select>
                     </div>
-                    
+                    <div class="mb-4">
+                        <label for="replacement_serial" class="block text-sm font-medium text-gray-700 mb-1">Chọn serial thiết bị dự phòng</label>
+                        <select id="replacement_serial" name="replacement_serial" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            <option value="">-- Chọn serial --</option>
+                        </select>
+                    </div>
                     <div class="mb-4">
                         <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do bảo hành/thay thế</label>
                         <textarea id="reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
                     </div>
-                    
                     <div class="flex justify-end space-x-3 mt-5">
                         <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300" onclick="closeModal('warranty-modal')">
                             Hủy bỏ
@@ -634,6 +671,7 @@
                 <form id="return-form" action="{{ route('equipment.return') }}" method="POST">
                     @csrf
                     <input type="hidden" id="return-equipment-id" name="equipment_id">
+                    <input type="hidden" id="return-equipment-serial" name="equipment_serial">
                     <input type="hidden" name="rental_id" value="{{ $rental->id }}">
                     
                     <p class="mb-4">Bạn đang thực hiện thu hồi thiết bị <span id="return-equipment-code" class="font-semibold"></span></p>
@@ -679,6 +717,20 @@
                 openDeleteModal(rentalId, rentalName);
             });
 
+            // Sử dụng event delegation cho nút thu hồi
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.return-btn')) {
+                    const button = e.target.closest('.return-btn');
+                    const equipmentId = button.getAttribute('data-id');
+                    const equipmentCode = button.getAttribute('data-code');
+                    const equipmentSerial = button.getAttribute('data-serial');
+                    openModal('return-modal');
+                    document.getElementById('return-equipment-id').value = equipmentId;
+                    document.getElementById('return-equipment-serial').value = equipmentSerial;
+                    document.getElementById('return-equipment-code').textContent = equipmentCode;
+                }
+            });
+
             // Attach event listeners for modal buttons
             document.querySelectorAll('.history-btn').forEach(button => {
                 button.addEventListener('click', function() {
@@ -695,18 +747,27 @@
                     openModal('warranty-modal');
                     document.getElementById('warranty-equipment-id').value = equipmentId;
                     document.getElementById('warranty-equipment-code').textContent = equipmentCode;
+                    loadEquipmentSerials(equipmentId);
                     fetchBackupItems();
                 });
             });
 
-            document.querySelectorAll('.return-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    const equipmentId = this.getAttribute('data-id');
-                    const equipmentCode = this.getAttribute('data-code');
-                    openModal('return-modal');
-                    document.getElementById('return-equipment-id').value = equipmentId;
-                    document.getElementById('return-equipment-code').textContent = equipmentCode;
-                });
+            document.getElementById('replacement_device_id').addEventListener('change', function() {
+                const selectedValue = this.value;
+                if (selectedValue && selectedValue.includes(':')) {
+                    const [itemId, serialNumber] = selectedValue.split(':');
+                    // Tự động điền serial vào dropdown replacement_serial
+                    const replacementSerialSelect = document.getElementById('replacement_serial');
+                    replacementSerialSelect.innerHTML = '<option value="">-- Chọn serial --</option>';
+                    
+                    const option = document.createElement('option');
+                    option.value = serialNumber;
+                    option.textContent = `Serial ${serialNumber}`;
+                    replacementSerialSelect.appendChild(option);
+                    replacementSerialSelect.value = serialNumber;
+                } else {
+                    document.getElementById('replacement_serial').innerHTML = '<option value="">-- Chọn serial --</option>';
+                }
             });
         });
 
@@ -781,10 +842,10 @@
         // Lấy danh sách thiết bị dự phòng
         function fetchBackupItems() {
             const replacementDeviceSelect = document.getElementById('replacement_device_id');
-            replacementDeviceSelect.innerHTML = '<option value="">-- Đang tải dữ liệu... --</option>';
-            
-            // Lấy mã thiết bị hiện tại từ warranty-equipment-code
+            const currentEquipmentId = document.getElementById('warranty-equipment-id').value;
             const currentEquipmentCode = document.getElementById('warranty-equipment-code').textContent;
+            
+            replacementDeviceSelect.innerHTML = '<option value="">-- Đang tải dữ liệu... --</option>';
             
             fetch(`/equipment-service/backup-items/rental/{{ $rental->id }}`)
                 .then(response => response.json())
@@ -795,10 +856,9 @@
                         // Xóa tất cả options hiện tại
                         replacementDeviceSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
                         
-                        // Lọc thiết bị theo cùng mã và chưa sử dụng
+                        // Lọc thiết bị dự phòng theo cùng mã và trạng thái "Chưa sử dụng"
                         const filteredItems = backupItems.filter(item => {
-                            let itemCode = 'N/A';
-                            
+                            let itemCode = '';
                             if (item.item_type === 'material' && item.material) {
                                 itemCode = item.material.code;
                             } else if (item.item_type === 'product' && item.product) {
@@ -807,15 +867,21 @@
                                 itemCode = item.good.code;
                             }
                             
-                            // Chỉ hiển thị thiết bị cùng mã và chưa sử dụng
-                            return itemCode === currentEquipmentCode && !item.is_used;
+                            // Loại bỏ khoảng trắng và so sánh
+                            const cleanItemCode = itemCode ? itemCode.trim() : '';
+                            const cleanCurrentCode = currentEquipmentCode ? currentEquipmentCode.trim() : '';
+                            
+                            // Kiểm tra cùng mã thiết bị
+                            return cleanItemCode === cleanCurrentCode;
                         });
                         
-                        // Thêm các options mới
+                        // Tạo danh sách serial riêng biệt thay vì gộp theo item
+                        const serialOptions = [];
+                        
                         filteredItems.forEach(item => {
                             let itemName = 'Không xác định';
                             let itemCode = 'N/A';
-                            let serialInfo = '';
+                            let serialNumbers = [];
                             
                             if (item.item_type === 'material' && item.material) {
                                 itemName = item.material.name;
@@ -828,21 +894,44 @@
                                 itemCode = item.good.code;
                             }
                             
-                            // Thêm thông tin serial nếu có
+                            // Lấy serial numbers
                             if (item.serial_numbers && item.serial_numbers.length > 0) {
-                                serialInfo = ` - ${item.serial_numbers.join(', ')}`;
+                                serialNumbers = item.serial_numbers;
                             }
                             
-                            const option = document.createElement('option');
-                            option.value = item.id;
-                            option.textContent = `${itemCode} - ${itemName}${serialInfo}`;
-                            replacementDeviceSelect.appendChild(option);
+                            // Tạo option riêng cho từng serial và kiểm tra trạng thái từng serial
+                            serialNumbers.forEach(serialNumber => {
+                                // Kiểm tra serial này có được sử dụng chưa
+                                const isSerialUsed = item.replacement_serials && item.replacement_serials.includes(serialNumber);
+                                
+                                // Chỉ hiển thị serial chưa được sử dụng
+                                if (!isSerialUsed) {
+                                    serialOptions.push({
+                                        itemId: item.id,
+                                        serialNumber: serialNumber,
+                                        itemCode: itemCode,
+                                        itemName: itemName,
+                                        displayText: `${itemCode} - ${itemName} - Serial ${serialNumber}`
+                                    });
+                                }
+                            });
                         });
                         
-                        if (filteredItems.length === 0) {
+                        // Thêm các options mới với format "Mã - Tên - Serial X"
+                        serialOptions.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = `${option.itemId}:${option.serialNumber}`;
+                            optionElement.textContent = option.displayText;
+                            optionElement.setAttribute('data-item-id', option.itemId);
+                            optionElement.setAttribute('data-serial', option.serialNumber);
+                            replacementDeviceSelect.appendChild(optionElement);
+                        });
+                        
+                        // Thêm option "Không có thiết bị dự phòng nào" nếu không có thiết bị phù hợp
+                        if (serialOptions.length === 0) {
                             const option = document.createElement('option');
                             option.value = "";
-                            option.textContent = "Không có thiết bị dự phòng nào phù hợp";
+                            option.textContent = "Không có thiết bị dự phòng nào";
                             replacementDeviceSelect.appendChild(option);
                         }
                     } else {
@@ -865,7 +954,7 @@
             `;
             
             // Lấy rental ID từ trang hiện tại
-            const rentalId = {{ $rental->id }};
+            const rentalId = window.rentalId;
             
             fetch(`/equipment-service/history/${equipmentId}?rental_id=${rentalId}`)
                 .then(response => response.json())
@@ -951,11 +1040,25 @@
                                     replacementSerial = replacementItem.serial_numbers.join(', ');
                                 }
                                 
+                                // Hiển thị thông tin serial cụ thể được thay thế (nếu có)
+                                let originalSerial = 'Không có thông tin';
+                                let replacedSerial = 'Không có thông tin';
+                                
+                                if (replacement.original_serial && replacement.replacement_serial) {
+                                    originalSerial = replacement.original_serial;
+                                    replacedSerial = replacement.replacement_serial;
+                                }
+                                
                                 html += `
                                     <tr>
                                         <td class="py-2 px-3 border-t">${formattedDate}</td>
                                         <td class="py-2 px-3 border-t">${employeeName}</td>
-                                        <td class="py-2 px-3 border-t">${replacementSerial}</td>
+                                        <td class="py-2 px-3 border-t">
+                                            <div class="text-xs">
+                                                <div><strong>Serial gốc:</strong> ${originalSerial}</div>
+                                                <div><strong>Serial thay thế:</strong> ${replacedSerial}</div>
+                                            </div>
+                                        </td>
                                         <td class="py-2 px-3 border-t">${replacement.reason || 'Không có thông tin'}</td>
                                     </tr>
                                 `;
@@ -991,6 +1094,41 @@
                             <p class="text-red-700">Có lỗi xảy ra khi lấy lịch sử thay đổi thiết bị.</p>
                         </div>
                     `;
+                });
+        }
+
+        // Khi mở modal, load serial của thiết bị hợp đồng
+        function loadEquipmentSerials(equipmentId) {
+            fetch(`/equipment-service/item-serials/${equipmentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('equipment_serial');
+                    select.innerHTML = '<option value="">-- Chọn serial --</option>';
+                    if (data.serials && data.serials.length > 0) {
+                        data.serials.forEach(serial => {
+                            const option = document.createElement('option');
+                            option.value = serial;
+                            option.textContent = serial;
+                            select.appendChild(option);
+                        });
+                    }
+                });
+        }
+        // Khi chọn thiết bị dự phòng, load serial của thiết bị dự phòng
+        function loadReplacementSerials(deviceId) {
+            fetch(`/equipment-service/item-serials/${deviceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('replacement_serial');
+                    select.innerHTML = '<option value="">-- Chọn serial --</option>';
+                    if (data.serials && data.serials.length > 0) {
+                        data.serials.forEach(serial => {
+                            const option = document.createElement('option');
+                            option.value = serial;
+                            option.textContent = serial;
+                            select.appendChild(option);
+                        });
+                    }
                 });
         }
     </script>
