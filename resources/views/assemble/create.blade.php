@@ -17,17 +17,21 @@
             background-color: #f0f8ff !important;
             border-left: 3px solid #3b82f6;
         }
+
         .product-unit-row td {
             border-top: 1px solid #dbeafe;
         }
+
         .product-unit-row:hover {
             background-color: #e0f2fe !important;
         }
+
         .unit-separator {
             background-color: #e5f3ff !important;
             border-top: 2px solid #3b82f6;
             border-bottom: 2px solid #3b82f6;
         }
+
         .unit-separator td {
             padding: 8px 24px;
             text-align: center;
@@ -546,28 +550,28 @@
 
                 // Add new component for all product units
                 const productQty = parseInt(selectedProduct.quantity) || 1;
-                
+
                 for (let unitIndex = 0; unitIndex < productQty; unitIndex++) {
-                const newComponent = {
-                    id: selectedComponentToAdd.id,
-                    code: selectedComponentToAdd.code,
-                    name: selectedComponentToAdd.name,
-                    category: selectedComponentToAdd.category,
-                    unit: selectedComponentToAdd.unit,
-                    quantity: quantity,
+                    const newComponent = {
+                        id: selectedComponentToAdd.id,
+                        code: selectedComponentToAdd.code,
+                        name: selectedComponentToAdd.name,
+                        category: selectedComponentToAdd.category,
+                        unit: selectedComponentToAdd.unit,
+                        quantity: quantity,
                         originalQuantity: quantity, // Store the original quantity for this component
-                    notes: '',
-                    serial: '',
+                        notes: '',
+                        serial: '',
                         serials: [],
-                    productId: productUniqueId,
-                    actualProductId: selectedProduct.id, // Store actual product ID for backend
-                    isFromProduct: false, // User added component
-                    isOriginal: false, // Not from original BOM
+                        productId: productUniqueId,
+                        actualProductId: selectedProduct.id, // Store actual product ID for backend
+                        isFromProduct: false, // User added component
+                        isOriginal: false, // Not from original BOM
                         productUnit: unitIndex,
                         unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` : ''
-                };
+                    };
 
-                selectedComponents.push(newComponent);
+                    selectedComponents.push(newComponent);
                 }
 
                 // Update component list and check for changes
@@ -764,12 +768,13 @@
                 const tableContainer = document.createElement('div');
                 tableContainer.className = 'overflow-x-auto';
                 tableContainer.id = 'component_list_' + product.uniqueId;
-                
+
                 // Tạo row "no components" cho trường hợp không có linh kiện
                 const noComponentsRow = document.createElement('tr');
                 noComponentsRow.id = 'no_components_row_' + product.uniqueId;
-                noComponentsRow.innerHTML = '<td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Chưa có linh kiện nào cho thành phẩm này</td>';
-                
+                noComponentsRow.innerHTML =
+                    '<td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Chưa có linh kiện nào cho thành phẩm này</td>';
+
                 // Thêm vào container
                 tableContainer.appendChild(noComponentsRow);
 
@@ -1021,31 +1026,32 @@
 
                                 // Add components to the selected components list - create for each product unit
                                 const productQty = parseInt(product.quantity) || 1;
-                                
+
                                 for (let unitIndex = 0; unitIndex < productQty; unitIndex++) {
-                                components.forEach(material => {
-                                    const componentData = {
-                                        id: material.id,
-                                        code: material.code,
-                                        name: material.name,
-                                        category: material.category,
-                                        unit: material.unit,
-                                        quantity: material.quantity || 1,
-                                        originalQuantity: material.quantity || 1,
-                                        notes: material.notes || '',
-                                        serial: '',
-                                        serials: [],
-                                        productId: productUniqueId,
-                                        actualProductId: product.id,
-                                        isFromProduct: true,
-                                        isOriginal: true,
+                                    components.forEach(material => {
+                                        const componentData = {
+                                            id: material.id,
+                                            code: material.code,
+                                            name: material.name,
+                                            category: material.category,
+                                            unit: material.unit,
+                                            quantity: material.quantity || 1,
+                                            originalQuantity: material.quantity || 1,
+                                            notes: material.notes || '',
+                                            serial: '',
+                                            serials: [],
+                                            productId: productUniqueId,
+                                            actualProductId: product.id,
+                                            isFromProduct: true,
+                                            isOriginal: true,
                                             warehouseId: '', // Initialize empty warehouse ID
                                             productUnit: unitIndex,
-                                            unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` : ''
-                                    };
+                                            unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` :
+                                                ''
+                                        };
 
-                                    selectedComponents.push(componentData);
-                                });
+                                        selectedComponents.push(componentData);
+                                    });
                                 }
 
                                 // Update the component list for this product
@@ -1117,7 +1123,8 @@
                     // Re-add no components row
                     const noComponentsRowNew = document.createElement('tr');
                     noComponentsRowNew.id = 'no_components_row_' + productUniqueId;
-                    noComponentsRowNew.innerHTML = '<td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Chưa có linh kiện nào cho thành phẩm này</td>';
+                    noComponentsRowNew.innerHTML =
+                        '<td colspan="8" class="px-6 py-4 text-center text-sm text-gray-500">Chưa có linh kiện nào cho thành phẩm này</td>';
                     componentListElement.appendChild(noComponentsRowNew);
                     return;
                 }
@@ -1162,66 +1169,68 @@
 
                     // Get components for this specific unit
                     const unitComponents = productComponents.filter(c => c.productUnit === unitIndex);
-                    
+
                     // Add components for this unit
                     const unitTableBody = document.getElementById(`unit_table_${productUniqueId}_${unitIndex}`);
-                    
+
                     // Use global index for all components across all units
                     let globalIndex = 0;
                     for (let u = 0; u < unitIndex; u++) {
                         const prevUnitComponents = productComponents.filter(c => c.productUnit === u);
                         globalIndex += prevUnitComponents.length;
                     }
-                    
+
                     unitComponents.forEach((component, localIndex) => {
                         const currentGlobalIndex = globalIndex + localIndex;
-                    const row = document.createElement('tr');
-                    row.className = 'component-row';
-                    row.setAttribute('data-unit-index', unitIndex);
+                        const row = document.createElement('tr');
+                        row.className = 'component-row';
+                        row.setAttribute('data-unit-index', unitIndex);
 
                         // Mark modified components by comparing with original formula (only for first unit)
-                    let isModified = false;
+                        let isModified = false;
                         if (unitIndex === 0 && product && product.originalComponents) {
-                            const originalComponent = product.originalComponents.find(o => o.id === component.id);
-                        if (!originalComponent) {
-                            isModified = true;
-                        } else if (originalComponent.quantity !== component.quantity) {
-                            isModified = true;
-                        }
+                            const originalComponent = product.originalComponents.find(o => o.id ===
+                                component.id);
+                            if (!originalComponent) {
+                                isModified = true;
+                            } else if (originalComponent.quantity !== component.quantity) {
+                                isModified = true;
+                            }
                         } else if (unitIndex > 0) {
                             // For other units, check if it's different from the first unit
-                            const firstUnitComponent = productComponents.find(c => c.id === component.id && c.productUnit === 0);
+                            const firstUnitComponent = productComponents.find(c => c.id === component.id &&
+                                c.productUnit === 0);
                             if (firstUnitComponent && firstUnitComponent.quantity !== component.quantity) {
                                 isModified = true;
                             }
-                    }
+                        }
 
-                    const modifiedClass = isModified ? 'bg-yellow-50' : '';
+                        const modifiedClass = isModified ? 'bg-yellow-50' : '';
 
-                    // Create empty row with cells
-                    for (let i = 0; i < 8; i++) {
-                        const cell = document.createElement('td');
-                        cell.className = `px-6 py-4 whitespace-nowrap text-sm ${modifiedClass}`;
-                        row.appendChild(cell);
-                    }
+                        // Create empty row with cells
+                        for (let i = 0; i < 8; i++) {
+                            const cell = document.createElement('td');
+                            cell.className = `px-6 py-4 whitespace-nowrap text-sm ${modifiedClass}`;
+                            row.appendChild(cell);
+                        }
 
-                    // Fill in the cells
-                    row.cells[0].className += ' text-gray-900';
-                    row.cells[0].innerHTML = `
+                        // Fill in the cells
+                        row.cells[0].className += ' text-gray-900';
+                        row.cells[0].innerHTML = `
                             <input type="hidden" name="components[${currentGlobalIndex}][id]" value="${component.id}">
                                 <input type="hidden" name="components[${currentGlobalIndex}][product_unit]" value="${unitIndex}">
                             ${component.code}
                             ${isModified ? '<i class="fas fa-edit text-yellow-500 ml-1" title="Đã sửa đổi"></i>' : ''}
                     `;
 
-                    row.cells[1].className += ' text-gray-700';
-                    row.cells[1].textContent = component.category;
+                        row.cells[1].className += ' text-gray-700';
+                        row.cells[1].textContent = component.category;
 
-                    row.cells[2].className += ' text-gray-900';
-                    row.cells[2].textContent = component.name;
+                        row.cells[2].className += ' text-gray-900';
+                        row.cells[2].textContent = component.name;
 
-                    row.cells[3].className += ' text-gray-700';
-                    row.cells[3].innerHTML = `
+                        row.cells[3].className += ' text-gray-700';
+                        row.cells[3].innerHTML = `
                             <input type="number" min="1" step="1" name="components[${currentGlobalIndex}][quantity]" 
                                    value="${component.quantity}" 
                                    data-component-id="${component.id}" 
@@ -1237,8 +1246,8 @@
                         row.cells[5].className += ' text-gray-700 serial-cell';
 
                         // Note cell (6)
-                    row.cells[6].className += ' text-gray-700';
-                    row.cells[6].innerHTML = `
+                        row.cells[6].className += ' text-gray-700';
+                        row.cells[6].innerHTML = `
                             <input type="text" name="components[${currentGlobalIndex}][note]" 
                                    value="${component.notes}" 
                                    placeholder="Ghi chú (tùy chọn)"
@@ -1246,8 +1255,8 @@
                     `;
 
                         // Action cell (7)
-                    row.cells[7].className += ' text-gray-700';
-                    row.cells[7].innerHTML = `
+                        row.cells[7].className += ' text-gray-700';
+                        row.cells[7].innerHTML = `
                             <button type="button" class="text-red-500 hover:text-red-700 delete-component" 
                                         data-product-id="${productUniqueId}" data-component-id="${component.id}" data-unit-index="${unitIndex}">
                                 <i class="fas fa-trash"></i>
@@ -1263,7 +1272,7 @@
 
                         // Add serial inputs to cell 5
                         const serialCell = row.cells[5];
-                            addSerialInputsToCell(serialCell, component, currentGlobalIndex);
+                        addSerialInputsToCell(serialCell, component, currentGlobalIndex);
                     });
                 }
 
@@ -1304,7 +1313,8 @@
                         // Update component quantity in selectedComponents
                         const unitIndex = this.getAttribute('data-unit-index');
                         const component = selectedComponents.find(c =>
-                            c.id == componentId && c.productId === productId && c.productUnit === parseInt(unitIndex)
+                            c.id == componentId && c.productId === productId && c
+                            .productUnit === parseInt(unitIndex)
                         );
                         if (component) {
                             console.log('Updating component quantity:', {
@@ -1316,7 +1326,7 @@
                             });
                             const oldQuantity = component.quantity;
                             component.quantity = newQuantity;
-                            
+
                             // Mark component as manually adjusted to prevent auto-recalculation
                             component.manuallyAdjusted = true;
 
@@ -1355,7 +1365,7 @@
                                 // Update serial inputs in the current row
                                 const row = this.closest('tr');
                                 if (row) {
-                                const serialCell = row.querySelector('.serial-cell');
+                                    const serialCell = row.querySelector('.serial-cell');
                                     if (serialCell) {
                                         const index = this.name.match(/\[(\d+)\]/)[1];
                                         addSerialInputsToCell(serialCell, component, index);
@@ -1366,7 +1376,8 @@
                                     componentId,
                                     productId,
                                     unitIndex,
-                                    availableComponents: selectedComponents.filter(c => c.id == componentId && c.productId === productId)
+                                    availableComponents: selectedComponents.filter(c => c
+                                        .id == componentId && c.productId === productId)
                                 });
                             }
                         }
@@ -1461,7 +1472,8 @@
 
                     // Remove specific component unit from selectedComponents
                     selectedComponents = selectedComponents.filter(c =>
-                        !(c.id == componentId && c.productId === productId && c.productUnit == unitIndex)
+                        !(c.id == componentId && c.productId === productId && c.productUnit ==
+                            unitIndex)
                     );
 
                     // Update UI and check for changes
@@ -1715,7 +1727,7 @@
 
             // Thêm sự kiện khi thay đổi dropdown thành phẩm
             componentProductSelect.addEventListener('change', function() {
-                
+
                 // Kích hoạt nút thêm nếu đã chọn vật tư
                 const hasSelectedMaterial = selectedMaterial || selectedComponentToAdd;
                 addComponentBtn.disabled = !hasSelectedMaterial || !this.value;
@@ -1834,17 +1846,21 @@
                         const hasSelectedProduct = componentProductSelect.value;
                         const hasSelectedUnit = componentProductUnitSelect.value !== '';
                         addComponentBtn.disabled = !hasSelectedProduct || !hasSelectedUnit;
-                        
+
                         if (hasSelectedProduct && hasSelectedUnit) {
                             addComponentBtn.classList.remove('opacity-50');
-                            console.log("Enabled add component button - material, product and unit selected");
+                            console.log(
+                                "Enabled add component button - material, product and unit selected"
+                                );
                         } else {
                             addComponentBtn.classList.add('opacity-50');
                             if (!hasSelectedProduct) {
-                            console.log("Material selected but waiting for product selection");
+                                console.log("Material selected but waiting for product selection");
                             }
                             if (!hasSelectedUnit) {
-                                console.log("Material and product selected but waiting for unit selection");
+                                console.log(
+                                    "Material and product selected but waiting for unit selection"
+                                    );
                             }
                         }
                     });
@@ -1860,12 +1876,13 @@
 
             // Thêm sự kiện Enter trong ô nhập liệu linh kiện để thêm linh kiện nhanh
             componentSearchInput.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter' && selectedMaterial && componentProductSelect.value && componentProductUnitSelect.value) {
+                if (event.key === 'Enter' && selectedMaterial && componentProductSelect.value &&
+                    componentProductUnitSelect.value) {
                     event.preventDefault(); // Ngăn chặn hành vi mặc định của Enter
                     handleAddComponent(); // Gọi hàm thêm linh kiện
                 }
             });
-            
+
 
 
             // Add selected component function
@@ -1900,84 +1917,53 @@
                     return;
                 }
 
-                                // Đảm bảo số lượng là số nguyên dương
+                // Đảm bảo số lượng là số nguyên dương
                 let quantity = parseInt(componentAddQuantity.value);
                 if (isNaN(quantity) || quantity < 1) {
                     quantity = 1;
                     componentAddQuantity.value = "1";
                 }
 
-                // Add the component using the global function
-                console.log("Adding component with:", {
-                    materialToAdd: {
-                        id: materialToAdd.id,
-                        name: materialToAdd.name,
-                        code: materialToAdd.code,
-                        idType: typeof materialToAdd.id
-                    },
-                    selectedProduct: {
-                        id: selectedProduct.id,
-                        uniqueId: selectedProduct.uniqueId,
-                        name: selectedProduct.name
-                    },
-                    quantity,
-                    targetUnit: targetUnit,
-                    selectedUnit: selectedUnit,
-                    currentComponents: window.selectedComponents ? window.selectedComponents.length : 0,
-                    existingComponents: window.selectedComponents ? window.selectedComponents.filter(c => 
-                        c.productId === selectedProduct.uniqueId
-                    ).map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        productUnit: c.productUnit,
-                        idType: typeof c.id
-                    })) : []
-                });
-
                 try {
                     // Log số lượng vật tư trước khi thêm
                     const componentsBefore = window.selectedComponents ? window.selectedComponents.length : 0;
                     console.log(`Components before adding: ${componentsBefore}`);
-                    
+
                     // Gọi hàm window.addSelectedComponent để thêm linh kiện
-                    console.log(`Adding component "${materialToAdd.name}" (ID: ${materialToAdd.id}) to unit ${targetUnit}`);
-                    console.log(`Selected unit: ${selectedUnit}, Target unit: ${targetUnit}`);
-                    const newComponent = window.addSelectedComponent(materialToAdd, selectedProduct, quantity, targetUnit);
+                    const newComponent = window.addSelectedComponent(materialToAdd, selectedProduct, quantity);
 
                     if (!newComponent) {
                         console.log("No component added - user cancelled or error occurred");
                         return; // Exit early if no component was added
                     }
-                    
+
                     // Log số lượng vật tư sau khi thêm
                     const componentsAfter = window.selectedComponents ? window.selectedComponents.length : 0;
-                    console.log(`Components after adding: ${componentsAfter}`);
-                    console.log(`Components added: ${componentsAfter - componentsBefore}`);
 
                     // Hiển thị thông báo thành công
                     const successMessage = document.createElement('div');
                     successMessage.className =
                         'text-green-500 text-sm p-3 text-center fixed top-4 right-4 bg-white shadow-lg rounded-lg z-50';
-                    
+
                     // Sử dụng dữ liệu an toàn từ materialToAdd và selectedProduct
                     const componentName = materialToAdd.name || materialToAdd.code || 'Vật tư';
                     const productName = selectedProduct.name || 'Thành phẩm';
                     const unitText = selectedUnit !== '' ? ` (Đơn vị ${parseInt(selectedUnit) + 1})` : '';
-                    
+
                     successMessage.innerHTML =
                         '<i class="fas fa-check-circle"></i> Đã thêm "' + componentName + '" vào thành phẩm "' +
                         productName + '"' + unitText;
-                    
+
                     // Kiểm tra document.body tồn tại trước khi append
                     if (document.body) {
-                    document.body.appendChild(successMessage);
+                        document.body.appendChild(successMessage);
 
-                    // Xóa thông báo sau 2 giây
-                    setTimeout(() => {
+                        // Xóa thông báo sau 2 giây
+                        setTimeout(() => {
                             if (successMessage && successMessage.parentNode) {
-                            successMessage.parentNode.removeChild(successMessage);
-                        }
-                    }, 2000);
+                                successMessage.parentNode.removeChild(successMessage);
+                            }
+                        }, 2000);
                     }
 
                     // Reset search input và selectedMaterial
@@ -1990,7 +1976,7 @@
                     componentProductSelect.value = '';
                     componentProductUnitSelect.innerHTML = '<option value="">--Đơn vị--</option>';
                     componentProductUnitSelect.disabled = true;
-                    
+
                     // Disable add button
                     addComponentBtn.disabled = true;
                     addComponentBtn.classList.add('opacity-50');
@@ -1998,9 +1984,10 @@
                     // Cập nhật giao diện
                     console.log("Updating UI with new component. Total components:", window.selectedComponents
                         .length);
-                    console.log("Components for this product:", window.selectedComponents.filter(c => c.productId === selectedProductId));
+                    console.log("Components for this product:", window.selectedComponents.filter(c => c
+                        .productId === selectedProductId));
                     updateProductComponentList(selectedProductId);
-                    
+
                     // Kiểm tra thay đổi công thức và hiển thị button tạo thành phẩm mới
                     checkAndShowCreateNewProductButton(selectedProductId);
 
@@ -2022,10 +2009,10 @@
             function updateComponentQuantities() {
                 // Store existing components that were manually added
                 const manuallyAddedComponents = selectedComponents.filter(c => !c.isFromProduct);
-                
+
                 // Clear existing components
                 selectedComponents = [];
-                
+
                 // Recreate components for each product based on current quantities
                 console.log('updateComponentQuantities - processing products:', selectedProducts.map(p => ({
                     uniqueId: p.uniqueId,
@@ -2034,17 +2021,18 @@
                     hasOriginalComponents: !!p.originalComponents,
                     originalComponentsCount: p.originalComponents ? p.originalComponents.length : 0
                 })));
-                
-                        selectedProducts.forEach(product => {
+
+                selectedProducts.forEach(product => {
                     const productQty = parseInt(product.quantity) || 1;
-                    
+
                     console.log(`Processing product ${product.uniqueId}:`, {
                         name: product.name,
                         quantity: productQty,
                         hasOriginalComponents: !!product.originalComponents,
-                        originalComponentsCount: product.originalComponents ? product.originalComponents.length : 0
+                        originalComponentsCount: product.originalComponents ? product
+                            .originalComponents.length : 0
                     });
-                    
+
                     // Add original components from product formula
                     if (product.originalComponents) {
                         for (let unitIndex = 0; unitIndex < productQty; unitIndex++) {
@@ -2069,13 +2057,13 @@
                                     productUnit: unitIndex,
                                     unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` : ''
                                 };
-                                
+
                                 selectedComponents.push(newComponent);
                             });
                         }
                     }
                 });
-                
+
                 // Re-add manually added components - ONLY to their original units
                 console.log("Re-adding manually added components:", manuallyAddedComponents.length);
                 manuallyAddedComponents.forEach(component => {
@@ -2085,14 +2073,17 @@
                         const newComponent = {
                             ...component,
                             productUnit: component.productUnit, // Keep original unit
-                            unitLabel: component.productUnit > 0 ? `Đơn vị ${component.productUnit + 1}` : ''
+                            unitLabel: component.productUnit > 0 ?
+                                `Đơn vị ${component.productUnit + 1}` : ''
                         };
-                        
-                        console.log(`Re-adding component "${component.name}" (ID: ${component.id}) to unit ${component.productUnit} only`);
+
+                        console.log(
+                            `Re-adding component "${component.name}" (ID: ${component.id}) to unit ${component.productUnit} only`
+                            );
                         selectedComponents.push(newComponent);
                     }
                 });
-                
+
                 console.log('Final selectedComponents after updateComponentQuantities:', {
                     total: selectedComponents.length,
                     components: selectedComponents.map(c => ({
@@ -2103,7 +2094,7 @@
                         isFromProduct: c.isFromProduct
                     }))
                 });
-                
+
                 // Debug: Check if any components exist in multiple units
                 const componentsByMaterial = {};
                 selectedComponents.forEach(comp => {
@@ -2117,15 +2108,18 @@
                         isOriginal: comp.isOriginal
                     });
                 });
-                
+
                 Object.keys(componentsByMaterial).forEach(materialId => {
                     const components = componentsByMaterial[materialId];
                     if (components.length > 1) {
-                        console.log(`WARNING: Material ${materialId} exists in multiple units:`, components);
+                        console.log(`WARNING: Material ${materialId} exists in multiple units:`,
+                        components);
                         // Check if this is a user-added component
                         const userAddedComponents = components.filter(c => !c.isFromProduct);
                         if (userAddedComponents.length > 1) {
-                            console.log(`ERROR: User-added material ${materialId} exists in multiple units! This should not happen.`);
+                            console.log(
+                                `ERROR: User-added material ${materialId} exists in multiple units! This should not happen.`
+                                );
                         }
                     }
                 });
@@ -2134,19 +2128,22 @@
                 selectedProducts.forEach(product => {
                     updateProductComponentList(product.uniqueId);
                 });
-                
+
                 // Add visual feedback for quantity changes
                 selectedProducts.forEach(product => {
                     const componentBlock = document.getElementById('component_block_' + product.uniqueId);
                     if (componentBlock) {
                         const feedbackMessage = document.createElement('div');
-                        feedbackMessage.className = 'text-blue-500 text-sm p-2 text-center bg-blue-50 border border-blue-200 rounded';
-                        feedbackMessage.innerHTML = `<i class="fas fa-info-circle"></i> Đã cập nhật hiển thị cho ${product.quantity} đơn vị thành phẩm`;
+                        feedbackMessage.className =
+                            'text-blue-500 text-sm p-2 text-center bg-blue-50 border border-blue-200 rounded';
+                        feedbackMessage.innerHTML =
+                            `<i class="fas fa-info-circle"></i> Đã cập nhật hiển thị cho ${product.quantity} đơn vị thành phẩm`;
                         feedbackMessage.id = 'quantity-feedback-' + product.uniqueId;
                         componentBlock.appendChild(feedbackMessage);
-                        
+
                         setTimeout(() => {
-                            const element = document.getElementById('quantity-feedback-' + product.uniqueId);
+                            const element = document.getElementById('quantity-feedback-' + product
+                                .uniqueId);
                             if (element) element.remove();
                         }, 3000);
                     }
@@ -2428,8 +2425,8 @@
                 });
             }
 
-    // Make updateProductComponentList available globally for assembly-product-unit.js
-    window.updateProductComponentList = updateProductComponentList;
+            // Make updateProductComponentList available globally for assembly-product-unit.js
+            window.updateProductComponentList = updateProductComponentList;
 
             // Function to add serial inputs to a cell
             function addSerialInputsToCell(cell, component, index) {
@@ -2481,10 +2478,11 @@
                         const currentMaterialId = this.getAttribute('data-material-id');
 
                         // Check if this serial is already selected in other dropdowns of the same material
-                        const isSerialUsed = selectedSerial && selectedComponents.some(comp => 
+                        const isSerialUsed = selectedSerial && selectedComponents.some(comp =>
                             comp.id === component.id && // Same material
                             ((comp.serial === selectedSerial) || // Check single serial
-                            (comp.serials && comp.serials.includes(selectedSerial))) && // Check multiple serials
+                                (comp.serials && comp.serials.includes(selectedSerial))) &&
+                            // Check multiple serials
                             comp !== component // Different component instance
                         );
 
@@ -2499,13 +2497,13 @@
                             const errorDiv = document.createElement('div');
                             errorDiv.className = 'text-red-500 text-xs mt-1';
                             errorDiv.textContent = 'Serial này đã được sử dụng cho vật tư này';
-                            
+
                             // Remove existing error message if any
                             const existingError = this.parentElement.querySelector('.text-red-500');
                             if (existingError) {
                                 existingError.remove();
                             }
-                            
+
                             this.parentElement.appendChild(errorDiv);
 
                             // Remove error message after 3 seconds
@@ -2626,24 +2624,25 @@
                             // Check if this serial is already selected in other dropdowns of the same material
                             const isSerialUsed = selectedSerial && (
                                 // Check in other serials of this component
-                                (component.serials && component.serials.some((serial, idx) => 
+                                (component.serials && component.serials.some((serial, idx) =>
                                     idx !== i && serial === selectedSerial
                                 )) ||
                                 // Check in other components of the same material
-                                selectedComponents.some(comp => 
+                                selectedComponents.some(comp =>
                                     comp.id === component.id && // Same material
                                     comp !== component && // Different component instance
                                     ((comp.serial === selectedSerial) || // Check single serial
-                                    (comp.serials && comp.serials.includes(selectedSerial))) // Check multiple serials
+                                        (comp.serials && comp.serials.includes(selectedSerial))
+                                        ) // Check multiple serials
                                 )
                             );
 
                             if (isSerialUsed) {
                                 // Reset selection
                                 this.value = '';
-                            if (!component.serials) component.serials = [];
+                                if (!component.serials) component.serials = [];
                                 component.serials[i] = '';
-                            if (!component.serial_ids) component.serial_ids = [];
+                                if (!component.serial_ids) component.serial_ids = [];
                                 component.serial_ids[i] = '';
                                 serialIdInput.value = '';
 
@@ -2651,13 +2650,13 @@
                                 const errorDiv = document.createElement('div');
                                 errorDiv.className = 'text-red-500 text-xs mt-1';
                                 errorDiv.textContent = 'Serial này đã được sử dụng cho vật tư này';
-                                
+
                                 // Remove existing error message if any
                                 const existingError = this.parentElement.querySelector('.text-red-500');
                                 if (existingError) {
                                     existingError.remove();
                                 }
-                                
+
                                 this.parentElement.appendChild(errorDiv);
 
                                 // Remove error message after 3 seconds
@@ -2717,9 +2716,11 @@
                 if (!product || !product.originalComponents) {
                     console.log('No original components found, using fallback logic');
                     // Fallback to old logic if no original components available
-                    const productComponents = selectedComponents.filter(c => c.productId === productUniqueId && c.productUnit === 0);
+                    const productComponents = selectedComponents.filter(c => c.productId === productUniqueId && c
+                        .productUnit === 0);
                     const modified = productComponents.some(component => {
-                        const originalComponent = product.originalComponents?.find(o => o.id == component.id);
+                        const originalComponent = product.originalComponents?.find(o => o.id == component
+                            .id);
                         return originalComponent && originalComponent.quantity !== component.quantity;
                     });
                     console.log(`Using fallback logic: ${modified ? 'MODIFIED' : 'not modified'}`);
@@ -2731,38 +2732,52 @@
 
                 // Check if product quantity changed from original (if we have original quantity stored)
                 if (product.originalQuantity && product.originalQuantity !== product.quantity) {
-                    console.log(`Product quantity changed from ${product.originalQuantity} to ${product.quantity}, marking as modified`);
+                    console.log(
+                        `Product quantity changed from ${product.originalQuantity} to ${product.quantity}, marking as modified`
+                        );
                     return true;
                 }
 
                 // Check each unit separately
                 for (let unitIndex = 0; unitIndex < productQty; unitIndex++) {
-                    const unitComponents = selectedComponents.filter(c => c.productId === productUniqueId && c.productUnit === unitIndex);
-                    
+                    const unitComponents = selectedComponents.filter(c => c.productId === productUniqueId && c
+                        .productUnit === unitIndex);
+
                     console.log(`Checking unit ${unitIndex}:`, {
                         currentCount: unitComponents.length,
-                    originalCount: originalComponents.length,
-                        current: unitComponents.map(c => ({ id: c.id, name: c.name, quantity: c.quantity, isFromProduct: c.isFromProduct })),
-                        original: originalComponents.map(o => ({ id: o.id, name: o.name, quantity: o.quantity }))
-                });
+                        originalCount: originalComponents.length,
+                        current: unitComponents.map(c => ({
+                            id: c.id,
+                            name: c.name,
+                            quantity: c.quantity,
+                            isFromProduct: c.isFromProduct
+                        })),
+                        original: originalComponents.map(o => ({
+                            id: o.id,
+                            name: o.name,
+                            quantity: o.quantity
+                        }))
+                    });
 
-                // Check if number of components changed
+                    // Check if number of components changed
                     if (unitComponents.length !== originalComponents.length) {
                         console.log(`Unit ${unitIndex}: Component count changed, marking as modified`);
-                    return true;
-                }
+                        return true;
+                    }
 
-                // Check each component for changes
+                    // Check each component for changes
                     for (let current of unitComponents) {
-                    const original = originalComponents.find(o => o.id == current.id);
-                    if (!original) {
-                        // New component added
+                        const original = originalComponents.find(o => o.id == current.id);
+                        if (!original) {
+                            // New component added
                             console.log(`Unit ${unitIndex}: New component added: ${current.id}`);
-                        return true;
-                    } else if (original.quantity != current.quantity) {
-                        // Quantity changed
-                            console.log(`Unit ${unitIndex}: Component ${current.id} quantity changed: ${original.quantity} -> ${current.quantity}`);
-                        return true;
+                            return true;
+                        } else if (original.quantity != current.quantity) {
+                            // Quantity changed
+                            console.log(
+                                `Unit ${unitIndex}: Component ${current.id} quantity changed: ${original.quantity} -> ${current.quantity}`
+                                );
+                            return true;
                         }
                     }
                 }
@@ -2781,12 +2796,13 @@
                 const tables = componentBlock.querySelectorAll('table');
                 const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
                 const originalComponents = product?.originalComponents || [];
-                
+
                 tables.forEach((table, unitIndex) => {
                     // Check if this unit has modifications
-                    const unitComponents = selectedComponents.filter(c => c.productId === productUniqueId && c.productUnit === unitIndex);
+                    const unitComponents = selectedComponents.filter(c => c.productId === productUniqueId &&
+                        c.productUnit === unitIndex);
                     let hasModifications = false;
-                    
+
                     // Check if number of components changed
                     if (unitComponents.length !== originalComponents.length) {
                         hasModifications = true;
@@ -2800,14 +2816,15 @@
                             }
                         }
                     }
-                    
+
                     // Only add button if this unit has modifications
                     if (hasModifications) {
-                const duplicateSection = document.createElement('div');
-                duplicateSection.className = 'bg-yellow-50 border-t border-yellow-200 p-3 duplicate-section';
-                duplicateSection.setAttribute('data-product-id', productUniqueId);
+                        const duplicateSection = document.createElement('div');
+                        duplicateSection.className =
+                            'bg-yellow-50 border-t border-yellow-200 p-3 duplicate-section';
+                        duplicateSection.setAttribute('data-product-id', productUniqueId);
                         duplicateSection.setAttribute('data-unit-index', unitIndex);
-                duplicateSection.innerHTML = `
+                        duplicateSection.innerHTML = `
                     <div class="flex justify-between items-center">
                         <div class="text-sm text-yellow-700">
                             <i class="fas fa-info-circle mr-2"></i>
@@ -2819,7 +2836,7 @@
                         </button>
                     </div>
                 `;
-                        
+
                         // Insert after this specific table
                         table.parentNode.insertBefore(duplicateSection, table.nextSibling);
                     }
@@ -2837,7 +2854,7 @@
                         newBtn.addEventListener('click', function(e) {
                             e.preventDefault(); // Ngăn chặn hành vi mặc định
                             e.stopPropagation(); // Ngăn chặn event bubbling
-                            
+
                             const productUniqueId = this.getAttribute('data-unique-id');
                             const productId = this.getAttribute('data-product-id');
                             const unitIndex = this.getAttribute('data-unit-index');
@@ -2874,13 +2891,13 @@
                     const productId = product.id;
                     console.log(
                         `Adding create new product button for product ${productId} (uniqueId: ${productUniqueId})`
-                        );
+                    );
 
                     // Find the component block for this product
                     const componentBlock = document.getElementById('component_block_' + productUniqueId);
                     if (componentBlock) {
                         console.log(`Adding button to component block for product ${productUniqueId}`);
-                    addCreateNewProductButton(componentBlock, productId, productUniqueId);
+                        addCreateNewProductButton(componentBlock, productId, productUniqueId);
                     } else {
                         console.log(`Component block not found for ${productUniqueId}`);
                     }
@@ -2890,7 +2907,7 @@
                     if (componentBlock) {
                         const existingSections = componentBlock.querySelectorAll('.duplicate-section');
                         existingSections.forEach(section => {
-                        console.log(`Removing create new product button for ${productUniqueId}`);
+                            console.log(`Removing create new product button for ${productUniqueId}`);
                             section.remove();
                         });
                     }
@@ -2899,7 +2916,10 @@
 
             // Function to show create new product modal/alert
             function showCreateNewProductModal(productUniqueId, unitIndex = null) {
-                console.log('showCreateNewProductModal called with:', { productUniqueId, unitIndex });
+                console.log('showCreateNewProductModal called with:', {
+                    productUniqueId,
+                    unitIndex
+                });
                 console.log('Current selectedComponents state:', {
                     total: selectedComponents.length,
                     components: selectedComponents.map(c => ({
@@ -2910,7 +2930,7 @@
                         quantity: c.quantity
                     }))
                 });
-                
+
                 // Kiểm tra nếu đang xử lý yêu cầu tạo thành phẩm
                 // Sử dụng window.isCreatingProduct để truy cập biến từ file assembly-product-unit.js
                 if (window.isCreatingProduct === true) {
@@ -2926,8 +2946,9 @@
 
                 const product = selectedProducts.find(p => p.uniqueId === productUniqueId);
                 // Chỉ lấy components của đơn vị cụ thể nếu unitIndex được cung cấp
-                const productComponents = unitIndex !== null ? 
-                    selectedComponents.filter(c => c.productId === productUniqueId && c.productUnit === parseInt(unitIndex)) :
+                const productComponents = unitIndex !== null ?
+                    selectedComponents.filter(c => c.productId === productUniqueId && c.productUnit === parseInt(
+                        unitIndex)) :
                     selectedComponents.filter(c => c.productId === productUniqueId);
 
                 if (!product || productComponents.length === 0) return;
@@ -2940,11 +2961,11 @@
                     filteredComponents: productComponents,
                     totalSelectedComponents: selectedComponents.length
                 });
-                
+
                 // Debug: Check if there are any components with wrong unit
-                const wrongUnitComponents = selectedComponents.filter(c => 
-                    c.productId === productUniqueId && 
-                    c.productUnit !== parseInt(unitIndex) && 
+                const wrongUnitComponents = selectedComponents.filter(c =>
+                    c.productId === productUniqueId &&
+                    c.productUnit !== parseInt(unitIndex) &&
                     c.productUnit !== undefined
                 );
                 if (wrongUnitComponents.length > 0) {
@@ -2974,28 +2995,32 @@
                     if (exists) {
                         console.log('Formula exists, showing confirmation dialog');
                         // Formula exists, show confirmation with options
-                Swal.fire({
+                        Swal.fire({
                             title: `Công thức đã tồn tại${unitText}`,
                             html: `Đã tồn tại thành phẩm với công thức này.<br><br>Bạn muốn:<br><br><pre style="text-align:left;background:#f5f5f5;padding:10px;max-height:200px;overflow-y:auto">${formulaSummary}</pre>`,
                             icon: 'warning',
-                    showCancelButton: true,
+                            showCancelButton: true,
                             showDenyButton: true,
                             confirmButtonText: 'Tạo thành phẩm mới',
                             denyButtonText: 'Lắp ráp thành phẩm đã tồn tại',
-                    cancelButtonText: 'Hủy',
-                    allowOutsideClick: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
+                            cancelButtonText: 'Hủy',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
                                 // Create new product with existing formula
-                                const componentBlock = document.getElementById('component_block_' + productUniqueId);
-                                const createNewBtn = componentBlock ? componentBlock.querySelector(`.create-new-product-btn[data-unit-index="${unitIndex}"]`) : null;
-                                if (createNewBtn && typeof window.handleCreateNewProduct === "function") {
+                                const componentBlock = document.getElementById('component_block_' +
+                                    productUniqueId);
+                                const createNewBtn = componentBlock ? componentBlock.querySelector(
+                                        `.create-new-product-btn[data-unit-index="${unitIndex}"]`) :
+                                    null;
+                                if (createNewBtn && typeof window.handleCreateNewProduct ===
+                                    "function") {
                                     window.handleCreateNewProduct(createNewBtn);
                                 }
                             } else if (result.isDenied) {
                                 // Use existing product for assembly
                                 useExistingProduct(productUniqueId, exists, unitIndex);
-                                
+
                                 // Hiển thị thông báo khi sử dụng thành phẩm đã tồn tại
                                 setTimeout(() => {
                                     Swal.fire({
@@ -3006,23 +3031,27 @@
                                     });
                                 }, 500);
                             }
-                                });
-                            } else {
-                                console.log('Formula does not exist, showing normal confirmation');
+                        });
+                    } else {
+                        console.log('Formula does not exist, showing normal confirmation');
                         // Formula doesn't exist, show normal confirmation
-                                Swal.fire({
-                    title: `Xác nhận tạo thành phẩm mới${unitText}`,
-                    html: `Bạn có muốn tạo thành phẩm mới <strong>"${product.name} (Modified)"</strong> với công thức sau?<br><br><pre style="text-align:left;background:#f5f5f5;padding:10px;max-height:200px;overflow-y:auto">${formulaSummary}</pre>`,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Tạo thành phẩm',
-                    cancelButtonText: 'Hủy',
-                    allowOutsideClick: false
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                                const componentBlock = document.getElementById('component_block_' + productUniqueId);
-                                const createNewBtn = componentBlock ? componentBlock.querySelector(`.create-new-product-btn[data-unit-index="${unitIndex}"]`) : null;
-                                if (createNewBtn && typeof window.handleCreateNewProduct === "function") {
+                        Swal.fire({
+                            title: `Xác nhận tạo thành phẩm mới${unitText}`,
+                            html: `Bạn có muốn tạo thành phẩm mới <strong>"${product.name} (Modified)"</strong> với công thức sau?<br><br><pre style="text-align:left;background:#f5f5f5;padding:10px;max-height:200px;overflow-y:auto">${formulaSummary}</pre>`,
+                            icon: 'question',
+                            showCancelButton: true,
+                            confirmButtonText: 'Tạo thành phẩm',
+                            cancelButtonText: 'Hủy',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                const componentBlock = document.getElementById('component_block_' +
+                                    productUniqueId);
+                                const createNewBtn = componentBlock ? componentBlock.querySelector(
+                                        `.create-new-product-btn[data-unit-index="${unitIndex}"]`) :
+                                    null;
+                                if (createNewBtn && typeof window.handleCreateNewProduct ===
+                                    "function") {
                                     window.handleCreateNewProduct(createNewBtn);
                                 }
                             }
@@ -3034,26 +3063,30 @@
             // Function to check if formula already exists
             async function checkFormulaExists(productUniqueId, productComponents) {
                 try {
-                    console.log('Checking formula exists for:', { productUniqueId, productComponents });
-                    
+                    console.log('Checking formula exists for:', {
+                        productUniqueId,
+                        productComponents
+                    });
+
                     // Create formula data for comparison
                     const formulaData = productComponents.map(comp => ({
                         material_id: comp.id,
                         quantity: comp.quantity
                     }));
-                    
+
                     console.log('Formula data to check:', formulaData);
 
                     console.log('Sending request to check formula:', {
-                        url: '{{ route("assemblies.check-formula") }}',
+                        url: '{{ route('assemblies.check-formula') }}',
                         formula: formulaData
                     });
 
-                    const response = await fetch('{{ route("assemblies.check-formula") }}', {
+                    const response = await fetch('{{ route('assemblies.check-formula') }}', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content')
                         },
                         body: JSON.stringify({
                             formula: formulaData
@@ -3081,7 +3114,7 @@
             // Function to use existing product for assembly
             function useExistingProduct(productUniqueId, existingProduct, unitIndex = null) {
                 console.log('Using existing product for assembly:', existingProduct);
-                
+
                 // Replace the current product with the existing one
                 const currentProduct = selectedProducts.find(p => p.uniqueId === productUniqueId);
                 if (currentProduct) {
@@ -3090,7 +3123,7 @@
                     currentProduct.name = existingProduct.name;
                     currentProduct.code = existingProduct.code;
                     currentProduct.uniqueId = `product_${existingProduct.id}`;
-                    
+
                     // Update UI to show existing product
                     const componentBlock = document.getElementById('component_block_' + productUniqueId);
                     if (componentBlock) {
@@ -3098,10 +3131,10 @@
                         if (header) {
                             header.innerHTML = `Linh kiện cho thành phẩm: ${existingProduct.name} (Đã tồn tại)`;
                         }
-                        
+
                         // Mark as using existing product
                         componentBlock.classList.add('using-existing-product');
-                        
+
                         // Show success message
                         Swal.fire({
                             icon: 'success',
@@ -3118,16 +3151,17 @@
                 // Update hidden form data before validation
                 // updateHiddenComponentList();
                 // updateHiddenProductList();
-                
+
                 // Check if we have components for all units
                 const productUnits = new Set();
                 selectedComponents.forEach(c => {
                     productUnits.add(c.productUnit);
                 });
-                
+
                 // Check if we have components for each product
                 selectedProducts.forEach(product => {
-                    const productComponents = selectedComponents.filter(c => c.productId === product.uniqueId);
+                    const productComponents = selectedComponents.filter(c => c.productId === product
+                        .uniqueId);
                     console.log(`Product ${product.uniqueId} (${product.name}):`, {
                         quantity: product.quantity,
                         components: productComponents.length,
@@ -3492,7 +3526,7 @@
 
                 try {
                     const serials = await fetchMaterialSerials(component.id, component.warehouseId);
-                    
+
                     // Clear select and add default option
                     selectElement.innerHTML = '<option value="">Chọn serial (tùy chọn)</option>';
 
@@ -3501,7 +3535,8 @@
                         const allSelectedSerials = new Set();
                         document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(
                             otherSelect => {
-                                if (otherSelect !== selectElement && otherSelect.value && otherSelect.value !== '') {
+                                if (otherSelect !== selectElement && otherSelect.value && otherSelect
+                                    .value !== '') {
                                     allSelectedSerials.add(otherSelect.value);
                                 }
                             });
@@ -3519,7 +3554,8 @@
                             option.dataset.serialId = serial.id;
 
                             // Select this option if it matches component's current serial for this index
-                            if ((component.serials && component.serials[serialIndex] === serial.serial_number) ||
+                            if ((component.serials && component.serials[serialIndex] === serial
+                                    .serial_number) ||
                                 (component.serial_ids && component.serial_ids[serialIndex] == serial.id)
                             ) {
                                 option.selected = true;
@@ -3557,7 +3593,7 @@
 
                 try {
                     const serials = await fetchMaterialSerials(component.id, component.warehouseId);
-                    
+
                     // Clear select and add default option
                     selectElement.innerHTML = '<option value="">Chọn serial (tùy chọn)</option>';
 
@@ -3566,7 +3602,8 @@
                         const allSelectedSerials = new Set();
                         document.querySelectorAll(`select[data-material-id="${component.id}"]`).forEach(
                             otherSelect => {
-                                if (otherSelect !== selectElement && otherSelect.value && otherSelect.value !== '') {
+                                if (otherSelect !== selectElement && otherSelect.value && otherSelect
+                                    .value !== '') {
                                     allSelectedSerials.add(otherSelect.value);
                                 }
                             });
@@ -3584,7 +3621,8 @@
                             option.dataset.serialId = serial.id;
 
                             // Select this option if it matches component's current serial
-                            if (component.serial === serial.serial_number || component.serial_id == serial.id) {
+                            if (component.serial === serial.serial_number || component.serial_id ==
+                                serial.id) {
                                 option.selected = true;
                                 selectElement.value = serial.serial_number;
                                 component.serial = serial.serial_number;
@@ -4017,15 +4055,18 @@
                         // Update selectedComponents to match new quantity
                         if (quantity > oldQuantity) {
                             // Add more components for new units
-                            const existingComponents = selectedComponents.filter(c => c.productId === productId);
-                            const componentsForFirstUnit = existingComponents.filter(c => c.productUnit === 0);
-                            
+                            const existingComponents = selectedComponents.filter(c => c.productId ===
+                                productId);
+                            const componentsForFirstUnit = existingComponents.filter(c => c.productUnit ===
+                                0);
+
                             for (let unitIndex = oldQuantity; unitIndex < quantity; unitIndex++) {
                                 componentsForFirstUnit.forEach(originalComponent => {
                                     const newComponent = {
                                         ...originalComponent,
                                         productUnit: unitIndex,
-                                        quantity: originalComponent.originalQuantity || originalComponent.quantity,
+                                        quantity: originalComponent.originalQuantity ||
+                                            originalComponent.quantity,
                                         manuallyAdjusted: false
                                     };
                                     selectedComponents.push(newComponent);
@@ -4033,16 +4074,18 @@
                             }
                         } else if (quantity < oldQuantity) {
                             // Remove components for removed units
-                            selectedComponents = selectedComponents.filter(c => 
+                            selectedComponents = selectedComponents.filter(c =>
                                 !(c.productId === productId && c.productUnit >= quantity)
                             );
                         }
 
                         // Ensure we have components for all units (if product has original components)
                         if (product.originalComponents && product.originalComponents.length > 0) {
-                            const existingComponents = selectedComponents.filter(c => c.productId === productId);
-                            const existingUnitCounts = [...new Set(existingComponents.map(c => c.productUnit))];
-                            
+                            const existingComponents = selectedComponents.filter(c => c.productId ===
+                                productId);
+                            const existingUnitCounts = [...new Set(existingComponents.map(c => c
+                                .productUnit))];
+
                             // Check if we need to add components for any missing units
                             for (let unitIndex = 0; unitIndex < quantity; unitIndex++) {
                                 if (!existingUnitCounts.includes(unitIndex)) {
@@ -4064,7 +4107,8 @@
                                             isOriginal: true,
                                             warehouseId: '',
                                             productUnit: unitIndex,
-                                            unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` : ''
+                                            unitLabel: unitIndex > 0 ?
+                                                `Đơn vị ${unitIndex + 1}` : ''
                                         };
                                         selectedComponents.push(newComponent);
                                     });
@@ -4105,10 +4149,10 @@
                                 input.className =
                                     'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
                                 serialCell.appendChild(input);
-                                
+
                                 // Add serial validation
                                 addProductSerialValidation(input, product.id);
-                                
+
                                 // Add event listener to save serial value
                                 input.addEventListener('input', function() {
                                     // Lưu giá trị serial vào product.serials array
@@ -4129,10 +4173,10 @@
                 if (!componentBlock) return;
 
                 // Find specific button for unit if unitIndex is provided
-                const createNewBtn = unitIndex !== null ? 
+                const createNewBtn = unitIndex !== null ?
                     componentBlock.querySelector(`.create-new-product-btn[data-unit-index="${unitIndex}"]`) :
                     componentBlock.querySelector('.create-new-product-btn');
-                    
+
                 if (createNewBtn) {
                     // Vô hiệu hóa nút
                     createNewBtn.disabled = true;
@@ -4210,12 +4254,12 @@
             // Function to fetch serials from server
             async function fetchMaterialSerials(materialId, warehouseId) {
                 try {
-                    const response = await fetch(`{{ route('assemblies.material-serials') }}?` + 
+                    const response = await fetch(`{{ route('assemblies.material-serials') }}?` +
                         new URLSearchParams({
                             material_id: materialId,
                             warehouse_id: warehouseId
                         }));
-                    
+
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
                     }
@@ -4246,17 +4290,17 @@
                     // Update component quantity in selectedComponents array
                     const componentId = e.target.getAttribute('data-component-id');
                     const newQuantity = parseInt(e.target.value) || 1;
-                    
+
                     // Find and update the component
-                    const component = selectedComponents.find(c => 
+                    const component = selectedComponents.find(c =>
                         c.id == componentId && c.productId === productId
                     );
-                    
+
                     if (component) {
                         component.quantity = newQuantity;
                         component.manuallyAdjusted = true;
                         console.log(`Updated component ${component.name} quantity to ${newQuantity}`);
-                        
+
                         // Check if components are modified and show/hide create new product button
                         checkAndShowCreateNewProductButton(productId);
                     }

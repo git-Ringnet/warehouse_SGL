@@ -80,18 +80,21 @@
                                 </div>
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày (lắp ráp)</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày (lắp
+                                            ráp)</label>
                                         <input type="date" id="dateFromFilter"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày (lắp ráp)</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày (lắp
+                                            ráp)</label>
                                         <input type="date" id="dateToFilter"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                     </div>
                                 </div>
                                 <div class="flex justify-between pt-2 border-t border-gray-200">
-                                    <a href="{{ route('assemblies.index') }}" class="text-gray-500 hover:text-gray-700 text-sm">
+                                    <a href="{{ route('assemblies.index') }}"
+                                        class="text-gray-500 hover:text-gray-700 text-sm">
                                         <i class="fas fa-times mr-1"></i> Xóa bộ lọc
                                     </a>
                                     <button id="applyFilters"
@@ -104,13 +107,13 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-2 items-center">
-                    @if($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.create')))
-                    <a href="{{ route('assemblies.create') }}">
-                        <button
-                            class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                            <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
-                        </button>
-                    </a>
+                    @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('assembly.create')))
+                        <a href="{{ route('assemblies.create') }}">
+                            <button
+                                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                                <i class="fas fa-plus mr-2"></i> Tạo phiếu lắp ráp
+                            </button>
+                        </a>
                     @endif
                 </div>
             </div>
@@ -118,12 +121,14 @@
         <main class="p-6">
             <div id="notificationArea">
                 @if (session('success'))
-                    <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4" id="successAlert">
+                    <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4"
+                        id="successAlert">
                         {!! session('success') !!}
                     </div>
                 @endif
                 @if ($errors->has('error'))
-                    <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" id="errorAlert">
+                    <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"
+                        id="errorAlert">
                         {{ $errors->first('error') }}
                     </div>
                 @endif
@@ -178,6 +183,43 @@
     </div>
 
     <script>
+        // Function to show notifications
+        function showNotification(message, type = 'info') {
+            const notificationArea = document.getElementById('notificationArea');
+            const notification = document.createElement('div');
+            
+            notification.className = `px-4 py-3 rounded-lg mb-4 ${
+                type === 'success' ? 'bg-green-100 border border-green-200 text-green-700' :
+                type === 'error' ? 'bg-red-100 border border-red-200 text-red-700' :
+                'bg-blue-100 border border-blue-200 text-blue-700'
+            }`;
+            
+            notification.innerHTML = message;
+            notification.id = 'dynamicNotification';
+            
+            // Remove existing dynamic notification
+            const existingNotification = document.getElementById('dynamicNotification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            // Insert at the beginning of notification area
+            notificationArea.insertBefore(notification, notificationArea.firstChild);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.style.transition = 'opacity 0.5s ease-out';
+                    notification.style.opacity = '0';
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.remove();
+                        }
+                    }, 500);
+                }
+            }, 5000);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('searchInput');
             const searchButton = document.getElementById('searchButton');
@@ -192,7 +234,7 @@
             // Auto-hide success/error alerts after 5 seconds
             const successAlert = document.getElementById('successAlert');
             const errorAlert = document.getElementById('errorAlert');
-            
+
             if (successAlert) {
                 setTimeout(() => {
                     successAlert.style.transition = 'opacity 0.5s ease-out';
@@ -202,7 +244,7 @@
                     }, 500);
                 }, 5000);
             }
-            
+
             if (errorAlert) {
                 setTimeout(() => {
                     errorAlert.style.transition = 'opacity 0.5s ease-out';
@@ -254,50 +296,59 @@
             document.addEventListener('submit', function(e) {
                 if (e.target.action && e.target.action.includes('/approve')) {
                     e.preventDefault();
-                    
+
                     const form = e.target;
                     const button = form.querySelector('button[type="submit"]');
                     const originalText = button.innerHTML;
-                    
+
                     // Show loading state
                     button.disabled = true;
                     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                    
+
                     fetch(form.action, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            'Accept': 'application/json'
-                        },
-                        body: new FormData(form)
-                    })
-                    .then(response => {
-                        if (response.redirected) {
-                            // If redirected, follow the redirect
-                            window.location.href = response.url;
-                        } else {
-                            return response.json();
-                        }
-                    })
-                    .then(data => {
-                        if (data && data.success) {
-                            // Reload the table
-                            window.location.reload();
-                        } else if (data && data.error) {
-                            // Reload the table
-                            window.location.reload();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        // Reload the table
-                        window.location.reload();
-                    })
-                    .finally(() => {
-                        // Restore button state
-                        button.disabled = false;
-                        button.innerHTML = originalText;
-                    });
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .getAttribute('content'),
+                                'Accept': 'application/json'
+                            },
+                            body: new FormData(form)
+                        })
+                        .then(response => {
+                            if (response.redirected) {
+                                // If redirected, follow the redirect
+                                window.location.href = response.url;
+                            } else if (!response.ok) {
+                                // Handle error responses
+                                return response.json().then(errorData => {
+                                    throw new Error(errorData.error || 'Có lỗi xảy ra khi duyệt phiếu lắp ráp');
+                                });
+                            } else {
+                                return response.json();
+                            }
+                        })
+                        .then(data => {
+                            if (data && data.success) {
+                                // Show success message and reload
+                                showNotification('Phiếu lắp ráp đã được duyệt thành công!', 'success');
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1500);
+                            } else if (data && data.error) {
+                                // Show error message
+                                showNotification(data.error, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            // Show error message
+                            showNotification(error.message || 'Có lỗi xảy ra khi duyệt phiếu lắp ráp', 'error');
+                        })
+                        .finally(() => {
+                            // Restore button state
+                            button.disabled = false;
+                            button.innerHTML = originalText;
+                        });
                 }
             });
 

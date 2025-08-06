@@ -97,7 +97,7 @@
         </header>
 
         <main class="p-6">
-            <form action="{{ route('assemblies.update', $assembly->id) }}" method="POST">
+            <form id="assembly-form" action="{{ route('assemblies.update', $assembly->id) }}" method="POST">
                 @csrf
                 @method('PUT')
 
@@ -112,12 +112,12 @@
                     </div>
                 @endif
 
-                @if($assembly->status === 'completed' || $assembly->status === 'cancelled')
+                @if ($assembly->status === 'completed' || $assembly->status === 'cancelled')
                     <div class="mb-4 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                         <div class="flex items-center text-yellow-800">
                             <i class="fas fa-exclamation-triangle mr-2"></i>
                             <span class="font-medium">
-                                @if($assembly->status === 'completed')
+                                @if ($assembly->status === 'completed')
                                     Phiếu lắp ráp đã hoàn thành, không thể chỉnh sửa.
                                 @else
                                     Phiếu lắp ráp đã bị hủy, không thể chỉnh sửa.
@@ -149,7 +149,8 @@
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp <span
                                     class="text-red-500">*</span></label>
                             <input type="date" id="assembly_date" name="assembly_date" value="{{ $assembly->date }}"
-                                required {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'disabled' : '' }}
+                                required
+                                {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'disabled' : '' }}
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'bg-gray-100 cursor-not-allowed' : '' }}">
                         </div>
                     </div>
@@ -259,6 +260,7 @@
                                                     value="{{ $assemblyProduct->quantity }}">
                                             </td>
                                             <td class="px-6 py-4 text-sm text-gray-700">
+                                                @if ($assembly->status === 'pending')
                                                 @if ($assemblyProduct->serials)
                                                     @php
                                                         $serials = explode(',', $assemblyProduct->serials);
@@ -295,6 +297,33 @@
                                                             name="products[{{ $index }}][serials][]"
                                                             value="" placeholder="Serial"
                                                             class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                        @endif
+                                                    @endif
+                                                @else
+                                                    @if ($assemblyProduct->serials)
+                                                        @php
+                                                            $serials = explode(',', $assemblyProduct->serials);
+                                                        @endphp
+                                                        @if ($assemblyProduct->quantity > 1)
+                                                            <div class="space-y-1">
+                                                                @foreach($serials as $serial)
+                                                                    <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                        {{ $serial }}
+                                                                    </div>
+                                                                @endforeach
+                                                            </div>
+                                                        @else
+                                                            <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                {{ $serials[0] ?? '' }}
+                                                            </div>
+                                                        @endif
+                                                        @for ($i = 0; $i < $assemblyProduct->quantity; $i++)
+                                                            <input type="hidden" name="products[{{ $index }}][serials][]" value="{{ $serials[$i] ?? '' }}">
+                                                        @endfor
+                                                    @else
+                                                        @for ($i = 0; $i < $assemblyProduct->quantity; $i++)
+                                                            <input type="hidden" name="products[{{ $index }}][serials][]" value="">
+                                                        @endfor
                                                     @endif
                                                 @endif
                                             </td>
@@ -323,6 +352,7 @@
                                                 value="{{ $assembly->quantity ?? 1 }}">
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-700">
+                                            @if ($assembly->status === 'pending')
                                             @if (($assembly->quantity ?? 1) > 1)
                                                 <div class="space-y-2">
                                                     @for ($i = 0; $i < ($assembly->quantity ?? 1); $i++)
@@ -336,6 +366,24 @@
                                                 <input type="text" name="products[0][serials][]"
                                                     value="{{ $productSerials[0] ?? '' }}" placeholder="Serial"
                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                @endif
+                                            @else
+                                                @if (($assembly->quantity ?? 1) > 1)
+                                                    <div class="space-y-1">
+                                                        @for ($i = 0; $i < ($assembly->quantity ?? 1); $i++)
+                                                            <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                {{ $productSerials[$i] ?? '' }}
+                                                            </div>
+                                                        @endfor
+                                                    </div>
+                                                @else
+                                                    <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                        {{ $productSerials[0] ?? '' }}
+                                                    </div>
+                                                @endif
+                                                @for ($i = 0; $i < ($assembly->quantity ?? 1); $i++)
+                                                    <input type="hidden" name="products[0][serials][]" value="{{ $productSerials[$i] ?? '' }}">
+                                                @endfor
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -361,8 +409,15 @@
                     <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <div class="flex items-center text-blue-700">
                             <i class="fas fa-info-circle mr-2"></i>
-                            <span class="text-sm">Chế độ chỉnh sửa: Chỉ có thể cập nhật serial và ghi chú cho linh kiện
-                                hiện có. Không thể thêm/xóa linh kiện.</span>
+                            <span class="text-sm">
+                                @if ($assembly->status === 'pending')
+                                    Chế độ chỉnh sửa: Có thể cập nhật serial thành phẩm và ghi chú linh kiện. Không thể thêm/xóa linh kiện.
+                                @elseif ($assembly->status === 'in_progress')
+                                    Chế độ chỉnh sửa: Có thể tăng số lượng linh kiện và cập nhật serial linh kiện. Không thể giảm số lượng hoặc thay đổi serial thành phẩm.
+                                @else
+                                    Chế độ chỉnh sửa: Chỉ có thể cập nhật ghi chú linh kiện. Không thể thay đổi serial hoặc thêm/xóa linh kiện.
+                                @endif
+                            </span>
                         </div>
                     </div>
 
@@ -440,6 +495,9 @@
                                                             Số lượng</th>
                                                         <th
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                            Kho xuất</th>
+                                                        <th
+                                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Serial</th>
                                                         <th
                                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -449,7 +507,7 @@
                                                 <tbody class="bg-white divide-y divide-gray-200">
                                                     @if (count($components) === 0)
                                                         <tr>
-                                                            <td colspan="6"
+                                                            <td colspan="7"
                                                                 class="px-6 py-4 text-sm text-gray-500 text-center">
                                                                 Chưa có linh kiện nào được thêm vào thành phẩm này
                                                             </td>
@@ -460,7 +518,7 @@
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                     <input type="hidden"
-                                                                        name="components[{{ $component['globalIndex'] }}][id]"
+                                                                        name="components[{{ $component['globalIndex'] }}][material_id]"
                                                                         value="{{ $component['material']->material_id }}">
                                                                     <input type="hidden"
                                                                         name="components[{{ $component['globalIndex'] }}][product_id]"
@@ -476,6 +534,14 @@
                                                                     {{ $component['material']->material->name }}</td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    @if ($assembly->status === 'in_progress' || $assembly->status === 'pending')
+                                                                        <input type="number"
+                                                                            name="components[{{ $component['globalIndex'] }}][quantity]"
+                                                                            value="{{ $component['material']->quantity }}"
+                                                                            min="{{ $component['material']->quantity }}"
+                                                                            class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                            title="Chỉ có thể tăng số lượng, không thể giảm">
+                                                                    @else
                                                                     <div
                                                                         class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
                                                                         {{ $component['material']->quantity }}
@@ -483,10 +549,73 @@
                                                                     <input type="hidden"
                                                                         name="components[{{ $component['globalIndex'] }}][quantity]"
                                                                         value="{{ $component['material']->quantity }}">
+                                                                    @endif
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <div class="space-y-2"
+                                                                    <div
+                                                                        class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                        {{ $assembly->warehouse->name ?? 'Không xác định' }}
+                                                                    </div>
+                                                                    <input type="hidden" name="warehouse_id"
+                                                                        value="{{ $assembly->warehouse_id }}">
+                                                                </td>
+                                                                                                                                 <td
+                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                     @if ($assembly->status === 'in_progress')
+                                                                         <div class="space-y-2 material-serial-selects-container"
+                                                                             data-product-id="{{ $component['material']->target_product_id }}"
+                                                                             data-product-index="{{ $productIndex }}">
+                                                                             @php
+                                                                                 // Ensure we properly handle all serial scenarios
+                                                                                 $serials = [];
+                                                                                 if ($component['material']->serial) {
+                                                                                     // Split by comma
+                                                                                     $serials = explode(
+                                                                                         ',',
+                                                                                         $component['material']->serial,
+                                                                                     );
+                                                                                 }
+                                                                             @endphp
+                                                                             @for ($i = 0; $i < $component['material']->quantity; $i++)
+                                                                                 <div class="flex items-center">
+                                                                                     <select
+                                                                                         name="components[{{ $component['globalIndex'] }}][serials][]"
+                                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
+                                                                                         data-serial-index="{{ $i }}"
+                                                                                         data-material-id="{{ $component['material']->material_id }}"
+                                                                                         data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                                         data-current-serial="{{ $serials[$i] ?? '' }}"
+                                                                                         data-product-id="{{ $component['material']->target_product_id }}"
+                                                                                         data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
+                                                                                         <option value="">-- Chọn
+                                                                                             serial {{ $i + 1 }}
+                                                                                             --
+                                                                                         </option>
+                                                                                         @php
+                                                                                             $materialId =
+                                                                                                 $component['material']
+                                                                                                     ->material_id;
+                                                                                             $availableSerials =
+                                                                                                 $materialSerials[
+                                                                                                     $materialId
+                                                                                                 ] ?? [];
+                                                                                             $currentSerial =
+                                                                                                 $serials[$i] ?? '';
+                                                                                         @endphp
+                                                                                         @foreach ($availableSerials as $serial)
+                                                                                             <option
+                                                                                                 value="{{ $serial['serial_number'] }}"
+                                                                                                 {{ $currentSerial == $serial['serial_number'] ? 'selected' : '' }}>
+                                                                                                 {{ $serial['serial_number'] }}
+                                                                                             </option>
+                                                                                         @endforeach
+                                                                                     </select>
+                                                                                 </div>
+                                                                             @endfor
+                                                                         </div>
+                                                                     @else
+                                                                        <div class="space-y-2 material-serial-selects-container"
                                                                         data-product-id="{{ $component['material']->target_product_id }}"
                                                                         data-product-index="{{ $productIndex }}">
                                                                         @php
@@ -513,7 +642,8 @@
                                                                                     data-product-id="{{ $component['material']->target_product_id }}"
                                                                                     data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
                                                                                     <option value="">-- Chọn
-                                                                                        serial {{ $i + 1 }} --
+                                                                                            serial {{ $i + 1 }}
+                                                                                            --
                                                                                     </option>
                                                                                     @php
                                                                                         $materialId =
@@ -537,6 +667,7 @@
                                                                             </div>
                                                                         @endfor
                                                                     </div>
+                                                                    @endif
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -601,6 +732,9 @@
                                                         Serial</th>
                                                     <th
                                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                        Kho xuất</th>
+                                                    <th
+                                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                         Ghi chú</th>
                                                 </tr>
                                             </thead>
@@ -611,7 +745,7 @@
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                 <input type="hidden"
-                                                                    name="components[{{ $index }}][id]"
+                                                                    name="components[{{ $index }}][material_id]"
                                                                     value="{{ $material->material_id }}">
                                                                 <input type="hidden"
                                                                     name="components[{{ $index }}][product_id]"
@@ -636,7 +770,7 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <div class="space-y-2"
+                                                                <div class="space-y-2 material-serial-selects-container"
                                                                     data-product-id="{{ $material->target_product_id }}"
                                                                     data-product-index="0">
                                                                     @php
@@ -675,6 +809,15 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                <div
+                                                                    class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                    {{ $assembly->warehouse->name ?? 'Không xác định' }}
+                                                                </div>
+                                                                <input type="hidden" name="warehouse_id"
+                                                                    value="{{ $assembly->warehouse_id }}">
+                                                            </td>
+                                                            <td
+                                                                class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                                                 <input type="text"
                                                                     name="components[{{ $index }}][note]"
                                                                     value="{{ $material->note ?? '' }}"
@@ -687,13 +830,12 @@
                                                                 class="product-unit-select"
                                                                 data-component-index="{{ $index }}"
                                                                 data-material-id="{{ $material->material_id }}"
-                                                                data-product-id="{{ $material->target_product_id }}"
-                                                                onchange="window.handleProductUnitChange(this)">
+                                                                data-product-id="{{ $material->target_product_id }}">
                                                         </tr>
                                                     @endforeach
                                                 @else
                                                     <tr>
-                                                        <td colspan="6"
+                                                        <td colspan="7"
                                                             class="px-6 py-4 text-sm text-gray-500 text-center">
                                                             Chưa có linh kiện nào được thêm vào phiếu lắp ráp này
                                                         </td>
@@ -713,7 +855,7 @@
                         class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-times mr-2"></i> Hủy
                     </a>
-                    @if($assembly->status !== 'completed' && $assembly->status !== 'cancelled')
+                    @if ($assembly->status !== 'completed' && $assembly->status !== 'cancelled')
                     <button type="submit" id="submit-btn"
                         class="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg transition-colors flex items-center">
                         <i class="fas fa-save mr-2"></i> Cập nhật phiếu
@@ -731,6 +873,18 @@
     </div>
 
     <script>
+        // Function to get product serial for specific unit
+        function getProductSerialForUnit(productSerials, unitValue) {
+            for (let i = 0; i < productSerials.length; i++) {
+                const serial = productSerials[i];
+                const name = serial.getAttribute('name');
+                if (name && name.includes(`[${unitValue}]`)) {
+                    return serial;
+                }
+            }
+            return null;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
 
             // Component blocks toggle functionality
@@ -904,9 +1058,22 @@
                             'input[name*="products[${productIndex}][serials]"]');
                         productSerialInputs{{ $productIndex }}.forEach(input => {
                             addProductSerialValidation(input, {{ $assemblyProduct->product_id }});
+                            
+                            // Add real-time duplicate checking
+                            input.addEventListener('input', function() {
+                                checkDuplicateSerialsRealTime();
+                            });
                         });
                     @endforeach
                 @endif
+                
+                // For legacy single product assemblies
+                const legacyProductSerialInputs = document.querySelectorAll('input[name*="products[0][serials]"]');
+                legacyProductSerialInputs.forEach(input => {
+                    input.addEventListener('input', function() {
+                        checkDuplicateSerialsRealTime();
+                    });
+                });
             }
 
             // Function to initialize material serial selects
@@ -915,11 +1082,102 @@
 
                 serialSelects.forEach(select => {
                     // Handle selection change
-                    select.addEventListener('change', function() {
-                        const selectedSerial = this.value;
-                        this.dataset.currentSerial = selectedSerial;
-                    });
+                    select.addEventListener('change', handleSerialChange);
                 });
+            }
+
+            // Function to check for duplicate serials in real-time
+            function checkDuplicateSerialsRealTime() {
+                // Clear previous error indicators and red borders
+                document.querySelectorAll('.serial-error-indicator').forEach(el => el.remove());
+                document.querySelectorAll('.border-red-500').forEach(el => {
+                    if (el.classList.contains('border-gray-300')) {
+                        el.classList.remove('border-red-500');
+                    }
+                });
+                
+                // Debug logging
+                console.log('Checking for duplicate serials in real-time...');
+                
+                // Check product serials
+                const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
+                const productSerials = {};
+                
+                productSerialInputs.forEach(input => {
+                    const productId = input.name.match(/products\[(\d+)\]/)[1];
+                    if (!productSerials[productId]) {
+                        productSerials[productId] = [];
+                    }
+                    if (input.value && input.value.trim() !== '') {
+                        productSerials[productId].push(input.value.trim());
+                    }
+                });
+
+                // Check for duplicates within each product
+                Object.keys(productSerials).forEach(productId => {
+                    const serials = productSerials[productId];
+                    const duplicates = serials.filter((item, index) => serials.indexOf(item) !== index);
+                    
+                    if (duplicates.length > 0) {
+                        productSerialInputs.forEach(input => {
+                            const inputProductId = input.name.match(/products\[(\d+)\]/)[1];
+                            if (inputProductId === productId && duplicates.includes(input.value.trim())) {
+                                showSerialError(input, 'Serial trùng lặp');
+                            }
+                        });
+                    }
+                });
+
+                // Check component serials
+                const componentSerialSelects = document.querySelectorAll('select[name*="components"][name*="serials"]');
+                const componentSerials = {};
+                
+                componentSerialSelects.forEach(select => {
+                    const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                    if (!componentSerials[componentIndex]) {
+                        componentSerials[componentIndex] = [];
+                    }
+                    if (select.value && select.value.trim() !== '') {
+                        componentSerials[componentIndex].push(select.value.trim());
+                    }
+                });
+
+                // Check for duplicates within each component
+                Object.keys(componentSerials).forEach(componentIndex => {
+                    const serials = componentSerials[componentIndex];
+                    const duplicates = serials.filter((item, index) => serials.indexOf(item) !== index);
+                    
+                    console.log(`Component ${componentIndex} serials:`, serials, 'Duplicates:', duplicates);
+                    
+                    if (duplicates.length > 0) {
+                        componentSerialSelects.forEach(select => {
+                            const selectComponentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                            if (selectComponentIndex === componentIndex && duplicates.includes(select.value.trim())) {
+                                showSerialError(select, 'Serial trùng lặp');
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Function to show serial error indicator
+            function showSerialError(element, message) {
+                // Remove existing error indicator
+                const existingError = element.parentNode.querySelector('.serial-error-indicator');
+                if (existingError) {
+                    existingError.remove();
+                }
+
+                // Create error indicator
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'serial-error-indicator text-red-500 text-xs mt-1';
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i>${message}`;
+                
+                // Add red border to element
+                element.classList.add('border-red-500');
+                
+                // Insert error message after element
+                element.parentNode.insertBefore(errorDiv, element.nextSibling);
             }
 
             // Initialize validation for product serials (only add event listeners, don't validate immediately)
@@ -927,6 +1185,207 @@
 
             // Initialize material serial selects
             initializeMaterialSerialSelects();
+
+            // Function to handle quantity changes for in_progress assemblies
+            function handleQuantityChange() {
+                const quantityInputs = document.querySelectorAll('input[name*="[quantity]"]');
+                
+                quantityInputs.forEach(input => {
+                    input.addEventListener('change', function() {
+                        const newQuantity = parseInt(this.value);
+                        const oldQuantity = parseInt(this.getAttribute('min') || this.defaultValue);
+                        
+                        if (newQuantity < oldQuantity) {
+                            alert('Không thể giảm số lượng linh kiện. Chỉ có thể tăng số lượng.');
+                            this.value = oldQuantity;
+                            return;
+                        }
+                        
+                        // Find the serial container for this component
+                        const row = this.closest('tr');
+                        const serialContainer = row.querySelector('.material-serial-selects-container');
+                        
+                        if (serialContainer) {
+                            // Update the number of serial selects based on new quantity
+                            updateSerialSelects(serialContainer, newQuantity);
+                        }
+                    });
+                });
+            }
+            
+            // Function to update serial selects based on quantity
+            function updateSerialSelects(container, newQuantity) {
+                // Lấy template trước khi xóa
+                const template = container.querySelector('.material-serial-select');
+                if (!template) return;
+
+                // Lưu lại các giá trị serial đã chọn
+                const oldValues = [];
+                container.querySelectorAll('.material-serial-select').forEach(select => {
+                    oldValues.push(select.value);
+                });
+
+                // Lưu lại các data attributes cần thiết từ template
+                const dataAttributes = {};
+                Array.from(template.attributes).forEach(attr => {
+                    if (attr.name.startsWith('data-')) {
+                        dataAttributes[attr.name] = attr.value;
+                    }
+                });
+
+                // Xóa toàn bộ select cũ
+                container.innerHTML = '';
+                for (let i = 0; i < newQuantity; i++) {
+                    const newSelect = template.cloneNode(true);
+                    newSelect.name = template.name.replace(/\[serials\]\[\d+\]/, `[serials][${i}]`);
+                    newSelect.setAttribute('data-serial-index', i);
+                    // Gán lại các data attributes
+                    Object.entries(dataAttributes).forEach(([key, value]) => {
+                        newSelect.setAttribute(key, value);
+                    });
+                    // Cập nhật option text
+                    const option = newSelect.querySelector('option[value=""]');
+                    if (option) {
+                        option.textContent = `-- Chọn serial ${i + 1} --`;
+                    }
+                    // Gán lại giá trị cũ nếu có
+                    if (typeof oldValues[i] !== 'undefined') {
+                        newSelect.value = oldValues[i];
+                    } else {
+                        newSelect.value = '';
+                    }
+                    newSelect.removeEventListener('change', handleSerialChange);
+                    newSelect.addEventListener('change', handleSerialChange);
+
+                    // Bọc trong div để hiển thị dọc
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'flex items-center';
+                    wrapper.appendChild(newSelect);
+                    container.appendChild(wrapper);
+                }
+            }
+            
+            // Function to handle serial change events
+            function handleSerialChange() {
+                const selectedSerial = this.value;
+                this.dataset.currentSerial = selectedSerial;
+                
+                // Check for duplicates in real-time
+                checkDuplicateSerialsRealTime();
+            }
+            
+            // Function to create a new serial select
+            function createSerialSelect(index, container) {
+                const template = container.querySelector('.material-serial-select');
+                if (!template) return null;
+                
+                const newSelect = template.cloneNode(true);
+                newSelect.name = template.name.replace(/\[\d+\]/, `[${index}]`);
+                newSelect.setAttribute('data-serial-index', index);
+                newSelect.value = '';
+                
+                // Copy all data attributes from template
+                const dataAttributes = ['data-material-id', 'data-warehouse-id', 'data-product-id', 'data-product-unit'];
+                dataAttributes.forEach(attr => {
+                    if (template.hasAttribute(attr)) {
+                        newSelect.setAttribute(attr, template.getAttribute(attr));
+                    }
+                });
+                
+                // Update the option text
+                const option = newSelect.querySelector('option[value=""]');
+                if (option) {
+                    option.textContent = `-- Chọn serial ${index + 1} --`;
+                }
+                
+                // Add event listener for duplicate validation
+                newSelect.addEventListener('change', handleSerialChange);
+                
+                return newSelect;
+            }
+            
+            // Function to validate duplicate serials
+            function validateDuplicateSerials() {
+                let hasError = false;
+                const errorMessages = [];
+
+                // Check for duplicate serials in products
+                const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
+                const productSerials = {};
+                
+                productSerialInputs.forEach(input => {
+                    const productId = input.name.match(/products\[(\d+)\]/)[1];
+                    if (!productSerials[productId]) {
+                        productSerials[productId] = [];
+                    }
+                    if (input.value && input.value.trim() !== '') {
+                        productSerials[productId].push(input.value.trim());
+                    }
+                });
+
+                // Check for duplicates within each product
+                Object.keys(productSerials).forEach(productId => {
+                    const serials = productSerials[productId];
+                    const uniqueSerials = new Set(serials);
+                    if (serials.length !== uniqueSerials.size) {
+                        hasError = true;
+                        errorMessages.push(`Thành phẩm #${parseInt(productId) + 1}: Có serial trùng lặp`);
+                    }
+                });
+
+                // Check for duplicate serials in components
+                const componentSerialSelects = document.querySelectorAll('select[name*="components"][name*="serials"]');
+                const componentSerials = {};
+                
+                console.log('Found component serial selects:', componentSerialSelects.length);
+                
+                componentSerialSelects.forEach(select => {
+                    const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                    if (!componentSerials[componentIndex]) {
+                        componentSerials[componentIndex] = [];
+                    }
+                    if (select.value && select.value.trim() !== '') {
+                        componentSerials[componentIndex].push(select.value.trim());
+                    }
+                    console.log(`Select ${select.name}: value="${select.value}"`);
+                });
+
+                // Check for duplicates within each component
+                Object.keys(componentSerials).forEach(componentIndex => {
+                    const serials = componentSerials[componentIndex];
+                    const uniqueSerials = new Set(serials);
+                    if (serials.length !== uniqueSerials.size) {
+                        hasError = true;
+                        errorMessages.push(`Linh kiện #${parseInt(componentIndex) + 1}: Có serial trùng lặp`);
+                    }
+                });
+
+                // Debug logging
+                console.log('Validation check:', {
+                    productSerials: productSerials,
+                    componentSerials: componentSerials,
+                    hasError: hasError,
+                    errorMessages: errorMessages
+                });
+
+                if (hasError) {
+                    alert('Phát hiện trùng lặp serial:\n\n' + errorMessages.join('\n'));
+                    return false;
+                }
+
+                return true;
+            }
+
+            // Add validation to form submit
+            document.getElementById('assembly-form').addEventListener('submit', function(e) {
+                if (!validateDuplicateSerials()) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Initialize quantity change handlers
+            handleQuantityChange();
 
             // Initialize product unit selectors
             function initializeProductUnitSelectors() {
@@ -1020,7 +1479,11 @@
         setTimeout(function() {
             console.log('Đồng bộ hóa đơn vị vật tư sau khi trang đã tải xong...');
             document.querySelectorAll('.product-unit-select').forEach(select => {
-                window.handleProductUnitChange(select);
+                // Trigger change event to update styling
+                const event = new Event('change', {
+                    bubbles: true
+                });
+                select.dispatchEvent(event);
             });
         }, 1000);
     </script>
