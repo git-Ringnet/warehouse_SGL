@@ -177,14 +177,16 @@ class CustomerMaintenanceRequestController extends Controller
                 // Ghi nhật ký tạo phiếu yêu cầu bảo trì từ sao chép
                 if (Auth::guard('customer')->check()) {
                     $userId = Auth::guard('customer')->user()->id;
-                    \App\Models\UserLog::logActivity(
-                        $userId,
-                        'create',
-                        'customer_maintenance_requests',
-                        'Tạo phiếu khách yêu cầu bảo trì (sao chép): ' . $newRequest->request_code,
-                        null,
-                        $newRequest->toArray()
-                    );
+                    if (Employee::find($userId)) {
+                        \App\Models\UserLog::logActivity(
+                            $userId,
+                            'create',
+                            'customer_maintenance_requests',
+                            'Tạo phiếu khách yêu cầu bảo trì (sao chép): ' . $newRequest->request_code,
+                            null,
+                            $newRequest->toArray()
+                        );
+                    }
                 }
                 
                 return redirect()->route('customer.dashboard')
@@ -255,14 +257,16 @@ class CustomerMaintenanceRequestController extends Controller
             // Ghi nhật ký tạo phiếu yêu cầu bảo trì mới
             if (Auth::guard('customer')->check()) {
                 $userId = Auth::guard('customer')->user()->id;
-                \App\Models\UserLog::logActivity(
-                    $userId,
-                    'create',
-                    'customer_maintenance_requests',
-                    'Tạo phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
-                    null,
-                    $maintenanceRequest->toArray()
-                );
+                if (Employee::find($userId)) {
+                    \App\Models\UserLog::logActivity(
+                        $userId,
+                        'create',
+                        'customer_maintenance_requests',
+                        'Tạo phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                        null,
+                        $maintenanceRequest->toArray()
+                    );
+                }
             }
 
             return redirect()->route('customer.dashboard')
@@ -304,24 +308,28 @@ class CustomerMaintenanceRequestController extends Controller
         // Ghi nhật ký xem chi tiết phiếu yêu cầu bảo trì
         if (Auth::guard('customer')->check()) {
             $userId = Auth::guard('customer')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'view',
-                'customer_maintenance_requests',
-                'Xem chi tiết phiếu khách yêu cầu bảo trì: ' . $request->request_code,
-                null,
-                ['id' => $request->id, 'code' => $request->request_code]
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'view',
+                    'customer_maintenance_requests',
+                    'Xem chi tiết phiếu khách yêu cầu bảo trì: ' . $request->request_code,
+                    null,
+                    ['id' => $request->id, 'code' => $request->request_code]
+                );
+            }
         } elseif (Auth::guard('web')->check()) {
             $userId = Auth::guard('web')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'view',
-                'customer_maintenance_requests',
-                'Xem chi tiết phiếu khách yêu cầu bảo trì: ' . $request->request_code,
-                null,
-                ['id' => $request->id, 'code' => $request->request_code]
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'view',
+                    'customer_maintenance_requests',
+                    'Xem chi tiết phiếu khách yêu cầu bảo trì: ' . $request->request_code,
+                    null,
+                    ['id' => $request->id, 'code' => $request->request_code]
+                );
+            }
         }
         
         return view('requests.customer-maintenance.show', compact('request'));
@@ -413,24 +421,28 @@ class CustomerMaintenanceRequestController extends Controller
         // Ghi nhật ký cập nhật phiếu yêu cầu bảo trì
         if (Auth::guard('customer')->check()) {
             $userId = Auth::guard('customer')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'update',
-                'customer_maintenance_requests',
-                'Cập nhật phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
-                $oldData,
-                $maintenanceRequest->toArray()
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'update',
+                    'customer_maintenance_requests',
+                    'Cập nhật phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
         } elseif (Auth::guard('web')->check()) {
             $userId = Auth::guard('web')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'update',
-                'customer_maintenance_requests',
-                'Cập nhật phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
-                $oldData,
-                $maintenanceRequest->toArray()
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'update',
+                    'customer_maintenance_requests',
+                    'Cập nhật phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
         }
 
         return redirect()->route('requests.customer-maintenance.show', $maintenanceRequest->id)
@@ -469,24 +481,28 @@ class CustomerMaintenanceRequestController extends Controller
         // Ghi nhật ký xóa phiếu yêu cầu bảo trì
         if (Auth::guard('customer')->check()) {
             $userId = Auth::guard('customer')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'delete',
-                'customer_maintenance_requests',
-                'Xóa phiếu khách yêu cầu bảo trì: ' . $requestCode,
-                $requestData,
-                null
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'delete',
+                    'customer_maintenance_requests',
+                    'Xóa phiếu khách yêu cầu bảo trì: ' . $requestCode,
+                    $requestData,
+                    null
+                );
+            }
         } elseif (Auth::guard('web')->check()) {
             $userId = Auth::guard('web')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'delete',
-                'customer_maintenance_requests',
-                'Xóa phiếu khách yêu cầu bảo trì: ' . $requestCode,
-                $requestData,
-                null
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'delete',
+                    'customer_maintenance_requests',
+                    'Xóa phiếu khách yêu cầu bảo trì: ' . $requestCode,
+                    $requestData,
+                    null
+                );
+            }
         }
         
         return redirect()->route('customer.dashboard')
@@ -547,14 +563,16 @@ class CustomerMaintenanceRequestController extends Controller
         // Ghi nhật ký duyệt phiếu yêu cầu bảo trì
         if (Auth::guard('web')->check()) {
             $userId = Auth::guard('web')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'approve',
-                'customer_maintenance_requests',
-                'Duyệt phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
-                $oldData,
-                $maintenanceRequest->toArray()
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'approve',
+                    'customer_maintenance_requests',
+                    'Duyệt phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
         }
         
         return redirect()->route('requests.customer-maintenance.show', $id)
@@ -587,14 +605,16 @@ class CustomerMaintenanceRequestController extends Controller
         // Ghi nhật ký từ chối phiếu yêu cầu bảo trì
         if (Auth::guard('web')->check()) {
             $userId = Auth::guard('web')->user()->id;
-            \App\Models\UserLog::logActivity(
-                $userId,
-                'reject',
-                'customer_maintenance_requests',
-                'Từ chối phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
-                $oldData,
-                $maintenanceRequest->toArray()
-            );
+            if (Employee::find($userId)) {
+                \App\Models\UserLog::logActivity(
+                    $userId,
+                    'reject',
+                    'customer_maintenance_requests',
+                    'Từ chối phiếu khách yêu cầu bảo trì: ' . $maintenanceRequest->request_code,
+                    $oldData,
+                    $maintenanceRequest->toArray()
+                );
+            }
         }
         
         return redirect()->route('requests.customer-maintenance.show', $id)

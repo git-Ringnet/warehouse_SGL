@@ -78,7 +78,7 @@ class MaintenanceRequestController extends Controller
                     DB::commit();
                     
                     // Ghi nhật ký tạo phiếu bảo trì từ sao chép
-                    if (Auth::check()) {
+                    if (Auth::check() && Employee::find(Auth::id())) {
                         \App\Models\UserLog::logActivity(
                             Auth::id(),
                             'create',
@@ -235,7 +235,7 @@ class MaintenanceRequestController extends Controller
             DB::commit();
             
             // Ghi nhật ký tạo phiếu bảo trì mới
-            if (Auth::check()) {
+            if (Auth::check() && Employee::find(Auth::id())) {
                 \App\Models\UserLog::logActivity(
                     Auth::id(),
                     'create',
@@ -271,7 +271,7 @@ class MaintenanceRequestController extends Controller
             ->findOrFail($id);
         
         // Ghi nhật ký xem chi tiết phiếu bảo trì
-        if (Auth::check()) {
+        if (Auth::check() && Employee::find(Auth::id())) {
             \App\Models\UserLog::logActivity(
                 Auth::id(),
                 'view',
@@ -493,7 +493,7 @@ class MaintenanceRequestController extends Controller
             DB::commit();
             
             // Ghi nhật ký cập nhật phiếu bảo trì
-            if (Auth::check()) {
+            if (Auth::check() && Employee::find(Auth::id())) {
                 \App\Models\UserLog::logActivity(
                     Auth::id(),
                     'update',
@@ -544,7 +544,7 @@ class MaintenanceRequestController extends Controller
             DB::commit();
             
             // Ghi nhật ký xóa phiếu bảo trì
-            if (Auth::check()) {
+            if (Auth::check() && Employee::find(Auth::id())) {
                 \App\Models\UserLog::logActivity(
                     Auth::id(),
                     'delete',
@@ -598,7 +598,7 @@ class MaintenanceRequestController extends Controller
             DB::commit();
             
             // Ghi nhật ký duyệt phiếu bảo trì
-            if (Auth::check()) {
+            if (Auth::check() && Employee::find(Auth::id())) {
                 \App\Models\UserLog::logActivity(
                     Auth::id(),
                     'approve',
@@ -767,7 +767,7 @@ class MaintenanceRequestController extends Controller
             ]);
 
             // Ghi nhật ký từ chối phiếu bảo trì
-            if (Auth::check()) {
+            if (Auth::check() && Employee::find(Auth::id())) {
                 \App\Models\UserLog::logActivity(
                     Auth::id(),
                     'reject',

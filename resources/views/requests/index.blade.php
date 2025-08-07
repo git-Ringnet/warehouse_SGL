@@ -236,7 +236,7 @@
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         @if ($request->type == 'customer_maintenance')
-                                            {{ $request->customer ? $request->customer->company_name : $request->customer_name }}
+                                            {{ $request->project_name ?? '-' }}
                                         @else
                                             {{ $request->project_name }}
                                         @endif
