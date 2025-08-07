@@ -482,9 +482,8 @@
     }
 
     function handleItemSelection(radio, itemName, code) {
-        if (radio.checked) {
-            document.getElementById('project_name').value = `${itemName} (${code})`;
-        }
+        // KHÔNG gán project_name ở đây nữa để giữ đúng tên dự án/đơn thuê
+        // Nếu cần lưu tên thiết bị, hãy tạo input ẩn riêng (chưa cần ở đây)
     }
 
     function validateForm() {
