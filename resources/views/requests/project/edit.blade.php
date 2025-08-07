@@ -65,10 +65,6 @@
                             <label for="partner" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
                     <input type="text" name="partner" id="partner" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('partner', $projectRequest->customer ? $projectRequest->customer->company_name : $projectRequest->customer_name) }}">
                         </div>
-                        <div class="md:col-span-2">
-                            <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
-                    <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_address', $projectRequest->project_address) }}">
-                        </div>
                     </div>
                 </div>
                 
@@ -103,11 +99,11 @@
                     <input type="radio" name="item_type" id="equipment_type" value="equipment" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', $projectRequest->items->where('item_type', 'equipment')->count() > 0 ? 'equipment' : 'equipment') == 'equipment' ? 'checked' : '' }}>
                     <label for="equipment_type" class="ml-2 block text-sm font-medium text-gray-700">Thành phẩm</label>
                 </div>
-                <div class="flex items-center" id="material_radio" style="display:none;">
+                <div class="flex items-center" id="material_radio">
                     <input type="radio" name="item_type" id="material_type" value="material" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', $projectRequest->items->where('item_type', 'material')->count() > 0 ? 'material' : '') == 'material' ? 'checked' : '' }}>
                     <label for="material_type" class="ml-2 block text-sm font-medium text-gray-700">Vật tư</label>
                 </div>
-                <div class="flex items-center" id="good_radio" style="display:none;">
+                <div class="flex items-center" id="good_radio">
                     <input type="radio" name="item_type" id="good_type" value="good" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', $projectRequest->items->where('item_type', 'good')->count() > 0 ? 'good' : '') == 'good' ? 'checked' : '' }}>
                     <label for="good_type" class="ml-2 block text-sm font-medium text-gray-700">Hàng hóa</label>
                 </div>
@@ -344,5 +340,62 @@
 
 @section('scripts')
 <script src="{{ asset('js/project-request-edit.js') }}"></script>
+<script>
+    // Xử lý hiển thị thông tin phương thức xử lý
+    document.querySelectorAll('input[name="approval_method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Ẩn tất cả các thông tin
+            document.getElementById('production_info').classList.add('hidden');
+            document.getElementById('warehouse_info').classList.add('hidden');
+            
+            // Hiển thị thông tin tương ứng
+            if (this.value === 'production') {
+                document.getElementById('production_info').classList.remove('hidden');
+                // Chỉ hiển thị radio "Thành phẩm" khi chọn "Sản xuất lắp ráp"
+                document.getElementById('equipment_radio').style.display = 'flex';
+                document.getElementById('material_radio').style.display = 'none';
+                document.getElementById('good_radio').style.display = 'none';
+                // Tự động chọn "Thành phẩm"
+                document.getElementById('equipment_type').checked = true;
+                // Kích hoạt sự kiện change để hiển thị section thành phẩm
+                document.getElementById('equipment_type').dispatchEvent(new Event('change'));
+            } else if (this.value === 'warehouse') {
+                document.getElementById('warehouse_info').classList.remove('hidden');
+                // Hiển thị radio "Thành phẩm" và "Hàng hóa" khi chọn "Xuất kho", ẩn "Vật tư"
+                document.getElementById('equipment_radio').style.display = 'flex';
+                document.getElementById('material_radio').style.display = 'none';
+                document.getElementById('good_radio').style.display = 'flex';
+                // Tự động chọn "Thành phẩm" nếu chưa có gì được chọn
+                if (!document.querySelector('input[name="item_type"]:checked')) {
+                    document.getElementById('equipment_type').checked = true;
+                    document.getElementById('equipment_type').dispatchEvent(new Event('change'));
+                }
+            }
+        });
+    });
+    
+    // Khởi tạo trạng thái ban đầu
+    document.addEventListener('DOMContentLoaded', function() {
+        const productionRadio = document.getElementById('production');
+        const warehouseRadio = document.getElementById('warehouse');
+        
+        if (productionRadio.checked) {
+            // Nếu mặc định chọn "Sản xuất lắp ráp"
+            document.getElementById('equipment_radio').style.display = 'flex';
+            document.getElementById('material_radio').style.display = 'none';
+            document.getElementById('good_radio').style.display = 'none';
+            document.getElementById('equipment_type').checked = true;
+        } else if (warehouseRadio.checked) {
+            // Nếu mặc định chọn "Xuất kho"
+            document.getElementById('equipment_radio').style.display = 'flex';
+            document.getElementById('material_radio').style.display = 'none';
+            document.getElementById('good_radio').style.display = 'flex';
+            // Tự động chọn "Thành phẩm" nếu chưa có gì được chọn
+            if (!document.querySelector('input[name="item_type"]:checked')) {
+                document.getElementById('equipment_type').checked = true;
+            }
+        }
+    });
+</script>
 @endsection
 @endsection 

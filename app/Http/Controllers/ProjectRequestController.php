@@ -329,7 +329,6 @@ class ProjectRequestController extends Controller
             'project_id' => 'required',
             'project_name' => 'required|string|max:255',
             'customer_id' => 'nullable', // Bỏ required vì sẽ tự động điền
-            'project_address' => 'required|string|max:255',
             'approval_method' => 'required|in:production,warehouse',
             'item_type' => 'required|in:equipment,material,good',
             'customer_name' => 'required|string|max:255',
@@ -345,12 +344,9 @@ class ProjectRequestController extends Controller
         
         // Validate thêm cho lắp ráp
         if ($request->approval_method === 'production') {
-            $rules['implementer_id'] = 'required|exists:employees,id';
-            // Khi chọn "Sản xuất lắp ráp" thì chỉ cho phép "equipment" (thành phẩm)
             $rules['item_type'] = 'required|in:equipment';
         } else {
-            // Khi chọn "Xuất kho" thì cho phép cả 3 loại
-            $rules['item_type'] = 'required|in:equipment,material,good';
+            $rules['item_type'] = 'required|in:equipment,good';
         }
         
         switch ($itemType) {
@@ -358,12 +354,6 @@ class ProjectRequestController extends Controller
                 $rules['equipment'] = 'required|array|min:1';
                 $rules['equipment.*.id'] = 'required|exists:products,id';
                 $rules['equipment.*.quantity'] = 'required|integer|min:1';
-                break;
-                
-            case 'material':
-                $rules['material'] = 'required|array|min:1';
-                $rules['material.*.id'] = 'required|exists:materials,id';
-                $rules['material.*.quantity'] = 'required|integer|min:1';
                 break;
                 
             case 'good':
@@ -387,9 +377,6 @@ class ProjectRequestController extends Controller
             case 'equipment':
                 $items = $request->input('equipment') ?? [];
                 break;
-            case 'material':
-                $items = $request->input('material') ?? [];
-                break;
             case 'good':
                 $items = $request->input('good') ?? [];
                 break;
@@ -402,12 +389,6 @@ class ProjectRequestController extends Controller
             switch ($itemType) {
                 case 'equipment':
                     $itemExists = Product::where('status', 'active')
-                        ->where('is_hidden', false)
-                        ->where('id', $item['id'])
-                        ->exists();
-                    break;
-                case 'material':
-                    $itemExists = Material::where('status', 'active')
                         ->where('is_hidden', false)
                         ->where('id', $item['id'])
                         ->exists();
@@ -480,7 +461,7 @@ class ProjectRequestController extends Controller
                 'customer_id' => $customer->id,
                 'project_id' => $projectType === 'project' ? $actualProjectId : null,
                 'rental_id' => $projectType === 'rental' ? $actualProjectId : null,
-                'project_address' => $request->project_address,
+                'project_address' => $request->project_address ?? '', // Cho phép null
                 'approval_method' => $request->approval_method,
                 'customer_name' => $customer->name,
                 'customer_phone' => $customer->phone,
@@ -496,9 +477,6 @@ class ProjectRequestController extends Controller
             switch ($itemType) {
                 case 'equipment':
                     $items = $request->input('equipment') ?? [];
-                    break;
-                case 'material':
-                    $items = $request->input('material') ?? [];
                     break;
                 case 'good':
                     $items = $request->input('good') ?? [];
@@ -522,9 +500,6 @@ class ProjectRequestController extends Controller
                 switch ($itemType) {
                     case 'equipment':
                         $itemModel = Product::find($item['id']);
-                        break;
-                    case 'material':
-                        $itemModel = Material::find($item['id']);
                         break;
                     case 'good':
                         $itemModel = Good::find($item['id']);
@@ -662,14 +637,13 @@ class ProjectRequestController extends Controller
         $baseRules = [
             'request_date' => 'required|date',
             'project_name' => 'required|string|max:255',
-            'project_address' => 'required|string|max:255',
             'approval_method' => 'required|in:production,warehouse',
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
             'customer_email' => 'nullable|email|max:255',
             'customer_address' => 'required|string|max:255',
             'notes' => 'nullable|string',
-            'item_type' => 'required|in:equipment,material,good',
+            'item_type' => 'required|in:equipment,good',
         ];
         
         // Thêm rules dựa vào loại item được chọn
@@ -680,7 +654,7 @@ class ProjectRequestController extends Controller
         if ($request->approval_method === 'production') {
             $rules['item_type'] = 'required|in:equipment';
         } else {
-            $rules['item_type'] = 'required|in:equipment,material,good';
+            $rules['item_type'] = 'required|in:equipment,good';
         }
         
         switch ($itemType) {
@@ -688,12 +662,6 @@ class ProjectRequestController extends Controller
                 $rules['equipment'] = 'required|array|min:1';
                 $rules['equipment.*.id'] = 'required|exists:products,id';
                 $rules['equipment.*.quantity'] = 'required|integer|min:1';
-                break;
-                
-            case 'material':
-                $rules['material'] = 'required|array|min:1';
-                $rules['material.*.id'] = 'required|exists:materials,id';
-                $rules['material.*.quantity'] = 'required|integer|min:1';
                 break;
                 
             case 'good':
@@ -706,7 +674,6 @@ class ProjectRequestController extends Controller
         $validator = Validator::make($request->all(), $rules, [
             'request_date.required' => 'Ngày đề xuất không được để trống',
             'project_name.required' => 'Tên dự án không được để trống',
-            'project_address.required' => 'Địa chỉ dự án không được để trống',
             'approval_method.required' => 'Phương thức xử lý không được để trống',
             'customer_name.required' => 'Tên khách hàng không được để trống',
             'customer_phone.required' => 'Số điện thoại khách hàng không được để trống',
@@ -752,7 +719,6 @@ class ProjectRequestController extends Controller
             $projectRequest->update([
                 'request_date' => $request->request_date,
                 'project_name' => $request->project_name,
-                'project_address' => $request->project_address,
                 'approval_method' => $request->approval_method,
                 'customer_name' => $request->customer_name,
                 'customer_phone' => $request->customer_phone,
@@ -770,9 +736,6 @@ class ProjectRequestController extends Controller
             switch ($itemType) {
                 case 'equipment':
                     $items = $request->input('equipment') ?? [];
-                    break;
-                case 'material':
-                    $items = $request->input('material') ?? [];
                     break;
                 case 'good':
                     $items = $request->input('good') ?? [];
@@ -796,9 +759,6 @@ class ProjectRequestController extends Controller
                 switch ($itemType) {
                     case 'equipment':
                         $itemModel = Product::find($item['id']);
-                        break;
-                    case 'material':
-                        $itemModel = Material::find($item['id']);
                         break;
                     case 'good':
                         $itemModel = Good::find($item['id']);
@@ -881,10 +841,53 @@ class ProjectRequestController extends Controller
      */
     public function approve(Request $request, $id)
     {
+        // Nếu là GET request, redirect về trang show với thông báo lỗi
+        if ($request->isMethod('get')) {
+            return redirect()->route('requests.project.show', $id)
+                ->with('error', 'Vui lòng sử dụng nút "Duyệt phiếu" trên trang chi tiết thay vì truy cập trực tiếp URL.');
+        }
+        
+        // Kiểm tra tồn kho trước khi duyệt (nếu là warehouse)
+        $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'items'])->findOrFail($id);
+        
+        if ($projectRequest->approval_method === 'warehouse') {
+            // Debug log
+            Log::info('Bắt đầu xử lý duyệt phiếu với phương thức warehouse', [
+                'project_request_id' => $projectRequest->id,
+                'items_count' => $projectRequest->items->count()
+            ]);
+            
+            // Kiểm tra tồn kho trước khi tạo phiếu xuất kho
+            $stockCheckResult = $this->checkStockForDispatch($projectRequest);
+            
+            // Debug log kết quả kiểm tra
+            Log::info('Kết quả kiểm tra tồn kho', [
+                'has_insufficient_stock' => $stockCheckResult['has_insufficient_stock'],
+                'insufficient_items' => $stockCheckResult['insufficient_items']
+            ]);
+            
+            if ($stockCheckResult['has_insufficient_stock']) {
+                // Nếu không đủ tồn kho, KHÔNG cho phép duyệt
+                Log::warning('Không đủ tồn kho để duyệt phiếu', [
+                    'project_request_id' => $projectRequest->id,
+                    'insufficient_items' => $stockCheckResult['insufficient_items']
+                ]);
+                
+                // Debug: Kiểm tra xem có vào đây không
+                $errorMessage = 'Không thể duyệt phiếu đề xuất: ' . implode(', ', $stockCheckResult['insufficient_items']);
+                Log::info('Sẽ redirect với error message: ' . $errorMessage);
+                
+                // Sử dụng session()->flash() thay vì ->with()
+                session()->flash('error', $errorMessage);
+                
+                return redirect()->route('requests.project.show', $projectRequest->id);
+            }
+        }
+        
         try {
             DB::beginTransaction();
             
-            $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'items'])->findOrFail($id);
+            // $projectRequest đã được load ở trên rồi
             $oldData = $projectRequest->toArray();
             
             // Chỉ cho phép duyệt nếu trạng thái là pending
@@ -894,8 +897,9 @@ class ProjectRequestController extends Controller
             }
             
             // Người thực hiện mặc định là người đề xuất
+            $implementerId = $request->implementer_id ?? $projectRequest->proposer_id;
             $projectRequest->update([
-                'implementer_id' => $request->implementer_id, // Giá trị này được gửi từ form dưới dạng hidden field
+                'implementer_id' => $implementerId,
                 'status' => 'approved',
             ]);
             
@@ -959,6 +963,12 @@ class ProjectRequestController extends Controller
      */
     public function reject(Request $request, $id)
     {
+        // Nếu là GET request, redirect về trang show với thông báo lỗi
+        if ($request->isMethod('get')) {
+            return redirect()->route('requests.project.show', $id)
+                ->with('error', 'Vui lòng sử dụng nút "Từ chối phiếu" trên trang chi tiết thay vì truy cập trực tiếp URL.');
+        }
+        
         $request->validate([
             'rejection_reason' => 'required|string',
         ], [
@@ -1479,6 +1489,136 @@ class ProjectRequestController extends Controller
     }
 
     /**
+     * Kiểm tra tồn kho trước khi tạo phiếu xuất kho
+     */
+    private function checkStockForDispatch($projectRequest)
+    {
+        $insufficientItems = [];
+        $projectRequestItems = $projectRequest->items;
+
+        // Debug log
+        Log::info('Bắt đầu kiểm tra tồn kho cho phiếu đề xuất', [
+            'project_request_id' => $projectRequest->id,
+            'items_count' => $projectRequestItems->count(),
+            'approval_method' => $projectRequest->approval_method
+        ]);
+
+        foreach ($projectRequestItems as $item) {
+            $itemId = $item->item_id;
+            $quantityRequested = $item->quantity;
+            $itemType = $item->item_type;
+
+            // Debug log cho từng item
+            Log::info('Kiểm tra item', [
+                'item_id' => $itemId,
+                'item_name' => $item->name,
+                'item_type' => $itemType,
+                'quantity_requested' => $quantityRequested
+            ]);
+
+            // Xác định loại item để kiểm tra tồn kho
+            $stockItemType = null;
+            switch ($itemType) {
+                case 'equipment':
+                    $stockItemType = 'product';
+                    break;
+                case 'material':
+                    $stockItemType = 'material';
+                    break;
+                case 'good':
+                    $stockItemType = 'good';
+                    break;
+            }
+
+            if (!$stockItemType) {
+                $insufficientItems[] = "{$item->name} (ID: {$itemId}) - Loại item không hợp lệ";
+                Log::warning('Loại item không hợp lệ', ['item_type' => $itemType]);
+                continue;
+            }
+
+            // Lấy thông tin tồn kho của item từ WarehouseMaterial
+            // Thử tìm kiếm với điều kiện linh hoạt hơn
+            $warehouseMaterial = null;
+            $quantityInStock = 0;
+            
+            // Thử tìm với item_type chính xác
+            $warehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+                ->where('item_type', $stockItemType)
+                ->whereHas('warehouse', function($q) {
+                    $q->where('status', 'active')->where('is_hidden', false);
+                })
+                ->first();
+                
+            // Nếu không tìm thấy, thử tìm không có điều kiện item_type
+            if (!$warehouseMaterial) {
+                $warehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+                    ->whereHas('warehouse', function($q) {
+                        $q->where('status', 'active')->where('is_hidden', false);
+                    })
+                    ->first();
+            }
+            
+            // Nếu vẫn không tìm thấy, thử tìm trong bảng khác tùy theo loại item
+            if (!$warehouseMaterial) {
+                switch ($stockItemType) {
+                    case 'product':
+                        // Tìm trong bảng products
+                        $product = \App\Models\Product::find($itemId);
+                        if ($product) {
+                            $quantityInStock = $product->stock_quantity ?? 0;
+                        }
+                        break;
+                    case 'material':
+                        // Tìm trong bảng materials
+                        $material = \App\Models\Material::find($itemId);
+                        if ($material) {
+                            $quantityInStock = $material->stock_quantity ?? 0;
+                        }
+                        break;
+                    case 'good':
+                        // Tìm trong bảng goods
+                        $good = \App\Models\Good::find($itemId);
+                        if ($good) {
+                            $quantityInStock = $good->stock_quantity ?? 0;
+                        }
+                        break;
+                }
+            } else {
+                $quantityInStock = $warehouseMaterial->quantity;
+            }
+
+            // Debug log kết quả tìm kiếm
+            Log::info('Kết quả tìm kiếm tồn kho', [
+                'item_id' => $itemId,
+                'stock_item_type' => $stockItemType,
+                'found_in_warehouse_material' => $warehouseMaterial ? true : false,
+                'quantity_in_stock' => $quantityInStock,
+                'actual_item_type' => $warehouseMaterial ? $warehouseMaterial->item_type : 'N/A'
+            ]);
+
+            if (!$warehouseMaterial && $quantityInStock == 0) {
+                $insufficientItems[] = "{$item->name} (ID: {$itemId}) - Không tồn tại trong kho";
+                continue;
+            }
+
+            if ($quantityInStock < $quantityRequested) {
+                $insufficientItems[] = "{$item->name} - Yêu cầu: {$quantityRequested}, Tồn kho: {$quantityInStock}";
+            }
+        }
+
+        // Debug log kết quả cuối cùng
+        Log::info('Kết quả kiểm tra tồn kho', [
+            'has_insufficient_stock' => count($insufficientItems) > 0,
+            'insufficient_items' => $insufficientItems
+        ]);
+
+        return [
+            'has_insufficient_stock' => count($insufficientItems) > 0,
+            'insufficient_items' => $insufficientItems
+        ];
+    }
+
+    /**
      * Tìm kho có nhiều tồn kho nhất cho loại vật tư
      */
     private function findBestWarehouse($itemType, $itemId)
@@ -1650,5 +1790,31 @@ class ProjectRequestController extends Controller
         ]);
         
         return null;
+    }
+
+    /**
+     * Test method để kiểm tra logic kiểm tra tồn kho
+     */
+    public function testStockCheck($id)
+    {
+        $projectRequest = ProjectRequest::with(['items'])->findOrFail($id);
+        
+        $stockCheckResult = $this->checkStockForDispatch($projectRequest);
+        
+        return response()->json([
+            'project_request_id' => $projectRequest->id,
+            'approval_method' => $projectRequest->approval_method,
+            'items_count' => $projectRequest->items->count(),
+            'stock_check_result' => $stockCheckResult,
+            'items' => $projectRequest->items->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'item_id' => $item->item_id,
+                    'name' => $item->name,
+                    'item_type' => $item->item_type,
+                    'quantity' => $item->quantity
+                ];
+            })
+        ]);
     }
 } 

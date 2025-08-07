@@ -123,10 +123,6 @@
                         <option value="">-- Đối tác sẽ được tự động điền --</option>
                     </select>
                         </div>
-                        <div class="md:col-span-2">
-                            <label for="project_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ dự án</label>
-                    <input type="text" name="project_address" id="project_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_address') }}">
-                        </div>
                         <div id="customer_details" class="md:col-span-2 border border-gray-200 rounded-lg p-4 bg-gray-50 hidden">
                             <h3 class="text-md font-medium text-gray-800 mb-2">Thông tin đối tác</h3>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -187,11 +183,11 @@
                     <input type="radio" name="item_type" id="equipment_type" value="equipment" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type', 'equipment') == 'equipment' ? 'checked' : '' }}>
                     <label for="equipment_type" class="ml-2 block text-sm font-medium text-gray-700">Thành phẩm</label>
                 </div>
-                <div class="flex items-center" id="material_radio" style="display:none;">
+                <div class="flex items-center" id="material_radio">
                     <input type="radio" name="item_type" id="material_type" value="material" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type') == 'material' ? 'checked' : '' }}>
                     <label for="material_type" class="ml-2 block text-sm font-medium text-gray-700">Vật tư</label>
                 </div>
-                <div class="flex items-center" id="good_radio" style="display:none;">
+                <div class="flex items-center" id="good_radio">
                     <input type="radio" name="item_type" id="good_type" value="good" class="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" {{ old('item_type') == 'good' ? 'checked' : '' }}>
                     <label for="good_type" class="ml-2 block text-sm font-medium text-gray-700">Hàng hóa</label>
                 </div>
@@ -444,10 +440,15 @@
                 document.getElementById('equipment_type').dispatchEvent(new Event('change'));
             } else if (this.value === 'warehouse') {
                 document.getElementById('warehouse_info').classList.remove('hidden');
-                // Hiển thị đầy đủ 3 radio khi chọn "Xuất kho"
+                // Hiển thị radio "Thành phẩm" và "Hàng hóa" khi chọn "Xuất kho", ẩn "Vật tư"
                 document.getElementById('equipment_radio').style.display = 'flex';
-                document.getElementById('material_radio').style.display = 'flex';
+                document.getElementById('material_radio').style.display = 'none';
                 document.getElementById('good_radio').style.display = 'flex';
+                // Tự động chọn "Thành phẩm" nếu chưa có gì được chọn
+                if (!document.querySelector('input[name="item_type"]:checked')) {
+                    document.getElementById('equipment_type').checked = true;
+                    document.getElementById('equipment_type').dispatchEvent(new Event('change'));
+                }
             }
         });
     });
@@ -466,8 +467,12 @@
         } else if (warehouseRadio.checked) {
             // Nếu mặc định chọn "Xuất kho"
             document.getElementById('equipment_radio').style.display = 'flex';
-            document.getElementById('material_radio').style.display = 'flex';
+            document.getElementById('material_radio').style.display = 'none';
             document.getElementById('good_radio').style.display = 'flex';
+            // Tự động chọn "Thành phẩm" nếu chưa có gì được chọn
+            if (!document.querySelector('input[name="item_type"]:checked')) {
+                document.getElementById('equipment_type').checked = true;
+            }
         }
     });
     
@@ -820,17 +825,16 @@
                         
                         // Thêm class thành công cho select
                         selectElement.classList.add('border-green-500');
-                        selectElement.classList.remove('border-red-500');
+                        selectElement.classList.remove('border-red-500', 'border-yellow-500');
                     } else {
-                        // Thông báo không đủ tồn kho
-                        const errorMsg = `❌ Không đủ tồn kho cho: ${data.item_name} (${data.item_code})\n📦 Tổng tồn kho: ${data.total_stock}`;
+                        // Thông báo không đủ tồn kho nhưng vẫn cho phép chọn
+                        const warningMsg = `⚠️ Cảnh báo: ${data.item_name} (${data.item_code}) không có đủ tồn kho\n📦 Tổng tồn kho: ${data.total_stock}\n💡 Bạn vẫn có thể tạo phiếu đề xuất, nhưng cần đảm bảo đủ tồn kho khi duyệt.`;
                         
-                        showNotification(errorMsg, 'error');
+                        showNotification(warningMsg, 'warning');
                         
-                        // Reset select và thêm class lỗi
-                        selectElement.value = '';
-                        selectElement.classList.add('border-red-500');
-                        selectElement.classList.remove('border-green-500');
+                        // Thêm class cảnh báo cho select nhưng không reset
+                        selectElement.classList.add('border-yellow-500');
+                        selectElement.classList.remove('border-green-500', 'border-red-500');
                     }
                 } else {
                     showNotification('❌ Lỗi khi kiểm tra tồn kho', 'error');
@@ -845,9 +849,23 @@
     // Hiển thị thông báo
     function showNotification(message, type) {
         const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`;
+        let bgColor = 'bg-blue-500';
+        
+        switch (type) {
+            case 'success':
+                bgColor = 'bg-green-500';
+                break;
+            case 'error':
+                bgColor = 'bg-red-500';
+                break;
+            case 'warning':
+                bgColor = 'bg-yellow-500';
+                break;
+            default:
+                bgColor = 'bg-blue-500';
+        }
+        
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${bgColor} text-white`;
         notification.textContent = message;
         
         document.body.appendChild(notification);

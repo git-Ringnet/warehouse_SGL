@@ -41,6 +41,12 @@
                 <i class="fas fa-eye mr-2"></i> Xem trước
             </a>
             
+            @if($projectRequest->status === 'pending' && $projectRequest->approval_method === 'warehouse')
+                <a href="{{ route('requests.project.test-stock', $projectRequest->id) }}" target="_blank" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                    <i class="fas fa-vial mr-2"></i> Test Tồn kho
+                </a>
+            @endif
+            
             <a href="#" onclick="window.print(); return false;" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-print mr-2"></i> In PDF
             </a>
@@ -89,6 +95,16 @@
             </div>
         </div>
     @endif
+
+    <!-- Debug: Hiển thị tất cả session data -->
+    <!-- @if(config('app.debug'))
+        <div class="bg-gray-100 border border-gray-300 p-4 mb-4 rounded text-xs">
+            <strong>Debug Session:</strong><br>
+            Success: {{ session('success') ? 'Có' : 'Không' }}<br>
+            Error: {{ session('error') ? 'Có' : 'Không' }}<br>
+            Error Content: {{ session('error') }}
+        </div>
+    @endif -->
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Thông tin đề xuất -->
@@ -309,11 +325,30 @@
                 <!-- Duyệt phiếu -->
                 <div>
                     <h3 class="text-md font-medium text-gray-700 mb-3">Duyệt phiếu đề xuất</h3>
-                    <form action="{{ route('requests.project.approve', $projectRequest->id) }}" method="POST">
+                    <form action="{{ route('requests.project.approve', $projectRequest->id) }}" method="POST" id="approveForm">
                         @csrf
                         <input type="hidden" name="implementer_id" value="{{ $projectRequest->proposer_id }}">
                         <p class="mb-4 text-gray-700">Người thực hiện: <span class="font-medium">{{ $projectRequest->proposer ? $projectRequest->proposer->name : 'Không có' }}</span></p>
-                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        
+                        @if($projectRequest->approval_method === 'warehouse')
+                            <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <div class="flex items-start">
+                                    <div class="flex-shrink-0">
+                                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <h4 class="text-sm font-medium text-yellow-800">Lưu ý khi duyệt</h4>
+                                        <div class="mt-2 text-sm text-yellow-700">
+                                            <p>• Hệ thống sẽ tự động tạo phiếu xuất kho</p>
+                                            <p>• <strong>Bắt buộc:</strong> Tất cả items phải có đủ tồn kho để có thể duyệt</p>
+                                            <p>• Nếu không đủ tồn kho, phiếu sẽ không được duyệt</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+                        
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors" onclick="return confirmApprove()">
                             <i class="fas fa-check mr-2"></i> Duyệt phiếu
                         </button>
                     </form>
@@ -331,7 +366,7 @@
                                 <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                             @enderror
                         </div>
-                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
+                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors" onclick="return confirmReject()">
                             <i class="fas fa-times mr-2"></i> Từ chối phiếu
                         </button>
                     </form>
@@ -340,6 +375,33 @@
         </div>
     @endif
 </div>
+
+<script>
+function confirmApprove() {
+    const approvalMethod = '{{ $projectRequest->approval_method }}';
+    let message = 'Bạn có chắc chắn muốn duyệt phiếu đề xuất này?';
+    
+    if (approvalMethod === 'production') {
+        message += '\n\nLưu ý: Hệ thống sẽ tự động tạo phiếu lắp ráp.';
+    } else if (approvalMethod === 'warehouse') {
+        message += '\n\nLưu ý: Hệ thống sẽ tự động tạo phiếu xuất kho.';
+        message += '\nBắt buộc: Tất cả items phải có đủ tồn kho để có thể duyệt.';
+        message += '\nNếu không đủ tồn kho, phiếu sẽ không được duyệt.';
+    }
+    
+    return confirm(message);
+}
+
+function confirmReject() {
+    const reason = document.getElementById('rejection_reason').value.trim();
+    if (!reason) {
+        alert('Vui lòng nhập lý do từ chối trước khi tiếp tục.');
+        return false;
+    }
+    
+    return confirm('Bạn có chắc chắn muốn từ chối phiếu đề xuất này?');
+}
+</script>
 
 <style>
     @media print {

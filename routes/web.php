@@ -550,9 +550,12 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
             Route::patch('/{id}', [ProjectRequestController::class, 'update'])->name('update')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.edit');
             Route::delete('/{id}', [ProjectRequestController::class, 'destroy'])->name('destroy')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.delete');
             Route::post('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.approve');
+            Route::get('/{id}/approve', [ProjectRequestController::class, 'approve'])->name('approve.get')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.approve');
             Route::post('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
+            Route::get('/{id}/reject', [ProjectRequestController::class, 'reject'])->name('reject.get')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.reject');
             Route::post('/{id}/status', [ProjectRequestController::class, 'updateStatus'])->name('status')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.update_status');
             Route::get('/{id}/preview', [ProjectRequestController::class, 'preview'])->name('preview')->where('id', '[0-9]+')->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':requests.view_detail');
+            Route::get('/{id}/test-stock', [ProjectRequestController::class, 'testStockCheck'])->name('test-stock')->where('id', '[0-9]+');
         });
 
         // Maintenance Request routes

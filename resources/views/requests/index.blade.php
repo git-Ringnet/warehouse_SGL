@@ -104,7 +104,7 @@
                     <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
                         <div class="flex">
                             <div class="flex-shrink-0">
-                                <i class="fas fa-times-circle"></i>
+                                <i class="fas fa-exclamation-circle"></i>
                             </div>
                             <div class="ml-3">
                                 <p class="text-sm">{{ session('error') }}</p>
@@ -578,8 +578,39 @@
         }
 
         function approveRequest(type, id) {
-            if (confirm('Bạn có chắc chắn muốn duyệt phiếu yêu cầu này?')) {
-                window.location.href = `/requests/${type}/${id}/approve`;
+            let message = 'Bạn có chắc chắn muốn duyệt phiếu yêu cầu này?';
+            
+            // Thêm cảnh báo dựa trên loại phiếu
+            if (type === 'project') {
+                message += '\n\nLưu ý: Hệ thống sẽ tự động tạo phiếu lắp ráp hoặc phiếu xuất kho tùy theo phương thức xử lý.';
+                message += '\nNếu chọn "Xuất kho", tất cả items phải có đủ tồn kho để có thể duyệt.';
+            } else if (type === 'maintenance') {
+                message += '\n\nLưu ý: Hệ thống sẽ tự động tạo phiếu bảo trì.';
+            } else if (type === 'customer-maintenance') {
+                message += '\n\nLưu ý: Hệ thống sẽ tự động tạo phiếu bảo trì cho khách hàng.';
+            }
+            
+            if (confirm(message)) {
+                // Tạo form ẩn để submit POST request
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/requests/${type}/${id}/approve`;
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                form.appendChild(csrfToken);
+                
+                // Thêm implementer_id (mặc định là proposer_id)
+                const implementerInput = document.createElement('input');
+                implementerInput.type = 'hidden';
+                implementerInput.name = 'implementer_id';
+                implementerInput.value = '{{ Auth::id() }}'; // Hoặc có thể lấy từ data
+                form.appendChild(implementerInput);
+                
+                document.body.appendChild(form);
+                form.submit();
             }
         }
 
