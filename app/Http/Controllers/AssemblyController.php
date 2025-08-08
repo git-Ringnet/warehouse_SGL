@@ -85,7 +85,7 @@ class AssemblyController extends Controller
             $query->whereDate('date', '<=', $request->date_to);
         }
 
-        $assemblies = $query->orderBy('created_at', 'desc')->get();
+        $assemblies = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
 
         // Get filter options for dropdowns
         $statuses = [
@@ -161,6 +161,7 @@ class AssemblyController extends Controller
      */
     public function store(Request $request)
     {
+        dd($request->all());
         $request->validate([
             'assembly_code' => 'required|unique:assemblies,code',
             'assembly_date' => 'required|date',

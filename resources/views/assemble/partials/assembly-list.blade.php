@@ -22,7 +22,7 @@
             @forelse($assemblies as $index => $assembly)
                 <tr class="hover:bg-gray-50 transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {{ $index + 1 }}
+                        {{ ($assemblies->currentPage() - 1) * $assemblies->perPage() + $loop->iteration }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm">{{ $assembly->code }}</div>
@@ -146,6 +146,16 @@
             @endforelse
         </tbody>
     </table>
+</div>
+<div class="mt-4" id="paginationContainer">
+    @if(method_exists($assemblies, 'links'))    
+        {{ $assemblies->links() }}
+    @else
+        <div class="text-center text-gray-500 text-sm py-2">
+            <i class="fas fa-info-circle mr-1"></i>
+            Hiển thị kết quả đã lọc (không phân trang)
+        </div>
+    @endif
 </div>
 
 <!-- Modal Xác nhận xóa -->

@@ -2242,7 +2242,7 @@
 
                         console.log(
                             `Re-adding existing product component "${component.name}" (ID: ${component.id}) to unit ${component.productUnit} only`
-                        );
+                            );
                         selectedComponents.push(newComponent);
                     }
                 });
@@ -3442,7 +3442,7 @@
 
                     if (result.success && result.materials) {
                         // Find the current product and keep its quantity and uniqueId
-                        const currentProduct = selectedProducts.find(p => p.uniqueId === productUniqueId);
+                const currentProduct = selectedProducts.find(p => p.uniqueId === productUniqueId);
                         if (!currentProduct) throw new Error('Current product not found');
 
                         // Clear all components for this product (simulate delete-components)
@@ -3463,9 +3463,9 @@
                         })));
 
                         // Update product meta to the chosen existing one, keep uniqueId
-                        currentProduct.id = existingProduct.id;
-                        currentProduct.name = existingProduct.name;
-                        currentProduct.code = existingProduct.code;
+                    currentProduct.id = existingProduct.id;
+                    currentProduct.name = existingProduct.name;
+                    currentProduct.code = existingProduct.code;
                         currentProduct.isUsingExisting = true;
 
                         // Build base components from API and replicate for all units
@@ -3512,13 +3512,13 @@
                         console.log('Final selectedComponents count:', selectedComponents.length);
 
                         // Update UI header and state on the existing block
-                        const componentBlock = document.getElementById('component_block_' + productUniqueId);
-                        if (componentBlock) {
-                            const header = componentBlock.querySelector('h4');
-                            if (header) {
-                                header.innerHTML = `Linh kiện cho thành phẩm: ${existingProduct.name} (Đã tồn tại)`;
-                            }
-                            componentBlock.classList.add('using-existing-product');
+                    const componentBlock = document.getElementById('component_block_' + productUniqueId);
+                    if (componentBlock) {
+                        const header = componentBlock.querySelector('h4');
+                        if (header) {
+                            header.innerHTML = `Linh kiện cho thành phẩm: ${existingProduct.name} (Đã tồn tại)`;
+                        }
+                        componentBlock.classList.add('using-existing-product');
 
                             const createNewBtn = componentBlock.querySelector('.create-new-product-btn');
                             if (createNewBtn) createNewBtn.style.display = 'none';
