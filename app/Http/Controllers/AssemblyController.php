@@ -181,6 +181,7 @@ class AssemblyController extends Controller
             'components.*.product_unit' => 'nullable|integer|min:0', // Product unit for multi-unit assemblies
         ]);
 
+
         DB::beginTransaction();
         try {
             $products = $request->products;
@@ -1989,8 +1990,20 @@ class AssemblyController extends Controller
     {
         try {
             $formula = $request->input('formula', []);
+            $getAll = $request->input('get_all', false);
 
-            Log::info('Check formula request:', ['formula' => $formula]);
+            Log::info('Check formula request:', [
+                'formula' => $formula,
+                'formula_count' => count($formula),
+                'formula_structure' => array_map(function ($item) {
+                    return [
+                        'id' => $item['id'] ?? 'missing',
+                        'material_id' => $item['material_id'] ?? 'missing',
+                        'quantity' => $item['quantity'] ?? 'missing'
+                    ];
+                }, $formula),
+                'get_all' => $getAll
+            ]);
 
             if (empty($formula)) {
                 return response()->json([
@@ -1999,10 +2012,26 @@ class AssemblyController extends Controller
                 ]);
             }
 
-            // Get all products with their materials
+            // First, check against existing products in product_materials table
             $products = Product::with('materials')->get();
+            $matchingProducts = [];
 
             Log::info('Checking against products:', ['total_products' => $products->count()]);
+
+            // Log all existing products and their materials for debugging
+            foreach ($products as $product) {
+                Log::info('Product in database:', [
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'materials_count' => $product->materials->count(),
+                    'materials' => $product->materials->map(function ($material) {
+                        return [
+                            'material_id' => $material->pivot->material_id,
+                            'quantity' => $material->pivot->quantity
+                        ];
+                    })->toArray()
+                ]);
+            }
 
             foreach ($products as $product) {
                 $productMaterials = $product->materials;
@@ -2023,12 +2052,27 @@ class AssemblyController extends Controller
                 // Check if all materials and quantities match
                 $matches = true;
                 foreach ($formula as $formulaItem) {
-                    $materialId = $formulaItem['material_id'];
-                    $quantity = $formulaItem['quantity'];
+                    // Handle both 'material_id' and 'id' fields
+                    $materialId = $formulaItem['material_id'] ?? $formulaItem['id'] ?? null;
+                    $quantity = $formulaItem['quantity'] ?? 0;
 
-                    $productMaterial = $productMaterials->where('material_id', $materialId)->first();
+                    Log::info('Checking formula item:', [
+                        'formula_item' => $formulaItem,
+                        'extracted_material_id' => $materialId,
+                        'extracted_quantity' => $quantity
+                    ]);
 
-                    if (!$productMaterial || $productMaterial->quantity != $quantity) {
+                    if (!$materialId) {
+                        Log::info('Missing material_id in formula item');
+                        $matches = false;
+                        break;
+                    }
+
+                    $productMaterial = $productMaterials->first(function ($material) use ($materialId) {
+                        return (int)$material->pivot->material_id === (int)$materialId;
+                    });
+
+                    if (!$productMaterial || (int)$productMaterial->pivot->quantity !== (int)$quantity) {
                         $matches = false;
                         Log::info('Material/quantity mismatch:', [
                             'material_id' => $materialId,
@@ -2040,15 +2084,110 @@ class AssemblyController extends Controller
                 }
 
                 if ($matches) {
-                    Log::info('Formula match found:', ['product_id' => $product->id, 'product_name' => $product->name]);
+                    Log::info('Formula match found in products:', ['product_id' => $product->id, 'product_name' => $product->name]);
+                    $matchingProducts[] = [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'code' => $product->code
+                    ];
+
+                    // If not requesting all matches, return the first one
+                    if (!$getAll) {
+                        return response()->json([
+                            'exists' => true,
+                            'product' => [
+                                'id' => $product->id,
+                                'name' => $product->name,
+                                'code' => $product->code
+                            ],
+                            'message' => 'Formula already exists in product: ' . $product->name
+                        ]);
+                    }
+                }
+            }
+
+            // If requesting all matches and found some, return them
+            if ($getAll && count($matchingProducts) > 0) {
+                return response()->json([
+                    'exists' => true,
+                    'products' => $matchingProducts,
+                    'message' => 'Found ' . count($matchingProducts) . ' matching products'
+                ]);
+            }
+
+            // Second, check against existing assemblies (assembly_materials table)
+            // Get all assemblies with their materials
+            $assemblies = Assembly::with(['materials.material', 'products.product'])->get();
+
+            Log::info('Checking against assemblies:', ['total_assemblies' => $assemblies->count()]);
+
+            foreach ($assemblies as $assembly) {
+                $assemblyMaterials = $assembly->materials;
+
+                Log::info('Checking assembly:', [
+                    'assembly_id' => $assembly->id,
+                    'assembly_code' => $assembly->code,
+                    'assembly_materials_count' => $assemblyMaterials->count(),
+                    'formula_count' => count($formula)
+                ]);
+
+                // Check if the number of materials matches
+                if (count($assemblyMaterials) !== count($formula)) {
+                    Log::info('Material count mismatch, skipping assembly');
+                    continue;
+                }
+
+                // Check if all materials and quantities match
+                $matches = true;
+                foreach ($formula as $formulaItem) {
+                    // Handle both 'material_id' and 'id' fields
+                    $materialId = $formulaItem['material_id'] ?? $formulaItem['id'] ?? null;
+                    $quantity = $formulaItem['quantity'] ?? 0;
+
+                    if (!$materialId) {
+                        Log::info('Missing material_id in formula item for assembly check');
+                        $matches = false;
+                        break;
+                    }
+
+                    $assemblyMaterial = $assemblyMaterials->first(function ($material) use ($materialId) {
+                        return (int)$material->pivot->material_id === (int)$materialId;
+                    });
+
+                    if (!$assemblyMaterial || (int)$assemblyMaterial->pivot->quantity !== (int)$quantity) {
+                        $matches = false;
+                        Log::info('Material/quantity mismatch in assembly:', [
+                            'material_id' => $materialId,
+                            'quantity' => $quantity,
+                            'assembly_material' => $assemblyMaterial ? $assemblyMaterial->toArray() : null
+                        ]);
+                        break;
+                    }
+                }
+
+                if ($matches) {
+                    // Get the first product from this assembly for display
+                    $firstProduct = $assembly->products->first();
+                    $productName = $firstProduct ? $firstProduct->product->name : 'Unknown Product';
+
+                    Log::info('Formula match found in assembly:', [
+                        'assembly_id' => $assembly->id,
+                        'assembly_code' => $assembly->code,
+                        'product_name' => $productName
+                    ]);
+
                     return response()->json([
                         'exists' => true,
                         'product' => [
-                            'id' => $product->id,
-                            'name' => $product->name,
-                            'code' => $product->code
+                            'id' => $firstProduct ? $firstProduct->product->id : null,
+                            'name' => $productName,
+                            'code' => $firstProduct ? $firstProduct->product->code : 'N/A'
                         ],
-                        'message' => 'Formula already exists in product: ' . $product->name
+                        'assembly' => [
+                            'id' => $assembly->id,
+                            'code' => $assembly->code
+                        ],
+                        'message' => 'Formula already exists in assembly: ' . $assembly->code . ' (Product: ' . $productName . ')'
                     ]);
                 }
             }
@@ -2056,7 +2195,7 @@ class AssemblyController extends Controller
             Log::info('No matching formula found');
             return response()->json([
                 'exists' => false,
-                'message' => 'Formula not found in existing products'
+                'message' => 'Formula not found in existing products or assemblies'
             ]);
         } catch (\Exception $e) {
             Log::error('Error checking formula: ' . $e->getMessage());

@@ -98,7 +98,7 @@
                                 </a>
                             @endif
                         @endif
-                        @if ($assembly->status === 'pending' && $isOwner && $isAdmin)
+                        @if ($assembly->status === 'pending' && ($isAdmin || $isOwner))
                             <form action="{{ route('assemblies.approve', $assembly->id) }}" method="POST"
                                 style="display:inline;">
                                 @csrf
@@ -110,7 +110,7 @@
                                 </button>
                             </form>
                         @endif
-                        @if ($assembly->status === 'pending' && $isOwner && $isAdmin)
+                        @if ($assembly->status === 'pending' && ($isAdmin || $isOwner))
                             <form action="{{ route('assemblies.cancel', $assembly->id) }}" method="POST"
                                 style="display:inline;">
                                 @csrf
