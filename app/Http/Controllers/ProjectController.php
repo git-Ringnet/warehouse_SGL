@@ -492,11 +492,28 @@ class ProjectController extends Controller
                 ->where('category', 'contract')
                 ->get()
                 ->map(function ($item) use ($dispatch) {
+                    // Xử lý serial numbers từ JSON array
+                    $serialNumbers = $item->serial_numbers ?? [];
+                    $serialNumbersArray = [];
+                    
+                    if (!empty($serialNumbers)) {
+                        if (is_array($serialNumbers)) {
+                            // Lọc bỏ các giá trị rỗng
+                            $serialNumbersArray = array_filter($serialNumbers, function($serial) {
+                                return !empty(trim($serial));
+                            });
+                            $serialNumbersArray = array_values($serialNumbersArray); // Re-index array
+                        } else {
+                            // Nếu là string, tách thành array
+                            $serialNumbersArray = [trim($serialNumbers)];
+                        }
+                    }
+                    
                     return [
-                        'id' => $item->id,
+                        'id' => $item->product->id, // Sử dụng ID của Product thay vì DispatchItem
                         'type' => 'product',
                         'name' => $item->product->name,
-                        'serial_number' => $item->serial_number,
+                        'serial_numbers' => $serialNumbersArray,
                         'description' => $item->product->description,
                         'project_name' => $dispatch->project_name,
                         'dispatch_code' => $dispatch->dispatch_code,
@@ -511,11 +528,28 @@ class ProjectController extends Controller
                 ->where('category', 'contract')
                 ->get()
                 ->map(function ($item) use ($dispatch) {
+                    // Xử lý serial numbers từ JSON array
+                    $serialNumbers = $item->serial_numbers ?? [];
+                    $serialNumbersArray = [];
+                    
+                    if (!empty($serialNumbers)) {
+                        if (is_array($serialNumbers)) {
+                            // Lọc bỏ các giá trị rỗng
+                            $serialNumbersArray = array_filter($serialNumbers, function($serial) {
+                                return !empty(trim($serial));
+                            });
+                            $serialNumbersArray = array_values($serialNumbersArray); // Re-index array
+                        } else {
+                            // Nếu là string, tách thành array
+                            $serialNumbersArray = [trim($serialNumbers)];
+                        }
+                    }
+                    
                     return [
-                        'id' => $item->id,
+                        'id' => $item->good->id, // Sử dụng ID của Good thay vì DispatchItem
                         'type' => 'good',
                         'name' => $item->good->name,
-                        'serial_number' => $item->serial_number,
+                        'serial_numbers' => $serialNumbersArray,
                         'description' => $item->good->description,
                         'project_name' => $dispatch->project_name,
                         'dispatch_code' => $dispatch->dispatch_code,

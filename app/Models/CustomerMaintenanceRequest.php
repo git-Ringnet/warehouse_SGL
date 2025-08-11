@@ -17,12 +17,15 @@ class CustomerMaintenanceRequest extends Model
         'customer_phone',
         'customer_email',
         'customer_address',
+        'project_id',
+        'rental_id',
+        'item_source',
+        'selected_item',
         'project_name',
         'project_description',
         'request_date',
         'maintenance_reason',
         'maintenance_details',
-
         'estimated_cost',
         'priority',
         'status',
@@ -34,7 +37,6 @@ class CustomerMaintenanceRequest extends Model
 
     protected $casts = [
         'request_date' => 'date',
-
         'approved_at' => 'datetime',
         'estimated_cost' => 'decimal:2',
     ];
@@ -45,6 +47,22 @@ class CustomerMaintenanceRequest extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Lấy thông tin dự án
+     */
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * Lấy thông tin đơn thuê
+     */
+    public function rental()
+    {
+        return $this->belongsTo(Rental::class);
     }
 
     /**
@@ -75,5 +93,55 @@ class CustomerMaintenanceRequest extends Model
             return $query->where('customer_id', $customerId);
         }
         return $query;
+    }
+
+    /**
+     * Lấy thông tin item được chọn
+     */
+    public function getSelectedItemInfoAttribute()
+    {
+        if (!$this->selected_item) {
+            return null;
+        }
+
+        $parts = explode(':', $this->selected_item);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $type = $parts[0];
+        $id = $parts[1];
+        $serialNumber = $parts[2] ?? null; // Serial number nếu có
+
+        $item = null;
+        switch ($type) {
+            case 'product':
+                $item = Product::find($id);
+                break;
+            case 'good':
+                $item = Good::find($id);
+                break;
+            default:
+                return null;
+        }
+
+        if (!$item) {
+            // Nếu item không tồn tại, tạo object tạm thời với thông tin cơ bản
+            $tempItem = new \stdClass();
+            $tempItem->name = "Item không tồn tại (ID: {$id})";
+            $tempItem->code = "N/A";
+            $tempItem->selected_serial = $serialNumber;
+            $tempItem->is_deleted = true;
+            return $tempItem;
+        }
+
+        if ($serialNumber) {
+            // Tạo object tạm thời để thêm serial number
+            $itemWithSerial = clone $item;
+            $itemWithSerial->selected_serial = $serialNumber;
+            return $itemWithSerial;
+        }
+
+        return $item;
     }
 }

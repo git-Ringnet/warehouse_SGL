@@ -115,9 +115,16 @@
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Chi tiết yêu cầu bảo trì</h3>
             <div class="bg-gray-50 rounded-lg p-4">
                 <div class="mb-4">
-                    <p class="text-gray-600 mb-2">Tên dự án/thiết bị:</p>
+                    <p class="text-gray-600 mb-2">Tên dự án/Tên cho thuê:</p>
                     <p class="font-medium">{{ $request->project_name }}</p>
                 </div>
+                @if($request->selected_item_info)
+                <div class="mb-4">
+                    <p class="text-gray-600 mb-2">Thiết bị được chọn:</p>
+                    <p class="font-medium">{{ $request->selected_item_info->name }}</p>
+                    <p class="text-sm text-gray-500">{{ $request->selected_item_info->code ?? 'N/A' }}</p>
+                </div>
+                @endif
                 <div class="mb-4">
                     <p class="text-gray-600 mb-2">Lý do yêu cầu bảo trì:</p>
                     <p class="font-medium whitespace-pre-line">{{ $request->maintenance_reason }}</p>

@@ -183,7 +183,7 @@
         <div class="section">
             <div class="section-title">Thông tin yêu cầu bảo trì</div>
             <div class="info-item">
-                <div class="info-label">Tên dự án/thiết bị</div>
+                <div class="info-label">Tên dự án/Tên cho thuê</div>
                 <div class="info-value">{{ $request->project_name }}</div>
             </div>
             @if($request->project_description)

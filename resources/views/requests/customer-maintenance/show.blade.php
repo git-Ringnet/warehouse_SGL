@@ -95,7 +95,7 @@
             <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Thông tin yêu cầu</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <p class="text-sm text-gray-500">Tên dự án/thiết bị</p>
+                    <p class="text-sm text-gray-500">Tên dự án/Tên cho thuê</p>
                     <p class="font-medium">{{ $request->project_name }}</p>
                 </div>
                 <div>
@@ -122,6 +122,23 @@
                         @endswitch
                     </p>
                 </div>
+
+                @if($request->selected_item_info)
+                <div>
+                    <p class="text-sm text-gray-500">Thiết bị được chọn</p>
+                    <p class="font-medium {{ isset($request->selected_item_info->is_deleted) ? 'text-red-600' : '' }}">
+                        {{ $request->selected_item_info->name }}
+                    </p>
+                    <p class="text-xs text-gray-500">{{ $request->selected_item_info->code ?? 'N/A' }}</p>
+                    @if(isset($request->selected_item_info->selected_serial))
+                        <p class="text-xs text-blue-600">Serial: {{ $request->selected_item_info->selected_serial }}</p>
+                    @endif
+                    @if(isset($request->selected_item_info->is_deleted))
+                        <p class="text-xs text-red-500">⚠️ Thiết bị này có thể đã bị xóa</p>
+                    @endif
+                </div>
+                @endif
+
                 <div class="md:col-span-2">
                     <p class="text-sm text-gray-500">Lý do yêu cầu bảo trì</p>
                     <p class="font-medium whitespace-pre-line">{{ $request->maintenance_reason }}</p>

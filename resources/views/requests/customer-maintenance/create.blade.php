@@ -203,7 +203,7 @@
             </div>
             @endif
             
-            <!-- Trường ẩn để lưu tên dự án/thiết bị -->
+            <!-- Trường ẩn để lưu tên dự án/đơn thuê -->
             <input type="hidden" name="project_name" id="project_name" value="">
             <input type="hidden" name="item_source" id="item_source" value="">
             
@@ -399,21 +399,38 @@
                     let htmlRows = '';
                     let totalRows = 0;
                     items.forEach(item => {
-                        const quantity = item.quantity || 1;
-                        console.log(`Item: ${item.name}, Quantity: ${quantity}`);
-                        for (let i = 0; i < quantity; i++) {
+                        const serialNumbers = item.serial_numbers || [];
+                        
+                        if (serialNumbers.length === 0) {
+                            // Nếu không có serial numbers, tạo 1 row với N/A
                             htmlRows += `
                         <tr>
                             <td class="px-6 py-4">
                                 <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
                             </td>
                             <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
-                                    <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
+                            <td class="px-6 py-4">N/A</td>
                             <td class="px-6 py-4">${projectCode}</td>
-                                    <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                            <td class="px-6 py-4">${item.description || 'N/A'}</td>
                         </tr>
                             `;
                             totalRows++;
+                        } else {
+                            // Tạo row riêng cho mỗi serial number
+                            serialNumbers.forEach((serialNumber, index) => {
+                                htmlRows += `
+                        <tr>
+                            <td class="px-6 py-4">
+                                <input type="radio" name="item_id" value="${item.type}:${item.id}:${serialNumber}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${projectCode}')">
+                            </td>
+                            <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
+                            <td class="px-6 py-4">${serialNumber}</td>
+                            <td class="px-6 py-4">${projectCode}</td>
+                            <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                        </tr>
+                            `;
+                                totalRows++;
+                            });
                         }
                     });
                     console.log(`Total rows created: ${totalRows}`);
@@ -454,21 +471,38 @@
                     let htmlRows = '';
                     let totalRows = 0;
                     items.forEach(item => {
-                        const quantity = item.quantity || 1;
-                        console.log(`Item: ${item.name}, Quantity: ${quantity}`);
-                        for (let i = 0; i < quantity; i++) {
+                        const serialNumbers = item.serial_numbers || [];
+                        
+                        if (serialNumbers.length === 0) {
+                            // Nếu không có serial numbers, tạo 1 row với N/A
                             htmlRows += `
                         <tr>
                             <td class="px-6 py-4">
                                 <input type="radio" name="item_id" value="${item.type}:${item.id}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
                             </td>
                             <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
-                                    <td class="px-6 py-4">${item.serial_number || 'N/A'}</td>
+                            <td class="px-6 py-4">N/A</td>
                             <td class="px-6 py-4">${rentalCode}</td>
-                                    <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                            <td class="px-6 py-4">${item.description || 'N/A'}</td>
                         </tr>
                             `;
                             totalRows++;
+                        } else {
+                            // Tạo row riêng cho mỗi serial number
+                            serialNumbers.forEach(serialNumber => {
+                                htmlRows += `
+                        <tr>
+                            <td class="px-6 py-4">
+                                <input type="radio" name="item_id" value="${item.type}:${item.id}:${serialNumber}" class="form-radio" onchange="handleItemSelection(this, '${item.name}', '${rentalCode}')">
+                            </td>
+                            <td class="px-6 py-4">${item.name} (${item.type === 'product' ? 'Thiết bị' : 'Hàng hóa'})</td>
+                            <td class="px-6 py-4">${serialNumber}</td>
+                            <td class="px-6 py-4">${rentalCode}</td>
+                            <td class="px-6 py-4">${item.description || 'N/A'}</td>
+                        </tr>
+                            `;
+                                totalRows++;
+                            });
                         }
                     });
                     console.log(`Total rows created: ${totalRows}`);

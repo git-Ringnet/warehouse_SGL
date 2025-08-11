@@ -103,7 +103,7 @@ class RequestExportController extends Controller
         $sheet->setCellValue('A13', 'THÔNG TIN YÊU CẦU');
         $sheet->getStyle('A13')->getFont()->setBold(true);
 
-        $sheet->setCellValue('A14', 'Tên dự án/thiết bị:');
+        $sheet->setCellValue('A14', 'Tên dự án/Tên cho thuê:');
         $sheet->setCellValue('B14', $request->project_name);
         $sheet->setCellValue('A15', 'Mức độ ưu tiên:');
         $sheet->setCellValue('B15', $this->getPriorityText($request->priority));

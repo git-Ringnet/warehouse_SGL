@@ -213,6 +213,11 @@ class CustomerMaintenanceRequestController extends Controller
 
             $validatedData = $request->validate($rules);
 
+            // Thêm thông tin item được chọn
+            if ($request->has('item_id')) {
+                $validatedData['selected_item'] = $request->item_id;
+            }
+
             // Sử dụng transaction để tránh race condition
             $maintenanceRequest = null;
             DB::transaction(function () use ($validatedData, $customer, &$maintenanceRequest) {
@@ -505,8 +510,15 @@ class CustomerMaintenanceRequestController extends Controller
             }
         }
         
-        return redirect()->route('customer.dashboard')
-            ->with('success', 'Xóa phiếu yêu cầu bảo trì thành công!');
+        // Redirect về đúng trang tùy theo user type
+        if (Auth::guard('customer')->check()) {
+            return redirect()->route('customer.dashboard')
+                ->with('success', 'Xóa phiếu yêu cầu bảo trì thành công!');
+        } else {
+            // Nếu là nhân viên, quay về trang index
+            return redirect()->route('requests.index')
+                ->with('success', 'Xóa phiếu yêu cầu bảo trì thành công!');
+        }
     }
 
     /**
