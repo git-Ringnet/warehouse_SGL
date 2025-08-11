@@ -320,7 +320,19 @@ class MaintenanceRequestController extends Controller
                     'due_date' => $rental->due_date ? \Carbon\Carbon::parse($rental->due_date)->format('Y-m-d') : null,
                 ];
             });
-            
+        
+        // Tự động gán project_type và project_id nếu thiếu
+        if (!$maintenanceRequest->project_type) {
+            $maintenanceRequest->project_type = count($projects) > 0 ? 'project' : (count($rentals) > 0 ? 'rental' : null);
+        }
+        if (!$maintenanceRequest->project_id) {
+            if ($maintenanceRequest->project_type === 'project' && count($projects) > 0) {
+                $maintenanceRequest->project_id = $projects[0]['id'];
+            } elseif ($maintenanceRequest->project_type === 'rental' && count($rentals) > 0) {
+                $maintenanceRequest->project_id = $rentals[0]['id'];
+            }
+        }
+        
         return view('requests.maintenance.edit', compact('maintenanceRequest', 'projects', 'rentals'));
     }
 
@@ -698,7 +710,7 @@ class MaintenanceRequestController extends Controller
                     'repair_id' => $repair->id,
                     'device_code' => $product->product_code,
                     'device_name' => $product->product_name,
-                    'device_serial' => '',
+                    'device_serial' => $product->serial_number ?? '', // Sửa: truyền serial_number
                     'device_quantity' => $product->quantity,
                     'device_status' => 'selected',
                     'device_notes' => '',

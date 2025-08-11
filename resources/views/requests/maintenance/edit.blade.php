@@ -406,12 +406,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.devices && data.devices.length > 0) {
                 data.devices.forEach(device => {
                     const row = document.createElement('tr');
-                    // So sánh theo product_code và product_name thay vì device.id
+                    // So sánh theo product_code, product_name và serial_number
                     const isSelected = initialSelectedDevices.some(selectedId => {
                         const selectedProduct = initialProducts.find(p => p.id == selectedId);
                         return selectedProduct && 
                                selectedProduct.product_code === device.code && 
-                               selectedProduct.product_name === device.name;
+                               selectedProduct.product_name === device.name &&
+                               (selectedProduct.serial_number || 'N/A') === (device.serial_number || 'N/A');
                     });
                     
                     console.log('Device:', device);
@@ -544,10 +545,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Khởi tạo ban đầu
     loadProjects();
-    
-    // Hiển thị thiết bị đã có sẵn
-    console.log('=== SHOW EXISTING DEVICES ===');
-    showExistingDevices();
+    // Nếu đã có project_id thì load thiết bị luôn (giống create)
+    if (initialProjectId) {
+        loadDevices();
+    }
 });
 </script>
 @endsection 
