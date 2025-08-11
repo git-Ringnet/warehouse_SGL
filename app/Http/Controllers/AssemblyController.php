@@ -161,7 +161,6 @@ class AssemblyController extends Controller
      */
     public function store(Request $request)
     {
-        dd($request->all());
         $request->validate([
             'assembly_code' => 'required|unique:assemblies,code',
             'assembly_date' => 'required|date',
@@ -1507,6 +1506,17 @@ class AssemblyController extends Controller
             'using_warehouse_id' => $sourceWarehouseId
         ]);
 
+        // Tạo trường project_receiver theo định dạng yêu cầu
+        $projectReceiver = '';
+        if ($assembly->project) {
+            $projectReceiver = $assembly->project->project_code . ' - ' . $assembly->project->project_name . ' (' . ($assembly->project->customer->name ?? 'N/A') . ')';
+        } else {
+            $projectReceiver = 'Dự án';
+        }
+
+        // Tạo trường dispatch_note theo định dạng yêu cầu
+        $dispatchNote = 'Sinh ra từ phiếu lắp ráp ' . $assembly->code;
+
         // Create dispatch record
         $dispatch = Dispatch::create([
             'dispatch_code' => $dispatchCode,
@@ -1514,10 +1524,10 @@ class AssemblyController extends Controller
             'dispatch_type' => 'project',
             'dispatch_detail' => 'contract', // "Xuất theo hợp đồng"
             'project_id' => $assembly->project_id,
-            'project_receiver' => $assembly->project->project_name ?? 'Dự án',
+            'project_receiver' => $projectReceiver,
             'warranty_period' => null, // Có thể thêm logic để set warranty period
             'company_representative_id' => $assembly->assigned_employee_id,
-            'dispatch_note' => 'Sinh ra từ phiếu lắp ráp ' . $assembly->code,
+            'dispatch_note' => $dispatchNote,
             'status' => 'pending',
             'created_by' => $currentUserId,
         ]);
@@ -1586,6 +1596,12 @@ class AssemblyController extends Controller
 
         Log::info('Generated export code', ['export_code' => $exportCode]);
 
+        // Tạo trường project_receiver theo định dạng yêu cầu
+        $projectReceiver = 'Lắp ráp lưu kho: ' . $assembly->code;
+
+        // Tạo trường dispatch_note theo định dạng yêu cầu
+        $dispatchNote = 'Sinh từ phiếu lắp ráp: ' . $assembly->code;
+
         // Tạo phiếu xuất kho
         $dispatch = \App\Models\Dispatch::create([
             'dispatch_code' => $exportCode,
@@ -1593,10 +1609,10 @@ class AssemblyController extends Controller
             'dispatch_type' => 'project', // Sử dụng 'project' thay vì 'assembly_material' vì enum chỉ chấp nhận 3 giá trị
             'dispatch_detail' => 'all', // Sử dụng 'all' thay vì 'Vật tư lắp ráp' vì enum chỉ chấp nhận 3 giá trị
             'project_id' => null,
-            'project_receiver' => 'Lắp ráp lưu kho: ' . $assembly->code,
+            'project_receiver' => $projectReceiver,
             'warranty_period' => null,
             'company_representative_id' => Auth::id(),
-            'dispatch_note' => 'Sinh từ phiếu lắp ráp: ' . $assembly->code,
+            'dispatch_note' => $dispatchNote,
             'status' => 'approved', // Tự động duyệt
             'created_by' => Auth::id(),
         ]);

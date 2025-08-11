@@ -69,16 +69,14 @@
                         </div>
                         <div>
                             <label for="dispatch_date"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Ngày xuất <span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Ngày xuất</label>
                             <input type="date" id="dispatch_date" name="dispatch_date" value="{{ date('Y-m-d') }}"
                                 required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label for="dispatch_type"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Loại hình <span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Loại hình</label>
                             <select id="dispatch_type" name="dispatch_type" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn loại hình --</option>
@@ -89,8 +87,7 @@
                         </div>
                         <div>
                             <label for="dispatch_detail"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Chi tiết xuất kho <span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Chi tiết xuất kho</label>
                             <select id="dispatch_detail" name="dispatch_detail" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn chi tiết xuất kho --</option>
@@ -105,8 +102,7 @@
                         <!-- Phần chọn dự án (hiển thị khi loại hình = project) -->
                         <div id="project_section">
                             <label for="project_receiver"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án<span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
                             <select id="project_receiver" name="project_receiver" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn dự án --</option>
@@ -128,8 +124,7 @@
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
                             <label for="rental_receiver"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê<span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
                             <select id="rental_receiver" name="rental_receiver"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn hợp đồng cho thuê --</option>
@@ -140,8 +135,7 @@
                         <!-- Phần bảo hành (hiển thị khi loại hình = warranty) -->
                         <div id="warranty_section" class="hidden">
                             <label for="warranty_receiver"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê<span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
                             <select id="warranty_receiver" name="warranty_receiver" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn dự án / hợp đồng cho thuê --</option>

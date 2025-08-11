@@ -1349,38 +1349,44 @@ class ProjectRequestController extends Controller
             'project_receiver' => $customer ? $customer->company_name : $projectRequest->project_name
         ]);
         
-        // Xác định loại (project hoặc rental) và set project_id phù hợp
-        // Kiểm tra xem có rental_id không để xác định loại
-        $isRental = !empty($projectRequest->rental_id);
+        // Xác định loại (project hoặc rental) dựa trên project_name
+        // Kiểm tra xem project_name có chứa từ khóa "cho thuê" hoặc "rental" không
+        $isRental = stripos($projectRequest->project_name, 'cho thuê') !== false || 
+                    stripos($projectRequest->project_name, 'rental') !== false ||
+                    stripos($projectRequest->project_name, 'thuê') !== false;
         
         // Debug log để kiểm tra
         Log::info('Debug rental logic:', [
-            'project_id' => $projectRequest->project_id,
-            'rental_id' => $projectRequest->rental_id,
+            'project_name' => $projectRequest->project_name,
             'is_rental' => $isRental,
             'extracted_project_id' => $projectId
         ]);
         
-        // Nếu là rental, lấy rental_id thực tế
-        $actualProjectId = null;
-        if ($isRental) {
-            $actualProjectId = $projectRequest->rental_id; // Lưu rental_id vào project_id
-            Log::info('Using rental_id for dispatch:', ['rental_id' => $actualProjectId]);
-        } else {
-            $actualProjectId = $projectId; // Lưu project_id vào project_id
-            Log::info('Using project_id for dispatch:', ['project_id' => $actualProjectId]);
-        }
+        // Sử dụng project_id nếu có, nếu không thì null
+        $actualProjectId = $projectId;
         
+        // Tạo trường project_receiver theo định dạng yêu cầu
+        $projectReceiver = '';
+        if ($isRental) {
+            // Nếu là cho thuê, sử dụng project_name
+            $projectReceiver = 'RENTAL-' . date('YmdHis') . ' - ' . $projectRequest->project_name . ' (' . ($customer ? $customer->name : 'N/A') . ')';
+        } else {
+            // Nếu là dự án, sử dụng project_name
+            $projectReceiver = 'PRJ-' . date('YmdHis') . ' - ' . $projectRequest->project_name . ' (' . ($customer ? $customer->name : 'N/A') . ')';
+        }
+
+        // Tạo trường dispatch_note theo định dạng yêu cầu
+        $dispatchNote = 'Tự động tạo từ phiếu đề xuất ' . ($isRental ? 'cho thuê' : 'dự án') . ' ' . $projectRequest->request_code;
+
         $dispatch = Dispatch::create([
             'dispatch_code' => 'DISP-' . date('YmdHis'),
             'dispatch_date' => now(), // Ngày xuất = ngày duyệt
-            'dispatch_type' => $isRental ? 'rental' : 'project', // Loại hình: Dự án hoặc Cho thuê
+            'dispatch_type' => 'project', // Loại hình: Dự án (enum chỉ chấp nhận 'project', 'warranty', 'all')
             'dispatch_detail' => 'contract', // Chi tiết xuất kho: Xuất theo hợp đồng
-            'customer_id' => $projectRequest->customer_id,
-            'project_id' => $actualProjectId, // Lưu rental_id hoặc project_id tùy theo loại
-            'project_receiver' => $customer ? $customer->company_name : $projectRequest->project_name, // Người nhận = tên công ty
+            'project_id' => $actualProjectId, // Lưu project_id nếu có
+            'project_receiver' => $projectReceiver, // Người nhận theo định dạng yêu cầu
             'company_representative_id' => $companyRepresentative ? $companyRepresentative->id : ($projectRequest->implementer_id ?? $projectRequest->proposer_id), // Người đại diện = employee tương ứng
-            'dispatch_note' => 'Tự động tạo từ phiếu đề xuất ' . ($isRental ? 'cho thuê' : 'dự án') . ' #' . $projectRequest->id,
+            'dispatch_note' => $dispatchNote, // Ghi chú theo định dạng yêu cầu
             'status' => 'pending', // Trạng thái: Chờ xử lý
             'created_by' => Auth::id() ?? 1, // Người tạo phiếu = người duyệt
             'warranty_period' => null,
@@ -1391,7 +1397,6 @@ class ProjectRequestController extends Controller
             'dispatch_id' => $dispatch->id,
             'dispatch_code' => $dispatch->dispatch_code,
             'project_id' => $dispatch->project_id,
-            'customer_id' => $dispatch->customer_id,
             'project_receiver' => $dispatch->project_receiver
         ]);
 
@@ -1649,37 +1654,27 @@ class ProjectRequestController extends Controller
     private function updateProjectWithItems($projectRequest)
     {
         try {
-            // Xác định loại (project hoặc rental)
-            $originalProjectId = $projectRequest->project_id;
-            $isRental = strpos($originalProjectId, 'rental_') === 0;
-            
-            // Lấy project_id hoặc rental_id thực tế
-            $actualId = null;
-            if ($isRental) {
-                $actualId = $projectRequest->rental_id; // Sử dụng rental_id thực tế
-            } else {
-                $actualId = $this->getProjectIdFromRequest($projectRequest); // Sử dụng project_id thực tế
-            }
+            // Lấy project_id thực tế
+            $actualId = $this->getProjectIdFromRequest($projectRequest);
             
             if (!$actualId) {
                 Log::warning('Không thể cập nhật dự án: ID không tìm thấy', [
                     'project_request_id' => $projectRequest->id,
-                    'original_project_id' => $projectRequest->project_id,
-                    'is_rental' => $isRental
+                    'project_name' => $projectRequest->project_name
                 ]);
                 return;
             }
             
             // Lấy phiếu xuất kho mới nhất
             $latestDispatch = Dispatch::where('project_id', $actualId)
-                ->where('dispatch_type', $isRental ? 'rental' : 'project')
+                ->where('dispatch_type', 'project')
                 ->latest()
                 ->first();
             
             if (!$latestDispatch) {
                 Log::warning('Không tìm thấy phiếu xuất kho', [
                     'actual_id' => $actualId,
-                    'dispatch_type' => $isRental ? 'rental' : 'project',
+                    'dispatch_type' => 'project',
                     'project_request_id' => $projectRequest->id
                 ]);
                 return;
@@ -1711,7 +1706,7 @@ class ProjectRequestController extends Controller
                         ]);
                         
                         Log::info('Đã cập nhật thiết bị', [
-                            'type' => $isRental ? 'rental' : 'project',
+                            'type' => 'project',
                             'actual_id' => $actualId,
                             'dispatch_id' => $latestDispatch->id,
                             'product_id' => $product->id,
@@ -1735,41 +1730,18 @@ class ProjectRequestController extends Controller
      */
     private function getProjectIdFromRequest($projectRequest)
     {
-        // Kiểm tra xem có project_id hoặc rental_id không
+        // Kiểm tra xem có project_id không
         if ($projectRequest->project_id) {
-            // Kiểm tra xem project_id có phải là rental_id không (có prefix 'rental_')
-            if (strpos($projectRequest->project_id, 'rental_') === 0) {
-                // Nếu là rental, trả về rental_id thực tế
-                Log::info('Found rental_id in project_request:', [
-                    'original_project_id' => $projectRequest->project_id,
-                    'rental_id' => $projectRequest->rental_id,
-                    'project_name' => $projectRequest->project_name
-                ]);
-                return $projectRequest->rental_id; // Trả về rental_id thực tế
-            } else {
-                // Nếu là project thật sự
-                Log::info('Found project_id in project_request:', [
-                    'project_id' => $projectRequest->project_id,
-                    'project_name' => $projectRequest->project_name
-                ]);
-                return $projectRequest->project_id;
-            }
-        }
-        
-        if ($projectRequest->rental_id) {
-            // Nếu có rental_id, lấy project_id từ rental
-            $rental = Rental::find($projectRequest->rental_id);
-            if ($rental && $rental->project_id) {
-                Log::info('Found project_id from rental:', [
-                    'rental_id' => $projectRequest->rental_id,
-                    'project_id' => $rental->project_id
-                ]);
-                return $rental->project_id;
-            }
+            // Nếu có project_id, trả về project_id
+            Log::info('Found project_id in project_request:', [
+                'project_id' => $projectRequest->project_id,
+                'project_name' => $projectRequest->project_name
+            ]);
+            return $projectRequest->project_id;
         }
         
         // Fallback: thử tìm project theo tên
-        Log::warning('No project_id or rental_id found, trying to find by project_name');
+        Log::warning('No project_id found, trying to find by project_name');
         $project = Project::where('project_name', 'like', '%' . $projectRequest->project_name . '%')
             ->orWhere('project_code', 'like', '%' . $projectRequest->project_name . '%')
             ->first();
@@ -1785,8 +1757,7 @@ class ProjectRequestController extends Controller
         Log::warning('No project found for project_request:', [
             'project_request_id' => $projectRequest->id,
             'project_name' => $projectRequest->project_name,
-            'project_id' => $projectRequest->project_id,
-            'rental_id' => $projectRequest->rental_id
+            'project_id' => $projectRequest->project_id
         ]);
         
         return null;

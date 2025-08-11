@@ -219,7 +219,7 @@ class DeviceCodeController extends Controller
                     'item_type' => $deviceCode['item_type'] ?? null,
                     'item_id' => $deviceCode['item_id'] ?? null,
                     'serial_main' => $deviceCode['serial_main'],
-                    'serial_components' => $deviceCode['serial_components'] ?? [],
+                    'serial_components' => $deviceCode['serial_components'] ?? '[]',
                     'serial_sim' => $deviceCode['serial_sim'] ?? null,
                     'access_code' => $deviceCode['access_code'] ?? null,
                     'iot_id' => $deviceCode['iot_id'] ?? null,

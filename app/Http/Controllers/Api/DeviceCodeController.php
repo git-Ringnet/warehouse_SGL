@@ -10,45 +10,57 @@ use Illuminate\Support\Facades\Log;
 class DeviceCodeController extends Controller
 {
     /**
-     * Get device codes for a dispatch
+     * Get device codes for a dispatch by type
      */
     public function getDeviceCodes($dispatchId)
     {
         try {
-            // Debug: Log the dispatch ID
-            Log::info('Getting device codes for dispatch_id: ' . $dispatchId);
+            $type = request()->get('type', 'all');
             
-            // Get device codes from device_codes table
-            $deviceCodes = DB::table('device_codes')
-                ->where('dispatch_id', $dispatchId)
-                ->select('item_id', 'serial_main', 'old_serial', 'product_id', 'item_type')
-                ->get();
+            // Debug: Log the dispatch ID and type
+            Log::info('Getting device codes for dispatch_id: ' . $dispatchId . ', type: ' . $type);
+            
+            // Build query based on type
+            $query = DB::table('device_codes')
+                ->where('dispatch_id', $dispatchId);
+            
+            // Filter by type if specified
+            if ($type !== 'all') {
+                $query->where('type', $type);
+            }
+            
+            // Get device codes with all necessary fields
+            $deviceCodes = $query->select(
+                'id',
+                'dispatch_id', 
+                'product_id', 
+                'item_type',
+                'item_id',
+                'serial_main',
+                'serial_components',
+                'serial_sim',
+                'access_code',
+                'iot_id',
+                'mac_4g',
+                'note',
+                'type'
+            )->get();
 
             // Debug: Log the query result
-            Log::info('Device codes found: ' . $deviceCodes->count());
+            Log::info('Device codes found for type ' . $type . ': ' . $deviceCodes->count());
             Log::info('Device codes data: ' . $deviceCodes->toJson());
-
-            // Also check if there are any device codes at all
-            $allDeviceCodes = DB::table('device_codes')->get();
-            Log::info('Total device codes in table: ' . $allDeviceCodes->count());
-            
-            // Debug: Check all device codes with dispatch_id
-            $allWithDispatch = DB::table('device_codes')
-                ->whereNotNull('dispatch_id')
-                ->select('dispatch_id', 'item_id', 'serial_main')
-                ->get();
-            Log::info('All device codes with dispatch_id: ' . $allWithDispatch->toJson());
 
             return response()->json([
                 'success' => true,
                 'deviceCodes' => $deviceCodes,
                 'debug' => [
                     'dispatch_id_requested' => $dispatchId,
-                    'total_device_codes' => $allDeviceCodes->count(),
+                    'type_requested' => $type,
                     'found_device_codes' => $deviceCodes->count()
                 ]
             ]);
         } catch (\Exception $e) {
+            Log::error('Error getting device codes: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy thông tin mã thiết bị: ' . $e->getMessage()
