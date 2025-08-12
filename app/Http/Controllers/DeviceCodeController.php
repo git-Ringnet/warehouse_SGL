@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DeviceCode;
+use App\Models\DispatchItem;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -250,6 +251,9 @@ class DeviceCodeController extends Controller
                 ]);
             }
             
+            // Đồng bộ serial numbers từ device_codes sang dispatch_items
+            $this->syncSerialNumbersToDispatchItems($dispatch_id, $type);
+            
             DB::commit();
             
             return response()->json([
@@ -263,6 +267,96 @@ class DeviceCodeController extends Controller
                 'success' => false,
                 'message' => 'Lỗi khi lưu thông tin: ' . $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * Đồng bộ serial numbers từ device_codes sang dispatch_items
+     */
+    private function syncSerialNumbersToDispatchItems($dispatch_id, $type)
+    {
+        try {
+            // Lấy tất cả device codes cho dispatch và type này
+            $deviceCodes = DeviceCode::where('dispatch_id', $dispatch_id)
+                ->where('type', $type)
+                ->get();
+
+            Log::info("Found {$deviceCodes->count()} device codes for dispatch {$dispatch_id}, type {$type}");
+
+            // Lấy tất cả dispatch items cho dispatch và type này
+            $dispatchItems = DispatchItem::where('dispatch_id', $dispatch_id)
+                ->where('category', $type)
+                ->get();
+
+            Log::info("Found {$dispatchItems->count()} dispatch items for dispatch {$dispatch_id}, type {$type}");
+
+            foreach ($dispatchItems as $dispatchItem) {
+                // Tìm device codes cho dispatch item này
+                $itemDeviceCodes = $deviceCodes->where('product_id', $dispatchItem->item_id);
+                
+                // Nếu item_type trong device_codes là null, chỉ match theo product_id
+                if ($itemDeviceCodes->where('item_type', $dispatchItem->item_type)->isNotEmpty()) {
+                    $itemDeviceCodes = $itemDeviceCodes->where('item_type', $dispatchItem->item_type);
+                }
+                
+                $itemDeviceCodes = $itemDeviceCodes->values();
+
+                Log::info("Found {$itemDeviceCodes->count()} device codes for dispatch item {$dispatchItem->id} (item_type: {$dispatchItem->item_type}, item_id: {$dispatchItem->item_id})");
+
+                if ($itemDeviceCodes->isNotEmpty()) {
+                    // Lấy tất cả serial_main từ device codes
+                    $serialNumbers = $itemDeviceCodes->pluck('serial_main')->filter()->toArray();
+                    
+                    Log::info("Serial numbers for dispatch item {$dispatchItem->id}: " . json_encode($serialNumbers));
+                    
+                    // Cập nhật serial_numbers trong dispatch_item
+                    $dispatchItem->update([
+                        'serial_numbers' => $serialNumbers
+                    ]);
+
+                    Log::info("Successfully synced serial numbers for dispatch item {$dispatchItem->id}: " . json_encode($serialNumbers));
+                } else {
+                    Log::warning("No device codes found for dispatch item {$dispatchItem->id}");
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error syncing serial numbers to dispatch items: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * API endpoint để đồng bộ serial numbers từ device_codes sang dispatch_items
+     */
+    public function syncSerialNumbers(Request $request)
+    {
+        try {
+            $request->validate([
+                'dispatch_id' => 'required|exists:dispatches,id',
+                'type' => 'required|in:contract,backup,general'
+            ]);
+
+            $dispatch_id = $request->input('dispatch_id');
+            $type = $request->input('type');
+
+            DB::beginTransaction();
+            
+            // Đồng bộ serial numbers
+            $this->syncSerialNumbersToDispatchItems($dispatch_id, $type);
+            
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Đồng bộ serial numbers thành công'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi đồng bộ serial numbers: ' . $e->getMessage()
+            ], 500);
         }
     }
     

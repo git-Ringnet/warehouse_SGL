@@ -886,6 +886,10 @@
                             class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                             <i class="fas fa-file-import mr-2"></i> Import Excel
                         </button>
+                        <button type="button" id="sync-serial-numbers"
+                            class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                            <i class="fas fa-sync-alt mr-2"></i> Đồng bộ Serial
+                        </button>
                     </div>
                     <div>
                         <button type="button" id="cancel-device-codes"
@@ -2975,6 +2979,7 @@
             const saveDeviceCodesBtn = document.getElementById('save-device-codes');
             const importDeviceCodesBtn = document.getElementById('import-device-codes');
             const syncSerialsBtn = document.getElementById('sync-serials-btn');
+            const syncSerialNumbersBtn = document.getElementById('sync-serial-numbers');
 
             let currentDeviceCodeType = '';
             let currentProductId = null;
@@ -3046,6 +3051,58 @@
                     syncSerialNumbers();
                     // Vô hiệu hóa sync sau khi hoàn tất
                     disableAllSync();
+                });
+            }
+
+            // Xử lý nút đồng bộ serial numbers từ device_codes sang dispatch_items
+            if (syncSerialNumbersBtn) {
+                syncSerialNumbersBtn.addEventListener('click', async function() {
+                    try {
+                        // Hiển thị trạng thái loading
+                        syncSerialNumbersBtn.disabled = true;
+                        syncSerialNumbersBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang đồng bộ...';
+
+                        const response = await fetch('/api/device-codes/sync-serial-numbers', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                            },
+                            body: JSON.stringify({
+                                dispatch_id: dispatchId,
+                                type: currentDeviceCodeType
+                            })
+                        });
+
+                        const result = await response.json();
+
+                        if (!result.success) {
+                            throw new Error(result.message || 'Lỗi khi đồng bộ serial numbers');
+                        }
+
+                        alert('Đồng bộ serial numbers thành công!');
+                        
+                        // Redirect về trang dự án hoặc rental với tham số refresh
+                        const projectId = {{ $dispatch->project_id ?? 'null' }};
+                        const dispatchType = '{{ $dispatch->dispatch_type ?? "" }}';
+                        
+                        if (projectId && dispatchType === 'project') {
+                            window.location.href = `/projects/${projectId}?refresh=true`;
+                        } else if (projectId && dispatchType === 'rental') {
+                            window.location.href = `/rentals/${projectId}?refresh=true`;
+                        } else {
+                            // Nếu không có project_id hoặc không phải project/rental, refresh trang hiện tại
+                            location.reload();
+                        }
+
+                    } catch (error) {
+                        console.error('Error syncing serial numbers:', error);
+                        alert('Có lỗi xảy ra khi đồng bộ serial numbers: ' + error.message);
+                    } finally {
+                        // Khôi phục trạng thái nút
+                        syncSerialNumbersBtn.disabled = false;
+                        syncSerialNumbersBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Đồng bộ Serial';
+                    }
                 });
             }
 

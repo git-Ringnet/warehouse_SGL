@@ -723,11 +723,17 @@ class MaintenanceRequestController extends Controller
             // Thêm các thiết bị từ dispatch items vào repair items
             foreach ($dispatchItems as $item) {
                 if ($item->product) {
+                    // Lấy serial number từ serial_numbers array
+                    $serialNumber = '';
+                    if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                        $serialNumber = $item->serial_numbers[0] ?? '';
+                    }
+                    
                     RepairItem::create([
                         'repair_id' => $repair->id,
                         'device_code' => $item->product->code,
                         'device_name' => $item->product->name,
-                        'device_serial' => $item->serial_number ?? '',
+                        'device_serial' => $serialNumber,
                         'device_quantity' => 1,
                         'device_status' => 'selected',
                         'device_notes' => '',

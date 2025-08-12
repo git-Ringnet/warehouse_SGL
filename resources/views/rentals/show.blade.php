@@ -158,6 +158,9 @@
                     <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                         <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
                             <h2 class="text-lg font-semibold text-gray-800">Thiết bị hàng hóa theo hợp đồng</h2>
+                            <button id="refresh-contract-items" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors flex items-center">
+                                <i class="fas fa-sync-alt mr-1"></i> Làm mới
+                            </button>
                         </div>
                         
                         <div class="overflow-x-auto">
@@ -290,6 +293,9 @@
                     <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                         <div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-4">
                             <h2 class="text-lg font-semibold text-gray-800">Thiết bị dự phòng/bảo hành</h2>
+                            <button id="refresh-backup-items" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm transition-colors flex items-center">
+                                <i class="fas fa-sync-alt mr-1"></i> Làm mới
+                            </button>
                         </div>
                         
                         <div class="overflow-x-auto">
@@ -1130,6 +1136,50 @@
                         });
                     }
                 });
+        }
+
+        // Xử lý nút refresh cho thiết bị hợp đồng
+        document.getElementById('refresh-contract-items')?.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang làm mới...';
+            
+            // Refresh trang để lấy dữ liệu mới nhất
+            location.reload();
+        });
+
+        // Xử lý nút refresh cho thiết bị dự phòng
+        document.getElementById('refresh-backup-items')?.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang làm mới...';
+            
+            // Refresh trang để lấy dữ liệu mới nhất
+            location.reload();
+        });
+
+        // Auto-refresh khi có thay đổi từ dispatch edit
+        // Kiểm tra nếu có tham số refresh trong URL
+        if (window.location.search.includes('refresh=true')) {
+            // Xóa tham số refresh khỏi URL
+            const url = new URL(window.location);
+            url.searchParams.delete('refresh');
+            window.history.replaceState({}, '', url);
+            
+            // Hiển thị thông báo
+            const alert = document.createElement('div');
+            alert.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4';
+            alert.innerHTML = `
+                <strong class="font-bold">Thành công!</strong>
+                <span class="block sm:inline">Dữ liệu đã được cập nhật. Serial numbers đã được đồng bộ.</span>
+            `;
+            
+            // Thêm alert vào đầu trang
+            const header = document.querySelector('header');
+            header.parentNode.insertBefore(alert, header.nextSibling);
+            
+            // Tự động ẩn alert sau 5 giây
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
         }
     </script>
 </body>

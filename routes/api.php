@@ -31,6 +31,7 @@ Route::get('dispatch/item-serials', [App\Http\Controllers\InventoryController::c
 // Thêm các route cho device codes API
 Route::post('device-codes/save', [DeviceCodeController::class, 'saveDeviceCodes']);
 Route::post('device-codes/import', [DeviceCodeController::class, 'importFromExcel']);
+Route::post('device-codes/sync-serial-numbers', [DeviceCodeController::class, 'syncSerialNumbers']);
 Route::get('device-info/{mainSerial}', [App\Http\Controllers\InventoryController::class, 'getDeviceInfo'])->name('api.device-info.serial');
 
 // Product API routes
