@@ -1912,7 +1912,7 @@ class DispatchController extends Controller
             ]);
 
             // Get serial numbers that are already used in approved dispatches
-            $usedSerials = \App\Models\DispatchItem::whereHas('dispatch', function ($query) use ($currentDispatchId) {
+            $approvedDispatchItemsQuery = \App\Models\DispatchItem::whereHas('dispatch', function ($query) use ($currentDispatchId) {
                 $query->where('status', 'approved');
                 // Exclude current dispatch when editing
                 if ($currentDispatchId) {
@@ -1921,12 +1921,31 @@ class DispatchController extends Controller
             })
                 ->where('item_type', $itemType)
                 ->where('item_id', $itemId)
-                ->where('warehouse_id', $warehouseId)
-                ->get()
+                ->where('warehouse_id', $warehouseId);
+
+            $usedSerials = $approvedDispatchItemsQuery->get()
                 ->pluck('serial_numbers')
                 ->flatten()
                 ->filter()
                 ->toArray();
+
+            // Also exclude any old_serial values recorded in device_codes for approved dispatches
+            $approvedDispatchIds = $approvedDispatchItemsQuery->pluck('dispatch_id')->unique()->toArray();
+
+            if (!empty($approvedDispatchIds)) {
+                $oldSerials = \App\Models\DeviceCode::whereIn('dispatch_id', $approvedDispatchIds)
+                    ->where('product_id', $itemId)
+                    // Match by item_type if present; otherwise accept null item_type
+                    ->where(function ($q) use ($itemType) {
+                        $q->whereNull('item_type')->orWhere('item_type', $itemType);
+                    })
+                    ->pluck('old_serial')
+                    ->filter()
+                    ->toArray();
+
+                // Merge and de-duplicate
+                $usedSerials = array_values(array_unique(array_merge($usedSerials, array_filter($oldSerials))));
+            }
 
             // Debug: Log used serials
             Log::info('Used serials found:', [
@@ -1934,7 +1953,7 @@ class DispatchController extends Controller
                 'used_serials' => $usedSerials
             ]);
 
-            // Filter out used serials
+            // Filter out used serials (including old_serial replacements)
             $availableSerials = array_diff($serials, $usedSerials);
 
             // Debug: Log final result

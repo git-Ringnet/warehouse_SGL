@@ -276,6 +276,9 @@ class DeviceCodeController extends Controller
     private function syncSerialNumbersToDispatchItems($dispatch_id, $type)
     {
         try {
+            // Lấy thông tin phiếu xuất để biết trạng thái và phục vụ cập nhật tồn kho serial
+            $dispatch = \App\Models\Dispatch::find($dispatch_id);
+
             // Lấy tất cả device codes cho dispatch và type này
             $deviceCodes = DeviceCode::where('dispatch_id', $dispatch_id)
                 ->where('type', $type)
@@ -291,6 +294,11 @@ class DeviceCodeController extends Controller
             Log::info("Found {$dispatchItems->count()} dispatch items for dispatch {$dispatch_id}, type {$type}");
 
             foreach ($dispatchItems as $dispatchItem) {
+                // Lưu lại serial trước khi đồng bộ để xác định những serial cũ bị thay thế
+                $previousSerials = is_array($dispatchItem->serial_numbers)
+                    ? $dispatchItem->serial_numbers
+                    : (empty($dispatchItem->serial_numbers) ? [] : (json_decode($dispatchItem->serial_numbers, true) ?: []));
+
                 // Tìm device codes cho dispatch item này
                 $itemDeviceCodes = $deviceCodes->where('product_id', $dispatchItem->item_id);
                 
@@ -315,6 +323,22 @@ class DeviceCodeController extends Controller
                     ]);
 
                     Log::info("Successfully synced serial numbers for dispatch item {$dispatchItem->id}: " . json_encode($serialNumbers));
+
+                    // Nếu phiếu đã duyệt, cập nhật trạng thái serial trong bảng serials để không hiển thị lại khi tạo phiếu mới
+                    if ($dispatch && $dispatch->status === 'approved') {
+                        $oldSerials = array_values(array_diff($previousSerials, $serialNumbers));
+                        $affectedSerials = array_values(array_unique(array_merge($serialNumbers, $oldSerials)));
+
+                        if (!empty($affectedSerials)) {
+                            \App\Models\Serial::where('warehouse_id', $dispatchItem->warehouse_id)
+                                ->where('type', $dispatchItem->item_type)
+                                ->where('product_id', $dispatchItem->item_id)
+                                ->whereIn('serial_number', $affectedSerials)
+                                ->update(['status' => 'inactive']);
+
+                            Log::info('Updated serial status to inactive for serials: ' . json_encode($affectedSerials));
+                        }
+                    }
                 } else {
                     Log::warning("No device codes found for dispatch item {$dispatchItem->id}");
                 }
