@@ -301,11 +301,6 @@ class AssemblyController extends Controller
                 if ($assembly->purpose === 'project' && !$targetWarehouseId) {
                     $targetWarehouseId = $assembly->warehouse_id;
                 }
-
-                // Only create serial records if we have a valid warehouse ID and serials
-                if (!empty($filteredSerials) && $targetWarehouseId) {
-                    $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $targetWarehouseId);
-                }
             }
 
             // Create assembly materials and update stock levels    
@@ -532,6 +527,38 @@ class AssemblyController extends Controller
                     $q->whereNull('notes')
                         ->orWhere('notes', 'like', '%Assembly ID: ' . $assembly->id . '%');
                 });
+
+            // Loại trừ serial đang được sử dụng trong các phiếu lắp ráp khác ở trạng thái in_progress hoặc completed
+            $usedSerialsInOtherAssemblies = AssemblyMaterial::where('material_id', $material->material_id)
+                ->where(function ($query) {
+                    $query->whereNotNull('serial')
+                        ->orWhereNotNull('serial_id');
+                })
+                ->whereHas('assembly', function ($query) use ($assembly) {
+                    $query->whereIn('status', ['in_progress', 'completed'])
+                        ->where('id', '!=', $assembly->id);
+                })
+                ->get()
+                ->flatMap(function ($assemblyMaterial) {
+                    $serials = [];
+                    if ($assemblyMaterial->serial) {
+                        $serials = array_merge($serials, array_map('trim', explode(',', $assemblyMaterial->serial)));
+                    }
+                    if ($assemblyMaterial->serial_id) {
+                        $serial = Serial::find($assemblyMaterial->serial_id);
+                        if ($serial) {
+                            $serials[] = $serial->serial_number;
+                        }
+                    }
+                    return $serials;
+                })
+                ->filter()
+                ->unique()
+                ->toArray();
+
+            if (!empty($usedSerialsInOtherAssemblies)) {
+                $query->whereNotIn('serial_number', $usedSerialsInOtherAssemblies);
+            }
 
             // Get existing serials for this material
             $existingSerials = [];
@@ -1302,14 +1329,14 @@ class AssemblyController extends Controller
                     ->orWhereIn('serial_number', $existingSerials);
             });
 
-            // Loại trừ serial đang được sử dụng trong các phiếu lắp ráp khác ở trạng thái in_progress
+            // Loại trừ serial đang được sử dụng trong các phiếu lắp ráp khác ở trạng thái in_progress hoặc completed
             $usedSerialsInOtherAssemblies = AssemblyMaterial::where('material_id', $materialId)
                 ->where(function ($query) {
                     $query->whereNotNull('serial')
                         ->orWhereNotNull('serial_id');
                 })
                 ->whereHas('assembly', function ($query) use ($assemblyId) {
-                    $query->where('status', 'in_progress')
+                    $query->whereIn('status', ['in_progress', 'completed'])
                         ->where('id', '!=', $assemblyId);
                 })
                 ->get()
@@ -1663,7 +1690,8 @@ class AssemblyController extends Controller
                     'item_type' => 'material',
                     'item_id' => $am->material_id,
                     'quantity' => $am->quantity,
-                    'warehouse_id' => $assembly->warehouse_id, // Thêm warehouse_id từ assembly
+                    // Xuất đúng từ kho đã chọn cho từng vật tư
+                    'warehouse_id' => $am->warehouse_id,
                     'category' => 'general',
                     'serial_numbers' => $serialNumbers,
                     'notes' => 'Vật tư lắp ráp từ phiếu lắp ráp',
@@ -1689,7 +1717,8 @@ class AssemblyController extends Controller
                     [
                         'assembly_id' => $assembly->id,
                         'material_id' => $am->material_id,
-                        'warehouse_id' => $assembly->warehouse_id,
+                        // Ghi nhận đúng kho xuất theo vật tư
+                        'warehouse_id' => $am->warehouse_id,
                         'target_warehouse_id' => $assembly->target_warehouse_id,
                         'quantity' => $am->quantity,
                         'serial' => $am->serial,
@@ -1700,6 +1729,72 @@ class AssemblyController extends Controller
                     ],
                     'Vật tư lắp ráp lưu kho'
                 );
+
+                // Giảm tồn kho ngay khi tạo phiếu xuất vật tư (phiếu này đang tự động approved)
+                try {
+                    $wmRows = \App\Models\WarehouseMaterial::where('warehouse_id', $am->warehouse_id)
+                        ->where('material_id', $am->material_id)
+                        ->where('item_type', 'material')
+                        ->get();
+
+                    if ($wmRows->isNotEmpty()) {
+                        // Giảm quantity trên dòng đầu tiên (giả định quantity tổng nằm trên 1 dòng)
+                        $wm = $wmRows->first();
+                        $newQty = max(0, ((int)$wm->quantity) - ((int)$am->quantity));
+                        $wm->update(['quantity' => $newQty]);
+
+                        // Nếu có serial xuất, loại bỏ các serial đã dùng khỏi JSON serial_number
+                        if (!empty($serialNumbers)) {
+                            foreach ($wmRows as $row) {
+                                if (!empty($row->serial_number)) {
+                                    $arr = json_decode($row->serial_number, true);
+                                    if (is_array($arr)) {
+                                        // Lọc bỏ serial đã dùng (so sánh chuỗi tỉa khoảng trắng)
+                                        $remaining = [];
+                                        foreach ($arr as $sn) {
+                                            $snTrim = trim($sn);
+                                            if ($snTrim === '') continue;
+                                            if (!in_array($snTrim, $serialNumbers, true)) {
+                                                $remaining[] = $snTrim;
+                                            }
+                                        }
+                                        $row->serial_number = json_encode($remaining);
+                                        $row->save();
+                                    }
+                                }
+                            }
+
+                            // Cập nhật bảng serials: đánh dấu serial đã dùng
+                            \App\Models\Serial::where('type', 'material')
+                                ->where('product_id', $am->material_id)
+                                ->where('warehouse_id', $am->warehouse_id)
+                                ->whereIn('serial_number', $serialNumbers)
+                                ->update([
+                                    'status' => 'used',
+                                    'notes' => 'Used in Assembly ID: ' . $assembly->id,
+                                ]);
+                        }
+
+                        Log::info('Decremented warehouse stock for assembly material export', [
+                            'warehouse_id' => $am->warehouse_id,
+                            'material_id' => $am->material_id,
+                            'decrement' => (int)$am->quantity,
+                            'new_quantity' => $newQty,
+                            'serials_removed' => $serialNumbers,
+                        ]);
+                    } else {
+                        Log::warning('WarehouseMaterial not found when decrementing on material export', [
+                            'warehouse_id' => $am->warehouse_id,
+                            'material_id' => $am->material_id,
+                        ]);
+                    }
+                } catch (\Exception $decEx) {
+                    Log::error('Error decrementing warehouse stock for material export', [
+                        'error' => $decEx->getMessage(),
+                        'warehouse_id' => $am->warehouse_id,
+                        'material_id' => $am->material_id,
+                    ]);
+                }
 
                 Log::info('Created change log for material export', [
                     'material_code' => $am->material->code,
@@ -2393,113 +2488,148 @@ class AssemblyController extends Controller
         foreach ($assemblyMaterials as $assemblyMaterial) {
             $material = $assemblyMaterial->material;
             $requiredQuantity = $assemblyMaterial->quantity;
-            $warehouseId = $assembly->warehouse_id;
+            // Kiểm tra tồn kho theo đúng kho đã chọn cho từng vật tư
+            $warehouseId = $assemblyMaterial->warehouse_id;
 
-            // Lấy tồn kho của vật tư trong kho
-            $warehouseMaterials = WarehouseMaterial::where('warehouse_id', $warehouseId)
+            // Lấy toàn bộ dòng tồn kho vật tư tại kho
+            $wmRows = WarehouseMaterial::where('warehouse_id', $warehouseId)
                 ->where('material_id', $material->id)
                 ->where('item_type', 'material')
-                ->get();
+                ->get(['quantity', 'serial_number']);
 
-            $totalAvailable = 0;
-            $serializedAvailable = 0;
+            // Tổng tồn (bao gồm cả serial và không serial)
+            $totalAvailable = (int) $wmRows->sum('quantity');
+
+            // Tính tồn không-serial theo từng dòng: max(0, quantity - count(serial_number JSON))
             $nonSerializedAvailable = 0;
+            $serializedCountFromWarehouseJson = 0;
+            foreach ($wmRows as $wm) {
+                $rowSerialCount = 0;
+                if (!empty($wm->serial_number)) {
+                    $arr = json_decode($wm->serial_number, true);
+                    if (is_array($arr)) {
+                        $rowSerialCount = count(array_filter(array_map('trim', $arr)));
+                        $serializedCountFromWarehouseJson += $rowSerialCount;
+                    }
+                }
+                $nonSerializedAvailable += max(0, ((int)$wm->quantity) - $rowSerialCount);
+            }
 
-            foreach ($warehouseMaterials as $wm) {
-                $totalAvailable += $wm->quantity;
+            // Tổng số serial (nguồn 1: bảng serials)
+            $totalSerializedInWarehouseFromSerials = (int) Serial::where('product_id', $material->id)
+                ->where('type', 'material')
+                ->where('warehouse_id', $warehouseId)
+                ->where('status', 'active')
+                ->count();
 
-                if ($wm->serial_number) {
-                    // Vật tư có serial
-                    $serializedAvailable += $wm->quantity;
-                } else {
-                    // Vật tư không có serial
-                    $nonSerializedAvailable += $wm->quantity;
+            // Dùng số serial lớn nhất cho mục đích tham khảo, nhưng ưu tiên non-serial tính theo từng dòng ở trên
+            $totalSerializedInWarehouse = max($totalSerializedInWarehouseFromSerials, $serializedCountFromWarehouseJson);
+
+            // Danh sách serial khả dụng để chọn (chưa bị giữ bởi assembly khác)
+            $availableSerialNumbers = Serial::where('product_id', $material->id)
+                ->where('type', 'material')
+                ->where('warehouse_id', $warehouseId)
+                ->where('status', 'active')
+                ->where(function ($q) use ($assembly) {
+                    $q->whereNull('notes')
+                      ->orWhere('notes', 'like', '%Assembly ID: ' . $assembly->id . '%');
+                })
+                ->pluck('serial_number')
+                ->map(function ($s) { return trim($s); })
+                ->filter()
+                ->values()
+                ->toArray();
+
+            // Bổ sung serial khả dụng từ JSON serial_number (nếu tồn tại) trừ đi các serial đang bị giữ bởi assembly khác
+            $usedSerialsOther = AssemblyMaterial::where('material_id', $material->id)
+                ->where('assembly_id', '!=', $assembly->id)
+                ->where(function ($q) {
+                    $q->whereNotNull('serial')->orWhereNotNull('serial_id');
+                })
+                ->whereHas('assembly', function ($q) {
+                    $q->whereIn('status', ['in_progress', 'completed']);
+                })
+                ->get()
+                ->flatMap(function ($am) {
+                    $list = [];
+                    if (!empty($am->serial)) {
+                        $list = array_merge($list, array_filter(array_map('trim', explode(',', $am->serial))));
+                    }
+                    if (!empty($am->serial_id)) {
+                        $s = Serial::find($am->serial_id);
+                        if ($s) { $list[] = trim($s->serial_number); }
+                    }
+                    return $list;
+                })
+                ->unique()
+                ->toArray();
+
+            $wmSerialJsonList = WarehouseMaterial::where('warehouse_id', $warehouseId)
+                ->where('material_id', $material->id)
+                ->where('item_type', 'material')
+                ->whereNotNull('serial_number')
+                ->pluck('serial_number');
+            foreach ($wmSerialJsonList as $serialJson) {
+                $arr = json_decode($serialJson, true);
+                if (is_array($arr)) {
+                    foreach ($arr as $sn) {
+                        $sn = trim($sn);
+                        if ($sn === '') continue;
+                        if (!in_array($sn, $usedSerialsOther, true) && !in_array($sn, $availableSerialNumbers, true)) {
+                            $availableSerialNumbers[] = $sn;
+                        }
+                    }
                 }
             }
 
-            // Kiểm tra nếu vật tư có yêu cầu serial cụ thể
-            if ($assemblyMaterial->serial_id || $assemblyMaterial->serial) {
-                // Xử lý trường hợp serial được lưu dưới dạng chuỗi (ví dụ: "123,1234")
-                if ($assemblyMaterial->serial && !$assemblyMaterial->serial_id) {
-                    $serialNumbers = explode(',', $assemblyMaterial->serial);
-                    $serialNumbers = array_map('trim', $serialNumbers);
+            $serializedAvailable = count($availableSerialNumbers);
 
-                    // Kiểm tra từng serial có đang được sử dụng trong phiếu lắp ráp khác không
-                    foreach ($serialNumbers as $serialNumber) {
-                        $usedInOtherAssembly = AssemblyMaterial::where('serial', 'LIKE', '%' . $serialNumber . '%')
-                            ->where('assembly_id', '!=', $assembly->id)
-                            ->whereHas('assembly', function ($query) {
-                                $query->whereIn('status', ['in_progress']);
-                            })
-                            ->exists();
+            // Phân tách kiểm tra theo việc có chọn serial hay không
+            $selectedSerialNumbers = [];
+            if (!empty($assemblyMaterial->serial)) {
+                $selectedSerialNumbers = array_filter(array_map('trim', explode(',', $assemblyMaterial->serial)));
+            } elseif (!empty($assemblyMaterial->serial_id)) {
+                $s = Serial::find($assemblyMaterial->serial_id);
+                if ($s) { $selectedSerialNumbers = [trim($s->serial_number)]; }
+            }
 
-                        if ($usedInOtherAssembly) {
-                            $errors[] = "Serial '{$serialNumber}' của vật tư '{$material->name}' đang được sử dụng trong phiếu lắp ráp khác";
-                            continue 2; // Continue to next assembly material
-                        }
+            $selectedSerialCount = count($selectedSerialNumbers);
 
-                        // Kiểm tra serial có trong kho không
-                        $serialInWarehouse = WarehouseMaterial::where('warehouse_id', $warehouseId)
-                            ->where('material_id', $material->id)
-                            ->where('item_type', 'material')
-                            ->where(function ($query) use ($serialNumber) {
-                                $query->where('serial_number', $serialNumber)
-                                    ->orWhere('serial_number', 'LIKE', '%"' . $serialNumber . '"%')
-                                    ->orWhere('serial_number', 'LIKE', '%' . $serialNumber . '%');
-                            })
-                            ->exists();
+            // 1) Luôn kiểm tra tổng tồn >= số lượng yêu cầu
+            if ($totalAvailable < $requiredQuantity) {
+                $errors[] = "Vật tư '{$material->name}' không đủ số lượng. Cần: {$requiredQuantity}, Có: {$totalAvailable}";
+                continue;
+            }
 
-                        if (!$serialInWarehouse) {
-                            $errors[] = "Serial '{$serialNumber}' của vật tư '{$material->name}' không có trong kho";
-                            continue 2; // Continue to next assembly material
-                        }
-                    }
-                } else if ($assemblyMaterial->serial_id) {
-                    // Trường hợp có serial_id (hiếm gặp với cấu trúc hiện tại)
-                    $serial = Serial::find($assemblyMaterial->serial_id);
-                    if (!$serial) {
-                        $errors[] = "Serial ID '{$assemblyMaterial->serial_id}' không tồn tại cho vật tư '{$material->name}'";
-                        continue;
-                    }
-
-                    // Kiểm tra serial có đang được sử dụng trong phiếu lắp ráp khác không
-                    $usedInOtherAssembly = AssemblyMaterial::where('serial_id', $assemblyMaterial->serial_id)
-                        ->where('assembly_id', '!=', $assembly->id)
-                        ->whereHas('assembly', function ($query) {
-                            $query->whereIn('status', ['in_progress']);
-                        })
-                        ->exists();
-
-                    if ($usedInOtherAssembly) {
-                        $errors[] = "Serial '{$assemblyMaterial->serial}' của vật tư '{$material->name}' đang được sử dụng trong phiếu lắp ráp khác";
-                        continue;
-                    }
-
-                    // Kiểm tra serial có trong kho không
-                    $serialInWarehouse = WarehouseMaterial::where('warehouse_id', $warehouseId)
-                        ->where('material_id', $material->id)
-                        ->where('item_type', 'material')
-                        ->where(function ($query) use ($assemblyMaterial) {
-                            $query->where('serial_number', $assemblyMaterial->serial)
-                                ->orWhere('serial_number', 'LIKE', '%"' . $assemblyMaterial->serial . '"%')
-                                ->orWhere('serial_number', 'LIKE', '%' . $assemblyMaterial->serial . '%');
-                        })
-                        ->exists();
-
-                    if (!$serialInWarehouse) {
-                        $errors[] = "Serial '{$assemblyMaterial->serial}' của vật tư '{$material->name}' không có trong kho";
-                        continue;
-                    }
-                }
-            } else {
-                // Vật tư không có serial cụ thể
-                // Kiểm tra tổng số lượng có đủ không
-                if ($totalAvailable < $requiredQuantity) {
-                    $errors[] = "Vật tư '{$material->name}' không đủ số lượng. Cần: {$requiredQuantity}, Có: {$totalAvailable}";
+            if ($selectedSerialCount > 0) {
+                // 2) Chọn serial: số serial chọn không được vượt quá số lượng yêu cầu
+                if ($selectedSerialCount > $requiredQuantity) {
+                    $errors[] = "Đã chọn quá số lượng serial cho vật tư '{$material->name}'. Cần: {$requiredQuantity}, Đã chọn: {$selectedSerialCount}";
                     continue;
                 }
 
-                // Kiểm tra số lượng vật tư không có serial có đủ không
+                // Mỗi serial đã chọn phải nằm trong danh sách serial khả dụng của kho
+                foreach ($selectedSerialNumbers as $sn) {
+                    if (!in_array($sn, $availableSerialNumbers, true)) {
+                        $errors[] = "Serial '{$sn}' của vật tư '{$material->name}' không khả dụng trong kho";
+                        continue 2;
+                    }
+                }
+
+                // Đảm bảo đủ serial khả dụng cho số đã chọn
+                if ($serializedAvailable < $selectedSerialCount) {
+                    $errors[] = "Không đủ serial khả dụng cho vật tư '{$material->name}'. Cần serial: {$selectedSerialCount}, Khả dụng: {$serializedAvailable}";
+                    continue;
+                }
+
+                // Phần số lượng còn lại sẽ lấy từ tồn không serial (đã tính chính xác theo từng dòng tồn)
+                $nonSerialNeeded = $requiredQuantity - $selectedSerialCount;
+                if ($nonSerialNeeded > 0 && $nonSerializedAvailable < $nonSerialNeeded) {
+                    $errors[] = "Số lượng vật tư '{$material->name}' không có serial không đủ để thực hiện. Cần: {$nonSerialNeeded}, Có: {$nonSerializedAvailable}";
+                    continue;
+                }
+            } else {
+                // 3) Không chọn serial: toàn bộ lấy từ tồn không serial
                 if ($nonSerializedAvailable < $requiredQuantity) {
                     $errors[] = "Số lượng vật tư '{$material->name}' không có serial không đủ để thực hiện. Cần: {$requiredQuantity}, Có: {$nonSerializedAvailable}";
                     continue;

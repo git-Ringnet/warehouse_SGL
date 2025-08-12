@@ -460,16 +460,19 @@
                                     $productKey = "product_{$productIndex}";
                                     $components = $componentsByProduct[$productKey] ?? [];
                                 @endphp
+                                @php
+                                    // Sắp xếp linh kiện theo đơn vị thành phẩm để hiển thị theo từng đơn vị
+                                    $components = collect($components)
+                                        ->sortBy(function ($c) { return $c['material']->product_unit ?? 0; })
+                                        ->values()
+                                        ->all();
+                                @endphp
 
                                 <div class="mb-6 border border-gray-200 rounded-lg">
                                     <div class="bg-blue-50 px-4 py-2 rounded-t-lg flex items-center justify-between">
                                         <div class="font-medium text-blue-800 flex items-center">
                                             <i class="fas fa-box-open mr-2"></i>
                                             <span>Linh kiện cho: {{ $assemblyProduct->product->name }}</span>
-                                            <span
-                                                class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                                {{ $assemblyProduct->quantity }} thành phẩm
-                                            </span>
                                         </div>
                                         <button type="button"
                                             class="toggle-components text-blue-700 hover:text-blue-900">
@@ -513,7 +516,17 @@
                                                             </td>
                                                         </tr>
                                                     @else
+                                                        @php $prevUnit = null; @endphp
                                                         @foreach ($components as $component)
+                                                            @php $unitIdx = $component['material']->product_unit ?? 0; @endphp
+                                                            @if ($prevUnit !== $unitIdx)
+                                                                <tr class="bg-green-50">
+                                                                    <td colspan="7" class="px-6 py-2 text-sm font-medium text-green-800">
+                                                                        Đơn vị thành phẩm {{ $unitIdx + 1 }}
+                                                                    </td>
+                                                                </tr>
+                                                                @php $prevUnit = $unitIdx; @endphp
+                                                            @endif
                                                             <tr class="component-row bg-white hover:bg-gray-50">
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -553,12 +566,11 @@
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    <div
-                                                                        class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                                                        {{ $assembly->warehouse->name ?? 'Không xác định' }}
+                                                                    <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                        {{ optional($component['material']->warehouse)->name ?? 'Không xác định' }}
                                                                     </div>
-                                                                    <input type="hidden" name="warehouse_id"
-                                                                        value="{{ $assembly->warehouse_id }}">
+                                                                    <input type="hidden" name="components[{{ $component['globalIndex'] }}][warehouse_id]"
+                                                                        value="{{ $component['material']->warehouse_id }}">
                                                                 </td>
                                                                                                                                  <td
                                                                      class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -584,7 +596,7 @@
                                                                                          class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
                                                                                          data-serial-index="{{ $i }}"
                                                                                          data-material-id="{{ $component['material']->material_id }}"
-                                                                                         data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                                          data-warehouse-id="{{ $component['material']->warehouse_id }}"
                                                                                          data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                          data-product-id="{{ $component['material']->target_product_id }}"
                                                                                          data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
@@ -637,7 +649,7 @@
                                                                                     class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
                                                                                     data-serial-index="{{ $i }}"
                                                                                     data-material-id="{{ $component['material']->material_id }}"
-                                                                                    data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                                     data-warehouse-id="{{ $component['material']->warehouse_id }}"
                                                                                     data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                     data-product-id="{{ $component['material']->target_product_id }}"
                                                                                     data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
@@ -701,9 +713,7 @@
                                         <i class="fas fa-box-open mr-2"></i>
                                         <span>Linh kiện cho:
                                             {{ $assembly->product->name ?? 'Không có sản phẩm' }}</span>
-                                        <span class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                            {{ $assembly->quantity ?? 1 }} thành phẩm
-                                        </span>
+                                        
                                     </div>
                                     <button type="button"
                                         class="toggle-components text-blue-700 hover:text-blue-900">
@@ -789,7 +799,7 @@
                                                                                 class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
                                                                                 data-serial-index="{{ $i }}"
                                                                                 data-material-id="{{ $material->material_id }}"
-                                                                                data-warehouse-id="{{ $assembly->warehouse_id }}"
+                                                                                data-warehouse-id="{{ $material->warehouse_id }}"
                                                                                 data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                 data-product-id="{{ $material->target_product_id }}"
                                                                                 data-product-unit="{{ $material->product_unit ?? 0 }}">
@@ -809,12 +819,11 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                <div
-                                                                    class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                                                    {{ $assembly->warehouse->name ?? 'Không xác định' }}
+                                                                <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                    {{ optional($material->warehouse)->name ?? 'Không xác định' }}
                                                                 </div>
-                                                                <input type="hidden" name="warehouse_id"
-                                                                    value="{{ $assembly->warehouse_id }}">
+                                                                <input type="hidden" name="components[{{ $index }}][warehouse_id]"
+                                                                    value="{{ $material->warehouse_id }}">
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

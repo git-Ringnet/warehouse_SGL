@@ -35,7 +35,7 @@ class RepairController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Repair::with(['warranty', 'repairItems', 'technician', 'createdBy', 'warehouse']);
+        $query = Repair::with(['warranty', 'maintenanceRequest.customer', 'repairItems', 'technician', 'createdBy', 'warehouse']);
 
         // Apply search filter
         if ($request->filled('search')) {
@@ -48,6 +48,15 @@ class RepairController extends Controller
                     })
                     ->orWhereHas('warranty', function ($warrantyQuery) use ($searchTerm) {
                         $warrantyQuery->where('customer_name', 'LIKE', "%{$searchTerm}%");
+                    })
+                    // Tìm theo tên khách hàng từ phiếu bảo trì (nếu tạo từ bảo trì)
+                    ->orWhereHas('maintenanceRequest', function ($mrQuery) use ($searchTerm) {
+                        $mrQuery->where('customer_name', 'LIKE', "%{$searchTerm}%");
+                    })
+                    // Tìm theo tên công ty hoặc tên khách hàng từ bảng customers (qua maintenanceRequest.customer)
+                    ->orWhereHas('maintenanceRequest.customer', function ($customerQuery) use ($searchTerm) {
+                        $customerQuery->where('company_name', 'LIKE', "%{$searchTerm}%")
+                            ->orWhere('name', 'LIKE', "%{$searchTerm}%");
                     });
             });
         }

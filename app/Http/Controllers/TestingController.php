@@ -313,7 +313,7 @@ class TestingController extends Controller
     public function update(Request $request, Testing $testing)
     {
         // Debug: Log request data
-        \Log::info('Testing update request', [
+        Log::info('Testing update request', [
             'request_data' => $request->all(),
             'has_tester_id' => $request->has('tester_id'),
             'has_assigned_to' => $request->has('assigned_to'),
@@ -330,7 +330,7 @@ class TestingController extends Controller
         
         $isAutoSave = $hasAutoSaveData && !$hasBasicInfo;
         
-        \Log::info('Auto-save logic', [
+        Log::info('Auto-save logic', [
             'hasBasicInfo' => $hasBasicInfo,
             'hasAutoSaveData' => $hasAutoSaveData,
             'isAutoSave' => $isAutoSave,
@@ -1159,7 +1159,7 @@ class TestingController extends Controller
         }
 
         // Log đầu hàm để debug mọi trường hợp
-        \Log::info('DEBUG: Vào updateInventory', [
+        Log::info('DEBUG: Vào updateInventory', [
             'testing_id' => $testing->id,
             'test_code' => $testing->test_code,
             'request_data' => $request->all(),
@@ -1249,6 +1249,54 @@ class TestingController extends Controller
                                 $itemType,
                                 ['item_name' => $item->item_name ?? 'Unknown']
                             );
+
+                            // Tạo serial thành phẩm đạt (nếu có danh sách serial)
+                            // Ưu tiên lấy theo serial_results (nếu có đánh giá theo serial), fallback AssemblyProduct.serials
+                            $passSerials = [];
+                            if (!empty($item->serial_results)) {
+                                $serialResults = json_decode($item->serial_results, true);
+                                foreach ($serialResults as $label => $result) {
+                                    if ($result === 'pass' && isset($item->serial_number)) {
+                                        // serial_number có thể lưu danh sách, tách theo dấu phẩy
+                                        $serialsFromItem = array_map('trim', explode(',', $item->serial_number));
+                                        // Ánh xạ nhãn A, B, C... theo thứ tự
+                                        $index = ord(strtoupper($label)) - 65;
+                                        if (isset($serialsFromItem[$index]) && $serialsFromItem[$index] !== '') {
+                                            $passSerials[] = $serialsFromItem[$index];
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Nếu không có serial_results, dùng serials từ assembly products
+                            if (empty($passSerials) && $item->testing && $item->testing->assembly && $item->product_id) {
+                                $assembly = $item->testing->assembly->loadMissing('products');
+                                $ap = $assembly->products->firstWhere('product_id', $item->product_id);
+                                if ($ap && !empty($ap->serials)) {
+                                    $passSerials = array_filter(array_map('trim', explode(',', $ap->serials)));
+                                }
+                            }
+
+                            if (!empty($passSerials)) {
+                                foreach ($passSerials as $sn) {
+                                    if ($sn === '') continue;
+                                    // Chỉ tạo nếu chưa tồn tại
+                                    $exists = \App\Models\Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($sn)])
+                                        ->where('product_id', $itemId)
+                                        ->where('type', 'product')
+                                        ->exists();
+                                    if (!$exists) {
+                                        \App\Models\Serial::create([
+                                            'serial_number' => $sn,
+                                            'product_id' => $itemId,
+                                            'type' => 'product',
+                                            'status' => 'active',
+                                            'warehouse_id' => is_numeric($request->success_warehouse_id) ? (int)$request->success_warehouse_id : null,
+                                            'notes' => 'Testing ID: ' . $testing->id,
+                                        ]);
+                                    }
+                                }
+                            }
                         }
 
                         if ($failQuantity > 0) {
@@ -1260,6 +1308,63 @@ class TestingController extends Controller
                                 $itemType,
                                 ['item_name' => $item->item_name ?? 'Unknown']
                             );
+
+                            // Tạo serial thành phẩm không đạt để có thể tra cứu sau này
+                            // Dùng serial_results để lấy các serial đánh dấu 'fail'; fallback AssemblyProduct.serials nếu không có
+                            $failSerials = [];
+                            if (!empty($item->serial_results)) {
+                                $serialResults = json_decode($item->serial_results, true);
+                                if ($serialResults && isset($item->serial_number)) {
+                                    $serialsFromItem = array_map('trim', explode(',', $item->serial_number));
+                                    foreach ($serialResults as $label => $result) {
+                                        if ($result === 'fail') {
+                                            $index = ord(strtoupper($label)) - 65;
+                                            if (isset($serialsFromItem[$index]) && $serialsFromItem[$index] !== '') {
+                                                $failSerials[] = $serialsFromItem[$index];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (empty($failSerials) && $item->testing && $item->testing->assembly && $item->product_id) {
+                                $assembly = $item->testing->assembly->loadMissing('products');
+                                $ap = $assembly->products->firstWhere('product_id', $item->product_id);
+                                if ($ap && !empty($ap->serials)) {
+                                    // Nếu không có phân loại pass/fail theo serial, lưu toàn bộ vào trạng thái failed
+                                    $failSerials = array_filter(array_map('trim', explode(',', $ap->serials)));
+                                }
+                            }
+
+                            if (!empty($failSerials)) {
+                                foreach ($failSerials as $sn) {
+                                    if ($sn === '') continue;
+                                    $exists = \App\Models\Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($sn)])
+                                        ->where('product_id', $itemId)
+                                        ->where('type', 'product')
+                                        ->exists();
+                                    if (!$exists) {
+                                        \App\Models\Serial::create([
+                                            'serial_number' => $sn,
+                                            'product_id' => $itemId,
+                                            'type' => 'product',
+                                            'status' => 'failed',
+                                            'warehouse_id' => (int)$request->fail_warehouse_id,
+                                            'notes' => 'Testing ID: ' . $testing->id . ' (failed)'
+                                        ]);
+                                    } else {
+                                        // Nếu đã tồn tại, cập nhật trạng thái và kho về fail
+                                        \App\Models\Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($sn)])
+                                            ->where('product_id', $itemId)
+                                            ->where('type', 'product')
+                                            ->update([
+                                                'status' => 'failed',
+                                                'warehouse_id' => (int)$request->fail_warehouse_id,
+                                                'notes' => 'Testing ID: ' . $testing->id . ' (failed)'
+                                            ]);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1333,7 +1438,7 @@ class TestingController extends Controller
             // Tạo phiếu chuyển kho cho phiếu kiểm thử vật tư/hàng hóa
             $createdTransfers = [];
             if ($testing->test_type == 'material') {
-                \Log::info('Bắt đầu tạo phiếu chuyển kho cho phiếu kiểm thử vật tư/hàng hóa', [
+                Log::info('Bắt đầu tạo phiếu chuyển kho cho phiếu kiểm thử vật tư/hàng hóa', [
                     'testing_id' => $testing->id,
                     'test_code' => $testing->test_code,
                     'success_warehouse_id' => $request->success_warehouse_id,
@@ -1342,7 +1447,7 @@ class TestingController extends Controller
                 
                 $createdTransfers = $this->createWarehouseTransfersFromTesting($testing, $request->success_warehouse_id, $request->fail_warehouse_id);
                 
-                \Log::info('Kết quả tạo phiếu chuyển kho', [
+                Log::info('Kết quả tạo phiếu chuyển kho', [
                     'testing_id' => $testing->id,
                     'created_transfers_count' => count($createdTransfers),
                     'transfer_codes' => collect($createdTransfers)->pluck('transfer_code')->toArray()
@@ -1848,7 +1953,7 @@ class TestingController extends Controller
         $warehouseId = $request->get('warehouse_id');
         $quantity = $request->get('quantity', 1);
 
-        \Log::info('Testing getAvailableSerials', [
+        Log::info('Testing getAvailableSerials', [
             'type' => $type,
             'itemId' => $itemId,
             'warehouseId' => $warehouseId,
@@ -1869,7 +1974,7 @@ class TestingController extends Controller
                         ->where('serial_numbers', '!=', '')
                         ->where('serial_numbers', '!=', '[]');
                     
-                    \Log::info('Material query SQL', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
+                    Log::info('Material query SQL', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
                     
                     $serials = $query->limit($quantity)
                         ->get(['serial_numbers'])
@@ -1884,7 +1989,7 @@ class TestingController extends Controller
                         ->where('serial_numbers', '!=', '')
                         ->where('serial_numbers', '!=', '[]');
                     
-                    \Log::info('Direct query (without warehouse filter)', [
+                    Log::info('Direct query (without warehouse filter)', [
                         'sql' => $directQuery->toSql(), 
                         'bindings' => $directQuery->getBindings(),
                         'results' => $directQuery->get()->toArray()
@@ -1898,7 +2003,7 @@ class TestingController extends Controller
                         ->where('serial_numbers', '!=', '')
                         ->where('serial_numbers', '!=', '[]');
                     
-                    \Log::info('Product query SQL', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
+                    Log::info('Product query SQL', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
                     
                     $serials = $query->limit($quantity)
                         ->get(['serial_numbers'])
@@ -1906,14 +2011,14 @@ class TestingController extends Controller
                     break;
             }
 
-            \Log::info('Raw serials from DB', ['serials' => $serials]);
+            Log::info('Raw serials from DB', ['serials' => $serials]);
 
             // Xử lý serial_numbers từ JSON array
             $processedSerials = [];
             foreach ($serials as $serial) {
                 if (!empty($serial->serial_numbers)) {
                     $serialArray = json_decode($serial->serial_numbers, true);
-                    \Log::info('Decoded serial array', ['serial_numbers' => $serial->serial_numbers, 'decoded' => $serialArray]);
+                    Log::info('Decoded serial array', ['serial_numbers' => $serial->serial_numbers, 'decoded' => $serialArray]);
                     if (is_array($serialArray)) {
                         foreach ($serialArray as $serialNumber) {
                             if (!empty($serialNumber)) {
@@ -1927,7 +2032,7 @@ class TestingController extends Controller
                 }
             }
 
-            \Log::info('Processed serials', ['processed_serials' => $processedSerials]);
+            Log::info('Processed serials', ['processed_serials' => $processedSerials]);
 
             // Nếu không có serial, thêm option "Không có Serial"
             if (empty($processedSerials)) {
@@ -1940,7 +2045,7 @@ class TestingController extends Controller
             $serials = $processedSerials;
         }
 
-        \Log::info('Final response', ['serials' => $serials]);
+        Log::info('Final response', ['serials' => $serials]);
 
         return response()->json(['serials' => $serials]);
     }
@@ -2157,14 +2262,14 @@ class TestingController extends Controller
             }
 
             // Ghi log tự động duyệt phiếu nhập kho
-            \Log::info('Tự động duyệt phiếu nhập kho từ kiểm thử', [
+            Log::info('Tự động duyệt phiếu nhập kho từ kiểm thử', [
                 'import_code' => $inventoryImport->import_code,
                 'warehouse_id' => $inventoryImport->warehouse_id,
                 'materials_count' => $inventoryImport->materials->count()
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Lỗi khi tự động duyệt phiếu nhập kho: ' . $e->getMessage(), [
+            Log::error('Lỗi khi tự động duyệt phiếu nhập kho: ' . $e->getMessage(), [
                 'import_code' => $inventoryImport->import_code
             ]);
         }
@@ -2200,14 +2305,14 @@ class TestingController extends Controller
                 $createdTransfers[] = $failTransfer;
             }
 
-            \Log::info('Đã tạo phiếu chuyển kho từ phiếu kiểm thử', [
+            Log::info('Đã tạo phiếu chuyển kho từ phiếu kiểm thử', [
                 'testing_id' => $testing->id,
                 'test_code' => $testing->test_code,
                 'created_transfers' => count($createdTransfers)
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Lỗi khi tạo phiếu chuyển kho từ phiếu kiểm thử: ' . $e->getMessage(), [
+            Log::error('Lỗi khi tạo phiếu chuyển kho từ phiếu kiểm thử: ' . $e->getMessage(), [
                 'testing_id' => $testing->id,
                 'test_code' => $testing->test_code
             ]);
@@ -2240,7 +2345,7 @@ class TestingController extends Controller
             }
 
             // Log để debug items được lọc
-            \Log::info('Items được lọc cho phiếu chuyển kho', [
+            Log::info('Items được lọc cho phiếu chuyển kho', [
                 'type' => $type,
                 'items_count' => $items->count(),
                 'items_details' => $items->map(function($item) {
@@ -2266,7 +2371,7 @@ class TestingController extends Controller
             
             // Nếu kho nguồn và kho đích giống nhau thì không tạo phiếu chuyển kho
             if ($sourceWarehouseId == $destinationWarehouseId) {
-                \Log::info('Kho nguồn và kho đích giống nhau, không tạo phiếu chuyển kho', [
+                Log::info('Kho nguồn và kho đích giống nhau, không tạo phiếu chuyển kho', [
                     'warehouse_id' => $sourceWarehouseId,
                     'type' => $type
                 ]);
@@ -2311,7 +2416,7 @@ class TestingController extends Controller
                     }
 
                     // Log để debug việc phân biệt loại item
-                    \Log::info('Phân biệt loại item cho phiếu chuyển kho', [
+                    Log::info('Phân biệt loại item cho phiếu chuyển kho', [
                         'original_item_type' => $item->item_type,
                         'final_item_type' => $itemType,
                         'material_id' => $item->material_id,
@@ -2322,7 +2427,7 @@ class TestingController extends Controller
 
                     if ($materialId) {
                         // Log trước khi tạo WarehouseTransferMaterial
-                        \Log::info('Tạo WarehouseTransferMaterial', [
+                        Log::info('Tạo WarehouseTransferMaterial', [
                             'warehouse_transfer_id' => $warehouseTransfer->id,
                             'material_id' => $materialId,
                             'quantity' => $quantity,
@@ -2354,7 +2459,7 @@ class TestingController extends Controller
             return $warehouseTransfer;
 
         } catch (\Exception $e) {
-            \Log::error('Lỗi khi tạo phiếu chuyển kho: ' . $e->getMessage());
+            Log::error('Lỗi khi tạo phiếu chuyển kho: ' . $e->getMessage());
             return null;
         }
     }
@@ -2396,7 +2501,7 @@ class TestingController extends Controller
                     $sourceWarehouseMaterial->quantity = max(0, $sourceWarehouseMaterial->quantity - $material->quantity);
                     $sourceWarehouseMaterial->save();
                     
-                    \Log::info('Đã trừ số lượng từ kho nguồn', [
+                    Log::info('Đã trừ số lượng từ kho nguồn', [
                         'warehouse_id' => $warehouseTransfer->source_warehouse_id,
                         'material_id' => $material->material_id,
                         'item_type' => $material->type,
@@ -2405,7 +2510,7 @@ class TestingController extends Controller
                         'deducted_quantity' => $material->quantity
                     ]);
                 } else {
-                    \Log::warning('Không tìm thấy vật tư trong kho nguồn để trừ số lượng', [
+                    Log::warning('Không tìm thấy vật tư trong kho nguồn để trừ số lượng', [
                         'warehouse_id' => $warehouseTransfer->source_warehouse_id,
                         'material_id' => $material->material_id,
                         'item_type' => $material->type
@@ -2422,7 +2527,7 @@ class TestingController extends Controller
                 $currentQty = $destinationWarehouseMaterial->quantity ?? 0;
                 $destinationWarehouseMaterial->quantity = $currentQty + $material->quantity;
                 
-                \Log::info('Đã tăng số lượng vào kho đích', [
+                Log::info('Đã tăng số lượng vào kho đích', [
                     'warehouse_id' => $warehouseTransfer->destination_warehouse_id,
                     'material_id' => $material->material_id,
                     'item_type' => $material->type,
@@ -2476,7 +2581,7 @@ class TestingController extends Controller
             }
 
             // Ghi log tự động hoàn thành phiếu chuyển kho
-            \Log::info('Tự động hoàn thành phiếu chuyển kho từ kiểm thử', [
+            Log::info('Tự động hoàn thành phiếu chuyển kho từ kiểm thử', [
                 'transfer_code' => $warehouseTransfer->transfer_code,
                 'source_warehouse_id' => $warehouseTransfer->source_warehouse_id,
                 'destination_warehouse_id' => $warehouseTransfer->destination_warehouse_id,
@@ -2484,7 +2589,7 @@ class TestingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Lỗi khi tự động hoàn thành phiếu chuyển kho: ' . $e->getMessage(), [
+            Log::error('Lỗi khi tự động hoàn thành phiếu chuyển kho: ' . $e->getMessage(), [
                 'transfer_code' => $warehouseTransfer->transfer_code
             ]);
         }

@@ -214,7 +214,7 @@
                                 <div class="ml-3">
                                     <h3 class="text-md font-medium text-green-800">Phiếu xuất kho</h3>
                                     @php
-                                        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%phiếu đề xuất%#' . $projectRequest->id . '%')->first();
+                                        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%phiếu đề xuất%' . $projectRequest->id . '%')->first();
                                     @endphp
                                     
                                     @if(isset($dispatch) && $dispatch)
@@ -225,7 +225,17 @@
                                                 <p class="text-sm font-medium text-green-700">Sản phẩm trong phiếu xuất kho:</p>
                                                 <ul class="mt-1 list-disc list-inside text-sm text-green-600 ml-2">
                                                     @foreach($dispatch->items as $dispatchItem)
-                                                        <li>{{ $dispatchItem->item_name ?? 'N/A' }} - Số lượng: {{ $dispatchItem->quantity }}</li>
+                                                        @php
+                                                            $itemName = '';
+                                                            if ($dispatchItem->item_type === 'product') {
+                                                                $itemName = $dispatchItem->product->name ?? 'N/A';
+                                                            } elseif ($dispatchItem->item_type === 'material') {
+                                                                $itemName = $dispatchItem->material->name ?? 'N/A';
+                                                            } elseif ($dispatchItem->item_type === 'good') {
+                                                                $itemName = $dispatchItem->good->name ?? 'N/A';
+                                                            }
+                                                        @endphp
+                                                        <li>{{ $itemName }} - Số lượng: {{ $dispatchItem->quantity }}</li>
                                                     @endforeach
                                                 </ul>
                                             </div>

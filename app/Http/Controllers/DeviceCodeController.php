@@ -8,6 +8,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DeviceCodeController extends Controller
 {
@@ -213,13 +214,32 @@ class DeviceCodeController extends Controller
                     continue;
                 }
 
+                // Xử lý serial_components để lưu đúng format JSON
+                $serialComponents = null; // Default null
+                if (isset($deviceCode['serial_components']) && $deviceCode['serial_components'] !== null) {
+                    if (is_array($deviceCode['serial_components'])) {
+                        // Nếu là array, encode thành JSON string: ["1","2","3"]
+                        $serialComponents = json_encode($deviceCode['serial_components']);
+                    } else {
+                        // Nếu đã là string, sử dụng trực tiếp
+                        $serialComponents = $deviceCode['serial_components'];
+                    }
+                }
+                
+                // Log để debug
+                Log::info('Processing serial_components:', [
+                    'original' => $deviceCode['serial_components'] ?? 'null',
+                    'processed' => $serialComponents,
+                    'type' => gettype($serialComponents)
+                ]);
+
                 DeviceCode::create([
                     'dispatch_id' => $dispatch_id,
                     'product_id' => $deviceCode['product_id'],
                     'item_type' => $deviceCode['item_type'] ?? null,
                     'item_id' => $deviceCode['item_id'] ?? null,
                     'serial_main' => $deviceCode['serial_main'],
-                    'serial_components' => $deviceCode['serial_components'] ?? '[]',
+                    'serial_components' => $serialComponents,
                     'serial_sim' => $deviceCode['serial_sim'] ?? null,
                     'access_code' => $deviceCode['access_code'] ?? null,
                     'iot_id' => $deviceCode['iot_id'] ?? null,

@@ -26,10 +26,10 @@
                     $isAdmin = $user && $user->role === 'admin';
                 @endphp
                 @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.create')))
-                <a href="{{ route('inventory.dispatch.create') }}"
-                    class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
-                    <i class="fas fa-plus mr-2"></i> Tạo phiếu xuất
-                </a>
+                    <a href="{{ route('inventory.dispatch.create') }}"
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
+                        <i class="fas fa-plus mr-2"></i> Tạo phiếu xuất
+                    </a>
                 @endif
             </div>
         </header>
@@ -144,102 +144,105 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200" id="dispatch_table_body">
                             @forelse($dispatches as $dispatch)
-                            <tr>
+                                <tr>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {{ $dispatches->firstItem() + $loop->index }}
                                     </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {{ $dispatch->dispatch_code }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $dispatch->dispatch_date->format('d/m/Y') }}
-                                </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $dispatch->dispatch_code }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $dispatch->dispatch_date->format('d/m/Y') }}
+                                    </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">
-                                    {{ $dispatch->project_receiver }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {{ $dispatch->companyRepresentative->name ?? '-' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $dispatch->project_receiver }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $dispatch->companyRepresentative->name ?? '-' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <span
                                             class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-{{ $dispatch->status_color }}-100 text-{{ $dispatch->status_color }}-800">
-                                        {{ $dispatch->status_label }}
-                                    </span>
-                                </td>
+                                            {{ $dispatch->status_label }}
+                                        </span>
+                                    </td>
                                     <td class="px-6 py-4 text-sm text-gray-500">
                                         {{ $dispatch->dispatch_note ?? 'N/A' }}
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                    <div class="flex space-x-2">
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div class="flex space-x-2">
                                             @if ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.view_detail')))
-                                        <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}">
-                                            <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
-                                                title="Xem">
-                                                <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        @endif
+                                                <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}">
+                                                    <button
+                                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 hover:bg-blue-500 transition-colors group"
+                                                        title="Xem">
+                                                        <i class="fas fa-eye text-blue-500 group-hover:text-white"></i>
+                                                    </button>
+                                                </a>
+                                            @endif
 
                                             @if (
                                                 !in_array($dispatch->status, ['completed', 'cancelled']) &&
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.edit'))) &&
                                                     !str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp') &&
                                                     !str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu sửa chữa'))
-                                        <a href="{{ route('inventory.dispatch.edit', $dispatch->id) }}">
-                                            <button
-                                                class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
-                                                title="Sửa">
+                                                <a href="{{ route('inventory.dispatch.edit', $dispatch->id) }}">
+                                                    <button
+                                                        class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 hover:bg-yellow-500 transition-colors group"
+                                                        title="Sửa">
                                                         <i
                                                             class="fas fa-edit text-yellow-500 group-hover:text-white"></i>
-                                            </button>
-                                        </a>
-                                        @endif
+                                                    </button>
+                                                </a>
+                                            @endif
 
                                             @if (
                                                 $dispatch->status === 'pending' &&
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.approve'))))
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
-                                                    title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}" data-url="{{ route('inventory.dispatch.approve', $dispatch->id) }}">
-                                            <i class="fas fa-check text-green-500 group-hover:text-white"></i>
-                                        </button>
-                                        @endif
+                                                <button
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-green-100 hover:bg-green-500 transition-colors group approve-btn"
+                                                    title="Duyệt phiếu xuất" data-id="{{ $dispatch->id }}"
+                                                    data-url="{{ route('inventory.dispatch.approve', $dispatch->id) }}">
+                                                    <i class="fas fa-check text-green-500 group-hover:text-white"></i>
+                                                </button>
+                                            @endif
 
                                             @if (
                                                 $dispatch->status === 'pending' &&
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.cancel'))))
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
-                                                    title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}" data-url="{{ route('inventory.dispatch.cancel', $dispatch->id) }}">
-                                            <i class="fas fa-times text-red-500 group-hover:text-white"></i>
-                                        </button>
-                                        @endif
+                                                <button
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-500 transition-colors group cancel-btn"
+                                                    title="Hủy phiếu xuất" data-id="{{ $dispatch->id }}"
+                                                    data-url="{{ route('inventory.dispatch.cancel', $dispatch->id) }}">
+                                                    <i class="fas fa-times text-red-500 group-hover:text-white"></i>
+                                                </button>
+                                            @endif
 
                                             @if (
                                                 $dispatch->status === 'cancelled' &&
                                                     ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.delete'))))
-                                        <button
-                                            class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn"
-                                                    title="Xóa phiếu xuất" data-id="{{ $dispatch->id }}" data-url="{{ route('inventory.dispatch.destroy', $dispatch->id) }}">
-                                            <i class="fas fa-trash text-gray-500 group-hover:text-white"></i>
-                                        </button>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
+                                                <button
+                                                    class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-500 transition-colors group delete-btn"
+                                                    title="Xóa phiếu xuất" data-id="{{ $dispatch->id }}"
+                                                    data-url="{{ route('inventory.dispatch.destroy', $dispatch->id) }}">
+                                                    <i class="fas fa-trash text-gray-500 group-hover:text-white"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
                             @empty
-                            <tr>
-                                <td colspan="9" class="px-6 py-4 text-center text-gray-500">
-                                    Chưa có phiếu xuất kho nào
-                                </td>
-                            </tr>
+                                <tr>
+                                    <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                        Chưa có phiếu xuất kho nào
+                                    </td>
+                                </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
             </div>
-                <!-- Pagination -->
+            <!-- Pagination -->
             <div class="pt-4">
                 {{ $dispatches->links() }}
             </div>
@@ -264,7 +267,7 @@
                 monthSelectorType: 'static',
                 yearSelectorType: 'static'
             };
-            
+
             flatpickr('#date_from', dateConfig);
             flatpickr('#date_to', dateConfig);
 
@@ -322,14 +325,14 @@
                 document.getElementById('type_filter').value = '';
                 document.getElementById('date_from').value = '';
                 document.getElementById('date_to').value = '';
-                
+
                 // Reset sort state
                 currentSort = {
                     field: 'dispatch_date',
                     direction: 'desc'
                 };
                 updateSortIcons();
-                
+
                 // Redirect to base URL
                 window.location.href = window.location.pathname;
             });
@@ -355,7 +358,7 @@
                 // Update active sort icon
                 if (currentSort.field && currentSort.direction) {
                     const activeIcon = currentSort.field === 'id' ? sortId : sortDate;
-                if (activeIcon) {
+                    if (activeIcon) {
                         const iconElement = activeIcon.querySelector('.sort-icon');
                         if (iconElement) {
                             iconElement.classList.remove('fa-sort', 'text-gray-400');
@@ -377,7 +380,7 @@
                     currentSort.direction = 'asc';
                 }
                 updateSortIcons();
-                
+
                 // Build query string with current filters and new sort
                 const params = new URLSearchParams(window.location.search);
                 params.set('sort_by', currentSort.field);
@@ -395,30 +398,30 @@
             // --- Approve & Cancel actions ---
             function handleAction(buttonClass, confirmMessage, httpMethod = 'POST') {
                 document.querySelectorAll(buttonClass).forEach(btn => {
-                    btn.addEventListener('click', function () {
+                    btn.addEventListener('click', function() {
                         const url = this.dataset.url;
                         if (!url) return;
                         if (!confirm(confirmMessage)) return;
                         fetch(url, {
-                            method: httpMethod,
+                                method: httpMethod,
                                 headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json'
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
                                 }
                             })
                             .then(response => response.json())
                             .then(data => {
                                 if (data.success) {
-                                // Reload to reflect new status
-                                location.reload();
+                                    // Reload to reflect new status
+                                    location.reload();
                                 } else {
-                                alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại.');
-                            }
-                        })
-                        .catch(err => {
-                            console.error(err);
-                            alert('Có lỗi xảy ra, vui lòng thử lại.');
-                        });
+                                    alert(data.message || 'Có lỗi xảy ra, vui lòng thử lại.');
+                                }
+                            })
+                            .catch(err => {
+                                console.error(err);
+                                alert('Có lỗi xảy ra, vui lòng thử lại.');
+                            });
                     });
                 });
             }
@@ -431,4 +434,4 @@
     </script>
 </body>
 
-</html> 
+</html>

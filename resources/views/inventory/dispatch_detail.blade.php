@@ -24,7 +24,15 @@
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết phiếu xuất kho</h1>
             </div>
             <div class="flex items-center gap-2">
-                @if (!in_array($dispatch->status, ['completed', 'cancelled']))
+                @php
+                    $user = Auth::guard('web')->user();
+                    $isAdmin = $user && $user->role === 'admin';
+                @endphp
+                @if (
+                    !in_array($dispatch->status, ['completed', 'cancelled']) &&
+                        ($isAdmin || (auth()->user()->roleGroup && auth()->user()->roleGroup->hasPermission('inventory.edit'))) &&
+                        !str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp') &&
+                        !str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu sửa chữa'))
                     <a href="{{ route('inventory.dispatch.edit', $dispatch) }}">
                         <button
                             class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
@@ -87,7 +95,7 @@
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
-                            @if($dispatch->project_id)
+                            @if ($dispatch->project_id)
                                 <a href="{{ route('projects.show', $dispatch->project_id) }}">
                                     <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
                                 </a>
@@ -209,376 +217,379 @@
                 @endphp
 
                 <!-- Danh sách thành phẩm theo hợp đồng -->
-                @if($contractItems->count() > 0)
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                    <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-                        <i class="fas fa-file-contract text-blue-500 mr-2"></i>
-                        Danh sách thiết bị theo hợp đồng
-                    </h2>
+                @if ($contractItems->count() > 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                        <h2 class="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                            <i class="fas fa-file-contract text-blue-500 mr-2"></i>
+                            Danh sách thiết bị theo hợp đồng
+                        </h2>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-blue-50">
-                                <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        STT</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Mã</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Tên thiết bị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Đơn vị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Số lượng xuất</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Serial</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
-                                        Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($contractItems as $index => $item)
-                                    <tr class="hover:bg-blue-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ $index + 1 }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">
-                                            @if ($item->item)
-                                                {{ $item->item->code ?? $item->item->id }}
-                                            @else
-                                                {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <div>
-                                                <div class="font-medium">
-                                                    @if ($item->item)
-                                                        {{ $item->item->name ?? 'Không xác định' }}
-                                                    @else
-                                                        {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-blue-50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            STT</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Mã</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Tên thiết bị</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Đơn vị</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Số lượng xuất</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Serial</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @forelse($contractItems as $index => $item)
+                                        <tr class="hover:bg-blue-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $index + 1 }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-900 font-medium">
+                                                @if ($item->item)
+                                                    {{ $item->item->code ?? $item->item->id }}
+                                                @else
+                                                    {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <div>
+                                                    <div class="font-medium">
+                                                        @if ($item->item)
+                                                            {{ $item->item->name ?? 'Không xác định' }}
+                                                        @else
+                                                            {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                        @endif
+                                                    </div>
+                                                    @if ($item->notes)
+                                                        <div class="text-xs text-blue-600">{{ $item->notes }}</div>
                                                     @endif
                                                 </div>
-                                                @if ($item->notes)
-                                                    <div class="text-xs text-blue-600">{{ $item->notes }}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                @if ($item->item && isset($item->item->unit))
+                                                    {{ $item->item->unit }}
+                                                @else
+                                                    Cái
                                                 @endif
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            @if ($item->item && isset($item->item->unit))
-                                                {{ $item->item->unit }}
-                                            @else
-                                                Cái
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">
-                                            {{ $item->quantity }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            @php
-                                                $serialCount = 0;
-                                                if ($item->serial_numbers) {
-                                                    if (is_array($item->serial_numbers)) {
-                                                        $serialCount = count($item->serial_numbers);
-                                                    } elseif (is_string($item->serial_numbers)) {
-                                                        $decoded = json_decode($item->serial_numbers, true);
-                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">
+                                                {{ $item->quantity }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @php
+                                                    $serialCount = 0;
+                                                    if ($item->serial_numbers) {
+                                                        if (is_array($item->serial_numbers)) {
+                                                            $serialCount = count($item->serial_numbers);
+                                                        } elseif (is_string($item->serial_numbers)) {
+                                                            $decoded = json_decode($item->serial_numbers, true);
+                                                            $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                        }
                                                     }
-                                                }
-                                            @endphp
-                                            @if ($serialCount > 0)
-                                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                    {{ $serialCount }} serial
-                                                </span>
-                                            @else
-                                                <span class="text-xs text-gray-500">Chưa có</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
-                                            @if ($item->item_type === 'material')
-                                                <a href="{{ route('materials.show', $item->item_id) }}">
-                                                    <button class="hover:text-blue-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @elseif ($item->item_type === 'product')
-                                                <a href="{{ route('products.show', $item->item_id) }}">
-                                                    <button class="hover:text-blue-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @elseif ($item->item_type === 'good')
-                                                <a href="{{ route('goods.show', $item->item_id) }}">
-                                                    <button class="hover:text-blue-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @else
-                                                <span class="text-gray-500">-</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                                @endphp
+                                                @if ($serialCount > 0)
+                                                    <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                                        {{ $serialCount }} serial
+                                                    </span>
+                                                @else
+                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                                                @if ($item->item_type === 'material')
+                                                    <a href="{{ route('materials.show', $item->item_id) }}">
+                                                        <button class="hover:text-blue-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @elseif ($item->item_type === 'product')
+                                                    <a href="{{ route('products.show', $item->item_id) }}">
+                                                        <button class="hover:text-blue-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @elseif ($item->item_type === 'good')
+                                                    <a href="{{ route('goods.show', $item->item_id) }}">
+                                                        <button class="hover:text-blue-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @else
+                                                    <span class="text-gray-500">-</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
                 @endif
 
                 <!-- Danh sách thiết bị dự phòng -->
-                @if($backupItems->count() > 0)
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                    <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
-                        <i class="fas fa-tools text-orange-500 mr-2"></i>
-                        Danh sách thiết bị dự phòng
-                    </h2>
+                @if ($backupItems->count() > 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                        <h2 class="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+                            <i class="fas fa-tools text-orange-500 mr-2"></i>
+                            Danh sách thiết bị dự phòng
+                        </h2>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-orange-50">
-                                <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        STT</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Mã</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Tên thiết bị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Đơn vị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Số lượng xuất</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Serial</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
-                                        Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($backupItems as $index => $item)
-                                    <tr class="hover:bg-orange-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ $index + 1 }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">
-                                            @if ($item->item)
-                                                {{ $item->item->code ?? $item->item->id }}
-                                            @else
-                                                {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <div>
-                                                <div class="font-medium">
-                                                    @if ($item->item)
-                                                        {{ $item->item->name ?? 'Không xác định' }}
-                                                    @else
-                                                        {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-orange-50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            STT</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Mã</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Tên thiết bị</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Đơn vị</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Số lượng xuất</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Serial</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @forelse($backupItems as $index => $item)
+                                        <tr class="hover:bg-orange-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $index + 1 }}</td>
+                                            <td
+                                                class="px-6 py-4 whitespace-nowrap text-sm text-orange-900 font-medium">
+                                                @if ($item->item)
+                                                    {{ $item->item->code ?? $item->item->id }}
+                                                @else
+                                                    {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <div>
+                                                    <div class="font-medium">
+                                                        @if ($item->item)
+                                                            {{ $item->item->name ?? 'Không xác định' }}
+                                                        @else
+                                                            {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                        @endif
+                                                    </div>
+                                                    @if ($item->notes)
+                                                        <div class="text-xs text-orange-600">{{ $item->notes }}</div>
                                                     @endif
                                                 </div>
-                                                @if ($item->notes)
-                                                    <div class="text-xs text-orange-600">{{ $item->notes }}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                @if ($item->item && isset($item->item->unit))
+                                                    {{ $item->item->unit }}
+                                                @else
+                                                    Cái
                                                 @endif
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            @if ($item->item && isset($item->item->unit))
-                                                {{ $item->item->unit }}
-                                            @else
-                                                Cái
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">
-                                            {{ $item->quantity }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            @php
-                                                $serialCount = 0;
-                                                if ($item->serial_numbers) {
-                                                    if (is_array($item->serial_numbers)) {
-                                                        $serialCount = count($item->serial_numbers);
-                                                    } elseif (is_string($item->serial_numbers)) {
-                                                        $decoded = json_decode($item->serial_numbers, true);
-                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                            </td>
+                                            <td
+                                                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">
+                                                {{ $item->quantity }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @php
+                                                    $serialCount = 0;
+                                                    if ($item->serial_numbers) {
+                                                        if (is_array($item->serial_numbers)) {
+                                                            $serialCount = count($item->serial_numbers);
+                                                        } elseif (is_string($item->serial_numbers)) {
+                                                            $decoded = json_decode($item->serial_numbers, true);
+                                                            $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                        }
                                                     }
-                                                }
-                                            @endphp
-                                            @if ($serialCount > 0)
-                                                <span class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
-                                                    {{ $serialCount }} serial
-                                                </span>
-                                            @else
-                                                <span class="text-xs text-gray-500">Chưa có</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
-                                            @if ($item->item_type === 'material')
-                                                <a href="{{ route('materials.show', $item->item_id) }}">
-                                                    <button class="hover:text-orange-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @elseif ($item->item_type === 'product')
-                                                <a href="{{ route('products.show', $item->item_id) }}">
-                                                    <button class="hover:text-orange-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @elseif ($item->item_type === 'good')
-                                                <a href="{{ route('goods.show', $item->item_id) }}">
-                                                    <button class="hover:text-orange-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @else
-                                                <span class="text-gray-500">-</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                                @endphp
+                                                @if ($serialCount > 0)
+                                                    <span
+                                                        class="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                                                        {{ $serialCount }} serial
+                                                    </span>
+                                                @else
+                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-600">
+                                                @if ($item->item_type === 'material')
+                                                    <a href="{{ route('materials.show', $item->item_id) }}">
+                                                        <button class="hover:text-orange-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @elseif ($item->item_type === 'product')
+                                                    <a href="{{ route('products.show', $item->item_id) }}">
+                                                        <button class="hover:text-orange-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @elseif ($item->item_type === 'good')
+                                                    <a href="{{ route('goods.show', $item->item_id) }}">
+                                                        <button class="hover:text-orange-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @else
+                                                    <span class="text-gray-500">-</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
                 @endif
 
                 <!-- Danh sách vật tư (general) -->
-                @if($generalItems->count() > 0)
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-boxes text-gray-500 mr-2"></i>
-                        Danh sách vật tư
-                    </h2>
+                @if ($generalItems->count() > 0)
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                            <i class="fas fa-boxes text-gray-500 mr-2"></i>
+                            Danh sách vật tư
+                        </h2>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        STT</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Mã</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Tên vật tư</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Đơn vị</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Số lượng xuất</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Kho xuất</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Serial</th>
-                                    <th
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-                                        Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @forelse($generalItems as $index => $item)
-                                    <tr class="hover:bg-gray-50">
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {{ $index + 1 }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                                            @if ($item->item)
-                                                {{ $item->item->code ?? $item->item->id }}
-                                            @else
-                                                {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            <div>
-                                                <div class="font-medium">
-                                                    @if ($item->item)
-                                                        {{ $item->item->name ?? 'Không xác định' }}
-                                                    @else
-                                                        {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            STT</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Mã</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Tên vật tư</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Đơn vị</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Số lượng xuất</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Kho xuất</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Serial</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                            Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @forelse($generalItems as $index => $item)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {{ $index + 1 }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                                @if ($item->item)
+                                                    {{ $item->item->code ?? $item->item->id }}
+                                                @else
+                                                    {{ ucfirst($item->item_type) }}-{{ $item->item_id }}
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <div>
+                                                    <div class="font-medium">
+                                                        @if ($item->item)
+                                                            {{ $item->item->name ?? 'Không xác định' }}
+                                                        @else
+                                                            {{ ucfirst($item->item_type) }} ID: {{ $item->item_id }}
+                                                        @endif
+                                                    </div>
+                                                    @if ($item->notes)
+                                                        <div class="text-xs text-gray-600">{{ $item->notes }}</div>
                                                     @endif
                                                 </div>
-                                                @if ($item->notes)
-                                                    <div class="text-xs text-gray-600">{{ $item->notes }}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                @if ($item->item && isset($item->item->unit))
+                                                    {{ $item->item->unit }}
+                                                @else
+                                                    Cái
                                                 @endif
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            @if ($item->item && isset($item->item->unit))
-                                                {{ $item->item->unit }}
-                                            @else
-                                                Cái
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
-                                            {{ $item->quantity }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            @if ($item->warehouse)
-                                                {{ $item->warehouse->name }}
-                                            @else
-                                                -
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap">
-                                            @php
-                                                $serialCount = 0;
-                                                if ($item->serial_numbers) {
-                                                    if (is_array($item->serial_numbers)) {
-                                                        $serialCount = count($item->serial_numbers);
-                                                    } elseif (is_string($item->serial_numbers)) {
-                                                        $decoded = json_decode($item->serial_numbers, true);
-                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">
+                                                {{ $item->quantity }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                @if ($item->warehouse)
+                                                    {{ $item->warehouse->name }}
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                @php
+                                                    $serialCount = 0;
+                                                    if ($item->serial_numbers) {
+                                                        if (is_array($item->serial_numbers)) {
+                                                            $serialCount = count($item->serial_numbers);
+                                                        } elseif (is_string($item->serial_numbers)) {
+                                                            $decoded = json_decode($item->serial_numbers, true);
+                                                            $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                        }
                                                     }
-                                                }
-                                            @endphp
-                                            @if ($serialCount > 0)
-                                                <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                                                    {{ $serialCount }} serial
-                                                </span>
-                                            @else
-                                                <span class="text-xs text-gray-500">Chưa có</span>
-                                            @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                            @if ($item->item_type === 'material')
-                                                <a href="{{ route('materials.show', $item->item_id) }}">
-                                                    <button class="hover:text-gray-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @elseif ($item->item_type === 'product')
-                                                <a href="{{ route('products.show', $item->item_id) }}">
-                                                    <button class="hover:text-gray-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @elseif ($item->item_type === 'good')
-                                                <a href="{{ route('goods.show', $item->item_id) }}">
-                                                    <button class="hover:text-gray-800">
-                                                        Xem chi tiết
-                                                    </button>
-                                                </a>
-                                            @else
-                                                <span class="text-gray-500">-</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                                @endphp
+                                                @if ($serialCount > 0)
+                                                    <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                                                        {{ $serialCount }} serial
+                                                    </span>
+                                                @else
+                                                    <span class="text-xs text-gray-500">Chưa có</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                                @if ($item->item_type === 'material')
+                                                    <a href="{{ route('materials.show', $item->item_id) }}">
+                                                        <button class="hover:text-gray-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @elseif ($item->item_type === 'product')
+                                                    <a href="{{ route('products.show', $item->item_id) }}">
+                                                        <button class="hover:text-gray-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @elseif ($item->item_type === 'good')
+                                                    <a href="{{ route('goods.show', $item->item_id) }}">
+                                                        <button class="hover:text-gray-800">
+                                                            Xem chi tiết
+                                                        </button>
+                                                    </a>
+                                                @else
+                                                    <span class="text-gray-500">-</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
                 @endif
             @else
                 <!-- Khi xuất riêng lẻ (contract hoặc backup), hiển thị 1 bảng với title tương ứng -->

@@ -161,10 +161,25 @@ class Repair extends Model
     }
 
     /**
-     * Get customer name from warranty
+     * Get customer name from warranty or maintenance request
      */
     public function getCustomerNameAttribute()
     {
-        return $this->warranty ? $this->warranty->customer_name : null;
+        // First try to get from warranty
+        if ($this->warranty && $this->warranty->customer_name) {
+            return $this->warranty->customer_name;
+        }
+        
+        // Then try to get from maintenance request
+        if ($this->maintenanceRequest && $this->maintenanceRequest->customer_name) {
+            return $this->maintenanceRequest->customer_name;
+        }
+        
+        // If maintenance request has customer relationship, try that
+        if ($this->maintenanceRequest && $this->maintenanceRequest->customer) {
+            return $this->maintenanceRequest->customer->company_name ?? $this->maintenanceRequest->customer->name;
+        }
+        
+        return null;
     }
 }

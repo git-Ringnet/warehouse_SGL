@@ -10,7 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
-    <script src="{{ asset('js/serial-sync.js') }}" defer></script>
 </head>
 
 <body>
@@ -706,7 +705,7 @@
 
                         <!-- Nút cập nhật mã thiết bị hợp đồng -->
                         <div class="mt-4 flex justify-end">
-                            <button type="button" id="update_contract_device_codes_btn"
+                                <button type="button" id="update_contract_device_codes_btn"
                                     class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
                                     <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
                                 </button>
@@ -775,12 +774,12 @@
                         </div>
 
                         <!-- Nút cập nhật mã thiết bị dự phòng -->
-                        <div class="mt-4 flex justify-end">
-                            <button type="button" id="update_backup_device_codes_btn"
-                                class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
-                                <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
-                            </button>
-                        </div>
+                            <div class="mt-4 flex justify-end">
+                                <button type="button" id="update_backup_device_codes_btn"
+                                    class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg transition-colors">
+                                    <i class="fas fa-sync-alt mr-2"></i> Cập nhật mã thiết bị
+                                </button>
+                            </div>
                     </div>
                 @endif
 
@@ -812,7 +811,7 @@
     <!-- Modal cập nhật mã thiết bị -->
     <div id="device-code-modal"
         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-7xl">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-7xl h-[35rem] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-gray-800">Cập nhật mã thiết bị</h3>
                 <button type="button" class="text-gray-400 hover:text-gray-500" id="close-device-code-modal">
@@ -886,11 +885,6 @@
                         <button type="button" id="import-device-codes"
                             class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center">
                             <i class="fas fa-file-import mr-2"></i> Import Excel
-                        </button>
-                        <button type="button" id="sync-serials-btn"
-                            class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center"
-                            onclick="serialSyncManager.syncSerialNumbers()">
-                            <i class="fas fa-sync-alt mr-2"></i> Cập nhật Serial
                         </button>
                     </div>
                     <div>
@@ -1746,7 +1740,6 @@
                             warehouses: item.warehouses || [],
                             display_name: `${item.code} - ${item.name} (${item.type === 'product' ? 'Thành phẩm' : 'Hàng hóa'})`
                         }));
-                        console.log('Loaded available items:', availableItems);
                         updateProductSelects();
                     } else {
                         console.error('Error loading items:', data.message);
@@ -1843,7 +1836,8 @@
                                 data-item-id="${productId}" 
                                 data-warehouse-id="${product?.selected_warehouse_id || ''}"
                                 data-serial-index="${i}"
-                                data-selected-serial="">
+                                data-selected-serial=""
+                                data-type="${category}">
                             <option value="">-- Chọn Serial ${i + 1} --</option>
                         </select>`;
                 }
@@ -1886,7 +1880,8 @@
                                 data-item-id="${productId}" 
                                 data-warehouse-id="${product?.selected_warehouse_id || ''}"
                                 data-serial-index="${i}"
-                                data-selected-serial="${serialValue}">
+                                data-selected-serial="${serialValue}"
+                                data-type="${category}">
                             ${selectOptions}
                         </select>`;
                 }
@@ -1930,6 +1925,7 @@
                         select.setAttribute('data-warehouse-id', product?.selected_warehouse_id || '');
                         select.setAttribute('data-serial-index', i);
                         select.setAttribute('data-selected-serial', currentValues[i] || '');
+                        select.setAttribute('data-type', category);
 
                         // Add change event listener for validation
                         select.addEventListener('change', validateSerialOnChange);
@@ -2608,12 +2604,15 @@
                     if (category === 'contract') {
                         select.classList.add('border-blue-300', 'focus:ring-blue-500');
                         select.name = quantityInput.name.replace('[quantity]', `[serial_numbers][${i}]`);
+                        select.setAttribute('data-type', 'contract');
                     } else if (category === 'backup') {
                         select.classList.add('border-orange-300', 'focus:ring-orange-500');
                         select.name = quantityInput.name.replace('[quantity]', `[serial_numbers][${i}]`);
+                        select.setAttribute('data-type', 'backup');
                     } else {
                         select.classList.add('border-gray-300', 'focus:ring-blue-500');
                         select.name = quantityInput.name.replace('[quantity]', `[serial_numbers][${i}]`);
+                        select.setAttribute('data-type', 'general');
                     }
 
                     // Add default option
@@ -2975,34 +2974,78 @@
             const cancelDeviceCodesBtn = document.getElementById('cancel-device-codes');
             const saveDeviceCodesBtn = document.getElementById('save-device-codes');
             const importDeviceCodesBtn = document.getElementById('import-device-codes');
+            const syncSerialsBtn = document.getElementById('sync-serials-btn');
 
             let currentDeviceCodeType = '';
             let currentProductId = null;
+            let syncRequested = false; // Biến để kiểm soát việc sync
+            let syncEnabled = false; // Biến để kiểm soát việc sync hoàn toàn
 
             // Lấy dispatch_id từ URL hoặc từ form
             const dispatchId = {{ $dispatch->id }};
 
             if (updateContractDeviceCodesBtn) {
                 updateContractDeviceCodesBtn.addEventListener('click', function() {
+                    // Xóa active class từ tất cả buttons
+                    updateContractDeviceCodesBtn.classList.remove('active');
+                    updateBackupDeviceCodesBtn.classList.remove('active');
+                    
+                    // Set active class cho button hiện tại
+                    updateContractDeviceCodesBtn.classList.add('active');
+                    
                     currentDeviceCodeType = 'contract';
+                    window.currentDeviceCodeType = 'contract';
                     loadDeviceCodesFromDatabase('contract');
                     deviceCodeModal.classList.remove('hidden');
-                    // Đồng bộ serial numbers khi mở modal
+                    
+                    // Vô hiệu hóa sync mặc định khi mở modal
+                    disableAllSync();
+                    
+                    // Đồng bộ serial numbers khi mở modal (chỉ một lần)
                     setTimeout(() => {
+                        enableSync();
                         syncFromMainToModal();
+                        disableAllSync();
                     }, 200);
                 });
             }
 
             if (updateBackupDeviceCodesBtn) {
                 updateBackupDeviceCodesBtn.addEventListener('click', function() {
+                    // Xóa active class từ tất cả buttons
+                    updateContractDeviceCodesBtn.classList.remove('active');
+                    updateBackupDeviceCodesBtn.classList.remove('active');
+                    
+                    // Set active class cho button hiện tại
+                    updateBackupDeviceCodesBtn.classList.add('active');
+                    
                     currentDeviceCodeType = 'backup';
+                    window.currentDeviceCodeType = 'backup';
                     loadDeviceCodesFromDatabase('backup');
                     deviceCodeModal.classList.remove('hidden');
-                    // Đồng bộ serial numbers khi mở modal
+                    
+                    // Vô hiệu hóa sync mặc định khi mở modal
+                    disableAllSync();
+                    
+                    // Đồng bộ serial numbers khi mở modal (chỉ một lần)
                     setTimeout(() => {
+                        enableSync();
                         syncFromMainToModal();
+                        disableAllSync();
                     }, 200);
+                });
+            }
+
+            // Xử lý nút cập nhật serial
+            if (syncSerialsBtn) {
+                syncSerialsBtn.addEventListener('click', function() {
+                    console.log('Sync serials button clicked');
+                    // Kích hoạt sync
+                    enableSync();
+                    // Chỉ sync khi nhấn nút này
+                    syncSerialNumbers();
+                    // Vô hiệu hóa sync sau khi hoàn tất
+                    disableAllSync();
                 });
             }
 
@@ -3230,30 +3273,55 @@
                         if (productInfo.type === 'product' && materials && materials.length > 0) {
                             // Parse serial_components properly
                             let serialComponents = [];
-                            if (deviceCode.serial_components) {
+                            console.log('Raw serial_components from DB:', deviceCode.serial_components, typeof deviceCode.serial_components);
+                            
+                            if (deviceCode.serial_components && deviceCode.serial_components !== 'null' && deviceCode.serial_components !== '[]' && deviceCode.serial_components !== '[""]') {
                                 if (typeof deviceCode.serial_components === 'string') {
                                     try {
-                                        serialComponents = JSON.parse(deviceCode.serial_components);
+                                        // Xử lý double-encoded JSON: "[\"1\",\"2\",\"3\"]" -> ["1","2","3"]
+                                        let jsonString = deviceCode.serial_components;
+                                        
+                                        // Nếu có escape characters, decode 2 lần
+                                        if (jsonString.includes('\\"')) {
+                                            // Parse lần đầu để lấy JSON string
+                                            const firstParse = JSON.parse(jsonString);
+                                            // Parse lần thứ 2 để lấy array
+                                            serialComponents = JSON.parse(firstParse);
+                                        } else {
+                                            // Parse trực tiếp nếu không có escape characters
+                                            serialComponents = JSON.parse(jsonString);
+                                        }
+                                        
+                                        // Lọc bỏ các giá trị rỗng hoặc null
+                                        serialComponents = serialComponents.filter(serial => serial && serial.trim() !== '');
+                                        
+                                        console.log('Parsed serial_components:', serialComponents);
                                     } catch (e) {
+                                        console.error('Error parsing serial_components:', e, deviceCode.serial_components);
                                         serialComponents = [];
                                     }
                                 } else if (Array.isArray(deviceCode.serial_components)) {
-                                    serialComponents = deviceCode.serial_components;
+                                    // Lọc bỏ các giá trị rỗng hoặc null
+                                    serialComponents = deviceCode.serial_components.filter(serial => serial && serial.trim() !== '');
                                 }
                             }
                             
-                            componentSerialsHtml = materials.map((material, j) => `
+                            componentSerialsHtml = materials.map((material, j) => {
+                                const serialValue = serialComponents[j] || '';
+                                console.log(`Material ${j}: ${serialValue}, type: ${typeof serialValue}`);
+                                return `
                                 <div class="mb-1">
                                     <label class="text-xs text-gray-600 mb-1">${material.material_code} - ${material.material_name} (${material.index})</label>
                                     <input type="text" 
                                         name="${type}_serial_components[${productId}][${i}][${j}]" 
                                         placeholder="Seri vật tư"
-                                        value="${serialComponents[j] || ''}"
+                                        value="${serialValue}"
                                         data-material-id="${material.material_id}"
                                         data-material-index="${material.index}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </div>
-                            `).join('');
+                            `;
+                            }).join('');
                         }
 
                         // Create row HTML
@@ -3429,12 +3497,24 @@
             if (closeDeviceCodeModalBtn) {
                 closeDeviceCodeModalBtn.addEventListener('click', function() {
                     deviceCodeModal.classList.add('hidden');
+                    // Reset active class và biến global
+                    updateContractDeviceCodesBtn.classList.remove('active');
+                    updateBackupDeviceCodesBtn.classList.remove('active');
+                    window.currentDeviceCodeType = '';
+                    // Vô hiệu hóa sync khi đóng modal
+                    disableAllSync();
                 });
             }
 
             if (cancelDeviceCodesBtn) {
                 cancelDeviceCodesBtn.addEventListener('click', function() {
                     deviceCodeModal.classList.add('hidden');
+                    // Reset active class và biến global
+                    updateContractDeviceCodesBtn.classList.remove('active');
+                    updateBackupDeviceCodesBtn.classList.remove('active');
+                    window.currentDeviceCodeType = '';
+                    // Vô hiệu hóa sync khi đóng modal
+                    disableAllSync();
                 });
             }
 
@@ -3478,11 +3558,11 @@
                             const componentSerialInputs = row.querySelectorAll(
                                 'input[name*="serial_components"]');
                             const componentSerials = Array.from(componentSerialInputs)
-                                .map(input => input.value)
-                                .filter(Boolean);
+                                .map(input => input.value.trim())
+                                .filter(value => value && value !== '' && value !== '[');
 
                             // Convert componentSerials to JSON string for database storage
-                            const componentSerialsJson = JSON.stringify(componentSerials);
+                            const componentSerialsJson = componentSerials.length > 0 ? JSON.stringify(componentSerials) : null;
 
                             // Get other fields
                             const simSerial = row.querySelector('input[name*="serial_sim"]')
@@ -3535,9 +3615,72 @@
                             throw new Error(result.message || 'Lỗi khi lưu thông tin');
                         }
 
+                        // Lưu trữ serials từ modal trước khi đóng
+                        const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
+                        const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
+                        
+                        console.log('Serials to sync after save:', modalSerials);
+                        
+                        // Kích hoạt sync sau khi lưu
+                        enableSync();
+                        
                         // Đồng bộ serial numbers sau khi lưu thành công
                         syncSerialNumbers();
                         
+                        // Đồng bộ lại sau khi đóng modal để đảm bảo giao diện chính được cập nhật
+                        setTimeout(() => {
+                            syncFromModalToMain();
+                        }, 100);
+                        
+                        // Refresh giao diện chính để hiển thị serial mới
+                        setTimeout(() => {
+                            refreshMainInterface();
+                        }, 200);
+                        
+                        // Đảm bảo sync cuối cùng sau khi tất cả đã hoàn thành
+                        setTimeout(() => {
+                            const currentType = getCurrentModalType();
+                            console.log(`Final sync for type: ${currentType}`);
+                            
+                            // Cập nhật trực tiếp các select trong giao diện chính (chỉ loại tương ứng)
+                            let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${currentType}"]`);
+                            
+                            // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
+                            if (mainSerialSelects.length === 0) {
+                                console.log(`No selects found with data-type="${currentType}", trying name pattern...`);
+                                const namePatternSelects = document.querySelectorAll(`select[name*="${currentType}_items"][name*="serial_numbers"]`);
+                                console.log(`Selects with name pattern "${currentType}_items":`, namePatternSelects.length);
+                                
+                                if (namePatternSelects.length > 0) {
+                                    // Sử dụng name pattern selects
+                                    mainSerialSelects = namePatternSelects;
+                                    console.log('Using name pattern selects for final sync');
+                                }
+                            }
+                            
+                            mainSerialSelects.forEach((select, index) => {
+                                if (modalSerials[index]) {
+                                    const modalSerial = modalSerials[index];
+                                    console.log(`Final sync: updating select ${index} with ${modalSerial} for type ${currentType}`);
+                                    
+                                    // Tìm hoặc tạo option
+                                    let option = Array.from(select.options).find(opt => opt.value === modalSerial);
+                                    if (!option) {
+                                        option = document.createElement('option');
+                                        option.value = modalSerial;
+                                        option.textContent = modalSerial;
+                                        select.appendChild(option);
+                                    }
+                                    
+                                    select.value = modalSerial;
+                                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            });
+                            
+                            // Vô hiệu hóa sync sau khi hoàn tất
+                            disableAllSync();
+                        }, 500);
+
                         alert('Đã lưu thông tin mã thiết bị thành công!');
                         deviceCodeModal.classList.add('hidden');
 
@@ -3622,17 +3765,44 @@
                                         }
 
                                         // Update component serials
-                                        if (item.serial_components && item
-                                            .serial_components.length > 0) {
-                                            const componentInputs = row
-                                                .querySelectorAll(
-                                                    `input[name*="serial_components"]`);
-                                            if (componentInputs.length > 0) {
-                                                item.serial_components.forEach((serial, index) => {
-                                                    if (componentInputs[index]) {
-                                                        componentInputs[index].value = serial;
+                                        if (item.serial_components && item.serial_components !== 'null' && item.serial_components !== '[]') {
+                                            let componentSerials = [];
+                                            
+                                            // Parse serial_components nếu là string
+                                            if (typeof item.serial_components === 'string') {
+                                                try {
+                                                    // Xử lý double-encoded JSON: "[\"1\",\"2\",\"3\"]" -> ["1","2","3"]
+                                                    let jsonString = item.serial_components;
+                                                    
+                                                    // Nếu có escape characters, decode 2 lần
+                                                    if (jsonString.includes('\\"')) {
+                                                        // Parse lần đầu để lấy JSON string
+                                                        const firstParse = JSON.parse(jsonString);
+                                                        // Parse lần thứ 2 để lấy array
+                                                        componentSerials = JSON.parse(firstParse);
+                                                    } else {
+                                                        // Parse trực tiếp nếu không có escape characters
+                                                        componentSerials = JSON.parse(jsonString);
                                                     }
-                                                });
+                                                } catch (e) {
+                                                    console.error('Error parsing serial_components during import:', e);
+                                                    componentSerials = [];
+                                                }
+                                            } else if (Array.isArray(item.serial_components)) {
+                                                componentSerials = item.serial_components;
+                                            }
+                                            
+                                            if (componentSerials.length > 0) {
+                                                const componentInputs = row
+                                                    .querySelectorAll(
+                                                        `input[name*="serial_components"]`);
+                                                if (componentInputs.length > 0) {
+                                                    componentSerials.forEach((serial, index) => {
+                                                        if (componentInputs[index]) {
+                                                            componentInputs[index].value = serial;
+                                                        }
+                                                    });
+                                                }
                                             }
                                         }
 
@@ -3668,19 +3838,146 @@
                 });
             }
 
+            // Hàm lấy loại hiện tại của modal (contract/backup)
+            function getCurrentModalType() {
+                // Sử dụng biến global đã được set khi click button
+                if (window.currentDeviceCodeType) {
+                    return window.currentDeviceCodeType;
+                }
+                
+                // Fallback: kiểm tra button nào đang active
+                const contractBtn = document.getElementById('update_contract_device_codes_btn');
+                const backupBtn = document.getElementById('update_backup_device_codes_btn');
+                
+                if (contractBtn && contractBtn.classList.contains('active')) {
+                    return 'contract';
+                } else if (backupBtn && backupBtn.classList.contains('active')) {
+                    return 'backup';
+                }
+                
+                // Fallback cuối cùng: kiểm tra biến local
+                if (typeof currentDeviceCodeType !== 'undefined' && currentDeviceCodeType) {
+                    return currentDeviceCodeType;
+                }
+                
+                // Default fallback
+                return 'contract';
+            }
+
+            // Hàm kiểm tra xem có cần sync không
+            function shouldSync() {
+                // Kiểm tra xem sync có được kích hoạt không
+                if (!syncEnabled) {
+                    console.log('Sync is disabled globally, skipping...');
+                    return false;
+                }
+                
+                // Chỉ sync khi được yêu cầu rõ ràng
+                if (!syncRequested) {
+                    console.log('Sync not requested, skipping...');
+                    return false;
+                }
+                
+                // Chỉ sync khi thực sự cần thiết
+                const modal = document.getElementById('device-code-modal');
+                if (!modal || modal.classList.contains('hidden')) {
+                    return false;
+                }
+                
+                // Kiểm tra xem có input nào đã thay đổi không
+                const changedInputs = modal.querySelectorAll('input[data-changed="true"]');
+                const hasChanges = changedInputs.length > 0;
+                
+                console.log(`Should sync check: sync enabled=${syncEnabled}, sync requested=${syncRequested}, modal open=${!modal.classList.contains('hidden')}, has changes=${hasChanges}`);
+                return hasChanges;
+            }
+
             // Hàm đồng bộ serial numbers giữa giao diện chính và modal
             function syncSerialNumbers() {
+                // Kiểm tra xem có cần sync không
+                if (!shouldSync()) {
+                    console.log('No sync needed, skipping...');
+                    return;
+                }
+                
+                // Lấy loại hiện tại của modal
+                const currentType = getCurrentModalType();
+                console.log('Syncing serial numbers for type:', currentType);
+                
+                // Debug: Kiểm tra tất cả select elements và data-type
+                const allSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
+                console.log('All serial selects found:', allSerialSelects.length);
+                allSerialSelects.forEach((select, index) => {
+                    console.log(`Select ${index}:`, {
+                        name: select.name,
+                        'data-type': select.getAttribute('data-type'),
+                        value: select.value
+                    });
+                });
+                
                 // Đồng bộ từ giao diện chính sang modal
-                syncFromMainToModal();
+                syncFromMainToModal(currentType);
                 
                 // Đồng bộ từ modal sang giao diện chính
-                syncFromModalToMain();
+                syncFromModalToMain(currentType);
+                
+                // Reset data-changed flags sau khi sync
+                const changedInputs = document.querySelectorAll('#device-code-modal input[data-changed="true"]');
+                changedInputs.forEach(input => input.removeAttribute('data-changed'));
+            }
+
+            // Hàm vô hiệu hóa tất cả sync operations
+            function disableAllSync() {
+                console.log('Disabling all sync operations');
+                // Các listener được khai báo bằng hàm ẩn danh nên không thể gỡ bỏ trực tiếp.
+                // Dùng cờ để vô hiệu hóa hoàn toàn hành vi đồng bộ.
+                syncEnabled = false;
+                syncRequested = false;
+                console.log('All sync operations disabled');
+            }
+
+            // Hàm kích hoạt sync operations
+            function enableSync() {
+                console.log('Enabling sync operations');
+                syncEnabled = true;
+                syncRequested = true;
+            }
+
+            // Hàm vô hiệu hóa sync operations
+            function disableSync() {
+                console.log('Disabling sync operations');
+                syncEnabled = false;
+                syncRequested = false;
             }
 
             // Đồng bộ từ giao diện chính sang modal
-            function syncFromMainToModal() {
-                const mainSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
+            function syncFromMainToModal(type) {
+                // KIỂM TRA GLOBAL SYNC CONTROL TRƯỚC
+                if (!syncEnabled) {
+                    console.log(`Global sync is disabled, skipping syncFromMainToModal for type: ${type}`);
+                    return;
+                }
+                
+                // Chỉ sync với serial numbers của loại tương ứng
+                let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${type}"]`);
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
+                
+                console.log(`Syncing from main to modal for type: ${type}`);
+                console.log('Main serial selects found:', mainSerialSelects.length);
+                console.log('Modal serial inputs found:', modalSerialInputs.length);
+                
+                // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
+                if (mainSerialSelects.length === 0) {
+                    console.log(`No selects found with data-type="${type}", trying name pattern...`);
+                    const namePatternSelects = document.querySelectorAll(`select[name*="${type}_items"][name*="serial_numbers"]`);
+                    console.log(`Selects with name pattern "${type}_items":`, namePatternSelects.length);
+                    
+                    if (namePatternSelects.length > 0) {
+                        // Sử dụng name pattern selects
+                        mainSerialSelects = namePatternSelects;
+                        console.log('Using name pattern selects for sync');
+                    }
+                }
                 
                 // Tạo mapping giữa main serials và modal serials
                 const mainSerials = Array.from(mainSerialSelects).map(select => select.value).filter(Boolean);
@@ -3693,30 +3990,77 @@
             }
 
             // Đồng bộ từ modal sang giao diện chính
-            function syncFromModalToMain() {
+            function syncFromModalToMain(type) {
+                // KIỂM TRA GLOBAL SYNC CONTROL TRƯỚC
+                if (!syncEnabled) {
+                    console.log(`Global sync is disabled, skipping syncFromModalToMain for type: ${type}`);
+                    return;
+                }
+                
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
-                const mainSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
+                
+                // Debug: Kiểm tra tất cả select elements trước khi filter
+                const allSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
+                console.log(`All serial selects found: ${allSerialSelects.length}`);
+                allSerialSelects.forEach((select, index) => {
+                    console.log(`Select ${index}:`, {
+                        name: select.name,
+                        'data-type': select.getAttribute('data-type'),
+                        value: select.value,
+                        'data-item-type': select.getAttribute('data-item-type')
+                    });
+                });
+                
+                // Chỉ sync với serial numbers của loại tương ứng
+                const mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${type}"]`);
+                
+                console.log(`Syncing from modal to main for type: ${type}`);
+                console.log('Modal serials:', Array.from(modalSerialInputs).map(input => input.value));
+                console.log('Main serial selects found:', mainSerialSelects.length);
+                
+                // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
+                if (mainSerialSelects.length === 0) {
+                    console.log(`No selects found with data-type="${type}", trying name pattern...`);
+                    const namePatternSelects = document.querySelectorAll(`select[name*="${type}_items"][name*="serial_numbers"]`);
+                    console.log(`Selects with name pattern "${type}_items":`, namePatternSelects.length);
+                    
+                    if (namePatternSelects.length > 0) {
+                        // Sử dụng name pattern selects
+                        mainSerialSelects = namePatternSelects;
+                        console.log('Using name pattern selects for sync');
+                    }
+                }
                 
                 // Tạo mapping giữa modal serials và main serials
                 const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
                 
                 mainSerialSelects.forEach((select, index) => {
                     if (modalSerials[index]) {
+                        const modalSerial = modalSerials[index];
+                        console.log(`Syncing serial ${modalSerial} to select ${index} for type ${type}`);
+                        
                         // Tìm option tương ứng trong select
-                        const option = Array.from(select.options).find(opt => opt.value === modalSerials[index]);
+                        const option = Array.from(select.options).find(opt => opt.value === modalSerial);
                         
                         if (option) {
-                            select.value = modalSerials[index];
+                            console.log(`Found existing option for ${modalSerial}`);
+                            select.value = modalSerial;
                         } else {
                             // Nếu không tìm thấy option, tạo mới
+                            console.log(`Creating new option for ${modalSerial}`);
                             const newOption = document.createElement('option');
-                            newOption.value = modalSerials[index];
-                            newOption.textContent = modalSerials[index];
+                            newOption.value = modalSerial;
+                            newOption.textContent = modalSerial;
                             select.appendChild(newOption);
-                            select.value = modalSerials[index];
+                            select.value = modalSerial;
                         }
+                        
+                        // Trigger change event để các listeners khác biết
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                 });
+                
+                console.log(`Sync from modal to main completed for type: ${type}`);
             }
 
             // Thêm event listeners cho đồng bộ hóa
@@ -3726,27 +4070,127 @@
                     if (e.target.matches('select[name*="serial_numbers"]')) {
                         // Đồng bộ sang modal nếu modal đang mở
                         if (!document.getElementById('device-code-modal').classList.contains('hidden')) {
-                            syncFromMainToModal();
+                            const currentType = getCurrentModalType();
+                            console.log(`Main interface change detected for type: ${currentType}`);
+                            // KIỂM TRA GLOBAL SYNC CONTROL TRƯỚC
+                            if (syncEnabled) {
+                                syncFromMainToModal(currentType);
+                            } else {
+                                console.log('Global sync is disabled, skipping main interface sync');
+                            }
                         }
                     }
                 });
 
-                // Lắng nghe thay đổi trong modal
-                document.addEventListener('input', function(e) {
+                // Lắng nghe thay đổi trong modal - CHỈ sync khi blur (mất focus), không sync real-time
+                document.addEventListener('blur', function(e) {
                     if (e.target.matches('#device-code-modal input[name*="serial_main"]')) {
-                        // Đồng bộ sang giao diện chính
-                        syncFromModalToMain();
+                        // Chỉ sync khi user hoàn thành việc nhập (blur event)
+                        const currentType = getCurrentModalType();
+                        console.log(`Serial main blur detected for type: ${currentType}`);
+                        // KHÔNG sync ngay, chỉ đánh dấu là có thay đổi
+                        e.target.setAttribute('data-changed', 'true');
+                    }
+                }, true);
+                
+                // Lắng nghe thay đổi serial vật tư trong modal - CHỈ sync khi blur
+                document.addEventListener('blur', function(e) {
+                    if (e.target.matches('#device-code-modal input[name*="serial_components"]')) {
+                        // Chỉ sync khi user hoàn thành việc nhập (blur event)
+                        e.target.setAttribute('data-changed', 'true');
+                    }
+                }, true);
+                
+                // Lắng nghe thay đổi serial chính trong modal - CHỈ sync khi change (enter hoặc select)
+                document.addEventListener('change', function(e) {
+                    if (e.target.matches('#device-code-modal input[name*="serial_main"]')) {
+                        // Chỉ sync khi user thực sự thay đổi (change event)
+                        const currentType = getCurrentModalType();
+                        console.log(`Serial main change detected for type: ${currentType}`);
+                        // KHÔNG sync ngay, chỉ đánh dấu là có thay đổi
+                        e.target.setAttribute('data-changed', 'true');
                     }
                 });
             }
 
+            // Hàm refresh giao diện chính để hiển thị serial mới
+            function refreshMainInterface() {
+                const currentType = getCurrentModalType();
+                console.log(`Refreshing main interface for type: ${currentType}`);
+                
+                // Lấy tất cả serial chính từ modal đã lưu
+                const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
+                const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
+                
+                console.log('Modal serials to sync:', modalSerials);
+                
+                // Cập nhật từng select trong giao diện chính (chỉ loại tương ứng)
+                let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${currentType}"]`);
+                
+                // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
+                if (mainSerialSelects.length === 0) {
+                    console.log(`No selects found with data-type="${currentType}", trying name pattern...`);
+                    const namePatternSelects = document.querySelectorAll(`select[name*="${currentType}_items"][name*="serial_numbers"]`);
+                    console.log(`Selects with name pattern "${currentType}_items":`, namePatternSelects.length);
+                    
+                    if (namePatternSelects.length > 0) {
+                        // Sử dụng name pattern selects
+                        mainSerialSelects = namePatternSelects;
+                        console.log('Using name pattern selects for refresh');
+                    }
+                }
+                
+                mainSerialSelects.forEach((select, index) => {
+                    if (modalSerials[index]) {
+                        const modalSerial = modalSerials[index];
+                        console.log(`Updating select ${index} with serial: ${modalSerial} for type ${currentType}`);
+                        
+                        // Tìm hoặc tạo option mới
+                        let option = Array.from(select.options).find(opt => opt.value === modalSerial);
+                        if (!option) {
+                            option = document.createElement('option');
+                            option.value = modalSerial;
+                            option.textContent = modalSerial;
+                            select.appendChild(option);
+                        }
+                        
+                        // Cập nhật giá trị
+                        select.value = modalSerial;
+                        
+                        // Trigger change event
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                
+                console.log(`Main interface refresh completed for type: ${currentType}`);
+            }
+
             // Hàm validate tính nhất quán của serial numbers
             function validateSerialConsistency() {
-                const mainSerialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
+                const currentType = getCurrentModalType();
+                // Chỉ kiểm tra với serial numbers của loại tương ứng
+                let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${currentType}"]`);
                 const modalSerialInputs = document.querySelectorAll('#device-code-modal input[name*="serial_main"]');
+                
+                // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
+                if (mainSerialSelects.length === 0) {
+                    console.log(`No selects found with data-type="${currentType}", trying name pattern...`);
+                    const namePatternSelects = document.querySelectorAll(`select[name*="${currentType}_items"][name*="serial_numbers"]`);
+                    console.log(`Selects with name pattern "${currentType}_items":`, namePatternSelects.length);
+                    
+                    if (namePatternSelects.length > 0) {
+                        // Sử dụng name pattern selects
+                        mainSerialSelects = namePatternSelects;
+                        console.log('Using name pattern selects for validation');
+                    }
+                }
                 
                 const mainSerials = Array.from(mainSerialSelects).map(select => select.value).filter(Boolean);
                 const modalSerials = Array.from(modalSerialInputs).map(input => input.value).filter(Boolean);
+                
+                console.log(`Validating consistency for type: ${currentType}`);
+                console.log('Main serials:', mainSerials);
+                console.log('Modal serials:', modalSerials);
                 
                 // Kiểm tra xem có sự khác biệt không
                 const inconsistencies = [];
@@ -3761,7 +4205,7 @@
                 });
                 
                 if (inconsistencies.length > 0) {
-                    console.warn('Serial number inconsistencies detected:', inconsistencies);
+                    console.warn(`Serial number inconsistencies detected for type ${currentType}:`, inconsistencies);
                     return false;
                 }
                 
@@ -3770,6 +4214,9 @@
 
             // Hàm hiển thị cảnh báo về sự không nhất quán
             function showInconsistencyWarning() {
+                const currentType = getCurrentModalType();
+                const typeText = currentType === 'contract' ? 'hợp đồng' : 'dự phòng';
+                
                 // Xóa cảnh báo cũ
                 const oldWarning = document.querySelector('.serial-inconsistency-warning');
                 if (oldWarning) {
@@ -3783,7 +4230,7 @@
                         <i class="fas fa-exclamation-triangle mr-2"></i>
                         <strong>Cảnh báo:</strong>
                     </div>
-                    <p class="mt-2">Số Serial trong giao diện chính và modal cập nhật mã thiết bị không khớp nhau. 
+                    <p class="mt-2">Số Serial trong giao diện chính và modal cập nhật mã thiết bị <strong>${typeText}</strong> không khớp nhau. 
                     Vui lòng đồng bộ lại để đảm bảo tính nhất quán.</p>
                     <button type="button" onclick="syncSerialNumbers()" class="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-sm">
                         <i class="fas fa-sync-alt mr-1"></i> Đồng bộ ngay

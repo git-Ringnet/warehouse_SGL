@@ -38,7 +38,8 @@
 
         <div id="notificationArea">
             @if (session('success'))
-                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4" id="successAlert">
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4"
+                    id="successAlert">
                     {!! session('success') !!}
                 </div>
             @endif
@@ -165,15 +166,18 @@
                         @endif
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Người tạo phiếu:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->creator->name ?? ($assembly->created_by ?? 'N/A') }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $assembly->creator->name ?? ($assembly->created_by ?? 'N/A') }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày tạo phiếu:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->created_at ? $assembly->created_at->format('H:i d/m/Y') : '' }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $assembly->created_at ? $assembly->created_at->format('H:i d/m/Y') : '' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Chỉnh sửa lần cuối:</span>
-                            <span class="text-sm text-gray-700">{{ $assembly->updated_at ? $assembly->updated_at->format('H:i d/m/Y') : '' }}</span>
+                            <span
+                                class="text-sm text-gray-700">{{ $assembly->updated_at ? $assembly->updated_at->format('H:i d/m/Y') : '' }}</span>
                         </div>
                     </div>
                 </div>
@@ -427,7 +431,7 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                                {{ is_object($material) ? ($material->warehouse->name ?? '') : ($material['warehouse']['name'] ?? '') }}
+                                                                {{ is_object($material) ? $material->warehouse->name ?? '' : $material['warehouse']['name'] ?? '' }}
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -463,39 +467,6 @@
                 @endif
             </div>
 
-            @if(isset($dispatches) && $dispatches->count())
-                <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                        <i class="fas fa-truck text-indigo-500 mr-2"></i>
-                        Phiếu xuất kho liên quan
-                    </h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã phiếu xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày xuất</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                @foreach($dispatches as $dispatch)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $dispatch->dispatch_code }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $dispatch->dispatch_date ? \Carbon\Carbon::parse($dispatch->dispatch_date)->format('d/m/Y') : '' }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $dispatch->getStatusLabelAttribute() }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                            <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}" class="text-indigo-600 hover:text-indigo-900">Xem chi tiết</a>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            @endif
-
             <!-- Buttons -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 no-print">
                 @php
@@ -505,47 +476,62 @@
                 @endphp
                 <div class="flex flex-wrap gap-3">
                     @if (($assembly->status === 'pending' || $assembly->status === 'in_progress') && ($isAdmin || $isOwner))
-                        <a href="{{ route('assemblies.edit', $assembly->id) }}" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
+                        <a href="{{ route('assemblies.edit', $assembly->id) }}"
+                            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
                             <i class="fas fa-edit mr-2"></i> Chỉnh sửa
                         </a>
                     @endif
                     @if ($assembly->status === 'pending' && ($isAdmin || $isOwner))
-                        <form action="{{ route('assemblies.approve', $assembly->id) }}" method="POST" style="display:inline;">
+                        <form action="{{ route('assemblies.approve', $assembly->id) }}" method="POST"
+                            style="display:inline;">
                             @csrf
-                            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center" onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu lắp ráp này? Khi duyệt sẽ tạo phiếu kiểm thử và xuất kho.')">
+                            <button type="submit"
+                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                                onclick="return confirm('Bạn có chắc chắn muốn duyệt phiếu lắp ráp này? Khi duyệt sẽ tạo phiếu kiểm thử và xuất kho.')">
                                 <i class="fas fa-check mr-2"></i> Duyệt phiếu
                             </button>
                         </form>
-                        <form action="{{ route('assemblies.cancel', $assembly->id) }}" method="POST" style="display:inline;">
+                        <form action="{{ route('assemblies.cancel', $assembly->id) }}" method="POST"
+                            style="display:inline;">
                             @csrf
-                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center" onclick="return confirm('Bạn có chắc chắn muốn huỷ phiếu lắp ráp này?')">
+                            <button type="submit"
+                                class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center"
+                                onclick="return confirm('Bạn có chắc chắn muốn huỷ phiếu lắp ráp này?')">
                                 <i class="fas fa-times mr-2"></i> Huỷ phiếu
                             </button>
                         </form>
                     @endif
-                    @if ($assembly->status === 'in_progress')
+                    @if ($assembly->status !== 'pending')
                         @if ($assembly->testings && $assembly->testings->count() > 0)
-                            <a href="{{ route('testing.show', $assembly->testings->first()->id) }}" class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
+                            <a href="{{ route('testing.show', $assembly->testings->first()->id) }}"
+                                class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
                                 <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
                             </a>
                         @endif
-                        @if ($assembly->dispatches && $assembly->dispatches->count() > 0)
-                            <a href="{{ route('inventory.dispatch.show', $assembly->dispatches->first()->id) }}" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
+                        @if (isset($dispatches) && $dispatches->count() > 0)
+                            <a href="{{ route('inventory.dispatch.show', $dispatches->first()->id) }}"
+                                class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
                                 <i class="fas fa-truck mr-2"></i> Xem phiếu xuất kho
                             </a>
                         @endif
                     @endif
-                    <a href="{{ route('assemblies.export.excel', $assembly->id) }}" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
+                    <a href="{{ route('assemblies.export.excel', $assembly->id) }}"
+                        class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center">
                         <i class="fas fa-file-excel mr-2"></i> Xuất Excel
                     </a>
-                    <a href="{{ route('assemblies.export.pdf', $assembly->id) }}" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                    <a href="{{ route('assemblies.export.pdf', $assembly->id) }}"
+                        class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
                         <i class="fas fa-file-pdf mr-2"></i> Xuất PDF
                     </a>
-                    @if ($assembly->status === 'cancelled' && ($isAdmin || ($user->roleGroup && $user->roleGroup->hasPermission('assembly.delete'))))
-                        <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
+                    @if (
+                        $assembly->status === 'cancelled' &&
+                            ($isAdmin || ($user->roleGroup && $user->roleGroup->hasPermission('assembly.delete'))))
+                        <form action="{{ route('assemblies.destroy', $assembly->id) }}" method="POST"
+                            onsubmit="return confirm('Bạn có chắc chắn muốn xóa phiếu lắp ráp này?');">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
+                            <button type="submit"
+                                class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
                                 <i class="fas fa-trash-alt mr-2"></i> Xóa
                             </button>
                         </form>
