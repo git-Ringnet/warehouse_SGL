@@ -518,12 +518,7 @@
                 <form id="warranty-form" action="{{ route('equipment.replace') }}" method="POST">
                     @csrf
                     <input type="hidden" id="warranty-equipment-id" name="equipment_id">
-                    <div class="mb-4">
-                        <label for="equipment_serial" class="block text-sm font-medium text-gray-700 mb-1">Chọn serial thiết bị hợp đồng</label>
-                        <select id="equipment_serial" name="equipment_serial" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                            <option value="">-- Chọn serial --</option>
-                        </select>
-                    </div>
+                    <input type="hidden" id="warranty-equipment-serial" name="equipment_serial">
                     <p class="mb-4">Bạn đang thực hiện bảo hành/thay thế cho thiết bị <span id="warranty-equipment-code" class="font-semibold"></span></p>
                     <div class="mb-4">
                         <label for="replacement_device_id" class="block text-sm font-medium text-gray-700 mb-1">Chọn thiết bị dự phòng thay thế</label>
@@ -531,12 +526,7 @@
                             <option value="">-- Chọn thiết bị --</option>
                         </select>
                     </div>
-                    <div class="mb-4">
-                        <label for="replacement_serial" class="block text-sm font-medium text-gray-700 mb-1">Chọn serial thiết bị dự phòng</label>
-                        <select id="replacement_serial" name="replacement_serial" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-                            <option value="">-- Chọn serial --</option>
-                        </select>
-                    </div>
+
                     <div class="mb-4">
                         <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">Lý do bảo hành/thay thế</label>
                         <textarea id="reason" name="reason" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
@@ -665,10 +655,11 @@
                 button.addEventListener('click', function() {
                     const equipmentId = this.getAttribute('data-id');
                     const equipmentCode = this.getAttribute('data-code');
+                    const equipmentSerial = this.getAttribute('data-serial');
                     openModal('warranty-modal');
                     document.getElementById('warranty-equipment-id').value = equipmentId;
                     document.getElementById('warranty-equipment-code').textContent = equipmentCode;
-                    loadEquipmentSerials(equipmentId);
+                    document.getElementById('warranty-equipment-serial').value = equipmentSerial;
                     fetchBackupItems();
                 });
             });
@@ -677,26 +668,18 @@
                 const selectedValue = this.value;
                 if (selectedValue && selectedValue.includes(':')) {
                     const [itemId, serialNumber] = selectedValue.split(':');
-                    // Tự động điền serial vào dropdown replacement_serial
-                    const replacementSerialSelect = document.getElementById('replacement_serial');
-                    replacementSerialSelect.innerHTML = '<option value="">-- Chọn serial --</option>';
+                    // Tự động điền serial vào hidden input
+                    const replacementSerialInput = document.createElement('input');
+                    replacementSerialInput.type = 'hidden';
+                    replacementSerialInput.name = 'replacement_serial';
+                    replacementSerialInput.value = serialNumber;
                     
-                    const option = document.createElement('option');
-                    option.value = serialNumber;
-                    option.textContent = `Serial ${serialNumber}`;
-                    replacementSerialSelect.appendChild(option);
-                    replacementSerialSelect.value = serialNumber;
-                } else {
-                    document.getElementById('replacement_serial').innerHTML = '<option value="">-- Chọn serial --</option>';
-                }
-            });
-
-            // Khi chọn thiết bị dự phòng, load serial của thiết bị dự phòng
-            document.getElementById('replacement_device_id').addEventListener('change', function() {
-                const selectedValue = this.value;
-                if (selectedValue && selectedValue.includes(':')) {
-                    const [itemId, serialNumber] = selectedValue.split(':');
-                    loadReplacementSerials(itemId);
+                    // Xóa input cũ nếu có
+                    const oldInput = document.querySelector('input[name="replacement_serial"]');
+                    if (oldInput) oldInput.remove();
+                    
+                    // Thêm input mới vào form
+                    document.getElementById('warranty-form').appendChild(replacementSerialInput);
                 }
             });
         });
@@ -1016,40 +999,7 @@
                 });
         }
 
-        // Khi mở modal, load serial của thiết bị hợp đồng
-        function loadEquipmentSerials(equipmentId) {
-            fetch(`/equipment-service/item-serials/${equipmentId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const select = document.getElementById('equipment_serial');
-                    select.innerHTML = '<option value="">-- Chọn serial --</option>';
-                    if (data.serials && data.serials.length > 0) {
-                        data.serials.forEach(serial => {
-                            const option = document.createElement('option');
-                            option.value = serial;
-                            option.textContent = serial;
-                            select.appendChild(option);
-                        });
-                    }
-                });
-        }
-        // Khi chọn thiết bị dự phòng, load serial của thiết bị dự phòng
-        function loadReplacementSerials(deviceId) {
-            fetch(`/equipment-service/item-serials/${deviceId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const select = document.getElementById('replacement_serial');
-                    select.innerHTML = '<option value="">-- Chọn serial --</option>';
-                    if (data.serials && data.serials.length > 0) {
-                        data.serials.forEach(serial => {
-                            const option = document.createElement('option');
-                            option.value = serial;
-                            option.textContent = serial;
-                            select.appendChild(option);
-                        });
-                    }
-                });
-        }
+
 
         // Xử lý nút refresh cho thiết bị hợp đồng
         document.getElementById('refresh-contract-items')?.addEventListener('click', function() {
