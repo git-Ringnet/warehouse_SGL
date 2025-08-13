@@ -106,6 +106,16 @@ class SoftwareController extends Controller
             // Xử lý file phần mềm nếu có
             if ($request->hasFile('software_file')) {
                 $file = $request->file('software_file');
+
+                // Ghi log trạng thái file upload để debug server
+                if (!$file->isValid()) {
+                    Log::error('Upload software_file is invalid', [
+                        'error_code' => $file->getError(),
+                        'error_message' => method_exists($file, 'getErrorMessage') ? $file->getErrorMessage() : null,
+                    ]);
+                    return back()->with('error', 'The software file failed to upload: ' . ($file->getError() ?? 'unknown error'))->withInput();
+                }
+
                 $originalFileName = $file->getClientOriginalName();
                 $fileType = strtolower($file->getClientOriginalExtension());
                 $fileSize = $this->formatSizeUnits($file->getSize());
@@ -126,6 +136,15 @@ class SoftwareController extends Controller
             // Xử lý tài liệu hướng dẫn nếu có
             if ($request->hasFile('manual_file')) {
                 $manualFile = $request->file('manual_file');
+
+                if (!$manualFile->isValid()) {
+                    Log::error('Upload manual_file is invalid', [
+                        'error_code' => $manualFile->getError(),
+                        'error_message' => method_exists($manualFile, 'getErrorMessage') ? $manualFile->getErrorMessage() : null,
+                    ]);
+                    return back()->with('error', 'The manual file failed to upload: ' . ($manualFile->getError() ?? 'unknown error'))->withInput();
+                }
+
                 $originalManualFileName = $manualFile->getClientOriginalName();
                 $manualFileType = strtolower($manualFile->getClientOriginalExtension());
                 $manualFileSize = $this->formatSizeUnits($manualFile->getSize());
