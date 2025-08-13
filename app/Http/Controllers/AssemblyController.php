@@ -161,6 +161,14 @@ class AssemblyController extends Controller
      */
     public function store(Request $request)
     {
+        // Filter out non-material component rows (e.g., product-sourced placeholder without warehouse)
+        if ($request->has('components') && is_array($request->components)) {
+            $filteredComponents = array_values(array_filter($request->components, function ($component) {
+                // Keep only components that have a material id and a warehouse_id
+                return isset($component['id']) && $component['id'] && isset($component['warehouse_id']) && $component['warehouse_id'];
+            }));
+            $request->merge(['components' => $filteredComponents]);
+        }
         $request->validate([
             'assembly_code' => 'required|unique:assemblies,code',
             'assembly_date' => 'required|date',
@@ -516,12 +524,13 @@ class AssemblyController extends Controller
             $productSerials = explode(',', $assembly->product_serials);
         }
 
-        // Load all material serials for each material
+        // Load all material serials for each material (respect per-component warehouse)
         $materialSerials = [];
         foreach ($assembly->materials as $material) {
+            $warehouseIdForMaterial = $material->warehouse_id ?: $assembly->warehouse_id;
             $query = Serial::where('product_id', $material->material_id)
                 ->where('type', 'material')
-                ->where('warehouse_id', $assembly->warehouse_id)
+                ->where('warehouse_id', $warehouseIdForMaterial)
                 ->where('status', 'active')
                 ->where(function ($q) use ($assembly, $material) {
                     $q->whereNull('notes')

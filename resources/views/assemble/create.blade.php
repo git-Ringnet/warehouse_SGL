@@ -71,6 +71,8 @@
         <main class="p-6">
             <form action="{{ route('assemblies.store') }}" method="POST" id="assembly_form">
                 @csrf
+                <!-- Hidden container for JS to inject components/products hidden inputs -->
+                <div id="hidden_form_data" style="display:none;"></div>
 
                 @if ($errors->any())
                     <div class="mb-4 bg-red-50 p-4 rounded-lg border border-red-200">
@@ -1065,9 +1067,10 @@
                                             serials: [],
                                             productId: productUniqueId,
                                             actualProductId: product.id,
+                                            productRealId: product.id,
                                             isFromProduct: true,
                                             isOriginal: true,
-                                            warehouseId: '', // Initialize empty warehouse ID
+                                            warehouseId: getWarehouseId() || '',
                                             productUnit: unitIndex,
                                             unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` :
                                                 ''
@@ -2360,6 +2363,7 @@
 
                     // Add each component
                     components.forEach((component, index) => {
+                        const globalIndex = selectedComponents.indexOf(component);
                         const row = document.createElement('tr');
 
                         // Add stock warning if needed
@@ -2372,20 +2376,23 @@
 
                         // Editable quantity input
                         const quantityInputHtml =
-                            '<input type="number" min="1" step="1" name="components[' + index +
+                            '<input type="number" min="1" step="1" name="components[' + globalIndex +
                             '][quantity]" value="' + (
                                 component.quantity || 1) + '"' +
                             ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 quantity-input component-quantity-input"' +
-                            ' data-component-index="' + selectedComponents.indexOf(component) + '">';
+                            ' data-component-index="' + globalIndex + '">';
+
+                        // Ensure default warehouse for this component if missing
+                        if (!component.warehouseId) {
+                            component.warehouseId = getWarehouseId() || '';
+                        }
 
                         // Set row HTML with warehouse cell
                         row.innerHTML =
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">' +
-                            '<input type="hidden" name="components[' + index + '][id]" value="' + component
+                            '<input type="hidden" name="components[' + globalIndex + '][id]" value="' + component
                             .id + '">' +
-                            '<input type="hidden" name="components[' + index + '][product_id]" value="' +
-                            component
-                            .productId + '">' +
+                            // Do not include visible product_id input to avoid overriding hidden mapping
                             component.code +
                             '</td>' +
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' + component
@@ -2405,7 +2412,7 @@
                             '<!-- Serial inputs will be added here -->' +
                             '</td>' +
                             '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
-                            '<input type="text" name="components[' + index + '][note]" value="' + (component
+                            '<input type="text" name="components[' + globalIndex + '][note]" value="' + (component
                                 .note ||
                                 '') + '"' +
                             ' class="w-full border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 note-input"' +
@@ -2424,12 +2431,12 @@
                         // Add warehouse selector for this component
                         const warehouseCell = row.querySelector('.warehouse-cell');
                         if (warehouseCell) {
-                            addWarehouseSelectToCell(warehouseCell, component, index);
+                            addWarehouseSelectToCell(warehouseCell, component, globalIndex);
                         }
 
                         // Add serial inputs for this component
                         const serialCell = row.querySelector('.serial-cell');
-                        addSerialInputsToCell(serialCell, component, index);
+                        addSerialInputsToCell(serialCell, component, globalIndex);
 
                         // Add product unit selector
                         const productUnitCell = row.querySelector('.product-unit-cell');
@@ -2487,8 +2494,13 @@
                     }))
                 });
 
+                // Build a map from uniqueId -> real product id for reliable mapping
+                const uidToRealId = {};
+                selectedProducts.forEach(p => { uidToRealId[p.uniqueId] = p.id; });
+
                 // Add all components to the hidden list with proper form fields
                 selectedComponents.forEach((component, index) => {
+                    const globalIndex = index; // Ensure names align with selectedComponents order
                     // Debug: Log the component and available products
                     console.log('Processing component for hidden input:', {
                         componentId: component.id,
@@ -2498,8 +2510,48 @@
                         componentIndex: index
                     });
 
-                    // Always use the first (and only) product's ID since we only allow 1 product
-                    const resolvedProductId = selectedProducts[0] ? selectedProducts[0].id : '1';
+                    // Resolve product_id and product_index for this component in multi-product mode
+                    let resolvedProductId = '';
+                    let resolvedProductIndex = -1;
+                    // Prefer explicit real id set on component
+                    if (!resolvedProductId && component.productRealId) {
+                        resolvedProductId = component.productRealId;
+                        resolvedProductIndex = selectedProducts.findIndex(p => p.id == component.productRealId);
+                    }
+                    // Then by uniqueId
+                    if (!resolvedProductId && component.productId && uidToRealId[component.productId]) {
+                        resolvedProductId = uidToRealId[component.productId];
+                        resolvedProductIndex = selectedProducts.findIndex(p => p.uniqueId === component.productId);
+                    }
+                    // Fallback to actualProductId
+                    if (!resolvedProductId && component.actualProductId) {
+                        resolvedProductId = component.actualProductId;
+                        resolvedProductIndex = selectedProducts.findIndex(p => p.id == component.actualProductId);
+                    }
+                    // Try parse pattern product_N
+                    if (!resolvedProductId && typeof component.productId === 'string') {
+                        const m = component.productId.match(/^product_(\d+)$/);
+                        if (m) {
+                            const idx = Math.max(0, parseInt(m[1], 10) - 1);
+                            if (selectedProducts[idx]) {
+                                resolvedProductId = selectedProducts[idx].id;
+                                resolvedProductIndex = idx;
+                            }
+                        }
+                    }
+                    // Last fallback
+                    if (!resolvedProductId && selectedProducts[0]) {
+                        resolvedProductId = selectedProducts[0].id;
+                        resolvedProductIndex = 0;
+                    }
+
+                    console.log('Component mapping:', {
+                        componentId: component.id,
+                        compProductId: component.productId,
+                        compActualProductId: component.actualProductId,
+                        resolvedProductId,
+                        resolvedProductIndex
+                    });
 
                     console.log('Resolved product_id for component:', {
                         componentId: component.id,
@@ -2537,20 +2589,22 @@
 
                     row.innerHTML =
                         '<td>' +
-                        '<input type="hidden" name="components[' + index + '][id]" value="' + component.id +
+                        '<input type="hidden" name="components[' + globalIndex + '][id]" value="' + component.id +
                         '">' +
-                        '<input type="hidden" name="components[' + index + '][product_id]" value="' +
+                        '<input type="hidden" name="components[' + globalIndex + '][product_id]" value="' +
                         resolvedProductId + '">' +
+                        '<input type="hidden" name="components[' + globalIndex + '][product_index]" value="' +
+                        resolvedProductIndex + '">' +
                         // ensure warehouse_id is present for backend validation
-                        '<input type="hidden" name="components[' + index + '][warehouse_id]" value="' +
-                        (component.warehouseId || '') + '">' +
-                        '<input type="hidden" name="components[' + index + '][quantity]" value="' + (
+                        '<input type="hidden" name="components[' + globalIndex + '][warehouse_id]" value="' +
+                        (component.warehouseId || getWarehouseId() || '') + '">' +
+                        '<input type="hidden" name="components[' + globalIndex + '][quantity]" value="' + (
                             component
                             .quantity || 1) + '">' +
-                        '<input type="hidden" name="components[' + index + '][product_unit]" value="' + (
+                        '<input type="hidden" name="components[' + globalIndex + '][product_unit]" value="' + (
                             component.productUnit || 0) + '">' +
                         serialHtml +
-                        '<input type="hidden" name="components[' + index + '][note]" value="' + (component
+                        '<input type="hidden" name="components[' + globalIndex + '][note]" value="' + (component
                             .note || '') +
                         '">' +
                         '</td>';
@@ -2608,10 +2662,8 @@
                     productIdInput.value = product.id;
                     form.appendChild(productIdInput);
 
-                    // Product Code - lấy từ option đã chọn
-                    const productSelect = document.getElementById('product_id');
-                    const selectedOption = productSelect.querySelector(`option[value="${product.id}"]`);
-                    const productCode = selectedOption ? selectedOption.getAttribute('data-code') : '';
+                    // Product Code - lấy từ danh sách đã chọn (đã lưu cùng product)
+                    const productCode = product.code || (product.name ? product.name : '');
                     
                     const productCodeInput = document.createElement('input');
                     productCodeInput.type = 'hidden';
@@ -3652,9 +3704,15 @@
             document.querySelector('form').addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent default submission
 
+                // Loại bỏ name của toàn bộ input/select/textarea hiển thị thuộc components để không ghi đè hidden inputs
+                const visibleComponentInputs = document.querySelectorAll('table input[name^="components["], table select[name^="components["], table textarea[name^="components["]');
+                visibleComponentInputs.forEach(el => {
+                    el.removeAttribute('name');
+                });
+
                 // Update hidden form data before validation
-                updateHiddenComponentList();
-                updateHiddenProductList();
+                // updateHiddenComponentList();
+                // updateHiddenProductList();
 
                 // Check for serial validation errors first
                 const serialErrors = document.querySelectorAll('.serial-validation-msg');
@@ -3687,6 +3745,15 @@
                         units: productComponents.map(c => c.productUnit)
                     });
                 });
+
+                // Đồng bộ hidden inputs
+                updateHiddenComponentList();
+                updateHiddenProductList();
+
+                // Gửi form ngay và ngăn các submit handler khác chạy tiếp
+                e.stopImmediatePropagation();
+                this.submit();
+                return;
 
                 // Kiểm tra mã phiếu có hợp lệ không
                 const assemblyCode = document.getElementById('assembly_code').value.trim();
