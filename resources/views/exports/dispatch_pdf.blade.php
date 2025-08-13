@@ -101,6 +101,12 @@
         <div class="title">PHIẾU XUẤT KHO</div>
 
         <div class="section-title">Thông tin phiếu xuất</div>
+        @php
+            $isAutoAssembly = str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp');
+            $contractItems = $dispatch->items->where('category', 'contract');
+            $backupItems = $dispatch->items->where('category', 'backup');
+            $generalItems = $dispatch->items->where('category', 'general');
+        @endphp
         <div class="info-grid">
             <div class="info-item">
                 <span class="info-label">Mã phiếu xuất:</span>
@@ -118,23 +124,25 @@
                 <span class="info-label">Trạng thái:</span>
                 <span>{{ $dispatch->status === 'pending' ? 'Chờ duyệt' : ($dispatch->status === 'approved' ? 'Đã duyệt' : ($dispatch->status === 'cancelled' ? 'Đã hủy' : 'Hoàn thành')) }}</span>
             </div>
-            <div class="info-item">
-                <span class="info-label">Người nhận:</span>
-                <span>{{ $dispatch->project_receiver }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Chi tiết xuất kho:</span>
-                <span>{{ $dispatch->dispatch_detail === 'contract' ? 'Xuất theo hợp đồng' : ($dispatch->dispatch_detail === 'backup' ? 'Xuất thiết bị dự phòng' : 'Tất cả') }}</span>
-            </div>
-            <div class="info-item">
-                <span class="info-label">Loại hình:</span>
-                <span>{{ $dispatch->dispatch_type === 'project' ? 'Dự án' : ($dispatch->dispatch_type === 'rental' ? 'Cho thuê' : 'Bảo hành') }}</span>
-            </div>
+            @unless($isAutoAssembly)
+                <div class="info-item">
+                    <span class="info-label">Người nhận:</span>
+                    <span>{{ $dispatch->project_receiver }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Chi tiết xuất kho:</span>
+                    <span>{{ $dispatch->dispatch_detail === 'contract' ? 'Xuất theo hợp đồng' : ($dispatch->dispatch_detail === 'backup' ? 'Xuất thiết bị dự phòng' : 'Tất cả') }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Loại hình:</span>
+                    <span>{{ $dispatch->dispatch_type === 'project' ? 'Dự án' : ($dispatch->dispatch_type === 'rental' ? 'Cho thuê' : 'Bảo hành') }}</span>
+                </div>
+            @endunless
             <div class="info-item">
                 <span class="info-label">Dự án:</span>
                 <span>{{ $dispatch->project ? $dispatch->project->project_name : 'N/A' }}</span>
             </div>
-            @if($dispatch->companyRepresentative)
+            @if(!$isAutoAssembly && $dispatch->companyRepresentative)
             <div class="info-item">
                 <span class="info-label">Người đại diện:</span>
                 <span>{{ $dispatch->companyRepresentative->name }}</span>
@@ -146,7 +154,7 @@
             </div>
         </div>
 
-        @if($dispatch->dispatch_detail === 'contract' || $dispatch->dispatch_detail === 'all')
+        @if($dispatch->dispatch_detail === 'contract' || ($dispatch->dispatch_detail === 'all' && $contractItems->count() > 0))
         <div class="section-title">Danh sách thiết bị theo hợp đồng</div>
         <table class="data-table">
             <thead>
@@ -161,7 +169,7 @@
             </thead>
             <tbody>
                 @php $stt = 1; @endphp
-                @foreach($dispatch->items->where('category', 'contract') as $item)
+                @foreach($contractItems as $item)
                 <tr>
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->code ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->code ?? 'N/A') : ($item->good->code ?? 'N/A')) }}</td>
@@ -175,7 +183,7 @@
         </table>
         @endif
 
-        @if($dispatch->dispatch_detail === 'backup' || $dispatch->dispatch_detail === 'all')
+        @if($dispatch->dispatch_detail === 'backup' || ($dispatch->dispatch_detail === 'all' && $backupItems->count() > 0))
         <div class="section-title">Danh sách thiết bị dự phòng</div>
         <table class="data-table">
             <thead>
@@ -190,13 +198,44 @@
             </thead>
             <tbody>
                 @php $stt = 1; @endphp
-                @foreach($dispatch->items->where('category', 'backup') as $item)
+                @foreach($backupItems as $item)
                 <tr>
                     <td>{{ $stt++ }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->code ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->code ?? 'N/A') : ($item->good->code ?? 'N/A')) }}</td>
                     <td>{{ $item->item_type === 'material' ? ($item->material->name ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->name ?? 'N/A') : ($item->good->name ?? 'N/A')) }}</td>
                     <td style="text-align: center;">{{ $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')) }}</td>
                     <td>{{ $item->quantity }}</td>
+                    <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @endif
+
+        @if(($dispatch->dispatch_detail === 'all' && $generalItems->count() > 0))
+        <div class="section-title">Danh sách vật tư</div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 8%;">STT</th>
+                    <th style="width: 20%;">Mã</th>
+                    <th style="width: 30%;">Tên vật tư</th>
+                    <th style="width: 12%;">Đơn vị</th>
+                    <th style="width: 10%;">Số lượng</th>
+                    <th style="width: 20%;">Kho xuất</th>
+                    <th style="width: 20%;">Serial</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $stt = 1; @endphp
+                @foreach($generalItems as $item)
+                <tr>
+                    <td>{{ $stt++ }}</td>
+                    <td>{{ $item->item_type === 'material' ? ($item->material->code ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->code ?? 'N/A') : ($item->good->code ?? 'N/A')) }}</td>
+                    <td>{{ $item->item_type === 'material' ? ($item->material->name ?? 'N/A') : ($item->item_type === 'product' ? ($item->product->name ?? 'N/A') : ($item->good->name ?? 'N/A')) }}</td>
+                    <td style="text-align: center;">{{ $item->item_type === 'material' ? ($item->material->unit ?? 'Cái') : ($item->item_type === 'product' ? 'Cái' : ($item->good->unit ?? 'Cái')) }}</td>
+                    <td>{{ $item->quantity }}</td>
+                    <td>{{ $item->warehouse->name ?? '-' }}</td>
                     <td>{{ is_array($item->serial_numbers) ? implode(', ', $item->serial_numbers) : ($item->serial_numbers ?? 'Chưa có') }}</td>
                 </tr>
                 @endforeach
@@ -212,8 +251,10 @@
                 </td>
                 <td></td>
                 <td>
-                    <div class="signature-title">Người nhận</div>
-                    <div>{{ $dispatch->project_receiver }}</div>
+                    @unless($isAutoAssembly)
+                        <div class="signature-title">Người nhận</div>
+                        <div>{{ $dispatch->project_receiver }}</div>
+                    @endunless
                 </td>
             </tr>
         </table>

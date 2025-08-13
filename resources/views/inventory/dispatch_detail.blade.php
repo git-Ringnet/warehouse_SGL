@@ -80,6 +80,9 @@
         @endif
 
         <main class="p-6">
+            @php
+                $isAutoAssembly = str_contains($dispatch->dispatch_note ?? '', 'Sinh từ phiếu lắp ráp');
+            @endphp
             <!-- Header Info -->
             <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
                 <div class="flex flex-col lg:flex-row justify-between gap-4">
@@ -93,62 +96,64 @@
                             <span
                                 class="text-sm text-gray-700">{{ $dispatch->dispatch_date->format('H:i:s d/m/Y') }}</span>
                         </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
-                            @if ($dispatch->project_id)
-                                <a href="{{ route('projects.show', $dispatch->project_id) }}">
-                                    <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
-                                </a>
-                            @else
-                                <span class="text-sm text-gray-700">{{ $dispatch->project_receiver }}</span>
-                            @endif
-                        </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Loại hình:</span>
-                            <span class="text-sm text-gray-700">
-                                @switch($dispatch->dispatch_type)
-                                    @case('project')
-                                        Dự án
-                                    @break
+                        @unless($isAutoAssembly)
+                            <div class="flex items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Người nhận:</span>
+                                @if ($dispatch->project_id)
+                                    <a href="{{ route('projects.show', $dispatch->project_id) }}">
+                                        <span class="text-sm text-blue-700">{{ $dispatch->project_receiver }}</span>
+                                    </a>
+                                @else
+                                    <span class="text-sm text-gray-700">{{ $dispatch->project_receiver }}</span>
+                                @endif
+                            </div>
+                            <div class="flex items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Loại hình:</span>
+                                <span class="text-sm text-gray-700">
+                                    @switch($dispatch->dispatch_type)
+                                        @case('project')
+                                            Dự án
+                                        @break
 
-                                    @case('rental')
-                                        Cho thuê
-                                    @break
+                                        @case('rental')
+                                            Cho thuê
+                                        @break
 
-                                    @case('warranty')
-                                        Bảo hành
-                                    @break
+                                        @case('warranty')
+                                            Bảo hành
+                                        @break
 
-                                    @case('other')
-                                        Khác
-                                    @break
+                                        @case('other')
+                                            Khác
+                                        @break
 
-                                    @default
-                                        {{ ucfirst($dispatch->dispatch_type) }}
-                                @endswitch
-                            </span>
-                        </div>
-                        <div class="flex items-center mb-2">
-                            <span class="text-sm font-medium text-gray-700 mr-2">Chi tiết xuất:</span>
-                            <span class="text-sm text-gray-700">
-                                @switch($dispatch->dispatch_detail)
-                                    @case('all')
-                                        Tất cả
-                                    @break
+                                        @default
+                                            {{ ucfirst($dispatch->dispatch_type) }}
+                                    @endswitch
+                                </span>
+                            </div>
+                            <div class="flex items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700 mr-2">Chi tiết xuất:</span>
+                                <span class="text-sm text-gray-700">
+                                    @switch($dispatch->dispatch_detail)
+                                        @case('all')
+                                            Tất cả
+                                        @break
 
-                                    @case('contract')
-                                        Theo hợp đồng
-                                    @break
+                                        @case('contract')
+                                            Theo hợp đồng
+                                        @break
 
-                                    @case('backup')
-                                        Dự phòng
-                                    @break
+                                        @case('backup')
+                                            Dự phòng
+                                        @break
 
-                                    @default
-                                        {{ ucfirst($dispatch->dispatch_detail) }}
-                                @endswitch
-                            </span>
-                        </div>
+                                        @default
+                                            {{ ucfirst($dispatch->dispatch_detail) }}
+                                    @endswitch
+                                </span>
+                            </div>
+                        @endunless
                     </div>
                     <div>
                         <div class="flex items-center mb-2">
@@ -156,7 +161,7 @@
                             <span
                                 class="text-sm text-gray-700">{{ $dispatch->creator->name ?? 'Không xác định' }}</span>
                         </div>
-                        @if ($dispatch->companyRepresentative)
+                        @if (!$isAutoAssembly && $dispatch->companyRepresentative)
                             <div class="flex items-center mb-2">
                                 <span class="text-sm font-medium text-gray-700 mr-2">Người đại diện công ty:</span>
                                 <span class="text-sm text-gray-700">{{ $dispatch->companyRepresentative->name }}</span>

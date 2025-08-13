@@ -164,10 +164,10 @@ class Warranty extends Model
             $projectDispatches = $projectDispatches->get();
 
             foreach ($projectDispatches as $dispatch) {
-                // Only include contract items, not backup items
-                $contractItems = $dispatch->items()->where('category', 'contract')->get();
+                // Bao gồm tất cả item cần bảo hành: loại trừ 'backup'
+                $eligibleItems = $dispatch->items()->where('category', '!=', 'backup')->get();
 
-                foreach ($contractItems as $dispatchItem) {
+                foreach ($eligibleItems as $dispatchItem) {
                     $itemDetails = null;
                     switch ($dispatchItem->item_type) {
                         case 'material':
@@ -494,10 +494,10 @@ class Warranty extends Model
                 ->get();
 
             foreach ($projectDispatches as $dispatch) {
-                // Only include contract items, not backup items
-                $contractItems = $dispatch->items()->where('category', 'contract')->get();
+                // Include all eligible items (exclude backup)
+                $eligibleItems = $dispatch->items()->where('category', '!=', 'backup')->get();
 
-                foreach ($contractItems as $dispatchItem) {
+                foreach ($eligibleItems as $dispatchItem) {
                     if ($dispatchItem->item_type === 'product') {
                         $product = $dispatchItem->product;
                         if (!$product) continue;

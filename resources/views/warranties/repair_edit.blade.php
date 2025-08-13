@@ -136,9 +136,9 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="repair_type" class="block text-sm font-medium text-gray-700 mb-1 required">Loại
-                                sửa chữa <span class="text-red-500">*</span></label>
-                            <select id="repair_type" name="repair_type" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                sửa chữa</label>
+                            <select id="repair_type" name="repair_type" required disabled
+                                class="w-full border border-gray-300 bg-gray-50 cursor-not-allowed rounded-lg px-3 py-2">
                                 <option value="maintenance"
                                     {{ $repair->repair_type === 'maintenance' ? 'selected' : '' }}>Bảo trì định kỳ
                                 </option>
@@ -155,16 +155,17 @@
                         </div>
                         <div>
                             <label for="repair_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày
-                                sửa chữa <span class="text-red-500">*</span></label>
+                                sửa chữa</label>
                             <input type="date" id="repair_date" name="repair_date"
-                                value="{{ $repair->repair_date->format('Y-m-d') }}" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                value="{{ $repair->repair_date->format('Y-m-d') }}" required disabled
+                                class="w-full border border-gray-300 bg-gray-50 cursor-not-allowed rounded-lg px-3 py-2">
+                            <input type="hidden" name="repair_date" value="{{ $repair->repair_date->format('Y-m-d') }}">
                         </div>
                         <div>
                             <label for="technician_id" class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ
-                                thuật viên <span class="text-red-500">*</span></label>
-                            <select id="technician_id" name="technician_id" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                thuật viên</label>
+                            <select id="technician_id" name="technician_id" required disabled
+                                class="w-full border border-gray-300 bg-gray-50 cursor-not-allowed rounded-lg px-3 py-2">
                                 <option value="">-- Chọn kỹ thuật viên --</option>
                                 @foreach (\App\Models\Employee::where('status', 'active')->get() as $employee)
                                     <option value="{{ $employee->id }}"
@@ -174,11 +175,22 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div>
+                            <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                            <select id="status" name="status" {{ $repair->status === 'completed' ? 'disabled' : '' }}
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $repair->status === 'completed' ? 'bg-gray-50 cursor-not-allowed' : '' }}">
+                                <option value="in_progress" {{ $repair->status === 'in_progress' ? 'selected' : '' }}>Đang xử lý</option>
+                                <option value="completed" {{ $repair->status === 'completed' ? 'selected' : '' }}>Hoàn thành</option>
+                            </select>
+                            @if ($repair->status === 'completed')
+                                <input type="hidden" name="status" value="completed">
+                            @endif
+                        </div>
                     </div>
 
                     <div class="mt-4">
                         <label for="repair_description" class="block text-sm font-medium text-gray-700 mb-1 required">Mô
-                            tả sửa chữa <span class="text-red-500">*</span></label>
+                            tả sửa chữa</label>
                         <textarea id="repair_description" name="repair_description" rows="3" required
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Nhập mô tả chi tiết về vấn đề và cách sửa chữa">{{ $repair->repair_description }}</textarea>
@@ -187,7 +199,7 @@
 
                 <!-- Chi tiết vật tư từ thiết bị -->
                 @if ($repair->repairItems->count() > 0)
-                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6">
+                    <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 mb-6 {{ $repair->status === 'completed' ? 'opacity-60' : '' }}">
                         <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                             <i class="fas fa-cogs text-blue-500 mr-2"></i>
                             Chi tiết vật tư từ thiết bị
@@ -227,6 +239,9 @@
                                 </tbody>
                             </table>
                         </div>
+                        @if ($repair->status === 'completed')
+                            <p class="mt-2 text-xs text-gray-500">Phiếu đã hoàn thành: không thể thao tác sửa chữa/thay thế.</p>
+                        @endif
                     </div>
                 @endif
 
@@ -466,14 +481,30 @@
         // Load device materials when page loads
         document.addEventListener('DOMContentLoaded', function() {
             loadDeviceMaterials();
+            // Disable all material actions if repair is completed
+            const isCompleted = '{{ $repair->status }}' === 'completed';
+            if (isCompleted) {
+                document.addEventListener('click', function(e) {
+                    if (e.target.closest('.material-repair-btn') || e.target.closest('.material-replace-btn')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }, true);
+            }
         });
 
-        // Load device materials for all repair items
+        // Load device materials for all repair items (deduplicate by device_code + serial)
         function loadDeviceMaterials() {
             deviceMaterialsList = [];
+            const seenDevices = new Set();
 
             repairItemsData.forEach((item, index) => {
-                const deviceId = `${item.device_code}_${item.device_serial || 'no_serial'}_${Date.now()}_${index}`;
+                const normalizedSerial = (item.device_serial || 'no_serial').toString().replace(/\s+/g, '');
+                const deviceKey = `${item.device_code}__${normalizedSerial}`;
+                if (seenDevices.has(deviceKey)) return; // tránh gọi trùng
+                seenDevices.add(deviceKey);
+
+                const deviceId = `${item.device_code}_${normalizedSerial}_${index}`;
                 fetchDeviceMaterials(deviceId, item.device_code, warrantyCode);
             });
         }
@@ -495,29 +526,71 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.materials) {
-                        // Add device code to each material
+                        // Chuẩn hoá và gán device cho từng vật tư
                         const materialsWithDevice = data.materials.map(material => {
                             const materialKey = `${deviceCode}_${material.code}`;
-                            
-                            // Store original serials if not already stored
                             if (!originalMaterialSerials[materialKey]) {
                                 originalMaterialSerials[materialKey] = material.serial || '';
                             }
-                            
+                            // Tìm dữ liệu sửa chữa đã lưu để prefill ghi chú
+                            const existingDM = existingDamagedMaterials.find(dm =>
+                                dm.device_code === deviceCode &&
+                                dm.material_code === material.code &&
+                                (
+                                    !material.serial || dm.serial === material.serial || dm.serial === null
+                                )
+                            );
+                            const prefilledNote = existingDM ? (existingDM.damage_description || '') : '';
+                            // Kiểm tra đã từng thay thế để khóa nút thay thế
+                            const hasReplaced = existingMaterialReplacements.some(mr =>
+                                mr.device_code === deviceCode && mr.material_code === material.code
+                            );
                             return {
                                 ...material,
                                 deviceCode: deviceCode,
-                                deviceId: deviceId
+                                deviceId: deviceId,
+                                repairNote: prefilledNote,
+                                hasPendingReplacement: hasReplaced
                             };
                         });
 
-                        deviceMaterialsList.push(...materialsWithDevice);
+                        // Loại bỏ các vật tư cũ của cùng thiết bị (nếu có) để tránh trùng lặp khi reload
+                        deviceMaterialsList = deviceMaterialsList.filter(m => m.deviceId !== deviceId);
+
+                        // Thêm mới theo cặp khóa deviceId + materialCode, tránh trùng lặp
+                        const existingKeys = new Set(
+                            deviceMaterialsList.map(m => `${m.deviceId}__${m.code}`)
+                        );
+                        materialsWithDevice.forEach(m => {
+                            const key = `${m.deviceId}__${m.code}`;
+                            if (!existingKeys.has(key)) {
+                                deviceMaterialsList.push(m);
+                                existingKeys.add(key);
+                            }
+                        });
+
                         updateMaterialsDisplay();
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching device materials:', error);
                 });
+        }
+
+        // Helper: tạo subrow ghi chú sửa chữa dưới dòng vật tư
+        function createRepairSubrow(rowEl, index, material) {
+            const subRow = document.createElement('tr');
+            subRow.className = 'repair-note-subrow bg-blue-50';
+            const col = document.createElement('td');
+            col.colSpan = 6;
+            col.innerHTML = `
+                <div class="p-3">
+                    <label class="block text-xs text-gray-600 mb-1">Ghi chú sửa chữa</label>
+                    <textarea class="repair-note-input w-full border border-blue-200 rounded px-3 py-2 text-sm" rows="2" data-index="${index}" placeholder="Nhập ghi chú sửa chữa...">${material.repairNote || ''}</textarea>
+                </div>
+            `;
+            subRow.appendChild(col);
+            rowEl.parentNode.insertBefore(subRow, rowEl.nextSibling);
         }
 
         // Update materials display in table
@@ -548,12 +621,10 @@
                 );
 
                 // Check if this material has been replaced
-                const hasBeenReplaced = existingMaterialReplacements.some(mr =>
-                    mr.device_code === material.deviceCode &&
-                    mr.material_code === material.code
-                );
+                const hasBeenReplaced = material.hasPendingReplacement === true;
 
-                // Disable interactions if material has been replaced
+                // Trạng thái sửa chữa đang bật khi có ghi chú
+                const repairActive = !!(material.repairNote && material.repairNote.trim());
                 const isDisabled = hasBeenReplaced;
                 const disabledClass = isDisabled ? 'opacity-50 cursor-not-allowed' : '';
 
@@ -565,32 +636,65 @@
                     <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${material.quantity}</td>
                     <td class="px-3 py-2 text-sm">
                         <div class="flex items-center space-x-2 ${disabledClass}">
-                            <label class="flex items-center">
-                                <input type="checkbox" class="material-damaged-checkbox mr-2" 
-                                    data-material-index="${index}" 
-                                    data-device-code="${material.deviceCode}"
-                                    data-material-code="${material.code}"
-                                    ${isDamaged ? 'checked' : ''}
-                                    ${isDisabled ? 'disabled' : ''}>
-                                <span class="text-xs">Hư hỏng</span>
-                            </label>
+                            ${isDisabled
+                                ? `<span class=\"px-2 py-1 text-xs bg-gray-100 text-gray-400 rounded cursor-not-allowed select-none\">Sửa chữa</span>`
+                                : `<button type=\"button\" class=\"material-repair-btn ${repairActive ? 'bg-blue-200 text-blue-700' : 'bg-blue-100 text-blue-600'} px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs\" data-index=\"${index}\">
+                                        <i class=\"fas ${repairActive ? 'fa-undo' : 'fa-tools'} mr-1\"></i> ${repairActive ? 'Huỷ Sửa chữa' : 'Sửa chữa'}
+                                   </button>`}
                             ${!isDisabled ? `
-                                        <button type="button" onclick="openReplaceModal(${index})" 
-                                            class="bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs">
-                                            <i class="fas fa-exchange-alt mr-1"></i> Thay thế
-                                        </button>
-                                    ` : `
-                                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                            <i class="fas fa-check mr-1"></i> Đã thay thế
-                                        </span>
-                                    `}
+                                <button type="button" onclick="openReplaceModal(${index})" 
+                                    class="material-replace-btn bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs" data-index="${index}">
+                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
+                                </button>
+                            ` : `
+                                <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                    <i class="fas fa-check mr-1"></i> Đã thay thế
+                                </span>
+                            `}
                         </div>
                     </td>
                 `;
 
                 tbody.appendChild(row);
+
+                // Nếu đã có ghi chú sửa chữa từ trước thì hiển thị subrow ngay
+                if (repairActive) {
+                    createRepairSubrow(row, index, material);
+                }
             });
         }
+
+        // Toggle ghi chú sửa chữa khi bấm nút
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.material-repair-btn');
+            if (!btn) return;
+            const index = parseInt(btn.getAttribute('data-index'));
+            const tbody = document.getElementById('device_materials_body');
+            const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.classList.contains('repair-note-subrow'));
+            const row = rows[index];
+            if (!row) return;
+            const next = row.nextElementSibling;
+            const material = deviceMaterialsList[index];
+
+            if (next && next.classList.contains('repair-note-subrow')) {
+                // Đang mở -> đóng và clear ghi chú
+                next.remove();
+                material.repairNote = '';
+                btn.innerHTML = '<i class="fas fa-tools mr-1"></i> Sửa chữa';
+                btn.classList.remove('bg-blue-200','text-blue-700');
+                btn.classList.add('bg-blue-100','text-blue-600');
+            } else {
+                // Mở subrow và bind input
+                createRepairSubrow(row, index, material);
+                const input = row.nextElementSibling.querySelector('.repair-note-input');
+                input.addEventListener('input', function() {
+                    deviceMaterialsList[index].repairNote = this.value;
+                });
+                btn.innerHTML = '<i class="fas fa-undo mr-1"></i> Huỷ Sửa chữa';
+                btn.classList.remove('bg-blue-100','text-blue-600');
+                btn.classList.add('bg-blue-200','text-blue-700');
+            }
+        });
 
         // Open replace material modal
         function openReplaceModal(materialIndex) {
@@ -612,6 +716,22 @@
             document.getElementById('max-quantity').textContent = material.quantity;
             document.getElementById('replace-quantity').max = material.quantity;
 
+            // Determine if serial is required for this material (has any serial info)
+            const normalize = (s) => (s || '').toString().trim().toUpperCase();
+            const serialStr = normalize(material.serial);
+            const current = Array.isArray(material.current_serials)
+                ? material.current_serials.map(normalize).filter(s => s && s !== 'N/A')
+                : [];
+            const hasAnySerial = (serialStr && serialStr !== 'N/A') || current.length > 0;
+            // Persist flag for handlers
+            currentReplacingMaterial = { ...material, index: materialIndex, requiresSerial: hasAnySerial };
+
+            // Toggle serial sections by requirement
+            const oldSerialWrap = document.getElementById('old-serial-selection');
+            const newSerialWrap = document.getElementById('serial-selection');
+            oldSerialWrap.classList.add('hidden');
+            newSerialWrap.classList.add('hidden');
+
             // Check if there's a previous replacement to pre-populate form
             const lastReplacement = getLastReplacement(material.deviceCode, material.code);
             console.log('Last replacement found:', lastReplacement);
@@ -623,12 +743,10 @@
                 document.getElementById('replace-notes').value = lastReplacement.notes || '';
 
                 // Auto-load old serials if source warehouse is selected
-                if (lastReplacement.source_warehouse_id) {
+                if (lastReplacement.source_warehouse_id && hasAnySerial) {
                     setTimeout(() => {
-                        // Use original serials, not current (modified) serials
                         const materialKey = `${material.deviceCode}_${material.code}`;
                         const originalSerial = originalMaterialSerials[materialKey] || material.serial || '';
-                        
                         let originalSerials = [];
                         if (originalSerial) {
                             if (typeof originalSerial === 'string') {
@@ -642,7 +760,7 @@
                 }
 
                 // Auto-load new serials if target warehouse is selected
-                if (lastReplacement.target_warehouse_id) {
+                if (lastReplacement.target_warehouse_id && hasAnySerial) {
                     setTimeout(() => {
                         loadAvailableSerials(material.code, lastReplacement.target_warehouse_id, 1, lastReplacement.new_serials || []);
                     }, 200);
@@ -651,6 +769,12 @@
 
             // Show modal
             document.getElementById('replace-material-modal').classList.remove('hidden');
+
+            // If material has no serial requirement, keep serial sections hidden
+            if (!hasAnySerial) {
+                document.getElementById('old-serial-selection').classList.add('hidden');
+                document.getElementById('serial-selection').classList.add('hidden');
+            }
         }
 
         // Get replacement history for a specific material
@@ -773,7 +897,7 @@
 
         // Event listeners for warehouse selection
         document.getElementById('source-warehouse').addEventListener('change', function() {
-            if (this.value && currentReplacingMaterial) {
+            if (this.value && currentReplacingMaterial && currentReplacingMaterial.requiresSerial) {
                 // Use original serials, not current (modified) serials
                 const materialKey = `${currentReplacingMaterial.deviceCode}_${currentReplacingMaterial.code}`;
                 const originalSerial = originalMaterialSerials[materialKey] || currentReplacingMaterial.serial || '';
@@ -797,7 +921,7 @@
         });
 
         document.getElementById('target-warehouse').addEventListener('change', function() {
-            if (this.value && currentReplacingMaterial) {
+            if (this.value && currentReplacingMaterial && currentReplacingMaterial.requiresSerial) {
                 // Check if there's a previous replacement to show selected state
                 const lastReplacement = getLastReplacement(currentReplacingMaterial.deviceCode,
                     currentReplacingMaterial.code);
@@ -916,14 +1040,15 @@
                 return;
             }
 
-            if (oldSerials.length === 0 || newSerials.length === 0) {
-                alert('Vui lòng chọn serial cũ và serial mới!');
-                return;
-            }
-
-            if (oldSerials.length !== newSerials.length) {
-                alert('Số lượng serial cũ và mới phải bằng nhau!');
-                return;
+            if (currentReplacingMaterial.requiresSerial) {
+                if (oldSerials.length === 0 || newSerials.length === 0) {
+                    alert('Vui lòng chọn serial cũ và serial mới!');
+                    return;
+                }
+                if (oldSerials.length !== newSerials.length) {
+                    alert('Số lượng serial cũ và mới phải bằng nhau!');
+                    return;
+                }
             }
 
             // Add or update material replacements array
@@ -931,8 +1056,8 @@
                 device_code: currentReplacingMaterial.deviceCode,
                 material_code: currentReplacingMaterial.code,
                 material_name: currentReplacingMaterial.name,
-                old_serials: oldSerials,
-                new_serials: newSerials,
+                old_serials: currentReplacingMaterial.requiresSerial ? oldSerials : [],
+                new_serials: currentReplacingMaterial.requiresSerial ? newSerials : [],
                 quantity: quantity,
                 source_warehouse_id: sourceWarehouse,
                 target_warehouse_id: targetWarehouse,
@@ -967,16 +1092,17 @@
                 }
             }
 
-            // Replace old serials with new serials
-            oldSerials.forEach((oldSerial, index) => {
-                const serialIndex = currentSerialArray.findIndex(s => s === oldSerial.trim());
-                if (serialIndex !== -1 && newSerials[index]) {
-                    currentSerialArray[serialIndex] = newSerials[index].trim();
-                }
-            });
-
-            // Update the material serial display
-            deviceMaterialsList[materialIndex].serial = currentSerialArray.join(', ');
+            if (currentReplacingMaterial.requiresSerial) {
+                // Replace old serials with new serials
+                oldSerials.forEach((oldSerial, index) => {
+                    const serialIndex = currentSerialArray.findIndex(s => s === oldSerial.trim());
+                    if (serialIndex !== -1 && newSerials[index]) {
+                        currentSerialArray[serialIndex] = newSerials[index].trim();
+                    }
+                });
+                // Update the material serial display
+                deviceMaterialsList[materialIndex].serial = currentSerialArray.join(', ');
+            }
             updateMaterialsDisplay();
 
             // Close modal and reset state
@@ -987,24 +1113,22 @@
             resetReplaceModalState();
         });
 
-        // Handle form submission
+        // Handle form submission: gom vật tư có ghi chú sửa chữa
         document.querySelector('form').addEventListener('submit', function(e) {
-            // Collect damaged materials
             const damagedMaterials = [];
-            document.querySelectorAll('.material-damaged-checkbox:checked').forEach(checkbox => {
-                const materialIndex = checkbox.dataset.materialIndex;
-                const material = deviceMaterialsList[materialIndex];
-                if (material) {
+            deviceMaterialsList.forEach(material => {
+                const note = (material.repairNote || '').trim();
+                if (note) {
                     damagedMaterials.push({
                         device_code: material.deviceCode,
                         material_code: material.code,
                         material_name: material.name,
-                        serial: material.serial
+                        serial: material.serial,
+                        damage_description: note
                     });
                 }
             });
 
-            // Set hidden field values
             document.getElementById('material_replacements_data').value = JSON.stringify(materialReplacements);
             document.getElementById('damaged_materials_data').value = JSON.stringify(damagedMaterials);
         });

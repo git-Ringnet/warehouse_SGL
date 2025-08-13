@@ -653,6 +653,84 @@ class MaintenanceRequestController extends Controller
                 $warranty_id = $warranty->id;
             }
         }
+
+        // Fallback 1: nếu đã chọn dự án/cho thuê, ưu tiên lấy bảo hành cấp dự án tương ứng
+        if (!$warranty && $maintenanceRequest->project_id) {
+            if ($maintenanceRequest->project_type === 'project') {
+                $warranty = Warranty::where('item_type', 'project')
+                    ->whereHas('dispatch', function ($q) use ($maintenanceRequest) {
+                        $q->where('project_id', $maintenanceRequest->project_id)
+                          ->where('dispatch_type', '!=', 'rental');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+            } elseif ($maintenanceRequest->project_type === 'rental') {
+                $warranty = Warranty::where('item_type', 'project')
+                    ->whereHas('dispatch', function ($q) use ($maintenanceRequest) {
+                        $q->where('project_id', $maintenanceRequest->project_id)
+                          ->where('dispatch_type', 'rental');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+            }
+
+            if ($warranty) {
+                $warranty_code = $warranty->warranty_code;
+                $warranty_id = $warranty->id;
+            }
+        }
+
+        // Fallback 2: nếu chưa có project_id nhưng có project_name, map theo tên dự án
+        if (!$warranty && empty($maintenanceRequest->project_id) && !empty($maintenanceRequest->project_name)) {
+            $project = \App\Models\Project::where('project_name', $maintenanceRequest->project_name)->first();
+            if ($project) {
+                $warranty = Warranty::where('item_type', 'project')
+                    ->whereHas('dispatch', function ($q) use ($project) {
+                        $q->where('project_id', $project->id)
+                          ->where('dispatch_type', '!=', 'rental');
+                    })
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                if ($warranty) {
+                    $warranty_code = $warranty->warranty_code;
+                    $warranty_id = $warranty->id;
+                }
+            }
+        }
+
+        // Fallback 3: nếu chưa có warranty trên MR và không tìm theo dự án được, cố gắng suy ra theo serial trong danh sách sản phẩm của MR
+        if (!$warranty && method_exists($maintenanceRequest, 'products') && $maintenanceRequest->products && $maintenanceRequest->products->isNotEmpty()) {
+            $serials = $maintenanceRequest->products
+                ->pluck('serial_number')
+                ->filter(function ($s) { return !empty($s) && trim($s) !== ''; })
+                ->unique()
+                ->values();
+
+            foreach ($serials as $sn) {
+                // Tìm trong bảng warranties: khớp trực tiếp serial_number hoặc trong dispatch items
+                $candidate = \App\Models\Warranty::where('status', 'active')
+                    ->where(function ($q) use ($sn) {
+                        $normalized = preg_replace('/[\s-]+/', '', strtoupper($sn));
+                        $q->whereRaw('UPPER(REPLACE(REPLACE(IFNULL(serial_number, ""), " ", ""), "-", "")) = ?', [$normalized])
+                          ->orWhereHas('dispatch.items', function ($qi) use ($sn, $normalized) {
+                              $qi->whereIn('item_type', ['product','good'])
+                                 ->where(function ($qj) use ($sn, $normalized) {
+                                     $qj->whereJsonContains('serial_numbers', $sn)
+                                        ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$sn])
+                                        ->orWhereRaw('JSON_SEARCH(serial_numbers, "one", ?) IS NOT NULL', [$normalized]);
+                                 });
+                          });
+                    })
+                    ->first();
+
+                if ($candidate) {
+                    $warranty = $candidate;
+                    $warranty_code = $candidate->warranty_code;
+                    $warranty_id = $candidate->id;
+                    break;
+                }
+            }
+        }
         
         // Xác định loại sửa chữa dựa trên loại bảo trì
         $repairType = $maintenanceRequest->maintenance_type; // Map trực tiếp với loại bảo trì

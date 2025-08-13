@@ -19,10 +19,12 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
 {
     protected $dispatch;
     protected $lastDataRow;
+    protected $hasGeneralItems;
 
     public function __construct(Dispatch $dispatch)
     {
         $this->dispatch = $dispatch;
+        $this->hasGeneralItems = $dispatch->items ? $dispatch->items->where('category', 'general')->count() > 0 : false;
     }
 
     public function view(): View
@@ -38,7 +40,8 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         $this->lastDataRow = $this->findLastDataRow($sheet);
 
         // Thiết lập style mặc định cho toàn bộ sheet
-        $sheet->getStyle('A1:F' . ($this->lastDataRow + 6))->applyFromArray([
+        $endCol = $this->hasGeneralItems ? 'G' : 'F';
+        $sheet->getStyle('A1:' . $endCol . ($this->lastDataRow + 6))->applyFromArray([
             'font' => [
                 'name' => 'Arial',
                 'size' => 11
@@ -62,7 +65,7 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         // Style cho các tiêu đề phần
         $titleRows = $this->findTitleRows($sheet);
         foreach($titleRows as $row) {
-            $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
+            $sheet->getStyle('A' . $row . ':' . $endCol . $row)->applyFromArray([
                 'font' => [
                     'bold' => true,
                     'size' => 13
@@ -79,7 +82,7 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         // Style cho header bảng
         $headerRows = $this->findTableHeaderRows($sheet);
         foreach($headerRows as $row) {
-            $sheet->getStyle("A{$row}:F{$row}")->applyFromArray([
+            $sheet->getStyle('A' . $row . ':' . $endCol . $row)->applyFromArray([
                 'font' => [
                     'bold' => true,
                     'size' => 11
@@ -103,7 +106,7 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         }
 
         // Style cho nội dung bảng
-        $sheet->getStyle("A1:F{$this->lastDataRow}")->applyFromArray([
+        $sheet->getStyle('A1:' . $endCol . $this->lastDataRow)->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
@@ -124,13 +127,14 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         return [
             AfterSheet::class => function(AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
+                $endCol = $this->hasGeneralItems ? 'G' : 'F';
                 
                 // Xóa các dòng trống không cần thiết
                 $this->cleanupSheet($sheet);
 
                 // Merge cells cho tiêu đề và các phần
-                $sheet->mergeCells('A1:F1');
-                $sheet->mergeCells('A3:F3');
+                $sheet->mergeCells('A1:' . $endCol . '1');
+                $sheet->mergeCells('A3:' . $endCol . '3');
 
                 // Thiết lập chiều cao hàng
                 $sheet->getRowDimension(1)->setRowHeight(30);
@@ -141,13 +145,18 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
                 // Thiết lập độ rộng cột
                 $sheet->getColumnDimension('A')->setWidth(8);  // STT
                 $sheet->getColumnDimension('B')->setWidth(20); // Mã
-                $sheet->getColumnDimension('C')->setWidth(40); // Tên thiết bị
+                $sheet->getColumnDimension('C')->setWidth(40); // Tên
                 $sheet->getColumnDimension('D')->setWidth(15); // Đơn vị
                 $sheet->getColumnDimension('E')->setWidth(12); // Số lượng
-                $sheet->getColumnDimension('F')->setWidth(30); // Serial
+                if ($this->hasGeneralItems) {
+                    $sheet->getColumnDimension('F')->setWidth(18); // Kho xuất
+                    $sheet->getColumnDimension('G')->setWidth(30); // Serial
+                } else {
+                    $sheet->getColumnDimension('F')->setWidth(30); // Serial (6 cột)
+                }
 
                 // Thiết lập vùng in
-                $sheet->getPageSetup()->setPrintArea('A1:F' . ($this->lastDataRow + 6));
+                $sheet->getPageSetup()->setPrintArea('A1:' . $endCol . ($this->lastDataRow + 6));
                 $sheet->getPageSetup()->setFitToWidth(1);
                 $sheet->getPageSetup()->setFitToHeight(0);
             }
@@ -163,7 +172,8 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         // Tìm các dòng trống liên tiếp
         for ($row = 1; $row <= $highestRow; $row++) {
             $isEmpty = true;
-            for ($col = 'A'; $col <= 'F'; $col++) {
+            $endCol = $this->hasGeneralItems ? 'G' : 'F';
+            for ($col = 'A'; $col <= $endCol; $col++) {
                 $cellValue = trim($sheet->getCell($col . $row)->getValue());
                 if (!empty($cellValue) && $cellValue !== '&nbsp;') {
                     $isEmpty = false;
@@ -198,7 +208,8 @@ class DispatchExport implements FromView, ShouldAutoSize, WithStyles, WithEvents
         $lastRow = $sheet->getHighestRow();
         for($row = $lastRow; $row >= 1; $row--) {
             $isEmpty = true;
-            for($col = 'A'; $col <= 'F'; $col++) {
+            $endCol = $this->hasGeneralItems ? 'G' : 'F';
+            for($col = 'A'; $col <= $endCol; $col++) {
                 $cellValue = trim($sheet->getCell($col . $row)->getValue());
                 if (!empty($cellValue) && $cellValue !== '&nbsp;') {
                     $isEmpty = false;

@@ -130,49 +130,99 @@
                                     </div>
                                 </div>
 
-                                @if (!empty($warranty->project_items))
+                                @php
+                                    // Ưu tiên hiển thị tổng hợp từ TẤT CẢ phiếu xuất đã duyệt của dự án
+                                    $projectItems = collect($warranty->project_items ?? [])->filter(function ($it) {
+                                        return isset($it['type']) && in_array($it['type'], ['product', 'good']);
+                                    });
+                                @endphp
+
+                                @if ($projectItems->count() > 0)
                                     <div class="border-t border-gray-200 pt-4">
-                                        <p class="text-sm text-gray-500 mb-3">Danh sách thiết bị trong bảo hành</p>
+                                        <p class="text-sm text-gray-500 mb-3">Danh sách thiết bị trong bảo hành (tổng hợp tất cả phiếu xuất đã duyệt)</p>
                                         <div class="space-y-3">
-                                            @foreach ($warranty->project_items as $item)
+                                            @foreach ($projectItems as $item)
                                                 <div class="bg-gray-50 rounded-lg p-4">
                                                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                                         <div>
                                                             <p class="text-xs text-gray-500">Mã thiết bị</p>
-                                                            <p class="text-gray-900 font-medium">{{ $item['code'] }}
-                                                            </p>
+                                                            <p class="text-gray-900 font-medium">{{ $item['code'] }}</p>
                                                         </div>
                                                         <div>
                                                             <p class="text-xs text-gray-500">Tên thiết bị</p>
                                                             <p class="text-gray-900">{{ $item['name'] }}</p>
                                                         </div>
                                                         <div>
-                                                            <p class="text-xs text-gray-500">Serial Numbers</p>
-                                                            <p class="text-gray-900 text-sm">
-                                                                @if (!empty($item['serial_numbers']) && is_array($item['serial_numbers']))
-                                                                    {{ implode(', ', $item['serial_numbers']) }}
-                                                                @else
-                                                                    N/A
-                                                                @endif
-                                                            </p>
+                                                            <p class="text-xs text-gray-500">Số lượng</p>
+                                                            <p class="text-gray-900">{{ $item['quantity'] ?? 1 }}</p>
                                                         </div>
                                                         <div>
-                                                            <p class="text-xs text-gray-500">Mã phiếu xuất:</p>
-                                                            <p class="text-gray-900 text-sm">
-                                                                @if ($warranty->dispatch)
-                                                                    <a href="{{ route('inventory.dispatch.show', $warranty->dispatch->id) }}"
-                                                                        class="font-medium text-blue-500">{{ $warranty->dispatch->dispatch_code }}
-                                                                    </a>
-                                                                @else
-                                                                    N/A
-                                                                @endif
-                                                            </p>
+                                                            <p class="text-xs text-gray-500">Serial Numbers</p>
+                                                            <p class="text-gray-900 text-sm">{{ (!empty($item['serial_numbers']) && is_array($item['serial_numbers'])) ? implode(', ', $item['serial_numbers']) : 'N/A' }}</p>
                                                         </div>
                                                     </div>
                                                 </div>
                                             @endforeach
                                         </div>
                                     </div>
+                                @else
+                                    @php
+                                        // Fallback: hiển thị theo phiếu gốc nếu chưa có tổng hợp
+                                        $dispatch = $warranty->dispatch;
+                                        $warrantyItems = collect();
+                                        if ($dispatch && $dispatch->relationLoaded('items')) {
+                                            $warrantyItems = $dispatch->items
+                                                ->filter(function ($it) {
+                                                    return $it->category !== 'backup' && in_array($it->item_type, ['product', 'good']);
+                                                });
+                                        } elseif ($dispatch) {
+                                            $warrantyItems = $dispatch->items()->where('category', '!=', 'backup')->get()
+                                                ->filter(function ($it) {
+                                                    return in_array($it->item_type, ['product', 'good']);
+                                                });
+                                        }
+                                    @endphp
+
+                                    @if ($warrantyItems->count() > 0)
+                                        <div class="border-t border-gray-200 pt-4">
+                                            <p class="text-sm text-gray-500 mb-3">Danh sách thiết bị trong bảo hành (phiếu xuất gốc)</p>
+                                            <div class="space-y-3">
+                                                @foreach ($warrantyItems as $it)
+                                                    @php
+                                                        $code = $it->product->code ?? $it->good->code ?? '';
+                                                        $name = $it->product->name ?? $it->good->name ?? '';
+                                                        $serials = $it->serial_numbers ?: [];
+                                                    @endphp
+                                                    <div class="bg-gray-50 rounded-lg p-4">
+                                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                                            <div>
+                                                                <p class="text-xs text-gray-500">Mã thiết bị</p>
+                                                                <p class="text-gray-900 font-medium">{{ $code }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs text-gray-500">Tên thiết bị</p>
+                                                                <p class="text-gray-900">{{ $name }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs text-gray-500">Serial Numbers</p>
+                                                                <p class="text-gray-900 text-sm">{{ !empty($serials) ? implode(', ', $serials) : 'N/A' }}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p class="text-xs text-gray-500">Mã phiếu xuất:</p>
+                                                                <p class="text-gray-900 text-sm">
+                                                                    @if ($dispatch)
+                                                                        <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}" class="font-medium text-blue-500">{{ $dispatch->dispatch_code }}</a>
+                                                                    @else
+                                                                        N/A
+                                                                    @endif
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
                                 @endif
 
                                 @if (!empty($warranty->product_materials))

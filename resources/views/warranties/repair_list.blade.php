@@ -82,7 +82,7 @@
                             </option>
                             <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang
                                 xử lý</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Đã xử lý
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành
                             </option>
                             <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Đã hủy
                             </option>

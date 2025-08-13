@@ -319,20 +319,24 @@ class EquipmentServiceController extends Controller
             // Tạo phiếu bảo hành nếu chưa có
             // Kiểm tra bảo hành theo logic chia sẻ dự án/phiếu cho thuê
             if ($originalItem->dispatch->dispatch_type === 'rental') {
-                // Cho phiếu cho thuê: kiểm tra bảo hành chia sẻ trong cùng rental
-                $warranty = Warranty::whereHas('dispatch', function ($query) use ($originalItem) {
-                    $query->where('project_id', $originalItem->dispatch->project_id)
-                        ->where('dispatch_type', 'rental');
-                })->first();
+                // Cho phiếu cho thuê: ưu tiên bảo hành cấp dự án trong cùng rental
+                $warranty = Warranty::where('item_type', 'project')
+                    ->whereHas('dispatch', function ($query) use ($originalItem) {
+                        $query->where('project_id', $originalItem->dispatch->project_id)
+                            ->where('dispatch_type', 'rental');
+                    })->first();
             } elseif ($originalItem->dispatch->project_id) {
-                // Cho dự án thường: kiểm tra bảo hành chia sẻ trong cùng project
-                $warranty = Warranty::whereHas('dispatch', function ($query) use ($originalItem) {
-                    $query->where('project_id', $originalItem->dispatch->project_id)
-                        ->where('dispatch_type', '!=', 'rental');
-                })->first();
+                // Cho dự án thường: ưu tiên bảo hành cấp dự án trong cùng project
+                $warranty = Warranty::where('item_type', 'project')
+                    ->whereHas('dispatch', function ($query) use ($originalItem) {
+                        $query->where('project_id', $originalItem->dispatch->project_id)
+                            ->where('dispatch_type', '!=', 'rental');
+                    })->first();
             } else {
                 // Fallback: kiểm tra theo dispatch_item_id cho trường hợp không có project
-                $warranty = Warranty::where('dispatch_item_id', $originalItem->id)->first();
+                $warranty = Warranty::where('item_type', 'project')
+                    ->where('dispatch_item_id', $originalItem->id)
+                    ->first();
             }
             
             if (!$warranty) {
@@ -621,13 +625,13 @@ class EquipmentServiceController extends Controller
             $warrantyCode = $baseCode . '-' . $suffix++;
         }
 
-        // Tạo phiếu bảo hành
+        // Tạo phiếu bảo hành cấp dự án để tránh tạo trùng BH item-level
         $warranty = Warranty::create([
             'warranty_code' => $warrantyCode,
             'dispatch_id' => $originalItem->dispatch_id,
-            'dispatch_item_id' => $originalItem->id,
-            'item_type' => $originalItem->item_type,
-            'item_id' => $originalItem->item_id,
+            'dispatch_item_id' => $originalItem->id, // tham chiếu item đầu tiên (giữ tương thích)
+            'item_type' => 'project',
+            'item_id' => $originalItem->dispatch->project_id ?? 0,
             'serial_number' => is_array($originalItem->serial_numbers) ? implode(', ', $originalItem->serial_numbers) : null,
             'customer_name' => $originalItem->dispatch->project_receiver,
             'customer_phone' => null,
@@ -640,7 +644,7 @@ class EquipmentServiceController extends Controller
             'warranty_period_months' => $warrantyPeriodMonths,
             'warranty_type' => 'standard',
             'status' => 'active',
-            'warranty_terms' => "Bảo hành tiêu chuẩn cho {$item->name}",
+            'warranty_terms' => isset($item) ? "Bảo hành tiêu chuẩn cho {$item->name}" : 'Bảo hành tiêu chuẩn',
             'notes' => "Bảo hành tạo từ yêu cầu thay thế ngày " . Carbon::now()->format('d/m/Y H:i') . 
                     ". Lý do: {$reason}" . 
                     ". Thiết bị thay thế: " . $this->getItemCode($replacementItem),

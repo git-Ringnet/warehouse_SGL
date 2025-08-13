@@ -1011,7 +1011,8 @@ class DispatchController extends Controller
                 'approved_at' => now(),
             ]);
 
-            // Tạo bảo hành điện tử khi duyệt (nếu không phải backup-only)
+            // Tạo/Cập nhật bảo hành điện tử khi duyệt (nếu không phải backup-only)
+            $warrantyAction = null;
             if (!$this->isBackupOnlyDispatch($dispatch)) {
                 $dispatch->load('items');
                 $firstDispatchItem = $dispatch->items->first();
@@ -1056,8 +1057,8 @@ class DispatchController extends Controller
                             'warranty_period' => $warrantyPeriod
                         ]);
 
-                        $this->createWarrantyForDispatchItem($dispatch, $firstDispatchItem, $fakeRequest);
-                        Log::info("Project warranty created during approval:", ['dispatch_id' => $dispatch->id]);
+                        $warrantyAction = $this->createWarrantyForDispatchItem($dispatch, $firstDispatchItem, $fakeRequest);
+                        Log::info("Project warranty created/updated during approval:", ['dispatch_id' => $dispatch->id, 'warranty_action' => $warrantyAction]);
                     } catch (\Exception $warrantyException) {
                         Log::error("Error creating project warranty during approval:", [
                             'dispatch_id' => $dispatch->id,
@@ -1083,12 +1084,20 @@ class DispatchController extends Controller
                 );
             }
 
-            // Count total warranties created
-            $totalWarranties = $dispatch->warranties()->count();
+            // Xây dựng thông điệp tạo/cập nhật bảo hành rõ ràng
+            $approvalMessage = 'Phiếu xuất đã được duyệt thành công.';
+            if ($warrantyAction && is_array($warrantyAction)) {
+                if (($warrantyAction['action'] ?? null) === 'created') {
+                    $approvalMessage .= ' Đã tạo bảo hành điện tử: ' . ($warrantyAction['warranty_code'] ?? '') . '.';
+                } elseif (($warrantyAction['action'] ?? null) === 'updated') {
+                    $itemsAdded = $warrantyAction['items_count'] ?? 0;
+                    $approvalMessage .= ' Đã cập nhật bảo hành điện tử: ' . ($warrantyAction['warranty_code'] ?? '') . ($itemsAdded ? ' (thêm ' . $itemsAdded . ' thiết bị).' : '.');
+                }
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Phiếu xuất đã được duyệt thành công. Đã tạo ' . $totalWarranties . ' bảo hành điện tử.',
+                'message' => $approvalMessage,
                 'status' => $dispatch->status_label,
                 'status_color' => $dispatch->status_color
             ]);
@@ -1542,10 +1551,11 @@ class DispatchController extends Controller
             ]);
 
             // For rental dispatches, share warranty across all dispatches of the same rental
-            $existingWarranty = Warranty::whereHas('dispatch', function ($query) use ($dispatch) {
+            $existingWarranty = Warranty::where('item_type', 'project')
+                ->whereHas('dispatch', function ($query) use ($dispatch) {
                 $query->where('project_id', $dispatch->project_id)
                     ->where('dispatch_type', 'rental'); // Only rental dispatches share warranty
-            })
+                })
                 ->first();
                 
             Log::info('Rental warranty check result', [
@@ -1561,10 +1571,11 @@ class DispatchController extends Controller
             ]);
 
             // For regular project dispatches, share warranty across all dispatches of the same project
-            $existingWarranty = Warranty::whereHas('dispatch', function ($query) use ($dispatch) {
+            $existingWarranty = Warranty::where('item_type', 'project')
+                ->whereHas('dispatch', function ($query) use ($dispatch) {
                 $query->where('project_id', $dispatch->project_id)
                     ->where('dispatch_type', '!=', 'rental'); // Exclude rentals from shared warranty
-            })
+                })
                 ->first();
 
             Log::info('Project warranty check result', [
@@ -1576,15 +1587,16 @@ class DispatchController extends Controller
             Log::info('No project_id, checking within same dispatch only');
 
             // For non-project dispatches, check only within the same dispatch
-            $existingWarranty = Warranty::where('dispatch_id', $dispatch->id)
+            $existingWarranty = Warranty::where('item_type', 'project')
+                ->where('dispatch_id', $dispatch->id)
                 ->first();
         }
 
         if (!$existingWarranty) {
             Log::info('Creating new warranty for project (no existing warranty found)');
 
-            // Get only contract items from this dispatch for warranty (exclude backup items)
-            $contractItems = $dispatch->items()->where('category', 'contract')->get();
+            // Lấy tất cả item cần bảo hành: bao gồm 'contract' và 'general', loại trừ 'backup'
+            $contractItems = $dispatch->items()->where('category', '!=', 'backup')->get();
             $allItemsInfo = [];
             $allSerialNumbers = [];
 
@@ -1686,6 +1698,14 @@ class DispatchController extends Controller
                 'warranty_code' => $warranty->warranty_code,
                 'items_count' => count($allItemsInfo)
             ]);
+
+            // Trả về thông tin để UI hiển thị thông báo
+            return [
+                'action' => 'created',
+                'warranty_id' => $warranty->id,
+                'warranty_code' => $warranty->warranty_code,
+                'items_count' => count($allItemsInfo),
+            ];
         } else {
             Log::info('Updating existing project warranty instead of creating new one', [
                 'existing_warranty_id' => $existingWarranty->id,
@@ -1693,8 +1713,8 @@ class DispatchController extends Controller
             ]);
 
             // Update existing warranty with additional information from new dispatch
-            // Get only contract items from this dispatch to update warranty info (exclude backup)
-            $contractItems = $dispatch->items()->where('category', 'contract')->get();
+            // Lấy item để cập nhật bảo hành: bao gồm 'contract' và 'general', loại trừ 'backup'
+            $contractItems = $dispatch->items()->where('category', '!=', 'backup')->get();
             $newItemsInfo = [];
             $newSerialNumbers = [];
 
@@ -1739,9 +1759,17 @@ class DispatchController extends Controller
             Log::info('Existing project warranty updated successfully', [
                 'added_items_count' => count($newItemsInfo)
             ]);
+
+            return [
+                'action' => 'updated',
+                'warranty_id' => $existingWarranty->id,
+                'warranty_code' => $existingWarranty->warranty_code,
+                'items_count' => count($newItemsInfo),
+            ];
         }
 
         Log::info('=== WARRANTY CREATION/UPDATE COMPLETED ===');
+        return null;
     }
 
     /**

@@ -158,37 +158,71 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Người phụ trách</label>
-                            <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                                {{ $assembly->assignedEmployee->name ?? ($assembly->assigned_to ?? 'Chưa xác định') }}
-                            </div>
-                            <input type="hidden" name="assigned_to"
-                                value="{{ $assembly->assigned_employee_id ?? $assembly->assigned_to }}">
+                            @if ($assembly->status === 'pending')
+                                <select name="assigned_to" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    @foreach(($employees ?? []) as $emp)
+                                        <option value="{{ $emp->id }}" {{ ($assembly->assigned_employee_id ?? $assembly->assigned_to) == $emp->id ? 'selected' : '' }}>{{ $emp->name }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                                    {{ $assembly->assignedEmployee->name ?? ($assembly->assigned_to ?? 'Chưa xác định') }}
+                                </div>
+                                <input type="hidden" name="assigned_to" value="{{ $assembly->assigned_employee_id ?? $assembly->assigned_to }}">
+                            @endif
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Người tiếp nhận kiểm thử</label>
-                            <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                                {{ $assembly->tester->name ?? 'Chưa phân công' }}
-                            </div>
-                            <input type="hidden" name="tester_id" value="{{ $assembly->tester_id }}">
+                            @if ($assembly->status === 'pending')
+                                <select name="tester_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    @foreach(($employees ?? []) as $emp)
+                                        <option value="{{ $emp->id }}" {{ $assembly->tester_id == $emp->id ? 'selected' : '' }}>{{ $emp->name }}</option>
+                                    @endforeach
+                                </select>
+                            @else
+                                <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                                    {{ $assembly->tester->name ?? 'Chưa phân công' }}
+                                </div>
+                                <input type="hidden" name="tester_id" value="{{ $assembly->tester_id }}">
+                            @endif
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Mục đích</label>
-                            <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                                {{ $assembly->purpose == 'storage' ? 'Lưu kho' : ($assembly->purpose == 'project' ? 'Xuất đi dự án' : 'Không xác định') }}
-                            </div>
-                            <input type="hidden" name="purpose" value="{{ $assembly->purpose }}">
+                            @if ($assembly->status === 'pending')
+                                <select name="purpose" id="purpose-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="storage" {{ $assembly->purpose == 'storage' ? 'selected' : '' }}>Lưu kho</option>
+                                    <option value="project" {{ $assembly->purpose == 'project' ? 'selected' : '' }}>Xuất đi dự án</option>
+                                </select>
+                            @else
+                                <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                                    {{ $assembly->purpose == 'storage' ? 'Lưu kho' : ($assembly->purpose == 'project' ? 'Xuất đi dự án' : 'Không xác định') }}
+                                </div>
+                                <input type="hidden" name="purpose" value="{{ $assembly->purpose }}">
+                            @endif
                         </div>
                         <div>
-                            @if ($assembly->purpose == 'project' && $assembly->project)
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Dự án</label>
-                                <div
-                                    class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
-                                    {{ $assembly->project->project_name ?? 'Không xác định' }}
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Dự án</label>
+                            @if ($assembly->status === 'pending')
+                                <div id="project-select-wrapper" class="{{ $assembly->purpose === 'storage' ? 'hidden' : '' }}">
+                                    <select name="project_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">-- Không chọn --</option>
+                                        @foreach(($projects ?? []) as $prj)
+                                            <option value="{{ $prj->id }}" {{ $assembly->project_id == $prj->id ? 'selected' : '' }}>
+                                                {{ $prj->project_name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                                <input type="hidden" name="project_id" value="{{ $assembly->project_id }}">
+                            @else
+                                @if ($assembly->purpose == 'project' && $assembly->project)
+                                    <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
+                                        {{ $assembly->project->project_name ?? 'Không xác định' }}
+                                    </div>
+                                    <input type="hidden" name="project_id" value="{{ $assembly->project_id }}">
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -300,27 +334,29 @@
                                                         @endif
                                                     @endif
                                                 @else
-                                                    @if ($assemblyProduct->serials)
-                                                        @php
+                                                    @php
+                                                        $serials = [];
+                                                        if ($assemblyProduct->serials) {
                                                             $serials = explode(',', $assemblyProduct->serials);
-                                                        @endphp
+                                                        }
+                                                    @endphp
+                                                    @if (!empty($serials))
                                                         @if ($assemblyProduct->quantity > 1)
                                                             <div class="space-y-1">
                                                                 @foreach($serials as $serial)
-                                                                    <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                                                        {{ $serial }}
-                                                                    </div>
+                                                                    <input type="text" value="{{ $serial }}" readonly
+                                                                        class="w-full border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-sm cursor-not-allowed">
                                                                 @endforeach
                                                             </div>
                                                         @else
-                                                            <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                                                {{ $serials[0] ?? '' }}
-                                                            </div>
+                                                            <input type="text" value="{{ $serials[0] ?? '' }}" readonly
+                                                                class="w-full border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-sm cursor-not-allowed">
                                                         @endif
                                                         @for ($i = 0; $i < $assemblyProduct->quantity; $i++)
                                                             <input type="hidden" name="products[{{ $index }}][serials][]" value="{{ $serials[$i] ?? '' }}">
                                                         @endfor
                                                     @else
+                                                        <div class="text-sm text-gray-400 italic">Chưa có serial (không thể chỉnh sửa ở trạng thái hiện tại)</div>
                                                         @for ($i = 0; $i < $assemblyProduct->quantity; $i++)
                                                             <input type="hidden" name="products[{{ $index }}][serials][]" value="">
                                                         @endfor
@@ -413,7 +449,7 @@
                                 @if ($assembly->status === 'pending')
                                     Chế độ chỉnh sửa: Có thể cập nhật serial thành phẩm và ghi chú linh kiện. Không thể thêm/xóa linh kiện.
                                 @elseif ($assembly->status === 'in_progress')
-                                    Chế độ chỉnh sửa: Có thể tăng số lượng linh kiện và cập nhật serial linh kiện. Không thể giảm số lượng hoặc thay đổi serial thành phẩm.
+                                    Chế độ chỉnh sửa: Không thể thay đổi số lượng và serial. Chỉ xem được thông tin.
                                 @else
                                     Chế độ chỉnh sửa: Chỉ có thể cập nhật ghi chú linh kiện. Không thể thay đổi serial hoặc thêm/xóa linh kiện.
                                 @endif
@@ -547,7 +583,7 @@
                                                                     {{ $component['material']->material->name }}</td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                    @if ($assembly->status === 'in_progress' || $assembly->status === 'pending')
+                                                                    @if ($assembly->status === 'pending')
                                                                         <input type="number"
                                                                             name="components[{{ $component['globalIndex'] }}][quantity]"
                                                                             value="{{ $component['material']->quantity }}"
@@ -555,13 +591,13 @@
                                                                             class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                                             title="Chỉ có thể tăng số lượng, không thể giảm">
                                                                     @else
-                                                                    <div
-                                                                        class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
-                                                                        {{ $component['material']->quantity }}
-                                                                    </div>
-                                                                    <input type="hidden"
-                                                                        name="components[{{ $component['globalIndex'] }}][quantity]"
-                                                                        value="{{ $component['material']->quantity }}">
+                                                                        <div
+                                                                            class="w-20 border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-center">
+                                                                            {{ $component['material']->quantity }}
+                                                                        </div>
+                                                                        <input type="hidden"
+                                                                            name="components[{{ $component['globalIndex'] }}][quantity]"
+                                                                            value="{{ $component['material']->quantity }}">
                                                                     @endif
                                                                 </td>
                                                                 <td
@@ -572,21 +608,16 @@
                                                                     <input type="hidden" name="components[{{ $component['globalIndex'] }}][warehouse_id]"
                                                                         value="{{ $component['material']->warehouse_id }}">
                                                                 </td>
-                                                                                                                                 <td
+                                                                 <td
                                                                      class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                     @if ($assembly->status === 'in_progress')
+                                                                     @if ($assembly->status === 'pending')
                                                                          <div class="space-y-2 material-serial-selects-container"
                                                                              data-product-id="{{ $component['material']->target_product_id }}"
                                                                              data-product-index="{{ $productIndex }}">
                                                                              @php
-                                                                                 // Ensure we properly handle all serial scenarios
                                                                                  $serials = [];
                                                                                  if ($component['material']->serial) {
-                                                                                     // Split by comma
-                                                                                     $serials = explode(
-                                                                                         ',',
-                                                                                         $component['material']->serial,
-                                                                                     );
+                                                                                     $serials = explode(',', $component['material']->serial);
                                                                                  }
                                                                              @endphp
                                                                              @for ($i = 0; $i < $component['material']->quantity; $i++)
@@ -596,29 +627,18 @@
                                                                                          class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
                                                                                          data-serial-index="{{ $i }}"
                                                                                          data-material-id="{{ $component['material']->material_id }}"
-                                                                                          data-warehouse-id="{{ $component['material']->warehouse_id }}"
+                                                                                         data-warehouse-id="{{ $component['material']->warehouse_id }}"
                                                                                          data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                          data-product-id="{{ $component['material']->target_product_id }}"
                                                                                          data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
-                                                                                         <option value="">-- Chọn
-                                                                                             serial {{ $i + 1 }}
-                                                                                             --
-                                                                                         </option>
+                                                                                         <option value="">-- Chọn serial {{ $i + 1 }} --</option>
                                                                                          @php
-                                                                                             $materialId =
-                                                                                                 $component['material']
-                                                                                                     ->material_id;
-                                                                                             $availableSerials =
-                                                                                                 $materialSerials[
-                                                                                                     $materialId
-                                                                                                 ] ?? [];
-                                                                                             $currentSerial =
-                                                                                                 $serials[$i] ?? '';
+                                                                                             $materialId = $component['material']->material_id;
+                                                                                             $availableSerials = $materialSerials[$materialId] ?? [];
+                                                                                             $currentSerial = $serials[$i] ?? '';
                                                                                          @endphp
                                                                                          @foreach ($availableSerials as $serial)
-                                                                                             <option
-                                                                                                 value="{{ $serial['serial_number'] }}"
-                                                                                                 {{ $currentSerial == $serial['serial_number'] ? 'selected' : '' }}>
+                                                                                             <option value="{{ $serial['serial_number'] }}" {{ $currentSerial == $serial['serial_number'] ? 'selected' : '' }}>
                                                                                                  {{ $serial['serial_number'] }}
                                                                                              </option>
                                                                                          @endforeach
@@ -627,59 +647,19 @@
                                                                              @endfor
                                                                          </div>
                                                                      @else
-                                                                        <div class="space-y-2 material-serial-selects-container"
-                                                                        data-product-id="{{ $component['material']->target_product_id }}"
-                                                                        data-product-index="{{ $productIndex }}">
-                                                                        @php
-                                                                            // Ensure we properly handle all serial scenarios
-                                                                            $serials = [];
-                                                                            if ($component['material']->serial) {
-                                                                                // Split by comma
-                                                                                $serials = explode(
-                                                                                    ',',
-                                                                                    $component['material']->serial,
-                                                                                );
-                                                                            }
-                                                                        @endphp
-
-                                                                        @for ($i = 0; $i < $component['material']->quantity; $i++)
-                                                                            <div class="flex items-center">
-                                                                                <select
-                                                                                    name="components[{{ $component['globalIndex'] }}][serials][]"
-                                                                                    class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
-                                                                                    data-serial-index="{{ $i }}"
-                                                                                    data-material-id="{{ $component['material']->material_id }}"
-                                                                                     data-warehouse-id="{{ $component['material']->warehouse_id }}"
-                                                                                    data-current-serial="{{ $serials[$i] ?? '' }}"
-                                                                                    data-product-id="{{ $component['material']->target_product_id }}"
-                                                                                    data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
-                                                                                    <option value="">-- Chọn
-                                                                                            serial {{ $i + 1 }}
-                                                                                            --
-                                                                                    </option>
-                                                                                    @php
-                                                                                        $materialId =
-                                                                                            $component['material']
-                                                                                                ->material_id;
-                                                                                        $availableSerials =
-                                                                                            $materialSerials[
-                                                                                                $materialId
-                                                                                            ] ?? [];
-                                                                                        $currentSerial =
-                                                                                            $serials[$i] ?? '';
-                                                                                    @endphp
-                                                                                    @foreach ($availableSerials as $serial)
-                                                                                        <option
-                                                                                            value="{{ $serial['serial_number'] }}"
-                                                                                            {{ $currentSerial == $serial['serial_number'] ? 'selected' : '' }}>
-                                                                                            {{ $serial['serial_number'] }}
-                                                                                        </option>
-                                                                                    @endforeach
-                                                                                </select>
-                                                                            </div>
-                                                                        @endfor
-                                                                    </div>
-                                                                    @endif
+                                                                         @php
+                                                                             $serials = [];
+                                                                             if ($component['material']->serial) {
+                                                                                 $serials = explode(',', $component['material']->serial);
+                                                                             }
+                                                                         @endphp
+                                                                         @for ($i = 0; $i < $component['material']->quantity; $i++)
+                                                                             <div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                                                                                 {{ $serials[$i] ?? '' }}
+                                                                             </div>
+                                                                             <input type="hidden" name="components[{{ $component['globalIndex'] }}][serials][]" value="{{ $serials[$i] ?? '' }}">
+                                                                         @endfor
+                                                                     @endif
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -895,6 +875,25 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            // Toggle project selector by purpose when pending
+            try {
+                var purposeSelect = document.getElementById('purpose-select');
+                var projectWrapper = document.getElementById('project-select-wrapper');
+                if (purposeSelect && projectWrapper) {
+                    var toggleProject = function() {
+                        if (purposeSelect.value === 'project') {
+                            projectWrapper.classList.remove('hidden');
+                        } else {
+                            projectWrapper.classList.add('hidden');
+                            // Clear selection when switching to storage
+                            var projSel = projectWrapper.querySelector('select[name="project_id"]');
+                            if (projSel) projSel.value = '';
+                        }
+                    };
+                    purposeSelect.addEventListener('change', toggleProject);
+                    toggleProject();
+                }
+            } catch (e) {}
 
             // Component blocks toggle functionality
             document.querySelectorAll('.toggle-components').forEach(button => {

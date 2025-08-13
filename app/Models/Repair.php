@@ -122,7 +122,7 @@ class Repair extends Model
         $labels = [
             'pending' => 'Chờ xử lý',
             'in_progress' => 'Đang xử lý',
-            'completed' => 'Đã xử lý',
+            'completed' => 'Hoàn thành',
             'cancelled' => 'Đã hủy',
         ];
 

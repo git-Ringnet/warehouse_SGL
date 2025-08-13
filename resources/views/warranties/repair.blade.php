@@ -105,6 +105,10 @@
                                             </th>
                                             <th scope="col"
                                                 class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Loại
+                                            </th>
+                                            <th scope="col"
+                                                class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Số lượng
                                             </th>
                                             <th scope="col"
@@ -145,9 +149,6 @@
                                     <tr>
                                         <th scope="col"
                                             class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Mã thiết bị</th>
-                                        <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Mã vật tư</th>
                                         <th scope="col"
                                             class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -155,9 +156,6 @@
                                         <th scope="col"
                                             class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Serial vật tư</th>
-                                        <th scope="col"
-                                            class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Số lượng</th>
                                         <th scope="col"
                                             class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Thao tác</th>
@@ -210,7 +208,7 @@
                         <div>
                             <label for="repair_type"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Loại
-                                sửa chữa <span class="text-red-500">*</span></label>
+                                sửa chữa</label>
                             <select id="repair_type" name="repair_type" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">Chọn loại sửa chữa</option>
@@ -230,15 +228,14 @@
                         <div>
                             <label for="repair_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày
-                                sửa chữa <span class="text-red-500">*</span></label>
+                                sửa chữa</label>
                             <input type="date" id="repair_date" name="repair_date"
                                 value="{{ old('repair_date', date('Y-m-d')) }}" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         </div>
                         <div>
                             <label for="technician_id"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ thuật viên <span
-                                    class="text-red-500">*</span></label>
+                                class="block text-sm font-medium text-gray-700 mb-1 required">Kỹ thuật viên</label>
                             <select id="technician_id" name="technician_id" required
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="">-- Chọn kỹ thuật viên --</option>
@@ -254,8 +251,7 @@
 
                     <div class="mt-4">
                         <label for="repair_description"
-                            class="block text-sm font-medium text-gray-700 mb-1 required">Mô tả sửa chữa <span
-                                class="text-red-500">*</span></label>
+                            class="block text-sm font-medium text-gray-700 mb-1 required">Mô tả sửa chữa</label>
                         <textarea id="repair_description" name="repair_description" rows="3" required
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Nhập mô tả chi tiết về vấn đề và cách sửa chữa">{{ old('repair_description') }}</textarea>
@@ -355,8 +351,8 @@
 
                 <!-- Chọn serial vật tư cũ cần thay thế -->
                 <div id="old-serial-selection" class="hidden">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Chọn serial cần thay thế <span class="text-red-500">*</span>
+                    <label id="old-serial-label" class="block text-sm font-medium text-gray-700 mb-2">
+                        Chọn serial cần thay thế <span id="old-serial-required-star" class="text-red-500">*</span>
                     </label>
                     <div id="old-serial-list"
                         class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
@@ -382,8 +378,8 @@
 
                 <!-- Serial vật tư mới -->
                 <div id="serial-selection" class="hidden">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Chọn serial mới <span class="text-red-500">*</span>
+                    <label id="new-serial-label" class="block text-sm font-medium text-gray-700 mb-2">
+                        Chọn serial mới <span id="new-serial-required-star" class="text-red-500">*</span>
                     </label>
                     <div id="serial-list"
                         class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
@@ -429,23 +425,9 @@
             <div class="space-y-4">
                 <!-- Thông tin thiết bị -->
                 <div class="bg-gray-50 p-3 rounded-lg">
-                    <h4 class="text-sm font-medium text-gray-700 mb-2">Thiết bị:
+                    <h4 class="text-sm font-medium text-gray-700">Thiết bị:
                         <span id="reject-device-name" class="font-semibold"></span>
                     </h4>
-                    <p class="text-sm text-gray-600">
-                        Tổng số lượng: <span id="reject-total-quantity" class="font-medium">0</span>
-                    </p>
-                </div>
-
-                <!-- Số lượng từ chối -->
-                <div>
-                    <label for="reject-quantity" class="block text-sm font-medium text-gray-700 mb-1">
-                        Số lượng từ chối <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" id="reject-quantity" min="1" value="1" required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Nhập số lượng từ chối">
-                    <p class="text-xs text-gray-500 mt-1">Nhập số lượng thành phẩm muốn từ chối</p>
                 </div>
 
                 <!-- Lý do từ chối -->
@@ -458,19 +440,7 @@
                         placeholder="Nhập lý do từ chối thiết bị..."></textarea>
                 </div>
 
-                <!-- Kho lưu trữ thiết bị -->
-                <div>
-                    <label for="reject-warehouse" class="block text-sm font-medium text-gray-700 mb-1">
-                        Kho lưu trữ thiết bị <span class="text-red-500">*</span>
-                    </label>
-                    <select id="reject-warehouse" required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        <option value="">-- Chọn kho lưu trữ --</option>
-                        @foreach (App\Models\Warehouse::where('status', 'active')->get() as $warehouse)
-                            <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                <!-- Theo yêu cầu: chỉ giữ trường Lý do từ chối -->
             </div>
 
             <div class="flex justify-end space-x-3 mt-6">
@@ -588,18 +558,17 @@
                 devices.forEach(device => {
                     // Determine if this is a good or a product
                     const isGood = device.type === 'good';
-                    const deviceTypeText = isGood ? 'Hàng hóa' : 'Sản phẩm';
-                    const deviceTypeClass = isGood ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800';
-                    
+                    const deviceTypeTextDisplay = isGood ? 'Hàng hoá' : 'Thành phẩm';
+
                     const row = document.createElement('tr');
                     row.className = 'hover:bg-gray-50';
                     row.innerHTML = `
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${device.code}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
                             ${device.name}
-                            <span class="ml-1 px-2 py-0.5 text-xs rounded-full ${deviceTypeClass}">${deviceTypeText}</span>
                         </td>
-                        <td class="px-3 py-2 text-sm text-gray-700" style="max-width: 200px; word-wrap: break-word;">${device.serial_numbers_text || device.serial || ''}</td>
+                        <td class="px-3 py-2 text-sm text-gray-700" style="max-width: 200px; word-wrap: break-word;">${(device.serial_numbers_text && device.serial_numbers_text.trim()) ? device.serial_numbers_text : (device.serial && device.serial.trim()) ? device.serial : 'N/A'}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${deviceTypeTextDisplay}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
                             <input type="number" min="1" max="${device.quantity || 1}" value="1" 
                                    class="w-16 border border-gray-300 rounded px-2 py-1 text-center device-quantity" 
@@ -612,7 +581,7 @@
                             </span>
                         </td>
                         <td class="px-3 py-2 text-sm text-gray-700">
-                            <textarea class="w-full border border-gray-300 rounded px-2 py-1 text-xs device-notes" 
+                            <textarea class="w-[300px] border border-gray-300 rounded px-2 py-1 text-xs device-notes" 
                                       rows="2" placeholder="Nhập chú thích..." data-device-id="${device.id}"></textarea>
                         </td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
@@ -644,7 +613,8 @@
                         if (currentValue > maxQuantity) {
                             this.value = maxQuantity;
                             alert(
-                            `⚠️ Số lượng không được vượt quá ${maxQuantity} sản phẩm có sẵn!`);
+                                `⚠️ Số lượng không được vượt quá ${maxQuantity} sản phẩm có sẵn!`
+                                );
                         }
 
                         if (currentValue < 1) {
@@ -670,7 +640,8 @@
                             if (pasteValue > maxQuantity) {
                                 this.value = maxQuantity;
                                 alert(
-                                    `⚠️ Số lượng không được vượt quá ${maxQuantity} sản phẩm có sẵn!`);
+                                    `⚠️ Số lượng không được vượt quá ${maxQuantity} sản phẩm có sẵn!`
+                                    );
                             } else if (pasteValue < 1) {
                                 this.value = 1;
                             } else {
@@ -683,14 +654,35 @@
                 // Thêm event listeners cho các button chọn/từ chối
                 document.querySelectorAll('.select-device-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
-                        // Disable button ngay lập tức để tránh double-click
-                        this.disabled = true;
-                        const originalText = this.innerHTML;
-                        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Đang xử lý...';
-                        
-                        try {
                         const device = JSON.parse(this.getAttribute('data-device'));
                         const row = this.closest('tr');
+
+                        // Toggle off if already selected
+                        if (isDeviceSelected(device.id)) {
+                            removeDeviceById(device.id);
+                            // Sau khi huỷ chọn, nếu không còn vật tư thì ẩn bảng; ngược lại render lại
+                            if (typeof updateMaterialsDisplay === 'function') {
+                                updateMaterialsDisplay();
+                            }
+                            if (deviceMaterialsList.length === 0) {
+                                deviceMaterials.classList.add('hidden');
+                            }
+                            // Reset UI
+                            row.style.backgroundColor = '';
+                            this.innerHTML = '<i class="fas fa-check mr-1"></i> Chọn';
+                            this.className =
+                                'select-device-btn bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs';
+                            const rejectBtn = row.querySelector('.reject-device-btn');
+                            if (rejectBtn) {
+                                rejectBtn.disabled = false;
+                                rejectBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                                rejectBtn.className =
+                                    'reject-device-btn bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs';
+                                rejectBtn.innerHTML = '<i class="fas fa-times mr-1"></i> Từ chối';
+                            }
+                            return;
+                        }
+
                         const quantityInput = row.querySelector('.device-quantity');
                         const quantity = parseInt(quantityInput.value);
                         const maxQuantity = parseInt(quantityInput.getAttribute('max'));
@@ -704,25 +696,16 @@
                                 `❌ Số lượng không được vượt quá ${maxQuantity} sản phẩm có sẵn!\nVui lòng nhập số lượng từ 1 đến ${maxQuantity}.`);
                             quantityInput.focus();
                             quantityInput.select();
-                            return; // Không thực hiện chọn thiết bị
+                            return;
                         }
-
                         if (quantity < 1 || isNaN(quantity)) {
                             alert('❌ Số lượng phải lớn hơn 0!');
                             quantityInput.focus();
                             quantityInput.select();
-                            return; // Không thực hiện chọn thiết bị  
+                            return;
                         }
 
-                        // Debug logging để kiểm tra device data từ API
-                        console.log('🔍 Original device data from API:', device);
-                        console.log('🔍 Device serial from API:', device.serial);
-                        console.log('🔍 Device images count:', images.length);
-                        console.log('🔍 Device images FileList:', images);
-                        
-                        // Convert FileList to Array for better handling
                         const imagesArray = Array.from(images);
-                        console.log('🔍 Device images Array:', imagesArray);
 
                         const deviceToAdd = {
                             id: device.id,
@@ -731,36 +714,26 @@
                             serial: device.serial || '',
                             quantity: quantity,
                             notes: notes,
-                            images: imagesArray, // Use array instead of FileList
+                            images: imagesArray,
                             status: device.status,
                             fromWarranty: true,
-                            type: device.type || 'product' // Store device type (good or product)
+                            type: device.type || 'product'
                         };
 
-                        console.log('🔍 Device to add to list:', deviceToAdd);
                         addDeviceToList(deviceToAdd);
-
-                        // Lấy và hiển thị vật tư của thiết bị
                         fetchDeviceMaterials(device.id, device.code);
 
-                        // Cập nhật style sau khi chọn
+                        // Selected UI
                         row.style.backgroundColor = '#d1fae5';
-                        this.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Đã chọn';
-                        this.disabled = true;
+                        this.innerHTML = '<i class="fas fa-undo mr-1"></i> Huỷ Chọn';
                         this.className =
                             'select-device-btn bg-green-100 text-green-600 px-2 py-1 rounded transition-colors text-xs';
 
-                        // Vô hiệu hóa button từ chối
+                        // Disable reject while selected
                         const rejectBtn = row.querySelector('.reject-device-btn');
-                        rejectBtn.disabled = true;
-                        rejectBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                        
-                        } catch (error) {
-                            console.error('Error adding device:', error);
-                            // Restore button state if error occurs
-                            this.disabled = false;
-                            this.innerHTML = originalText;
-                            alert('Có lỗi xảy ra khi thêm thiết bị. Vui lòng thử lại.');
+                        if (rejectBtn) {
+                            rejectBtn.disabled = true;
+                            rejectBtn.classList.add('opacity-50', 'cursor-not-allowed');
                         }
                     });
                 });
@@ -768,27 +741,24 @@
                 document.querySelectorAll('.reject-device-btn').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const device = JSON.parse(this.getAttribute('data-device'));
+                        const row = this.closest('tr');
+
+                        // Toggle off if already rejected
+                        if (isDeviceRejected(device.id)) {
+                            cancelRejectForDevice(device, row, this);
+                            return;
+                        }
+
                         currentRejectingDevice = {
                             element: this,
                             device: device,
-                            row: this.closest('tr')
+                            row: row
                         };
 
                         // Hiển thị thông tin thiết bị trong modal
-                        document.getElementById('reject-device-name').textContent =
-                            `${device.code} - ${device.name}`;
-                        
-                        // Hiển thị tổng số lượng và cập nhật số lượng từ chối
-                        const totalQuantity = device.quantity || 1;
-                        document.getElementById('reject-total-quantity').textContent = totalQuantity;
-                        
-                        const rejectQuantityInput = document.getElementById('reject-quantity');
-                        rejectQuantityInput.max = totalQuantity;
-                        rejectQuantityInput.value = totalQuantity; // Mặc định từ chối toàn bộ
-
-                        // Reset form
+                        document.getElementById('reject-device-name').textContent = `${device.code} - ${device.name}`;
+                        // Reset form (chỉ còn lý do)
                         document.getElementById('reject-reason').value = '';
-                        document.getElementById('reject-warehouse').value = '';
 
                         // Hiển thị modal
                         document.getElementById('reject-device-modal').classList.remove('hidden');
@@ -840,9 +810,10 @@
                 });
 
                 // Gọi API lấy vật tư của thiết bị
-                const url = `/api/repairs/device-materials?device_id=${deviceId}${currentWarrantyCode ? '&warranty_code=' + encodeURIComponent(currentWarrantyCode) : ''}`;
+                const url =
+                    `/api/repairs/device-materials?device_id=${deviceId}${currentWarrantyCode ? '&warranty_code=' + encodeURIComponent(currentWarrantyCode) : ''}`;
                 console.log('🌐 API URL:', url);
-                
+
                 fetch(url, {
                         method: 'GET',
                         headers: {
@@ -853,14 +824,16 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('📦 API Response for device', deviceCode, ':', data);
-                        
+
                         if (data.success && data.materials && data.materials.length > 0) {
                             console.log(`✅ Found ${data.materials.length} materials for device ${deviceCode}`);
-                            
+
                             // Thêm vật tư vào danh sách
                             data.materials.forEach((material, index) => {
-                                console.log(`📝 Processing material ${index + 1}/${data.materials.length}:`, material);
-                                
+                                console.log(
+                                    `📝 Processing material ${index + 1}/${data.materials.length}:`,
+                                    material);
+
                                 addMaterialToList({
                                     deviceId: deviceId,
                                     deviceCode: deviceCode,
@@ -877,7 +850,8 @@
                             // Hiển thị bảng vật tư
                             deviceMaterials.classList.remove('hidden');
                         } else {
-                            console.log('⚠️ No materials found for device', deviceCode, '- API response:', data);
+                            console.log('⚠️ No materials found for device', deviceCode, '- API response:',
+                            data);
                         }
                     })
                     .catch(error => {
@@ -931,25 +905,26 @@
                            </span>` :
                         '';
 
+                    const repairActive = !!material.repairNote;
+                    const replaceActive = !!material.hasPendingReplacement;
+                    const repairLabel = repairActive ? 'Huỷ Sửa chữa' : 'Sửa chữa';
+                    const repairIcon = repairActive ? 'fa-undo' : 'fa-tools';
+                    const repairBtnClass = repairActive ? 'bg-blue-200 text-blue-700' : 'bg-blue-100 text-blue-600';
+                    const replaceLabel = replaceActive ? 'Huỷ Thay thế' : 'Thay thế';
+                    const replaceIcon = replaceActive ? 'fa-undo' : 'fa-exchange-alt';
+                    const replaceBtnClass = replaceActive ? 'bg-yellow-200 text-yellow-700' : 'bg-yellow-100 text-yellow-600';
+
                     row.innerHTML = `
-                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${material.deviceCode}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${material.materialCode}</td>
-                        <td class="px-3 py-2 text-sm text-gray-700">
-                            ${material.materialName}
-                            ${replacementBadge}
-                        </td>
-                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${material.materialSerial}</td>
-                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${material.quantity || 1}</td>
+                        <td class="px-3 py-2 text-sm text-gray-700">${material.materialName}</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${(material.materialSerial && material.materialSerial.trim()) ? material.materialSerial : 'N/A'}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
                             <div class="flex items-center space-x-2">
-                                <label class="flex items-center">
-                                    <input type="checkbox" class="material-damaged-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" 
-                                           data-index="${index}">
-                                    <span class="ml-1 text-sm text-gray-700">Hư hỏng</span>
-                                </label>
-                                <button type="button" class="bg-yellow-100 text-yellow-600 px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs" 
-                                        onclick="replaceMaterial(${index})">
-                                    <i class="fas fa-exchange-alt mr-1"></i> Thay thế
+                                <button type="button" class="material-repair-btn ${repairBtnClass} px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs" data-index="${index}">
+                                    <i class="fas ${repairIcon} mr-1"></i> ${repairLabel}
+                                </button>
+                                <button type="button" class="material-replace-btn ${replaceBtnClass} px-2 py-1 rounded hover:bg-yellow-200 transition-colors text-xs" data-index="${index}">
+                                    <i class="fas ${replaceIcon} mr-1"></i> ${replaceLabel}
                                 </button>
                             </div>
                         </td>
@@ -958,7 +933,7 @@
                 });
             }
 
-            // Hàm thay thế vật tư
+                // Hàm thay thế vật tư
             window.replaceMaterial = function(index) {
                 // Lấy dữ liệu mới nhất từ deviceMaterialsList
                 const material = deviceMaterialsList[index];
@@ -981,11 +956,51 @@
                 document.getElementById('replace-material-code').textContent = material.materialCode;
                 document.getElementById('replace-material-name').textContent = material.materialName;
 
+                // Xác định vật tư có serial hay không (dựa vào dữ liệu hiện có)
+                const hasAnySerial = (() => {
+                    const normalize = (s) => (s || '').toString().trim().toUpperCase();
+                    const serialStr = normalize(material.materialSerial);
+                    const current = Array.isArray(material.currentSerials)
+                        ? material.currentSerials.map(normalize).filter(s => s && s !== 'N/A')
+                        : [];
+                    const originals = Array.isArray(material.originalSerials)
+                        ? material.originalSerials.map(normalize).filter(s => s && s !== 'N/A')
+                        : [];
+                    const hasStr = serialStr && serialStr !== 'N/A';
+                    return hasStr || current.length > 0 || originals.length > 0;
+                })();
+
+                // Chuẩn hoá hiển thị các phần chọn serial theo hasAnySerial
+                const oldSerialWrap = document.getElementById('old-serial-selection');
+                const oldStar = document.getElementById('old-serial-required-star');
+                const newSerialWrap = document.getElementById('serial-selection');
+                const newStar = document.getElementById('new-serial-required-star');
+                const newSerialList = document.getElementById('serial-list');
+
+                if (!hasAnySerial) {
+                    // Ẩn phần chọn serial cũ
+                    oldSerialWrap.classList.add('hidden');
+                    oldStar.classList.add('hidden');
+                    // Hiển thị N/A cho serial mới và bỏ bắt buộc
+                    newSerialWrap.classList.remove('hidden');
+                    newStar.classList.add('hidden');
+                    newSerialList.innerHTML = '<p class="text-sm text-gray-500">N/A</p>';
+                } else {
+                    // Có serial: để mặc định, chờ load danh sách
+                    oldSerialWrap.classList.add('hidden'); // sẽ mở khi loadCurrentSerials
+                    oldStar.classList.remove('hidden');
+                    newSerialWrap.classList.add('hidden');
+                    newStar.classList.remove('hidden');
+                    newSerialList.innerHTML = '';
+                }
+                // Lưu cờ yêu cầu serial để dùng ở các handler khác
+                currentReplacingMaterial.requiresSerial = hasAnySerial;
+
                 // Set giá trị max cho số lượng (dựa trên số lượng vật tư trong thành phẩm)
                 const replaceQuantityInput = document.getElementById('replace-quantity');
                 const maxQuantitySpan = document.getElementById('max-quantity');
                 const actualQuantity = material
-                .quantity; // Lấy quantity của vật tư trong thành phẩm, không phải currentSerials.length
+                    .quantity; // Lấy quantity của vật tư trong thành phẩm, không phải currentSerials.length
 
                 replaceQuantityInput.max = actualQuantity;
                 replaceQuantityInput.value = 1;
@@ -1076,8 +1091,13 @@
 
                 if (serialsToShow.length > 0) {
                     loadCurrentSerials(serialsToShow, selectedOldSerials);
+                    // Bắt buộc chọn serial cũ
+                    document.getElementById('old-serial-required-star').classList.remove('hidden');
                 } else {
-                    console.log('⚠️ No serials to show!');
+                    console.log('⚠️ No serials to show! (vật tư không có serial)');
+                    // Hiển thị thông tin không có serial: giữ phần chọn serial cũ hidden
+                    document.getElementById('old-serial-selection').classList.add('hidden');
+                    document.getElementById('old-serial-required-star').classList.add('hidden');
                 }
 
                 // Load serial mới đã chọn trước đó (nếu có)
@@ -1106,7 +1126,7 @@
                     }
                     if (material.lastReplacementSelection.notes) {
                         document.getElementById('replace-notes').value = material.lastReplacementSelection
-                        .notes;
+                            .notes;
                     }
                 }
 
@@ -1126,6 +1146,99 @@
 
                 selectedDevices.push(device);
                 updateSelectedDevicesDisplay();
+            }
+
+            // Toggle Sửa chữa vật tư: mở subtab inline với trường Ghi chú *; toggle lần nữa để huỷ
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest && e.target.closest('.material-repair-btn');
+                if (btn) {
+                    const index = parseInt(btn.getAttribute('data-index'));
+                    const material = deviceMaterialsList[index];
+
+                    // Nếu đang ở trạng thái Huỷ Sửa chữa -> bỏ ghi chú
+                    if (material && material.repairNote !== undefined) {
+                        // Xoá ghi chú và ẩn subtab nếu có
+                        material.repairNote = undefined;
+                        const sub = btn.closest('tr').nextElementSibling;
+                        if (sub && sub.classList.contains('material-repair-subtab')) sub.remove();
+                        btn.innerHTML = '<i class="fas fa-tools mr-1"></i> Sửa chữa';
+                        btn.className = 'material-repair-btn bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs';
+                        return;
+                    }
+
+                    // Tạo subtab ngay dưới dòng vật tư (toggle nếu đã mở mà chưa lưu)
+                    const tr = btn.closest('tr');
+                    const existing = tr.nextElementSibling;
+                    if (existing && existing.classList.contains('material-repair-subtab')) {
+                        // Nếu chưa lưu ghi chú, click lần nữa sẽ hủy và ẩn subtab
+                        if (material.repairNote === undefined) {
+                            existing.remove();
+                            btn.innerHTML = '<i class="fas fa-tools mr-1"></i> Sửa chữa';
+                            btn.className = 'material-repair-btn bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs';
+                            return;
+                        }
+                        // Nếu đã lưu, case này được xử lý ở nhánh trên (Huỷ Sửa chữa)
+                    }
+                    const sub = document.createElement('tr');
+                    sub.className = 'material-repair-subtab';
+                    sub.innerHTML = `
+                        <td colspan="4" class="px-3 py-2 bg-blue-50">
+                            <div class="flex items-center space-x-2">
+                                <label class="text-sm text-gray-700 required w-[100px]">Ghi chú:</label>
+                                <input type="text" class="repair-note-input w-full border border-blue-200 rounded px-2 py-1 text-sm" placeholder="Nhập ghi chú sửa chữa bắt buộc" />
+                                <button type="button" class="confirm-repair-note bg-blue-500 text-white px-3 py-1 rounded text-sm">Lưu</button>
+                            </div>
+                        </td>`;
+                    tr.after(sub);
+
+                    const input = sub.querySelector('.repair-note-input');
+                    const confirmBtn = sub.querySelector('.confirm-repair-note');
+                    confirmBtn.addEventListener('click', function() {
+                        const noteVal = (input.value || '').trim();
+                        if (!noteVal) {
+                            alert('Ghi chú sửa chữa là bắt buộc.');
+                            input.focus();
+                            return;
+                        }
+                        material.repairNote = noteVal;
+                        btn.innerHTML = '<i class="fas fa-undo mr-1"></i> Huỷ Sửa chữa';
+                        btn.className = 'material-repair-btn bg-blue-200 text-blue-700 px-2 py-1 rounded transition-colors text-xs';
+                        // Ẩn subtab sau khi lưu
+                        const subRow = btn.closest('tr').nextElementSibling;
+                        if (subRow && subRow.classList.contains('material-repair-subtab')) subRow.remove();
+                    });
+                }
+            });
+
+            // Gắn handler cho nút Thay thế mới (mở modal sẵn có)
+            document.addEventListener('click', function(e) {
+                const replaceBtn = e.target.closest && e.target.closest('.material-replace-btn');
+                if (replaceBtn) {
+                    const index = parseInt(replaceBtn.getAttribute('data-index'));
+                    replaceMaterial(index);
+                }
+            });
+
+            function isDeviceSelected(deviceId) {
+                return selectedDevices.some(d => d.id === deviceId);
+            }
+
+            function removeDeviceById(deviceId) {
+                const index = selectedDevices.findIndex(d => d.id === deviceId);
+                if (index !== -1) {
+                    // Gỡ vật tư liên quan
+                    const removed = selectedDevices[index];
+                    deviceMaterialsList = deviceMaterialsList.filter(m => m.deviceId != removed.id);
+                    // Cập nhật lại bảng vật tư ngay sau khi lọc
+                    if (typeof updateMaterialsDisplay === 'function') {
+                        updateMaterialsDisplay();
+                    }
+                    if (deviceMaterialsList.length === 0) {
+                        deviceMaterials.classList.add('hidden');
+                    }
+                    selectedDevices.splice(index, 1);
+                    updateSelectedDevicesDisplay();
+                }
             }
 
             // Hàm cập nhật hiển thị danh sách thiết bị đã chọn
@@ -1148,19 +1261,18 @@
                     const deviceDiv = document.createElement('div');
                     deviceDiv.className =
                         'flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200';
-                    
+
                     // Tạo HTML hiển thị hình ảnh nếu có
                     let imagesDisplay = '';
                     if (device.images && device.images.length > 0) {
-                        imagesDisplay = `<div class="text-xs text-blue-600 mt-1">📸 ${device.images.length} hình ảnh đã chọn</div>`;
+                        imagesDisplay =
+                            `<div class="text-xs text-blue-600 mt-1">📸 ${device.images.length} hình ảnh đã chọn</div>`;
                     }
-                    
-                    // Determine device type badge
+
+                    // Determine device type label
                     const isGood = device.type === 'good';
-                    const deviceTypeBadge = isGood 
-                        ? '<span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">Hàng hóa</span>' 
-                        : '<span class="ml-1 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">Sản phẩm</span>';
-                    
+                    const typeLabel = isGood ? 'Hàng hoá' : 'Thành phẩm';
+
                     deviceDiv.innerHTML = `
                         <input type="hidden" name="selected_devices[]" value="${device.id}">
                         <input type="hidden" name="device_code[${device.id}]" value="${device.code}">
@@ -1171,12 +1283,13 @@
                         <input type="hidden" name="device_type[${device.id}]" value="${device.type || 'product'}">
                         <div class="flex-1">
                             <div class="text-sm font-medium text-gray-900">
-                                ${device.code} - ${device.name} ${deviceTypeBadge}
+                                ${device.code} - ${device.name}
                             </div>
                             <div class="text-xs text-gray-500">
-                                ${device.serial ? 'Serial: ' + device.serial : 'Không có serial'}
+                                ${device.serial && device.serial.trim() ? 'Serial: ' + device.serial : 'Serial: N/A'}
                                 ${device.quantity ? ' • Số lượng: ' + device.quantity : ''}
                                 ${device.fromWarranty ? ' • Từ bảo hành' : ' • Thêm thủ công'}
+                                • Loại: ${typeLabel}
                             </div>
                             ${device.notes ? '<div class="text-xs text-gray-600 mt-1">💬 ' + device.notes + '</div>' : ''}
                             ${imagesDisplay}
@@ -1186,7 +1299,7 @@
                         </button>
                     `;
                     selectedDevicesContainer.appendChild(deviceDiv);
-                    
+
                     // Không cần tạo hidden file inputs nữa vì dùng FormData trong submit
                 });
             }
@@ -1204,7 +1317,7 @@
                     const shouldKeep = material.deviceId != removedDevice.id;
                     console.log(
                         `Material ${material.materialCode} from device ${material.deviceCode} (deviceId: ${material.deviceId}): ${shouldKeep ? 'keeping' : 'removing'}`
-                        );
+                    );
                     return shouldKeep;
                 });
 
@@ -1375,7 +1488,7 @@
                         const isSelected = selectedSerials.includes(serial);
                         console.log(
                             `🔍 Serial ${serial}: isSelected = ${isSelected} (from selectedSerials: [${selectedSerials.join(', ')}])`
-                            );
+                        );
 
                         const serialItem = document.createElement('div');
                         serialItem.className =
@@ -1512,6 +1625,8 @@
                             });
 
                             document.getElementById('serial-selection').classList.remove('hidden');
+                            // Bắt buộc chọn serial mới khi có danh sách
+                            document.getElementById('new-serial-required-star').classList.remove('hidden');
 
                             // Thêm event listener để giới hạn số lượng checkbox được chọn
                             const checkboxes = serialList.querySelectorAll('.serial-checkbox:not([disabled])');
@@ -1533,9 +1648,10 @@
                                 });
                             });
                         } else {
-                            serialList.innerHTML =
-                                '<p class="text-sm text-gray-500">Không có serial nào khả dụng trong kho này</p>';
+                            // Không có serial trong kho -> coi như vật tư không có serial
+                            serialList.innerHTML = '<p class="text-sm text-gray-500">N/A</p>';
                             document.getElementById('serial-selection').classList.remove('hidden');
+                            document.getElementById('new-serial-required-star').classList.add('hidden');
                         }
                     })
                     .catch(error => {
@@ -1594,14 +1710,18 @@
                     return;
                 }
 
-                if (selectedOldSerials.length !== quantity) {
-                    alert(`Vui lòng chọn đúng ${quantity} serial vật tư cũ cần thay thế`);
-                    return;
-                }
+                // Nếu vật tư có serial thì bắt buộc chọn serial đủ số lượng
+                const requiresSerial = !!(currentReplacingMaterial && currentReplacingMaterial.requiresSerial);
 
-                if (selectedNewSerials.length !== quantity) {
-                    alert(`Vui lòng chọn đúng ${quantity} serial vật tư mới để thay thế`);
-                    return;
+                if (requiresSerial) {
+                    if (selectedOldSerials.length !== quantity) {
+                        alert(`Vui lòng chọn đúng ${quantity} serial vật tư cũ cần thay thế`);
+                        return;
+                    }
+                    if (selectedNewSerials.length !== quantity) {
+                        alert(`Vui lòng chọn đúng ${quantity} serial vật tư mới để thay thế`);
+                        return;
+                    }
                 }
 
                 // Validation số lượng không vượt quá số lượng vật tư trong thành phẩm
@@ -1618,8 +1738,8 @@
                     materialCode: currentReplacingMaterial.materialCode,
                     materialName: currentReplacingMaterial.materialName,
                     quantity: quantity,
-                    oldSerials: selectedOldSerials,
-                    newSerials: selectedNewSerials,
+                    oldSerials: requiresSerial ? selectedOldSerials : [],
+                    newSerials: requiresSerial ? selectedNewSerials : [],
                     sourceWarehouse: sourceWarehouse,
                     targetWarehouse: targetWarehouse,
                     notes: notes,
@@ -1797,9 +1917,10 @@
 
             confirmRejectBtn.addEventListener('click', function() {
                 const reason = document.getElementById('reject-reason').value.trim();
-                const warehouseId = document.getElementById('reject-warehouse').value;
-                const rejectQuantity = parseInt(document.getElementById('reject-quantity').value);
-                const totalQuantity = parseInt(document.getElementById('reject-total-quantity').textContent);
+                // Theo yêu cầu: chỉ yêu cầu lý do, bỏ kho/số lượng
+                const warehouseId = null;
+                const rejectQuantity = 1;
+                const totalQuantity = 1;
 
                 if (!reason) {
                     alert('Vui lòng nhập lý do từ chối thiết bị');
@@ -1807,23 +1928,7 @@
                     return;
                 }
 
-                if (!warehouseId) {
-                    alert('Vui lòng chọn kho lưu trữ thiết bị');
-                    document.getElementById('reject-warehouse').focus();
-                    return;
-                }
-
-                if (!rejectQuantity || rejectQuantity < 1) {
-                    alert('Vui lòng nhập số lượng từ chối hợp lệ (≥ 1)');
-                    document.getElementById('reject-quantity').focus();
-                    return;
-                }
-
-                if (rejectQuantity > totalQuantity) {
-                    alert(`Số lượng từ chối không thể lớn hơn tổng số lượng (${totalQuantity})`);
-                    document.getElementById('reject-quantity').focus();
-                    return;
-                }
+                // Bỏ các kiểm tra kho/số lượng để phù hợp yêu cầu UI
 
                 // Thực hiện từ chối thiết bị
                 processRejectDevice(reason, warehouseId, rejectQuantity);
@@ -1854,25 +1959,27 @@
 
                 // Cập nhật giao diện dựa trên số lượng từ chối
                 if (rejectQuantity >= totalQuantity) {
-                    // Từ chối toàn bộ - đánh dấu đỏ và vô hiệu hóa
-                row.style.backgroundColor = '#fee2e2';
-                element.innerHTML = '<i class="fas fa-times-circle mr-1"></i> Đã từ chối';
-                element.disabled = true;
-                element.className =
-                    'reject-device-btn bg-red-200 text-red-700 px-2 py-1 rounded transition-colors text-xs cursor-not-allowed';
-
-                // Vô hiệu hóa button chọn
-                const selectBtn = row.querySelector('.select-device-btn');
-                selectBtn.disabled = true;
-                selectBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                } else {
-                    // Từ chối một phần - đánh dấu vàng và hiển thị thông tin
-                    row.style.backgroundColor = '#fef3c7';
-                    element.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i> Từ chối ${rejectQuantity}/${totalQuantity}`;
-                    element.disabled = true;
+                    // Từ chối toàn bộ - đánh dấu đỏ và đổi nút thành Huỷ Từ chối
+                    row.style.backgroundColor = '#fee2e2';
+                    element.innerHTML = '<i class="fas fa-undo mr-1"></i> Huỷ Từ chối';
+                    element.disabled = false;
                     element.className =
-                        'reject-device-btn bg-yellow-200 text-yellow-800 px-2 py-1 rounded transition-colors text-xs cursor-not-allowed';
-                    
+                        'reject-device-btn bg-red-200 text-red-700 px-2 py-1 rounded transition-colors text-xs';
+
+                    // Vô hiệu hóa button chọn trong khi đang bị từ chối
+                    const selectBtn = row.querySelector('.select-device-btn');
+                    if (selectBtn) {
+                        selectBtn.disabled = true;
+                        selectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
+                } else {
+                    // Từ chối một phần - đánh dấu vàng và đổi nút thành Huỷ Từ chối
+                    row.style.backgroundColor = '#fef3c7';
+                    element.innerHTML = '<i class="fas fa-undo mr-1"></i> Huỷ Từ chối';
+                    element.disabled = false;
+                    element.className =
+                        'reject-device-btn bg-yellow-200 text-yellow-800 px-2 py-1 rounded transition-colors text-xs';
+
                     // Cập nhật số lượng hiển thị trong bảng
                     const quantityCell = row.querySelector('.device-quantity');
                     if (quantityCell) {
@@ -1885,14 +1992,34 @@
                 closeRejectModalFunction();
 
                 // Hiển thị thông báo thành công
-                const quantityText = rejectQuantity >= totalQuantity ? 'toàn bộ' : `${rejectQuantity}/${totalQuantity}`;
-                alert(`✅ Đã từ chối ${quantityText} thiết bị: ${device.code} - ${device.name}\n📝 Lý do: ${reason}`);
+                alert(`✅ Đã từ chối thiết bị: ${device.code} - ${device.name}\n📝 Lý do: ${reason}`);
+            }
+
+            function isDeviceRejected(deviceId) {
+                return rejectedDevices.some(d => d.id === deviceId);
+            }
+
+            function cancelRejectForDevice(device, row, btnEl) {
+                // Remove from rejectedDevices
+                rejectedDevices = rejectedDevices.filter(d => d.id !== device.id);
+                // Reset UI
+                row.style.backgroundColor = '';
+                btnEl.disabled = false;
+                btnEl.className =
+                    'reject-device-btn bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200 transition-colors text-xs';
+                btnEl.innerHTML = '<i class="fas fa-times mr-1"></i> Từ chối';
+                // Re-enable select
+                const selectBtn = row.querySelector('.select-device-btn');
+                if (selectBtn) {
+                    selectBtn.disabled = false;
+                    selectBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
             }
 
             // Validate form before submit
             document.querySelector('form').addEventListener('submit', function(e) {
                 e.preventDefault(); // Prevent default form submission
-                
+
                 // Kiểm tra phải có ít nhất một thiết bị được chọn HOẶC từ chối
                 if (selectedDevices.length === 0 && rejectedDevices.length === 0) {
                     alert('Vui lòng chọn hoặc từ chối ít nhất một thiết bị');
@@ -1912,11 +2039,11 @@
 
                 // Tạo FormData để gửi dữ liệu và files
                 const formData = new FormData();
-                
+
                 // Thêm các field cơ bản từ form
                 const formInputs = this.querySelectorAll('input, select, textarea');
                 console.log('🔍 Form has', formInputs.length, 'inputs total');
-                
+
                 formInputs.forEach(input => {
                     if (input.type === 'file') {
                         console.log('⏭️ Skipping file input:', input.name);
@@ -1936,7 +2063,7 @@
                 // Debug: Kiểm tra selectedDevices trước khi gửi
                 console.log('🔍 selectedDevices before submit:', selectedDevices);
                 console.log('🔍 selectedDevices IDs:', selectedDevices.map(d => d.id));
-                
+
                 // Kiểm tra duplicate IDs
                 const deviceIds = selectedDevices.map(d => d.id);
                 const uniqueIds = [...new Set(deviceIds)];
@@ -1951,19 +2078,20 @@
                 // Thêm thông tin thiết bị đã chọn và hình ảnh
                 selectedDevices.forEach((device, index) => {
                     console.log(`🔍 Processing device ${index}: ${device.id} - ${device.code}`);
-                    
+
                     // Escape device ID để tránh conflict với Laravel input parsing
-                    const deviceKey = device.id.replace(/\./g, '_DOT_').replace(/\[/g, '_LB_').replace(/\]/g, '_RB_');
+                    const deviceKey = device.id.replace(/\./g, '_DOT_').replace(/\[/g, '_LB_')
+                        .replace(/\]/g, '_RB_');
                     console.log(`🔑 Original device ID: ${device.id}`);
                     console.log(`🔑 Escaped device key: ${deviceKey}`);
-                    
+
                     formData.append('selected_devices[]', device.id);
                     formData.append(`device_code[${deviceKey}]`, device.code);
                     formData.append(`device_name[${deviceKey}]`, device.name);
                     formData.append(`device_serial[${deviceKey}]`, device.serial || '');
                     formData.append(`device_quantity[${deviceKey}]`, device.quantity || 1);
                     formData.append(`device_notes[${deviceKey}]`, device.notes || '');
-                    
+
                     console.log(`📝 Added device data with key ${deviceKey}:`, {
                         code: device.code,
                         name: device.name,
@@ -1971,17 +2099,21 @@
                         quantity: device.quantity,
                         notes: device.notes
                     });
-                    
+
                     // Thêm hình ảnh thiết bị với escaped key
                     if (device.images && device.images.length > 0) {
                         for (let i = 0; i < device.images.length; i++) {
                             const imageKey = `device_images[${deviceKey}][]`;
                             formData.append(imageKey, device.images[i]);
-                            console.log(`📸 Adding image ${i} for device ${device.code} with key: ${imageKey}`, device.images[i]);
+                            console.log(
+                                `📸 Adding image ${i} for device ${device.code} with key: ${imageKey}`,
+                                device.images[i]);
                         }
-                        console.log(`📸 Added ${device.images.length} images for device ${device.code}`);
+                        console.log(
+                            `📸 Added ${device.images.length} images for device ${device.code}`);
                     } else {
-                        console.log(`❌ No images for device ${device.code}. Images:`, device.images);
+                        console.log(`❌ No images for device ${device.code}. Images:`, device
+                        .images);
                     }
                 });
 
@@ -1993,6 +2125,23 @@
                 // Thêm thông tin thay thế vật tư
                 if (materialReplacements.length > 0) {
                     formData.append('material_replacements', JSON.stringify(materialReplacements));
+                }
+
+                // Thêm thông tin sửa chữa vật tư (ghi chú bắt buộc)
+                const damagedMaterialsPayload = [];
+                deviceMaterialsList.forEach(m => {
+                    if (m.repairNote && m.repairNote.trim()) {
+                        damagedMaterialsPayload.push({
+                            device_code: m.deviceCode,
+                            material_code: m.materialCode,
+                            material_name: m.materialName,
+                            serial: (m.materialSerial && m.materialSerial.trim()) ? m.materialSerial : null,
+                            damage_description: m.repairNote
+                        });
+                    }
+                });
+                if (damagedMaterialsPayload.length > 0) {
+                    formData.append('damaged_materials', JSON.stringify(damagedMaterialsPayload));
                 }
 
                 // Thêm repair photos từ input file
@@ -2015,7 +2164,7 @@
                         formDataEntries.push([pair[0], pair[1]]);
                     }
                 }
-                
+
                 // Group by key to check for duplicates
                 const groupedEntries = {};
                 formDataEntries.forEach(([key, value]) => {
@@ -2024,13 +2173,14 @@
                     }
                     groupedEntries[key].push(value);
                 });
-                
+
                 // Log grouped entries and highlight duplicates
                 console.log('📋 Grouped FormData entries:');
                 Object.keys(groupedEntries).forEach(key => {
                     const values = groupedEntries[key];
                     if (values.length > 1) {
-                        console.warn(`⚠️ DUPLICATE KEY: ${key} has ${values.length} values:`, values);
+                        console.warn(`⚠️ DUPLICATE KEY: ${key} has ${values.length} values:`,
+                            values);
                     } else {
                         console.log(`✅ ${key}:`, values[0]);
                     }
@@ -2038,25 +2188,25 @@
 
                 // Gửi request
                 fetch(this.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken
-                        // Không set Content-Type, để browser tự động set với boundary
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        // Redirect về trang danh sách
-                        window.location.href = '/repairs';
-                    } else {
-                        throw new Error('Network response was not ok');
-                    }
-                })
-                .catch(error => {
-                    console.error('❌ Error submitting form:', error);
-                    alert('Có lỗi xảy ra khi lưu phiếu sửa chữa. Vui lòng thử lại.');
-                });
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken
+                            // Không set Content-Type, để browser tự động set với boundary
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Redirect về trang danh sách
+                            window.location.href = '/repairs';
+                        } else {
+                            throw new Error('Network response was not ok');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Error submitting form:', error);
+                        alert('Có lỗi xảy ra khi lưu phiếu sửa chữa. Vui lòng thử lại.');
+                    });
             });
         });
     </script>

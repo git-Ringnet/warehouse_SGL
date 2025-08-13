@@ -43,15 +43,22 @@
                         </button>
                     </a>
                 @endif
-
-                @if ($canDelete)
-                    <button type="button" onclick="confirmDelete({{ $repair->id }}, '{{ $repair->repair_code }}')"
-                        class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                        <i class="fas fa-trash-alt mr-2"></i> Xóa
-                    </button>
-                @endif
             </div>
         </header>
+
+        <div id="notificationArea">
+            @if (session('success'))
+                <div class="bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4"
+                    id="successAlert">
+                    {!! session('success') !!}
+                </div>
+            @endif
+            @if ($errors->has('error'))
+                <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" id="errorAlert">
+                    {{ $errors->first('error') }}
+                </div>
+            @endif
+        </div>
 
         <main class="p-6">
             <!-- Header Info -->
@@ -178,15 +185,15 @@
                                 <tr>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Mã thiết bị
+                                        Serial thành phẩm
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Mã linh kiện
+                                        Mã vật tư
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Tên linh kiện
+                                        Tên vật tư
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -198,15 +205,11 @@
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Số lượng
+                                        Kho trả linh kiện cũ
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Kho nguồn
-                                    </th>
-                                    <th scope="col"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Kho đích
+                                        Kho lấy linh kiện mới
                                     </th>
                                     <th scope="col"
                                         class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -218,7 +221,11 @@
                                 @forelse($repair->materialReplacements as $replacement)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {{ $replacement->device_code }}
+                                            @php
+                                                $matchedItem = $repair->repairItems->firstWhere('device_code', $replacement->device_code);
+                                                $deviceSerial = $matchedItem?->device_serial ?: 'N/A';
+                                            @endphp
+                                            {{ $deviceSerial }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                             {{ $replacement->material_code }}
@@ -249,9 +256,6 @@
                                             @else
                                                 <span class="text-gray-400">Không có</span>
                                             @endif
-                                        </td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                            {{ $replacement->quantity }}
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {{ $replacement->sourceWarehouse->name ?? 'Không xác định' }}
@@ -304,6 +308,14 @@
                                 </th>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Loại
+                                </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Số lượng
+                                </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Trạng thái
                                 </th>
                                 <th scope="col"
@@ -324,7 +336,13 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         {{ $item->device_name }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {{ $item->device_serial ?: 'Không có' }}</td>
+                                        {{ $item->device_serial ?: 'N/A' }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        {{ $item->device_type === 'good' ? 'Hàng hoá' : 'Thành phẩm' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        {{ $item->device_quantity ?? 1 }}
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                                         <span
                                             class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 

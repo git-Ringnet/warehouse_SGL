@@ -110,60 +110,68 @@
         <td colspan="6" style="font-weight: bold; background-color: #E6F3FF;">DANH SÁCH VẬT TƯ SỬ DỤNG</td>
     </tr>
     @php
-        // Nhóm vật tư theo thành phẩm
+        // Nhóm vật tư theo thành phẩm và đơn vị thành phẩm
         $materialsByProduct = [];
-        foreach ($assembly->materials as $material) {
-            $productId = $material->target_product_id ?? ($assembly->products->first()->product_id ?? null);
-            if (!isset($materialsByProduct[$productId])) {
-                $materialsByProduct[$productId] = [
-                    'product' => null,
-                    'materials' => []
+        if ($assembly->products && $assembly->products->count() > 0) {
+            foreach ($assembly->products as $product) {
+                $materialsByProduct[$product->product_id] = [
+                    'product' => $product->product,
+                    'units' => [],
                 ];
             }
-            $materialsByProduct[$productId]['materials'][] = $material;
-        }
-        
-        // Lấy thông tin thành phẩm cho mỗi nhóm
-        foreach ($materialsByProduct as $productId => &$group) {
-            if ($productId) {
-                $product = \App\Models\Product::find($productId);
-                $group['product'] = $product;
-            } elseif ($assembly->products && $assembly->products->count() > 0) {
-                $group['product'] = $assembly->products->first()->product;
-            } else {
-                $group['product'] = $assembly->product;
+            foreach ($assembly->materials as $material) {
+                $productId = $material->target_product_id ?? $assembly->products->first()->product_id;
+                $unit = $material->product_unit ?? 0;
+                if (!isset($materialsByProduct[$productId])) {
+                    $materialsByProduct[$productId] = [
+                        'product' => $assembly->products->first()->product,
+                        'units' => [],
+                    ];
+                }
+                if (!isset($materialsByProduct[$productId]['units'][$unit])) {
+                    $materialsByProduct[$productId]['units'][$unit] = [];
+                }
+                $materialsByProduct[$productId]['units'][$unit][] = $material;
             }
+        } else {
+            // Legacy
+            $materialsByProduct['legacy'] = [
+                'product' => $assembly->product,
+                'units' => [0 => $assembly->materials->toArray()],
+            ];
         }
     @endphp
     
     @foreach ($materialsByProduct as $productId => $group)
-        @if ($group['product'])
+        @if (!empty($group['units']))
             <tr>
                 <td colspan="6" style="font-weight: bold; background-color: #E6F3FF;">
                     THÀNH PHẨM: {{ $group['product']->name ?? '' }} ({{ $group['product']->code ?? '' }})
                 </td>
             </tr>
-        @endif
-        <tr style="font-weight: bold; background-color: #F0F8FF;">
-            <td>STT</td>
-            <td>Mã vật tư</td>
-            <td>Tên vật tư</td>
-            <td>Số lượng</td>
-            <td>Serial</td>
-            <td>Ghi chú</td>
-        </tr>
-        @foreach ($group['materials'] as $index => $material)
-            <tr>
-                <td>{{ $index + 1 }}</td>
-                <td>{{ $material->material->code ?? '' }}</td>
-                <td>{{ $material->material->name ?? '' }}</td>
-                <td>{{ $material->quantity }}</td>
-                <td>{{ $material->serial ?? '' }}</td>
-                <td>{{ $material->note ?? '' }}</td>
-            </tr>
-        @endforeach
-        @if (!$loop->last)
-            <tr><td colspan="6"></td></tr>
+            @foreach ($group['units'] as $unitIndex => $unitMaterials)
+                <tr>
+                    <td colspan="6" style="background-color:#F6FFF0; font-weight:bold;">ĐƠN VỊ THÀNH PHẨM {{ $unitIndex + 1 }}</td>
+                </tr>
+                <tr style="font-weight: bold; background-color: #F0F8FF;">
+                    <td>STT</td>
+                    <td>Mã vật tư</td>
+                    <td>Tên vật tư</td>
+                    <td>Số lượng</td>
+                    <td>Serial</td>
+                    <td>Ghi chú</td>
+                </tr>
+                @foreach ($unitMaterials as $index => $material)
+                    <tr>
+                        <td>{{ $index + 1 }}</td>
+                        <td>{{ $material->material->code ?? '' }}</td>
+                        <td>{{ $material->material->name ?? '' }}</td>
+                        <td>{{ $material->quantity }}</td>
+                        <td>{{ $material->serial ?? '' }}</td>
+                        <td>{{ $material->note ?? '' }}</td>
+                    </tr>
+                @endforeach
+            @endforeach
         @endif
     @endforeach
     <tr>

@@ -602,7 +602,21 @@ class AssemblyController extends Controller
             $allProductSerials[$assemblyProduct->product_id] = $query->get(['id', 'serial_number'])->toArray();
         }
 
-        return view('assemble.edit', compact('assembly', 'productSerials', 'materialSerials', 'allProductSerials'));
+        // Additional data for editable header fields when status is pending
+        $employees = Employee::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $user = \Illuminate\Support\Facades\Auth::guard('web')->user();
+        $projectsQuery = Project::orderBy('project_name');
+        if ($user && $user->role !== 'admin') {
+            $projectsQuery->whereHas('roles', function ($query) use ($user) {
+                $query->where('roles.id', $user->role_id);
+            });
+        }
+        $projects = $projectsQuery->get(['id', 'project_name', 'project_code']);
+
+        return view('assemble.edit', compact('assembly', 'productSerials', 'materialSerials', 'allProductSerials', 'employees', 'projects'));
     }
 
     /**
@@ -617,6 +631,16 @@ class AssemblyController extends Controller
             'products' => 'required|array|min:1',
             'products.*.serials' => 'nullable|array',
         ];
+
+        // Allow editing header fields while pending
+        if ($assembly->status === 'pending') {
+            $validationRules = array_merge($validationRules, [
+                'assigned_to' => 'required|exists:employees,id',
+                'tester_id' => 'required|exists:employees,id',
+                'purpose' => 'required|in:storage,project',
+                'project_id' => 'nullable|exists:projects,id',
+            ]);
+        }
 
         if ($assembly->status === 'in_progress') {
             // For in_progress assemblies, allow quantity and serial updates
@@ -702,11 +726,21 @@ class AssemblyController extends Controller
                 }
             }
 
-            // 3. Update assembly basic info (only date, notes, and warehouse_id)
-            $assembly->update([
+            // 3. Update assembly basic info
+            $basicUpdate = [
                 'date' => $request->assembly_date,
                 'notes' => $request->assembly_note,
-            ]);
+            ];
+
+            // When pending, also allow updating header fields
+            if ($assembly->status === 'pending') {
+                $basicUpdate['assigned_employee_id'] = $request->assigned_to;
+                $basicUpdate['tester_id'] = $request->tester_id;
+                $basicUpdate['purpose'] = $request->purpose;
+                $basicUpdate['project_id'] = $request->purpose === 'project' ? ($request->project_id ?: null) : null;
+            }
+
+            $assembly->update($basicUpdate);
 
             // 4. Update product serials (only if status is pending)
             if ($assembly->status === 'pending') {
@@ -845,10 +879,7 @@ class AssemblyController extends Controller
                                     ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
                             }
 
-                            // Update product_unit if provided
-                            if (isset($component['product_unit'])) {
-                                $updateData['product_unit'] = (int)$component['product_unit'];
-                            }
+                        // Do not change product_unit for non in_progress statuses
                         }
 
                         $assemblyMaterial->update($updateData);

@@ -703,10 +703,10 @@
                 }
 
                 // Kiểm tra số lượng thành phẩm đã thêm (chỉ cho phép 1 thành phẩm)
-                if (selectedProducts.length >= 1) {
-                    alert('Chỉ có thể thêm 1 thành phẩm cho mỗi phiếu lắp ráp!');
-                    return;
-                }
+                // if (selectedProducts.length >= 1) {
+                //     alert('Chỉ có thể thêm 1 thành phẩm cho mỗi phiếu lắp ráp!');
+                //     return;
+                // }
 
                 productCounter++;
 
@@ -1572,25 +1572,25 @@
 
             // Hàm cập nhật trạng thái nút thêm thành phẩm
             function updateAddProductButtonState() {
-                if (selectedProducts.length >= 1) {
-                    // Disable nút thêm và các trường nhập liệu
-                    addProductBtn.disabled = true;
-                    addProductBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    productSelect.disabled = true;
-                    productAddQuantity.disabled = true;
-                } else {
-                    // Enable nút thêm và các trường nhập liệu
-                    addProductBtn.disabled = false;
-                    addProductBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    productSelect.disabled = false;
-                    productAddQuantity.disabled = false;
+                // if (selectedProducts.length >= 1) {
+                //     // Disable nút thêm và các trường nhập liệu
+                //     addProductBtn.disabled = true;
+                //     addProductBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                //     productSelect.disabled = true;
+                //     productAddQuantity.disabled = true;
+                // } else {
+                //     // Enable nút thêm và các trường nhập liệu
+                //     addProductBtn.disabled = false;
+                //     addProductBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                //     productSelect.disabled = false;
+                //     productAddQuantity.disabled = false;
                     
-                    // Xóa thông báo
-                    const existingMessage = document.querySelector('.product-limit-message');
-                    if (existingMessage) {
-                        existingMessage.remove();
-                    }
-                }
+                //     // Xóa thông báo
+                //     const existingMessage = document.querySelector('.product-limit-message');
+                //     if (existingMessage) {
+                //         existingMessage.remove();
+                //     }
+                // }
             }
 
             // Hàm cập nhật danh sách thành phẩm
@@ -3708,10 +3708,10 @@
                     return;
                 }
                 
-                if (selectedProducts.length > 1) {
-                    alert('Chỉ có thể thêm 1 thành phẩm cho mỗi phiếu lắp ráp!');
-                    return;
-                }
+                // if (selectedProducts.length > 1) {
+                //     alert('Chỉ có thể thêm 1 thành phẩm cho mỗi phiếu lắp ráp!');
+                //     return;
+                // }
 
                 // Kiểm tra số lượng thành phẩm phải hợp lệ
                 for (let i = 0; i < selectedProducts.length; i++) {
