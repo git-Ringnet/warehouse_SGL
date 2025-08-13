@@ -137,7 +137,7 @@
                                             <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-2"></i>
                                             <p class="text-gray-700 font-medium">Kéo và thả file hoặc</p>
                                             <p class="mt-1 text-sm text-gray-500">
-                                                Hỗ trợ: APK, BIN, ZIP, EXE, DMG, TAR.GZ... (Tối đa 500MB)
+                                                Hỗ trợ: APK, BIN, ZIP, EXE, DMG, TAR.GZ... (Tối đa 300MB)
                                             </p>
                                             <button type="button" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm" id="browseBtn">
                                                 Chọn file
