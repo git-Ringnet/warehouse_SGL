@@ -1,3 +1,18 @@
+# PHP Settings for Large File Uploads
+php_value upload_max_filesize 500M
+php_value post_max_size 500M
+php_value max_execution_time 300
+php_value max_input_time 300
+php_value memory_limit 512M
+php_value max_file_uploads 20
+php_value max_input_vars 3000
+
+# Additional settings for large uploads
+php_value max_input_nesting_level 64
+php_value output_buffering 4096
+php_value default_socket_timeout 300
+
+# Laravel .htaccess
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
@@ -9,10 +24,6 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
-    RewriteCond %{HTTP:x-xsrf-token} .
-    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
-
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
@@ -22,4 +33,11 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
+</IfModule>
+
+# Additional Apache settings for large uploads
+<IfModule mod_php.c>
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 512M
 </IfModule>

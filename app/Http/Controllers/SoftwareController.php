@@ -50,6 +50,13 @@ class SoftwareController extends Controller
      */
     public function store(Request $request)
     {
+        // Set PHP settings for large file uploads
+        ini_set('upload_max_filesize', '500M');
+        ini_set('post_max_size', '500M');
+        ini_set('max_execution_time', 300);
+        ini_set('max_input_time', 300);
+        ini_set('memory_limit', '512M');
+        
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',
@@ -200,6 +207,13 @@ class SoftwareController extends Controller
      */
     public function update(Request $request, Software $software)
     {
+        // Set PHP settings for large file uploads
+        ini_set('upload_max_filesize', '500M');
+        ini_set('post_max_size', '500M');
+        ini_set('max_execution_time', 300);
+        ini_set('max_input_time', 300);
+        ini_set('memory_limit', '512M');
+        
         $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',

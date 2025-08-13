@@ -15,7 +15,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         \Illuminate\Http\Middleware\HandleCors::class,
-        \Illuminate\Foundation\Http\Middleware\ValidatePostSize::class,
+        \App\Http\Middleware\CustomValidatePostSize::class, // Custom post size validation for large files
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
     ];
@@ -64,6 +64,7 @@ class Kernel extends HttpKernel
         'check.permission' => \App\Http\Middleware\CheckPermissionMiddleware::class,
         'check.user.type' => \App\Http\Middleware\CheckUserType::class,
         'customer.access' => \App\Http\Middleware\CustomerAccessMiddleware::class,
+        'large.file.upload' => \App\Http\Middleware\LargeFileUploadMiddleware::class,
     ];
 
     /**
