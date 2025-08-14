@@ -895,8 +895,8 @@ class InventoryImportController extends Controller
                     // Gộp serial cũ và mới, loại bỏ trùng lặp
                     $mergedSerials = array_unique(array_merge($currentSerials, $serials));
                     $warehouseMaterial->serial_number = json_encode($mergedSerials);
+                    $warehouseMaterial->save(); // Save lại cho serials
                 }
-                $warehouseMaterial->save();
 
                 // Lưu serial numbers vào bảng serials (nếu có)
                 if (!empty($material->serial_numbers)) {
