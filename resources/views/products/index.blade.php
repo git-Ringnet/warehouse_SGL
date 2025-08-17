@@ -323,7 +323,7 @@
                             <h4 class="text-sm font-medium text-blue-800 mb-2">Lưu ý quan trọng:</h4>
                             <ul class="text-sm text-blue-700 space-y-1">
                                 <li>• Tải mẫu Excel trước khi import</li>
-                                <li>• Mã thành phẩm có thể trùng lặp</li>
+                                <li>• Mã thành phẩm không được trùng lặp</li>
                                 <li>• Các trường có (*) là bắt buộc</li>
                                 <li>• Xóa dòng mẫu trước khi import</li>
                             </ul>

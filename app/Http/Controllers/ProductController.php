@@ -858,7 +858,11 @@ class ProductController extends Controller
             // Store detailed results in session for the results page
             session(['import_results' => $results]);
 
-            if ($results['success_count'] > 0) {
+            // Kiểm tra nếu có trùng lặp và có ít nhất 1 thành công
+            if ($results['duplicate_count'] > 0 && $results['success_count'] > 0) {
+                $duplicateMessage = "Chỉ tạo thành công {$results['success_count']} thành phẩm do {$results['duplicate_count']} thành phẩm còn lại có mã bị trùng lặp";
+                return redirect()->route('products.import.results')->with('warning', $duplicateMessage);
+            } elseif ($results['success_count'] > 0) {
                 return redirect()->route('products.import.results')->with('success', $message);
             } else {
                 return redirect()->route('products.import.results')->with('warning', $message);

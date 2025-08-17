@@ -156,7 +156,7 @@
                                 <i class="fas fa-copy text-yellow-500 mr-2"></i>
                                 Thành phẩm trùng lặp ({{ $results['duplicate_count'] }})
                             </h2>
-                            <p class="text-sm text-gray-600 mt-1">Các thành phẩm đã tồn tại trong hệ thống (không bao gồm thành phẩm đã xóa)</p>
+                            <p class="text-sm text-gray-600 mt-1">Các thành phẩm không được tạo do mã đã tồn tại trong hệ thống</p>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">

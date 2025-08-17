@@ -500,7 +500,6 @@
                     // Disable add button when search input is cleared
                     addComponentBtn.disabled = true;
                     addComponentBtn.classList.add('opacity-50');
-                    console.log("Search input cleared - disabled add button");
                 }
             });
 
@@ -589,18 +588,6 @@
 
                     selectedComponents.push(newComponent);
                 }
-
-                // Update component list and check for changes
-                console.log('Added component to selectedComponents:', {
-                    total: selectedComponents.length,
-                    components: selectedComponents.map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        productId: c.productId,
-                        productUnit: c.productUnit,
-                        isFromProduct: c.isFromProduct
-                    }))
-                });
                 updateProductComponentList(productUniqueId);
                 checkAndShowCreateNewProductButton(productUniqueId);
 
@@ -1343,13 +1330,6 @@
                             .productUnit === parseInt(unitIndex)
                         );
                         if (component) {
-                            console.log('Updating component quantity:', {
-                                componentId,
-                                productId,
-                                unitIndex,
-                                oldQuantity: component.quantity,
-                                newQuantity
-                            });
                             const oldQuantity = component.quantity;
                             component.quantity = newQuantity;
 
@@ -1480,8 +1460,6 @@
                         if (componentProductSelect.value) {
                             addComponentBtn.disabled = false;
                             addComponentBtn.classList.remove('opacity-50');
-                            console.log(
-                                "Material selected from search results, enabling add button");
                         }
                     });
                 });
@@ -3709,10 +3687,6 @@
                 visibleComponentInputs.forEach(el => {
                     el.removeAttribute('name');
                 });
-
-                // Update hidden form data before validation
-                // updateHiddenComponentList();
-                // updateHiddenProductList();
 
                 // Check for serial validation errors first
                 const serialErrors = document.querySelectorAll('.serial-validation-msg');

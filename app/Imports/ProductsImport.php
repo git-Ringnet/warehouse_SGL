@@ -51,7 +51,21 @@ class ProductsImport implements ToCollection, WithHeadingRow
                     continue;
                 }
                 
-                // Note: Products can have duplicate codes, so we don't check for duplicates
+                // Kiểm tra trùng lặp mã thành phẩm
+                $existingProduct = Product::where('code', $row['ma_thanh_pham'])
+                    ->where('status', '!=', 'deleted')
+                    ->first();
+                
+                if ($existingProduct) {
+                    $this->importResults['duplicate_count']++;
+                    $this->importResults['duplicates'][] = [
+                        'row' => $rowNumber,
+                        'code' => $row['ma_thanh_pham'],
+                        'name' => $row['ten_thanh_pham'],
+                        'message' => 'Mã thành phẩm đã tồn tại trong hệ thống'
+                    ];
+                    continue; // Bỏ qua dòng này, không tạo thành phẩm mới
+                }
                 
                 // Parse inventory warehouses
                 $inventoryWarehouses = $this->parseInventoryWarehouses($row['kho_dung_de_tinh_ton_kho'] ?? 'all');
