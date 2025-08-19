@@ -52,10 +52,10 @@ class EquipmentServiceController extends Controller
             $warehouse = Warehouse::findOrFail($validatedData['warehouse_id']);
             $serialToReturn = $validatedData['equipment_serial'];
 
-            // Kiểm tra thiết bị phải thuộc loại dự phòng/bảo hành
-            if ($dispatchItem->category !== 'backup') {
+            // Kiểm tra thiết bị phải thuộc loại hợp đồng hoặc dự phòng/bảo hành
+            if (!in_array($dispatchItem->category, ['backup', 'contract'])) {
                 return redirect()->back()
-                    ->with('error', 'Chỉ có thể thu hồi thiết bị dự phòng/bảo hành.');
+                    ->with('error', 'Chỉ có thể thu hồi thiết bị theo hợp đồng hoặc dự phòng/bảo hành.');
             }
 
             // Kiểm tra serial có tồn tại trong item không
@@ -261,24 +261,64 @@ class EquipmentServiceController extends Controller
                     ->with('error', 'Thiết bị thay thế phải có cùng mã thiết bị với thiết bị cần thay thế.');
             }
 
-            // Kiểm tra serial tồn tại trong từng item
-            $originalSerials = is_array($originalItem->serial_numbers) ? $originalItem->serial_numbers : [];
-            $replacementSerials = is_array($replacementItem->serial_numbers) ? $replacementItem->serial_numbers : [];
-            
-            if (!in_array($validatedData['equipment_serial'], $originalSerials)) {
+            // Kiểm tra serial tồn tại trong từng item (so sánh sau khi trim)
+            $originalSerialsRaw = is_array($originalItem->serial_numbers) ? $originalItem->serial_numbers : [];
+            $replacementSerialsRaw = is_array($replacementItem->serial_numbers) ? $replacementItem->serial_numbers : [];
+
+            $originalSerials = array_map(function ($s) { return trim((string) $s); }, $originalSerialsRaw);
+            $replacementSerials = array_map(function ($s) { return trim((string) $s); }, $replacementSerialsRaw);
+
+            $requestedOriginalSerial = trim((string) $validatedData['equipment_serial']);
+            $requestedReplacementSerial = trim((string) $validatedData['replacement_serial']);
+
+            if (!in_array($requestedOriginalSerial, $originalSerials, true)) {
                 return redirect()->back()->with('error', 'Serial thiết bị hợp đồng không hợp lệ.');
             }
-            if (!in_array($validatedData['replacement_serial'], $replacementSerials)) {
+            if (!in_array($requestedReplacementSerial, $replacementSerials, true)) {
                 return redirect()->back()->with('error', 'Serial thiết bị dự phòng không hợp lệ.');
+            }
+
+            // Không cho phép dùng lại serial dự phòng đã sử dụng trước đó
+            // 1) Kiểm tra theo item cụ thể
+            $isReplacementSerialUsed = DispatchReplacement::where('replacement_dispatch_item_id', $replacementItem->id)
+                ->where('replacement_serial', $requestedReplacementSerial)
+                ->exists();
+            if ($isReplacementSerialUsed) {
+                return redirect()->back()->with('error', 'Serial thiết bị dự phòng đã được sử dụng để thay thế trước đó. Vui lòng chọn serial khác.');
+            }
+
+            // 2) Kiểm tra trong cùng phạm vi (project/rental) bất kể item nào
+            $isSerialUsedInScope = DispatchReplacement::where(function($q) use ($requestedReplacementSerial) {
+                    $q->where('replacement_serial', $requestedReplacementSerial)
+                      ->orWhere('original_serial', $requestedReplacementSerial);
+                })
+                ->whereHas('replacementDispatchItem.dispatch', function ($q) use ($originalItem) {
+                    if ($originalItem->dispatch->dispatch_type === 'rental') {
+                        $rentalCode = $originalItem->dispatch->project_receiver; // thường chứa rental_code
+                        $projectId = $originalItem->dispatch->project_id; // đôi khi được dùng làm rental_id
+                        $q->where('dispatch_type', 'rental')
+                          ->where(function ($qq) use ($rentalCode, $projectId) {
+                              $qq->where('project_id', $projectId)
+                                 ->orWhere('dispatch_note', 'LIKE', "%{$rentalCode}%")
+                                 ->orWhere('project_receiver', 'LIKE', "%{$rentalCode}%");
+                          });
+                    } else {
+                        $q->where('dispatch_type', 'project')
+                          ->where('project_id', $originalItem->dispatch->project_id);
+                    }
+                })
+                ->exists();
+            if ($isSerialUsedInScope) {
+                return redirect()->back()->with('error', 'Serial này đã được sử dụng trong phạm vi dự án/phiếu tương ứng. Vui lòng chọn serial khác.');
             }
             
             // Chỉ xóa serial được chọn khỏi mỗi item
-            $originalSerials = array_values(array_diff($originalSerials, [$validatedData['equipment_serial']]));
-            $replacementSerials = array_values(array_diff($replacementSerials, [$validatedData['replacement_serial']]));
+            $originalSerials = array_values(array_diff($originalSerials, [$requestedOriginalSerial]));
+            $replacementSerials = array_values(array_diff($replacementSerials, [$requestedReplacementSerial]));
 
             // Thêm serial mới vào từng item (swap chỉ 1 serial)
-            $originalSerials[] = $validatedData['replacement_serial']; // Thiết bị hợp đồng nhận serial dự phòng
-            $replacementSerials[] = $validatedData['equipment_serial']; // Thiết bị dự phòng nhận serial hợp đồng
+            $originalSerials[] = $requestedReplacementSerial; // Thiết bị hợp đồng nhận serial dự phòng
+            $replacementSerials[] = $requestedOriginalSerial; // Thiết bị dự phòng nhận serial hợp đồng
 
             // Cập nhật serial_numbers cho từng item
             $originalItem->serial_numbers = $originalSerials;
@@ -286,9 +326,9 @@ class EquipmentServiceController extends Controller
 
             // Không đổi category, chỉ cập nhật ghi chú cho serial được swap
             $originalItem->notes = ($originalItem->notes ? $originalItem->notes . "\n" : "") .
-                "Serial {$validatedData['equipment_serial']} đã được thay thế bằng serial {$validatedData['replacement_serial']} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+                "Serial {$requestedOriginalSerial} đã được thay thế bằng serial {$requestedReplacementSerial} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
             $replacementItem->notes = ($replacementItem->notes ? $replacementItem->notes . "\n" : "") .
-                "Serial {$validatedData['replacement_serial']} đã thay thế cho serial {$validatedData['equipment_serial']} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+                "Serial {$requestedReplacementSerial} đã thay thế cho serial {$requestedOriginalSerial} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
 
             $originalItem->save();
             $replacementItem->save();
@@ -298,8 +338,8 @@ class EquipmentServiceController extends Controller
                 'replacement_code' => DispatchReplacement::generateReplacementCode(),
                 'original_dispatch_item_id' => $originalItem->id,
                 'replacement_dispatch_item_id' => $replacementItem->id,
-                'original_serial' => $validatedData['equipment_serial'],
-                'replacement_serial' => $validatedData['replacement_serial'],
+                'original_serial' => $requestedOriginalSerial,
+                'replacement_serial' => $requestedReplacementSerial,
                 'user_id' => Auth::id() ?? 1,
                 'replacement_date' => Carbon::now(),
                 'reason' => $validatedData['reason'],
@@ -514,6 +554,7 @@ class EquipmentServiceController extends Controller
             // Lấy thông tin thay thế
             $replacements = DispatchReplacement::with([
                 'user', 
+                'employee',
                 'replacementDispatchItem.material', 
                 'replacementDispatchItem.product', 
                 'replacementDispatchItem.good',
@@ -529,14 +570,18 @@ class EquipmentServiceController extends Controller
                 ->map(function ($replacement) use ($responsibleEmployee) {
                     // Lấy thông tin nhân viên thực hiện
                     $employeeName = 'Không xác định';
-                    
-                    // Ưu tiên: Nhân viên phụ trách dự án/rental
-                    if ($responsibleEmployee) {
-                        $employeeName = $responsibleEmployee->name;
+
+                    // Ưu tiên: Nhân viên đang đăng nhập thực hiện thao tác (ghi trong replacement.user_id)
+                    if ($replacement->employee) {
+                        $employeeName = $replacement->employee->name;
                     }
-                    // Fallback: User name (nếu không phải customer)
+                    // Fallback: User model (nếu ứng dụng dùng bảng users)
                     elseif ($replacement->user && $replacement->user->role !== 'customer') {
                         $employeeName = $replacement->user->name;
+                    }
+                    // Cuối cùng: Nhân viên phụ trách của dự án/rental
+                    elseif ($responsibleEmployee) {
+                        $employeeName = $responsibleEmployee->name;
                     }
                     
                     // Thêm thông tin nhân viên vào replacement
@@ -728,20 +773,40 @@ class EquipmentServiceController extends Controller
                 ->whereIn('status', ['approved', 'completed'])
                 ->get();
             
+            // Thu thập toàn bộ serial đã được dùng làm replacement trong phạm vi project
+            $usedSerialsGlobal = DispatchReplacement::whereHas('replacementDispatchItem.dispatch', function($q) use ($projectId) {
+                $q->where('dispatch_type', 'project')
+                  ->where('project_id', $projectId)
+                  ->whereIn('status', ['approved', 'completed']);
+            })->get(['replacement_serial','original_serial'])
+              ->flatMap(function ($r) { return [trim((string)$r->replacement_serial), trim((string)$r->original_serial)]; })
+              ->filter()
+              ->unique()
+              ->values()
+              ->toArray();
+            
             $backupItems = collect();
             foreach ($dispatches as $dispatch) {
                 $items = $dispatch->items()
                     ->where('category', 'backup')
                     ->with(['material', 'product', 'good'])
                     ->get()
-                    ->map(function ($item) {
+                    ->map(function ($item) use ($usedSerialsGlobal) {
                         // Lấy danh sách serial đã được sử dụng làm replacement
                         $replacementSerials = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
                             ->pluck('replacement_serial')
                             ->toArray();
                         
                         // Thêm thông tin replacement_serials vào item
-                        $item->replacement_serials = $replacementSerials;
+                        $item->replacement_serials = array_map(function ($s) { return trim((string) $s); }, $replacementSerials);
+                        $item->used_serials_global = $usedSerialsGlobal; // cung cấp thêm danh sách đã dùng trong phạm vi project
+                        
+                        // Lọc danh sách serial_numbers để chỉ giữ serial chưa sử dụng
+                        $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
+                        $serials = array_filter(array_map(function ($s) { return trim((string) $s); }, $serials));
+                        $item->serial_numbers = array_values(array_filter($serials, function ($serial) use ($item, $usedSerialsGlobal) {
+                            return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
+                        }));
                         
                         return $item;
                     });
@@ -750,7 +815,8 @@ class EquipmentServiceController extends Controller
             
             return response()->json([
                 'success' => true,
-                'backupItems' => $backupItems
+                'backupItems' => $backupItems,
+                'usedSerialsGlobal' => $usedSerialsGlobal,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting backup items for project: ' . $e->getMessage());
@@ -777,20 +843,43 @@ class EquipmentServiceController extends Controller
                 })
                 ->get();
             
+            // Thu thập toàn bộ serial đã được dùng làm replacement trong phạm vi rental
+            $usedSerialsGlobal = DispatchReplacement::whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                $q->where('dispatch_type', 'rental')
+                  ->where(function($qq) use ($rental) {
+                      $qq->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                         ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                  })
+                  ->whereIn('status', ['approved', 'completed']);
+            })->get(['replacement_serial','original_serial'])
+              ->flatMap(function ($r) { return [trim((string)$r->replacement_serial), trim((string)$r->original_serial)]; })
+              ->filter()
+              ->unique()
+              ->values()
+              ->toArray();
+            
             $backupItems = collect();
             foreach ($dispatches as $dispatch) {
                 $items = $dispatch->items()
                     ->where('category', 'backup')
                     ->with(['material', 'product', 'good'])
                     ->get()
-                    ->map(function ($item) {
+                    ->map(function ($item) use ($usedSerialsGlobal) {
                         // Lấy danh sách serial đã được sử dụng làm replacement
                         $replacementSerials = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
                             ->pluck('replacement_serial')
                             ->toArray();
                         
                         // Thêm thông tin replacement_serials vào item
-                        $item->replacement_serials = $replacementSerials;
+                        $item->replacement_serials = array_map(function ($s) { return trim((string) $s); }, $replacementSerials);
+                        $item->used_serials_global = $usedSerialsGlobal; // cung cấp thêm danh sách đã dùng trong phạm vi rental
+                        
+                        // Lọc danh sách serial_numbers để chỉ giữ serial chưa sử dụng
+                        $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
+                        $serials = array_filter(array_map(function ($s) { return trim((string) $s); }, $serials));
+                        $item->serial_numbers = array_values(array_filter($serials, function ($serial) use ($item, $usedSerialsGlobal) {
+                            return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
+                        }));
                         
                         return $item;
                     });
@@ -799,7 +888,8 @@ class EquipmentServiceController extends Controller
             
             return response()->json([
                 'success' => true,
-                'backupItems' => $backupItems
+                'backupItems' => $backupItems,
+                'usedSerialsGlobal' => $usedSerialsGlobal,
             ]);
         } catch (\Exception $e) {
             Log::error('Error getting backup items for rental: ' . $e->getMessage());

@@ -85,6 +85,15 @@ class DispatchReplacement extends Model
     }
 
     /**
+     * Get the employee (current logged-in staff) who processed this replacement.
+     * Uses the same foreign key as user_id for compatibility with Employee guard.
+     */
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Employee::class, 'user_id');
+    }
+
+    /**
      * Get the status label.
      */
     public function getStatusLabelAttribute(): string

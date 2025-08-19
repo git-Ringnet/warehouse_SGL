@@ -332,7 +332,7 @@
                     @endif
                 @endif
                 <!-- Debug info -->
-                <div class="text-xs text-gray-500 mt-1">{{ $debugInfo }}</div>
+                <!-- <div class="text-xs text-gray-500 mt-1">{{ $debugInfo }}</div> -->
             </td>
             <td class="py-2 px-4 border-b">
                 <a href="{{ route('inventory.dispatch.show', $item->dispatch_id) }}" class="text-blue-500 hover:text-blue-700">
@@ -340,11 +340,9 @@
                 </a>
             </td>
             <td class="py-2 px-4 border-b">
-                @if(!$isReturned && !$isReplaced && !$isReplacementSerial)
-                    <button type="button" data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
-                        <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
-                    </button>
-                @endif
+                <button type="button" data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
+                </button>
             </td>
         </tr>
     @empty
@@ -461,6 +459,7 @@
                                         @else
                                             @if($isUsed || $isOriginalReplaced)
                                                 <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs font-semibold">Đã sử dụng</span>
+                                                <div class="mt-1 text-xs text-gray-500 italic">Lưu ý: Thiết bị đã sử dụng là thiết bị cũ được thay thế; không thể dùng để thay thế nữa. Có thể thu hồi tùy trường hợp.</div>
                                             @else
                                                 <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Chưa sử dụng</span>
                                             @endif
@@ -761,6 +760,7 @@
                 .then(data => {
                     if (data.success) {
                         const backupItems = data.backupItems;
+                        const usedGlobalFromApi = Array.isArray(data.usedSerialsGlobal) ? data.usedSerialsGlobal.map(s => String(s).trim()) : [];
                         
                         // Xóa tất cả options hiện tại
                         replacementDeviceSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
@@ -808,19 +808,26 @@
                                 serialNumbers = item.serial_numbers;
                             }
                             
+                            // Chuẩn hóa danh sách serial đã sử dụng thành Set để so sánh an toàn (kể cả đã dùng ở item khác trong cùng phạm vi)
+                            const usedSerialSet = new Set([
+                                ...((item.replacement_serials || []).map(s => String(s).trim())),
+                                ...((item.used_serials_global || []).map(s => String(s).trim())),
+                                ...usedGlobalFromApi
+                            ]);
+                            
                             // Tạo option riêng cho từng serial và kiểm tra trạng thái từng serial
                             serialNumbers.forEach(serialNumber => {
-                                // Kiểm tra serial này có được sử dụng chưa
-                                const isSerialUsed = item.replacement_serials && item.replacement_serials.includes(serialNumber);
+                                const serialStr = String(serialNumber).trim();
+                                if (!serialStr) return; // Bỏ qua serial rỗng
                                 
                                 // Chỉ hiển thị serial chưa được sử dụng
-                                if (!isSerialUsed) {
+                                if (!usedSerialSet.has(serialStr)) {
                                     serialOptions.push({
                                         itemId: item.id,
-                                        serialNumber: serialNumber,
+                                        serialNumber: serialStr,
                                         itemCode: itemCode,
                                         itemName: itemName,
-                                        displayText: `${itemCode} - ${itemName} - Serial ${serialNumber}`
+                                        displayText: `${itemCode} - ${itemName} - Serial ${serialStr}`
                                     });
                                 }
                             });
