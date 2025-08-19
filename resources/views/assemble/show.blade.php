@@ -81,12 +81,14 @@
                                                 <span class="font-medium">Mã:</span>
                                                 {{ $assemblyProduct->product->code }}
                                             </div>
-                                            @if ($assemblyProduct->serials)
-                                                <div class="text-xs text-gray-600 mt-1">
-                                                    <span class="font-medium">Serial:</span>
+                                            <div class="text-xs text-gray-600 mt-1">
+                                                <span class="font-medium">Serial:</span>
+                                                @if ($assemblyProduct->serials && !empty(trim($assemblyProduct->serials)))
                                                     {{ $assemblyProduct->serials }}
-                                                </div>
-                                            @endif
+                                                @else
+                                                    <span class="text-gray-400">N/A</span>
+                                                @endif
+                                            </div>
                                         </div>
                                     @endforeach
                                 @else
@@ -104,6 +106,14 @@
                                                 <span class="font-medium">Mã:</span> {{ $assembly->product->code }}
                                             </div>
                                         @endif
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            <span class="font-medium">Serial:</span>
+                                            @if ($assembly->product_serials && !empty(trim($assembly->product_serials)))
+                                                {{ $assembly->product_serials }}
+                                            @else
+                                                <span class="text-gray-400">N/A</span>
+                                            @endif
+                                        </div>
                                     </div>
                                 @endif
                             </div>
@@ -182,54 +192,45 @@
                     </div>
                 </div>
 
-                {{-- Display product serials --}}
-                @php
-                    $hasProductSerials = false;
-                    if ($assembly->products && $assembly->products->count() > 0) {
-                        foreach ($assembly->products as $product) {
-                            if ($product->serials) {
-                                $hasProductSerials = true;
-                                break;
-                            }
-                        }
-                    } elseif ($assembly->product_serials) {
-                        $hasProductSerials = true;
-                    }
-                @endphp
 
-                @if ($hasProductSerials)
-                    <div class="mt-4 border-t border-gray-200 pt-4">
-                        <h3 class="text-sm font-medium text-gray-700 mb-2">Serial thành phẩm:</h3>
-                        <div class="space-y-3">
-                            @if ($assembly->products && $assembly->products->count() > 0)
-                                {{-- New structure: show serials grouped by product --}}
-                                @foreach ($assembly->products as $assemblyProduct)
-                                    @if ($assemblyProduct->serials)
-                                        <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-400">
-                                            <div class="text-sm font-medium text-gray-800 mb-2">
-                                                {{ $assemblyProduct->product->name }}
-                                                ({{ $assemblyProduct->product->code }})
-                                            </div>
-                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                                @foreach (explode(',', $assemblyProduct->serials) as $serial)
-                                                    @if (!empty(trim($serial)))
-                                                        <div class="bg-white rounded-lg p-2 text-sm border">
-                                                            <span class="font-medium">{{ $loop->iteration }}.</span>
-                                                            {{ trim($serial) }}
-                                                        </div>
-                                                    @endif
-                                                @endforeach
-                                            </div>
+
+                <div class="mt-4 border-t border-gray-200 pt-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-2">Serial thành phẩm:</h3>
+                    <div class="space-y-3">
+                        @if ($assembly->products && $assembly->products->count() > 0)
+                            {{-- New structure: show serials grouped by product --}}
+                            @foreach ($assembly->products as $assemblyProduct)
+                                <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-400">
+                                    <div class="text-sm font-medium text-gray-800 mb-2">
+                                        {{ $assemblyProduct->product->name }}
+                                        ({{ $assemblyProduct->product->code }})
+                                    </div>
+                                    @if ($assemblyProduct->serials && !empty(trim($assemblyProduct->serials)))
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                            @foreach (explode(',', $assemblyProduct->serials) as $serial)
+                                                @if (!empty(trim($serial)))
+                                                    <div class="bg-white rounded-lg p-2 text-sm border">
+                                                        <span class="font-medium">{{ $loop->iteration }}.</span>
+                                                        {{ trim($serial) }}
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="text-gray-400 px-2 py-1">
+                                            N/A
                                         </div>
                                     @endif
-                                @endforeach
-                            @elseif ($assembly->product_serials)
-                                {{-- Legacy structure: show serials for single product --}}
-                                <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-gray-400">
-                                    <div class="text-sm font-medium text-gray-800 mb-2">
-                                        {{ $assembly->product->name ?? 'Thành phẩm' }}
-                                        ({{ $assembly->product->code ?? '' }})
-                                    </div>
+                                </div>
+                            @endforeach
+                        @elseif ($assembly->product_serials)
+                            {{-- Legacy structure: show serials for single product --}}
+                            <div class="bg-gray-50 rounded-lg p-3 border-l-4 border-gray-400">
+                                <div class="text-sm font-medium text-gray-800 mb-2">
+                                    {{ $assembly->product->name ?? 'Thành phẩm' }}
+                                    ({{ $assembly->product->code ?? '' }})
+                                </div>
+                                @if (!empty(trim($assembly->product_serials)))
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                                         @foreach (explode(',', $assembly->product_serials) as $serial)
                                             @if (!empty(trim($serial)))
@@ -240,11 +241,19 @@
                                             @endif
                                         @endforeach
                                     </div>
-                                </div>
-                            @endif
-                        </div>
+                                @else
+                                    <div class="text-gray-400 px-2 py-1">
+                                        N/A
+                                    </div>
+                                @endif
+                            </div>
+                        @else
+                            <div class="text-gray-400 px-2 py-1">
+                                N/A
+                            </div>
+                        @endif
                     </div>
-                @endif
+                </div>
 
                 @if ($assembly->notes)
                     <div class="mt-4 border-t border-gray-200 pt-4">
@@ -346,6 +355,23 @@
                                             <h4 class="text-md font-medium text-green-800">
                                                 <i class="fas fa-cube mr-2"></i>
                                                 Đơn vị thành phẩm {{ $unitIndex + 1 }}
+                                                @php
+                                                    $productUnit = $productData['product'];
+                                                    $unitSerial = null;
+                                                    
+                                                    // Lấy serial cho đơn vị này
+                                                    if ($productUnit && $productUnit->serials) {
+                                                        $serials = explode(',', $productUnit->serials);
+                                                        if (isset($serials[$unitIndex]) && !empty(trim($serials[$unitIndex]))) {
+                                                            $unitSerial = trim($serials[$unitIndex]);
+                                                        }
+                                                    }
+                                                @endphp
+                                                @if ($unitSerial)
+                                                    - <span class="text-green-600 font-semibold">{{ $unitSerial }}</span>
+                                                @else
+                                                    - <span class="text-gray-400">N/A</span>
+                                                @endif
                                             </h4>
                                         </div>
 
@@ -410,23 +436,49 @@
                                                                     $serialValue = is_object($material)
                                                                         ? $material->serial
                                                                         : $material['serial'];
+                                                                    $quantity = is_object($material)
+                                                                        ? $material->quantity
+                                                                        : $material['quantity'];
                                                                 @endphp
-                                                                @if ($serialValue && str_contains($serialValue, ','))
-                                                                    <div class="space-y-1">
-                                                                        @foreach (explode(',', $serialValue) as $serial)
-                                                                            @if (!empty(trim($serial)))
-                                                                                <div
-                                                                                    class="bg-gray-50 px-2 py-1 rounded">
-                                                                                    {{ trim($serial) }}</div>
-                                                                            @endif
-                                                                        @endforeach
-                                                                    </div>
-                                                                    <div class="text-xs text-gray-400 mt-1">
-                                                                        {{ count(array_filter(explode(',', $serialValue), 'trim')) }}
-                                                                        serial
-                                                                    </div>
+
+                                                                @if ($serialValue && !empty(trim($serialValue)))
+                                                                    @php
+                                                                        $serials = array_filter(
+                                                                            explode(',', $serialValue),
+                                                                            'trim',
+                                                                        );
+                                                                        $serialCount = count($serials);
+                                                                    @endphp
+
+                                                                    @if ($serialCount > 0)
+                                                                        <div class="space-y-1">
+                                                                            @for ($i = 0; $i < $quantity; $i++)
+                                                                                @if ($i < $serialCount)
+                                                                                    <div
+                                                                                        class="bg-gray-50 px-2 py-1 rounded">
+                                                                                        {{ trim($serials[$i]) }}
+                                                                                    </div>
+                                                                                @else
+                                                                                    <div
+                                                                                        class="text-gray-400 px-2 py-1">
+                                                                                        N/A
+                                                                                    </div>
+                                                                                @endif
+                                                                            @endfor
+                                                                        </div>
+                                                                    @else
+                                                                        @for ($i = 0; $i < $quantity; $i++)
+                                                                            <div class="text-gray-400 px-2 py-1">
+                                                                                N/A
+                                                                            </div>
+                                                                        @endfor
+                                                                    @endif
                                                                 @else
-                                                                    {{ $serialValue }}
+                                                                    @for ($i = 0; $i < $quantity; $i++)
+                                                                        <div class="text-gray-400 px-2 py-1">
+                                                                            N/A
+                                                                        </div>
+                                                                    @endfor
                                                                 @endif
                                                             </td>
                                                             <td
