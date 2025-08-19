@@ -1100,7 +1100,7 @@
                 const table = block.querySelector('table');
                 if (!table) return;
                 const duplicateSection = document.createElement('div');
-                duplicateSection.className = 'bg-yellow-50 border-t border-yellow-200 p-3 duplicate-section';
+                duplicateSection.className = 'bg-yellow-50 border-t border-yellow-200 p-3 duplicate-section hidden';
                 duplicateSection.innerHTML =
                     `<div class=\"flex justify-between items-center\"><div class=\"text-sm text-yellow-700\"><i class=\"fas fa-info-circle mr-2\"></i>Bạn đã thay đổi công thức gốc. Bạn có thể tạo một thành phẩm mới với công thức này.</div><button type=\"button\" class=\"create-new-product-btn bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm\" data-product-id=\"${productId}\"><i class=\"fas fa-plus-circle mr-1\"></i> Tạo thành phẩm mới</button></div>`;
                 table.parentNode.insertBefore(duplicateSection, table.nextSibling);
