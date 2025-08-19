@@ -508,7 +508,12 @@
                                 <i class="fas fa-vial mr-2"></i> Xem phiếu kiểm thử
                             </a>
                         @endif
-                        @if (isset($dispatches) && $dispatches->count() > 0)
+                        @if (isset($dispatch) && $dispatch)
+                            <a href="{{ route('inventory.dispatch.show', $dispatch->id) }}"
+                                class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
+                                <i class="fas fa-truck mr-2"></i> Xem phiếu xuất kho
+                            </a>
+                        @elseif (isset($dispatches) && $dispatches->count() > 0)
                             <a href="{{ route('inventory.dispatch.show', $dispatches->first()->id) }}"
                                 class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
                                 <i class="fas fa-truck mr-2"></i> Xem phiếu xuất kho

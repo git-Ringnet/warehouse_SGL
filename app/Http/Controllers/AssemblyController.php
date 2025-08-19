@@ -275,6 +275,8 @@ class AssemblyController extends Controller
                 'notes' => $request->assembly_note,
                 'product_serials' => null, // Legacy field for single product assemblies
                 'created_by' => Auth::user()->id,
+                'created_at' => $request->assembly_date,
+                'updated_at' => now(),
             ]);
 
             // Ghi nhật ký tạo mới phiếu lắp ráp
@@ -302,6 +304,8 @@ class AssemblyController extends Controller
                     'product_id' => $productData['id'],
                     'quantity' => $productQty,
                     'serials' => $productSerialsStr,
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 // Use target_warehouse_id if available, otherwise use source warehouse_id
@@ -438,17 +442,17 @@ class AssemblyController extends Controller
             // Tạo thông báo thành công - chuyển sang workflow duyệt
             $successMessage = 'Phiếu lắp ráp đã được tạo thành công! Chờ duyệt để tạo phiếu kiểm thử và xuất kho.';
 
-            // Tạo thông báo cho admin/người có quyền duyệt
-            $adminUsers = User::whereHas('roleGroup.permissions', function ($query) {
+            // Tạo thông báo cho admin/người có quyền duyệt (đối tượng là Employee)
+            $adminEmployees = Employee::whereHas('roleGroup.permissions', function ($query) {
                 $query->where('name', 'assembly.approve');
             })->orWhere('role', 'admin')->get();
 
-            foreach ($adminUsers as $adminUser) {
+            foreach ($adminEmployees as $adminEmployee) {
                 Notification::createNotification(
                     'Phiếu lắp ráp mới cần duyệt',
                     'Phiếu lắp ráp #' . $assembly->code . ' đã được tạo và cần duyệt.',
                     'info',
-                    $adminUser->id,
+                    $adminEmployee->id,
                     'assembly',
                     $assembly->id,
                     route('assemblies.show', $assembly->id)
@@ -481,10 +485,39 @@ class AssemblyController extends Controller
         $assembly->load(['product', 'products.product', 'materials.material', 'assignedEmployee', 'tester', 'warehouse', 'targetWarehouse', 'project']);
 
         // Lấy các phiếu xuất kho liên quan đến assembly này
-        $dispatches = \App\Models\Dispatch::where('dispatch_note', 'like', '%' . $assembly->code . '%')
-            ->orWhere('project_id', $assembly->project_id)
+        $dispatches = \App\Models\Dispatch::where(function ($q) use ($assembly) {
+            $q->where('dispatch_note', 'like', '%' . $assembly->code . '%');
+        })
+            ->orWhere(function ($q) use ($assembly) {
+                if ($assembly->project_id) {
+                    $q->where('project_id', $assembly->project_id);
+                }
+            })
             ->orderByDesc('created_at')
             ->get();
+
+        // Ưu tiên chọn đúng phiếu xuất sinh ra từ phiếu lắp ráp hiện tại
+        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%Sinh ra từ phiếu lắp ráp ' . $assembly->code . '%')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$dispatch) {
+            $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%Sinh từ phiếu lắp ráp: ' . $assembly->code . '%')
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        if (!$dispatch) {
+            $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%' . $assembly->code . '%')
+                ->orderByDesc('created_at')
+                ->first();
+        }
+
+        if (!$dispatch && $assembly->project_id) {
+            $dispatch = \App\Models\Dispatch::where('project_id', $assembly->project_id)
+                ->orderByDesc('created_at')
+                ->first();
+        }
 
         // Ghi nhật ký xem chi tiết phiếu lắp ráp
         if (Auth::check()) {
@@ -498,7 +531,7 @@ class AssemblyController extends Controller
             );
         }
 
-        return view('assemble.show', compact('assembly', 'dispatches'));
+        return view('assemble.show', compact('assembly', 'dispatches', 'dispatch'));
     }
 
     /**
@@ -625,7 +658,23 @@ class AssemblyController extends Controller
         }
         $projects = $projectsQuery->get(['id', 'project_name', 'project_code']);
 
-        return view('assemble.edit', compact('assembly', 'productSerials', 'materialSerials', 'allProductSerials', 'employees', 'projects'));
+        // Also provide selectable data to enable adding products/materials in edit mode
+        $products = \App\Models\Product::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
+        $materials = \App\Models\Material::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'category', 'unit']);
+
+        $warehouses = \App\Models\Warehouse::where('status', 'active')
+            ->where('is_hidden', false)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+
+        return view('assemble.edit', compact('assembly', 'productSerials', 'materialSerials', 'allProductSerials', 'employees', 'projects', 'products', 'materials', 'warehouses'));
     }
 
     /**
@@ -638,7 +687,15 @@ class AssemblyController extends Controller
             'assembly_date' => 'required|date',
             'assembly_note' => 'nullable|string',
             'products' => 'required|array|min:1',
+            'products.*.id' => 'required|exists:products,id',
+            'products.*.quantity' => 'nullable|integer|min:1',
             'products.*.serials' => 'nullable|array',
+            'deleted_products' => 'nullable|array',
+            'deleted_products.*' => 'integer|exists:products,id',
+            'deleted_components' => 'nullable|array',
+            'deleted_components.*.material_id' => 'required|integer|exists:materials,id',
+            'deleted_components.*.target_product_id' => 'required|integer|exists:products,id',
+            'deleted_components.*.product_unit' => 'nullable|integer|min:0',
         ];
 
         // Allow editing header fields while pending
@@ -749,52 +806,201 @@ class AssemblyController extends Controller
                 $basicUpdate['project_id'] = $request->purpose === 'project' ? ($request->project_id ?: null) : null;
             }
 
+            $basicUpdate['updated_at'] = now();
             $assembly->update($basicUpdate);
 
-            // 4. Update product serials (only if status is pending)
+            // 4. Handle product additions/removals and serial updates (pending only)
             if ($assembly->status === 'pending') {
-                $this->deleteSerialRecords($assembly->id);
+                // Remove selected products
+                if ($request->filled('deleted_products')) {
+                    foreach ($request->deleted_products as $deletedProductId) {
+                        // Delete assembly materials tied to this product
+                        AssemblyMaterial::where('assembly_id', $assembly->id)
+                            ->where('target_product_id', $deletedProductId)
+                            ->delete();
 
+                        // Delete assembly product record
+                        AssemblyProduct::where('assembly_id', $assembly->id)
+                            ->where('product_id', $deletedProductId)
+                            ->delete();
+                    }
+                }
+
+                // Upsert products from request
+                foreach ($request->products as $productIndex => $productData) {
+                    $productId = (int) $productData['id'];
+                    $productQty = isset($productData['quantity']) ? (int) $productData['quantity'] : 1;
+
+                    $assemblyProduct = AssemblyProduct::firstOrNew([
+                        'assembly_id' => $assembly->id,
+                        'product_id' => $productId,
+                    ]);
+
+                    // Capture previous quantity before updating
+                    $previousQty = (int) ($assemblyProduct->quantity ?? 0);
+
+                    $assemblyProduct->quantity = $productQty > 0 ? $productQty : 1;
+
+                    if (isset($productData['serials']) && is_array($productData['serials'])) {
+                        $filteredSerials = array_filter($productData['serials']);
+                        $assemblyProduct->serials = !empty($filteredSerials) ? implode(',', $filteredSerials) : null;
+                    }
+                    $assemblyProduct->save();
+
+                    // If product quantity decreased, remove extra unit components for this product
+                    if ($previousQty > 0 && $productQty < $previousQty) {
+                        // Delete components for units >= new quantity (keep 0..newQty-1)
+                        $deleteQuery = AssemblyMaterial::where('assembly_id', $assembly->id)
+                            ->where('target_product_id', $productId)
+                            ->whereNotNull('product_unit')
+                            ->where('product_unit', '>=', $productQty);
+                        $deleted = $deleteQuery->delete();
+
+                        // Fallback for legacy rows tied to first product with NULL target_product_id
+                        if ($deleted === 0) {
+                            AssemblyMaterial::where('assembly_id', $assembly->id)
+                                ->whereNull('target_product_id')
+                                ->whereNotNull('product_unit')
+                                ->where('product_unit', '>=', $productQty)
+                                ->delete();
+                        }
+                    }
+
+                    // Maintain serial records (recreate all for this assembly once below)
+                }
+
+                // Recreate product serial records for this assembly
+                $this->deleteSerialRecords($assembly->id);
                 foreach ($request->products as $productIndex => $productData) {
                     if (isset($productData['serials']) && is_array($productData['serials'])) {
                         $filteredSerials = array_filter($productData['serials']);
-                        $productSerialsStr = !empty($filteredSerials) ? implode(',', $filteredSerials) : null;
-
-                        // Update assembly product serials
-                        $assemblyProduct = AssemblyProduct::where('assembly_id', $assembly->id)
-                            ->where('product_id', $productData['id'])
-                            ->first();
-
-                        if ($assemblyProduct) {
-                            $assemblyProduct->update(['serials' => $productSerialsStr]);
-
-                            // Use target_warehouse_id if available, otherwise use source warehouse_id
-                            $targetWarehouseId = $assembly->target_warehouse_id;
-                            if ($assembly->purpose === 'project' && !$targetWarehouseId) {
-                                $targetWarehouseId = $assembly->warehouse_id;
-                            }
-
-                            // Ensure we have a valid warehouse ID
-                            if (!$targetWarehouseId) {
-                                $targetWarehouseId = $assembly->warehouse_id;
-                            }
-
-                            // Only create serial records if we have a valid warehouse ID and serials
-                            if ($targetWarehouseId && !empty($filteredSerials)) {
-                                $this->createSerialRecords($filteredSerials, $productData['id'], $assembly->id, $targetWarehouseId);
+                        if (!empty($filteredSerials)) {
+                            $targetWarehouseId = $assembly->target_warehouse_id ?: $assembly->warehouse_id;
+                            if ($targetWarehouseId) {
+                                $this->createSerialRecords($filteredSerials, (int)$productData['id'], $assembly->id, $targetWarehouseId);
                             }
                         }
                     }
                 }
             }
 
-            // 5. Update component materials
+            // 5. Delete selected components (pending only)
+            // Track deleted component keys to avoid recreating them later
+            $deletedKeys = [];
+            if ($assembly->status === 'pending' && $request->filled('deleted_components')) {
+                foreach ($request->deleted_components as $deleted) {
+                    $materialId = (int)($deleted['material_id'] ?? 0);
+                    $targetProductId = (int)($deleted['target_product_id'] ?? 0);
+                    // Normalize product unit: treat empty string as null
+                    $rawProductUnit = $deleted['product_unit'] ?? null;
+                    $productUnit = ($rawProductUnit === '' || $rawProductUnit === null) ? null : (int)$rawProductUnit;
+                    $deletedKeys[] = $materialId . '|' . ($targetProductId ?: 'null') . '|' . (is_null($productUnit) ? 'null' : $productUnit);
+                    $query = AssemblyMaterial::where('assembly_id', $assembly->id)
+                        ->where('material_id', $materialId)
+                        ->when($targetProductId > 0, function ($q) use ($targetProductId) {
+                            $q->where('target_product_id', $targetProductId);
+                        }, function ($q) {
+                            $q->whereNull('target_product_id');
+                        });
+                    if ($productUnit !== null) {
+                        $query->where('product_unit', $productUnit);
+                    }
+                    $deletedCount = $query->delete();
+                    Log::info('Assembly delete component request', [
+                        'assembly_id' => $assembly->id,
+                        'material_id' => $materialId,
+                        'target_product_id' => $targetProductId,
+                        'product_unit' => $productUnit,
+                        'deleted_count_first' => $deletedCount,
+                    ]);
+                    // Fallback: if nothing deleted (possible mismatch on target_product_id), retry without target_product_id condition
+                    if ($deletedCount === 0) {
+                        $fallback = AssemblyMaterial::where('assembly_id', $assembly->id)
+                            ->where('material_id', $materialId);
+                        if ($productUnit !== null) {
+                            $fallback->where('product_unit', $productUnit);
+                        }
+                        $deletedCount2 = $fallback->delete();
+                        Log::info('Assembly delete component fallback', [
+                            'deleted_count_second' => $deletedCount2
+                        ]);
+                    }
+                }
+            }
+
+            // Build a map from client-side product keys (e.g., "product_0") to real product IDs
+            $productKeyToId = [];
+            if ($request->filled('products') && is_array($request->products)) {
+                foreach ($request->products as $idx => $prod) {
+                    if (isset($prod['id'])) {
+                        $productKeyToId['product_' . $idx] = (int) $prod['id'];
+                    }
+                }
+            }
+            // Also build mapping from current assembly products order used by server-rendered rows
+            if (!$assembly->relationLoaded('products')) {
+                $assembly->load('products');
+            }
+            if ($assembly->products && $assembly->products->count() > 0) {
+                foreach ($assembly->products->values() as $idx => $assemblyProduct) {
+                    $key = 'product_' . $idx;
+                    if (!isset($productKeyToId[$key])) {
+                        $productKeyToId[$key] = (int) $assemblyProduct->product_id;
+                    }
+                }
+            }
+
+            // 6. Update or create component materials
             if ($request->components) {
                 foreach ($request->components as $componentIndex => $component) {
-                    // Find the specific assembly material by material_id
-                    $assemblyMaterial = AssemblyMaterial::where('assembly_id', $assembly->id)
-                        ->where('material_id', $component['material_id'])
-                        ->first();
+                    // Support both 'material_id' (edit form existing) and 'id' (newly added like create form)
+                    $materialId = $component['material_id'] ?? $component['id'] ?? null;
+                    if (!$materialId) {
+                        continue;
+                    }
+
+                    $targetProductId = $component['target_product_id'] ?? $component['product_id'] ?? null;
+                    // In edit form, product_id may be like 'product_0'. Normalize to real numeric product id
+                    if (!is_null($targetProductId) && !is_numeric($targetProductId)) {
+                        if (isset($productKeyToId[$targetProductId])) {
+                            $targetProductId = $productKeyToId[$targetProductId];
+                        } elseif (isset($component['target_product_id']) && is_numeric($component['target_product_id'])) {
+                            $targetProductId = (int) $component['target_product_id'];
+                        } else {
+                            // As a fallback, null out to avoid mismatched string filter
+                            $targetProductId = null;
+                        }
+                    } else if (is_numeric($targetProductId)) {
+                        $targetProductId = (int) $targetProductId;
+                    }
+
+                    $productUnit = isset($component['product_unit']) ? (int)$component['product_unit'] : null;
+
+                    // Find specific assembly material (match by material + target product + optional unit)
+                    $assemblyMaterialQuery = AssemblyMaterial::where('assembly_id', $assembly->id)
+                        ->where('material_id', $materialId);
+                    if (!is_null($targetProductId)) {
+                        $assemblyMaterialQuery->where('target_product_id', (int) $targetProductId);
+                    }
+                    if ($productUnit !== null) {
+                        $assemblyMaterialQuery->where('product_unit', $productUnit);
+                    }
+                    $assemblyMaterial = $assemblyMaterialQuery->first();
+                    // Fallback: migrate legacy rows having NULL target_product_id (commonly the first product)
+                    if (!$assemblyMaterial && !is_null($targetProductId)) {
+                        $legacyQuery = AssemblyMaterial::where('assembly_id', $assembly->id)
+                            ->where('material_id', $materialId)
+                            ->whereNull('target_product_id');
+                        if ($productUnit !== null) {
+                            $legacyQuery->where('product_unit', $productUnit);
+                        }
+                        $legacyRow = $legacyQuery->first();
+                        if ($legacyRow) {
+                            // Attach it to the correct target product to avoid future duplicates
+                            $legacyRow->update(['target_product_id' => (int) $targetProductId]);
+                            $assemblyMaterial = $legacyRow;
+                        }
+                    }
 
                     // Debug logging
                     Log::info('Processing component update', [
@@ -804,6 +1010,13 @@ class AssemblyController extends Controller
                         'assemblyMaterialFound' => $assemblyMaterial ? 'yes' : 'no',
                         'componentData' => $component
                     ]);
+
+                    // Skip recreation if this tuple was marked as deleted
+                    $componentKey = ($materialId ?: '0') . '|' . (($targetProductId ?? null) ?: 'null') . '|' . (isset($productUnit) && $productUnit !== null ? $productUnit : 'null');
+                    if (!$assemblyMaterial && in_array($componentKey, $deletedKeys, true)) {
+                        Log::info('Skip recreating component because it was deleted in this request', ['key' => $componentKey]);
+                        continue;
+                    }
 
                     if ($assemblyMaterial) {
                         if ($assembly->status === 'in_progress') {
@@ -888,10 +1101,35 @@ class AssemblyController extends Controller
                                     ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
                             }
 
-                        // Do not change product_unit for non in_progress statuses
+                            // Do not change product_unit for non in_progress statuses
                         }
 
                         $assemblyMaterial->update($updateData);
+                    } else if ($assembly->status === 'pending') {
+                        // Create new component when pending
+                        $quantity = (int)($component['quantity'] ?? 1);
+                        $serial = null;
+                        if (isset($component['serials']) && is_array($component['serials'])) {
+                            $filteredSerials = array_filter($component['serials']);
+                            $serial = !empty($filteredSerials) ? implode(',', array_unique($filteredSerials)) : null;
+                        } elseif (isset($component['serial'])) {
+                            $serial = $component['serial'] ?: null;
+                        }
+                        $warehouseId = $component['warehouse_id'] ?? $assembly->warehouse_id;
+
+                        AssemblyMaterial::create([
+                            'assembly_id' => $assembly->id,
+                            'material_id' => $materialId,
+                            'quantity' => max(1, $quantity),
+                            'serial' => $serial,
+                            'note' => $component['note'] ?? null,
+                            'serial_id' => $component['serial_id'] ?? null,
+                            'warehouse_id' => $warehouseId,
+                            'target_product_id' => is_numeric($targetProductId) ? (int) $targetProductId : null,
+                            'product_unit' => $productUnit,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
                     }
                 }
             }
@@ -1587,7 +1825,7 @@ class AssemblyController extends Controller
         // Create dispatch record
         $dispatch = Dispatch::create([
             'dispatch_code' => $dispatchCode,
-            'dispatch_date' => $assembly->date,
+            'dispatch_date' => now(), // Sử dụng thời gian hiện tại thay vì assembly->date
             'dispatch_type' => 'project',
             'dispatch_detail' => 'contract', // "Xuất theo hợp đồng"
             'project_id' => $assembly->project_id,
@@ -1597,6 +1835,8 @@ class AssemblyController extends Controller
             'dispatch_note' => $dispatchNote,
             'status' => 'pending',
             'created_by' => $currentUserId,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         // Create dispatch items for each assembled product
@@ -1616,6 +1856,8 @@ class AssemblyController extends Controller
                 'category' => 'contract',
                 'serial_numbers' => !empty($serialNumbers) ? $serialNumbers : null,
                 'notes' => 'Từ phiếu lắp ráp ' . $assembly->code,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             // For assembly with purpose=project, we don't need to decrement stock
@@ -1682,6 +1924,8 @@ class AssemblyController extends Controller
             'dispatch_note' => $dispatchNote,
             'status' => 'approved', // Tự động duyệt
             'created_by' => Auth::id(),
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         Log::info('Created dispatch record', [
@@ -1735,6 +1979,8 @@ class AssemblyController extends Controller
                     'category' => 'general',
                     'serial_numbers' => $serialNumbers,
                     'notes' => 'Vật tư lắp ráp từ phiếu lắp ráp',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 Log::info('Created dispatch item', [
@@ -1940,10 +2186,12 @@ class AssemblyController extends Controller
                     'tester_id' => $currentUserId, // Người tạo phiếu (người hiện tại hoặc từ assembly)
                     'assigned_to' => $assembly->assigned_employee_id, // Người phụ trách (từ phiếu lắp ráp)
                     'receiver_id' => $assembly->tester_id, // Người tiếp nhận kiểm thử (từ phiếu lắp ráp)
-                    'test_date' => $assembly->date, // Sử dụng ngày lắp ráp
+                    'test_date' => now(), // Sử dụng thời gian hiện tại thay vì assembly->date
                     'notes' => 'Tự động tạo từ phiếu lắp ráp ' . $assembly->code,
                     'status' => 'pending',
                     'assembly_id' => $assembly->id, // Liên kết với phiếu lắp ráp
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
                 // Add testing items for all assembled products
@@ -1957,6 +2205,8 @@ class AssemblyController extends Controller
                             'quantity' => $assemblyProduct->quantity,
                             'serial_number' => $assemblyProduct->serials,
                             'result' => 'pending',
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ]);
                     }
                 } else {
@@ -1973,6 +2223,8 @@ class AssemblyController extends Controller
                         'quantity' => $material->quantity,
                         'serial_number' => $material->serial,
                         'result' => 'pending',
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
                 }
 
@@ -1988,6 +2240,8 @@ class AssemblyController extends Controller
                         'testing_id' => $testing->id,
                         'test_item_name' => $testItem,
                         'result' => 'pending',
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
                 }
 
@@ -2398,13 +2652,13 @@ class AssemblyController extends Controller
                 $dispatch = $this->createDispatchForAssembly($assemblyFresh);
             }
 
-            // Create material export slip if purpose is storage
-            if ($assembly->purpose === 'storage') {
+            // Create material export slip for both storage and project (xuất vật tư)
+            if (in_array($assembly->purpose, ['storage', 'project'], true)) {
                 $this->createMaterialExportSlipForAssembly($assembly);
             }
 
             // Update assembly status to in_progress (đang thực hiện)
-            $assembly->update(['status' => 'in_progress']);
+            $assembly->update(['status' => 'in_progress', 'updated_at' => now()]);
 
             // Tạo thông báo cho người được phân công lắp ráp
             Notification::createNotification(
@@ -2572,10 +2826,12 @@ class AssemblyController extends Controller
                 ->where('status', 'active')
                 ->where(function ($q) use ($assembly) {
                     $q->whereNull('notes')
-                      ->orWhere('notes', 'like', '%Assembly ID: ' . $assembly->id . '%');
+                        ->orWhere('notes', 'like', '%Assembly ID: ' . $assembly->id . '%');
                 })
                 ->pluck('serial_number')
-                ->map(function ($s) { return trim($s); })
+                ->map(function ($s) {
+                    return trim($s);
+                })
                 ->filter()
                 ->values()
                 ->toArray();
@@ -2597,7 +2853,9 @@ class AssemblyController extends Controller
                     }
                     if (!empty($am->serial_id)) {
                         $s = Serial::find($am->serial_id);
-                        if ($s) { $list[] = trim($s->serial_number); }
+                        if ($s) {
+                            $list[] = trim($s->serial_number);
+                        }
                     }
                     return $list;
                 })
@@ -2630,7 +2888,9 @@ class AssemblyController extends Controller
                 $selectedSerialNumbers = array_filter(array_map('trim', explode(',', $assemblyMaterial->serial)));
             } elseif (!empty($assemblyMaterial->serial_id)) {
                 $s = Serial::find($assemblyMaterial->serial_id);
-                if ($s) { $selectedSerialNumbers = [trim($s->serial_number)]; }
+                if ($s) {
+                    $selectedSerialNumbers = [trim($s->serial_number)];
+                }
             }
 
             $selectedSerialCount = count($selectedSerialNumbers);
