@@ -324,7 +324,7 @@ class ProjectRequestController extends Controller
         // Validation cơ bản cho các trường chung
         $baseRules = [
             'request_date' => 'required|date',
-            'proposer_id' => 'required|exists:employees,id',
+            'proposer_id' => 'nullable|exists:employees,id', // Bỏ required vì có thể ẩn khi chọn warehouse
             'implementer_id' => 'nullable|exists:employees,id',
             'project_id' => 'required',
             'project_name' => 'required|string|max:255',
@@ -449,13 +449,27 @@ class ProjectRequestController extends Controller
                 $customer = $rental->customer;
             }
             
+            // Xác định proposer_id dựa trên phương thức xử lý
+            $proposerId = null;
+            if ($request->has('proposer_id') && $request->proposer_id) {
+                $proposerId = $request->proposer_id;
+            }
+            
+            if ($request->approval_method === 'warehouse' && !$proposerId) {
+                // Nếu là warehouse và không có proposer_id, sử dụng tài khoản hiện tại
+                $proposerId = Auth::id();
+            } elseif (!$proposerId) {
+                // Nếu không có proposer_id, sử dụng tài khoản hiện tại làm mặc định
+                $proposerId = Auth::id();
+            }
+            
             // Tạo phiếu đề xuất mới
             $projectRequest = ProjectRequest::create([
                 'request_code' => ProjectRequest::generateRequestCode(),
                 'request_date' => $request->request_date,
-                'proposer_id' => $request->proposer_id,
+                'proposer_id' => $proposerId,
                 'implementer_id' => $request->implementer_id,
-                'assembly_leader_id' => $request->approval_method === 'production' ? $request->proposer_id : null,
+                'assembly_leader_id' => $request->approval_method === 'production' ? $proposerId : null,
                 'tester_id' => $request->approval_method === 'production' ? $request->implementer_id : null,
                 'project_name' => $request->project_name,
                 'customer_id' => $customer->id,
@@ -517,7 +531,7 @@ class ProjectRequestController extends Controller
             }
             
             // Gửi thông báo cho người đề xuất và người thực hiện
-            $proposer = Employee::find($request->proposer_id);
+            $proposer = Employee::find($proposerId);
             if ($proposer) {
                 Notification::createNotification(
                     'Phiếu đề xuất triển khai dự án mới',
@@ -610,6 +624,24 @@ class ProjectRequestController extends Controller
         $projectRequest = ProjectRequest::with(['proposer', 'implementer', 'customer', 'items'])->findOrFail($id);
         $customers = Customer::all();
         $employees = Employee::where('is_active', true)->get();
+
+        // Lấy danh sách dự án còn hiệu lực bảo hành (giống create)
+        $projects = Project::with('customer')
+            ->whereHas('customer')
+            ->get()
+            ->filter(function($project) {
+                return $project->has_valid_warranty;
+            })
+            ->sortBy('project_name');
+
+        // Lấy danh sách phiếu cho thuê còn hiệu lực bảo hành (giống create)
+        $rentals = Rental::with('customer')
+            ->whereHas('customer')
+            ->get()
+            ->filter(function($rental) {
+                return $rental->has_valid_warranty;
+            })
+            ->sortBy('rental_name');
         
         // Lấy danh sách thiết bị, vật tư, hàng hóa (chỉ lấy active và không bị ẩn)
         $equipments = Product::where('status', 'active')
@@ -625,7 +657,7 @@ class ProjectRequestController extends Controller
             ->orderBy('name')
             ->get();
         
-        return view('requests.project.edit', compact('projectRequest', 'customers', 'employees', 'equipments', 'materials', 'goods'));
+        return view('requests.project.edit', compact('projectRequest', 'customers', 'employees', 'projects', 'rentals', 'equipments', 'materials', 'goods'));
     }
 
     /**
@@ -636,12 +668,9 @@ class ProjectRequestController extends Controller
         // Validation cơ bản cho các trường chung
         $baseRules = [
             'request_date' => 'required|date',
+            'project_id' => 'required',
             'project_name' => 'required|string|max:255',
             'approval_method' => 'required|in:production,warehouse',
-            'customer_name' => 'required|string|max:255',
-            'customer_phone' => 'required|string|max:20',
-            'customer_email' => 'nullable|email|max:255',
-            'customer_address' => 'required|string|max:255',
             'notes' => 'nullable|string',
             'item_type' => 'required|in:equipment,good',
         ];
@@ -702,28 +731,40 @@ class ProjectRequestController extends Controller
                     ->withErrors(['error' => 'Không thể chỉnh sửa phiếu đề xuất đã được duyệt hoặc đang xử lý.']);
             }
             
-            // Cập nhật thông tin khách hàng
-            if ($request->filled('partner') && $projectRequest->customer_id) {
-                $customer = Customer::find($projectRequest->customer_id);
-                if ($customer) {
-                    $customer->update([
-                        'name' => $request->customer_name,
-                        'phone' => $request->customer_phone,
-                        'email' => $request->customer_email,
-                        'address' => $request->customer_address,
-                    ]);
-                }
+            // Xử lý project_id để phân biệt project và rental
+            $projectIdInput = $request->project_id;
+            $projectType = null;
+            $actualProjectId = null;
+
+            if (strpos($projectIdInput, 'project_') === 0) {
+                $projectType = 'project';
+                $actualProjectId = substr($projectIdInput, 8);
+            } elseif (strpos($projectIdInput, 'rental_') === 0) {
+                $projectType = 'rental';
+                $actualProjectId = substr($projectIdInput, 7);
             }
-            
-            // Cập nhật phiếu đề xuất (chỉ các thông tin cơ bản)
+
+            // Lấy thông tin dự án/phiếu cho thuê từ ID và map khách hàng
+            if ($projectType === 'project') {
+                $project = Project::with('customer')->findOrFail($actualProjectId);
+                $customer = $project->customer;
+            } else {
+                $rental = Rental::with('customer')->findOrFail($actualProjectId);
+                $customer = $rental->customer;
+            }
+
+            // Cập nhật phiếu đề xuất (bao gồm mapping đối tác theo lựa chọn)
             $projectRequest->update([
                 'request_date' => $request->request_date,
                 'project_name' => $request->project_name,
                 'approval_method' => $request->approval_method,
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'customer_address' => $request->customer_address,
+                'customer_id' => $customer ? $customer->id : null,
+                'project_id' => $projectType === 'project' ? $actualProjectId : null,
+                'rental_id' => $projectType === 'rental' ? $actualProjectId : null,
+                'customer_name' => $customer ? $customer->name : null,
+                'customer_phone' => $customer ? $customer->phone : null,
+                'customer_email' => $customer ? $customer->email : null,
+                'customer_address' => $customer ? $customer->address : null,
                 'notes' => $request->notes,
             ]);
             

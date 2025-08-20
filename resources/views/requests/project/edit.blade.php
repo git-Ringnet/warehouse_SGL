@@ -47,24 +47,88 @@
                             <label for="request_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày đề xuất</label>
                     <input type="date" name="request_date" id="request_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('request_date', $projectRequest->request_date->format('Y-m-d')) }}">
                         </div>
-                        <div>
+                        <div id="proposer_section">
                     <label for="technician" class="block text-sm font-medium text-gray-700 mb-1">Kỹ thuật đề xuất</label>
                     <input type="text" name="technician" id="technician" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100" value="{{ $projectRequest->proposer ? $projectRequest->proposer->name : '' }}" readonly>
                         </div>
                     </div>
+                  
                 </div>
                 
                 <div class="mb-6 border-b border-gray-200 pb-4">
                     <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin dự án</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="project_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên dự án</label>
-                    <input type="text" name="project_name" id="project_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('project_name', $projectRequest->project_name) }}">
+                            <label for="project_id" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Phiếu cho thuê</label>
+                            <select name="project_id" id="project_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- Chọn dự án / phiếu cho thuê --</option>
+                                <optgroup label="Dự án">
+                                    @foreach($projects as $project)
+                                        <option value="project_{{ $project->id }}"
+                                                data-type="project"
+                                                data-customer-id="{{ $project->customer->id }}"
+                                                data-customer-name="{{ $project->customer->name }}"
+                                                data-customer-phone="{{ $project->customer->phone }}"
+                                                data-customer-email="{{ $project->customer->email }}"
+                                                data-customer-address="{{ $project->customer->address }}"
+                                                data-project-name="{{ $project->project_name }}"
+                                                data-project-address="{{ $project->project_address ?? '' }}"
+                                                {{ old('project_id', $projectRequest->project_id ? 'project_'.$projectRequest->project_id : ($projectRequest->rental_id ? 'rental_'.$projectRequest->rental_id : '')) == 'project_' . $project->id ? 'selected' : '' }}>
+                                            {{ $project->project_name }} ({{ $project->project_code }})
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                                <optgroup label="Phiếu cho thuê">
+                                    @foreach($rentals as $rental)
+                                        <option value="rental_{{ $rental->id }}"
+                                                data-type="rental"
+                                                data-customer-id="{{ $rental->customer->id }}"
+                                                data-customer-name="{{ $rental->customer->name }}"
+                                                data-customer-phone="{{ $rental->customer->phone }}"
+                                                data-customer-email="{{ $rental->customer->email }}"
+                                                data-customer-address="{{ $rental->customer->address }}"
+                                                data-project-name="{{ $rental->rental_name }}"
+                                                data-project-address="{{ $rental->rental_address ?? '' }}"
+                                                {{ old('project_id', $projectRequest->project_id ? 'project_'.$projectRequest->project_id : ($projectRequest->rental_id ? 'rental_'.$projectRequest->rental_id : '')) == 'rental_' . $rental->id ? 'selected' : '' }}>
+                                            {{ $rental->rental_name }} ({{ $rental->rental_code }})
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            </select>
+                            <input type="hidden" name="project_name" id="project_name" value="{{ old('project_name', $projectRequest->project_name) }}">
+                            <input type="hidden" name="project_type" id="project_type" value="{{ $projectRequest->project_id ? 'project' : ($projectRequest->rental_id ? 'rental' : '') }}">
                         </div>
                         <div>
-                            <label for="partner" class="block text-sm font-medium text-gray-700 mb-1 required">Đối tác</label>
-                    <input type="text" name="partner" id="partner" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('partner', $projectRequest->customer ? $projectRequest->customer->company_name : $projectRequest->customer_name) }}">
+                            <label for="customer_id" class="block text-sm font-medium text-gray-700 mb-1">Đối tác</label>
+                            <select name="customer_id" id="customer_id" readonly disabled class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed">
+                                <option value="">-- Đối tác sẽ được tự động điền --</option>
+                            </select>
                         </div>
+                    </div>
+                    <div id="customer_details" class="md:col-span-2 border border-gray-200 rounded-lg p-4 bg-gray-50 mt-4">
+                        <h3 class="text-md font-medium text-gray-800 mb-2">Thông tin đối tác</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <span class="text-sm text-gray-500">Tên người liên hệ:</span>
+                                <p id="customer_name_display" class="font-medium text-gray-700"></p>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500">Số điện thoại:</span>
+                                <p id="customer_phone_display" class="font-medium text-gray-700"></p>
+                            </div>
+                            <div>
+                                <span class="text-sm text-gray-500">Email:</span>
+                                <p id="customer_email_display" class="font-medium text-gray-700"></p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <span class="text-sm text-gray-500">Địa chỉ:</span>
+                                <p id="customer_address_display" class="font-medium text-gray-700"></p>
+                            </div>
+                        </div>
+                        <input type="hidden" name="customer_name" id="customer_name" value="{{ old('customer_name', $projectRequest->customer_name) }}">
+                        <input type="hidden" name="customer_phone" id="customer_phone" value="{{ old('customer_phone', $projectRequest->customer_phone) }}">
+                        <input type="hidden" name="customer_email" id="customer_email" value="{{ old('customer_email', $projectRequest->customer_email) }}">
+                        <input type="hidden" name="customer_address" id="customer_address" value="{{ old('customer_address', $projectRequest->customer_address) }}">
                     </div>
                 </div>
                 
@@ -296,27 +360,7 @@
                 </div>
             </div>
                 
-                <div class="mb-6 border-b border-gray-200 pb-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3">Thông tin liên hệ khách hàng</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1 required">Tên khách hàng</label>
-                    <input type="text" name="customer_name" id="customer_name" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_name', $projectRequest->customer_name) }}">
-                        </div>
-                        <div>
-                            <label for="customer_phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
-                    <input type="text" name="customer_phone" id="customer_phone" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_phone', $projectRequest->customer_phone) }}">
-                        </div>
-                        <div>
-                            <label for="customer_email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" name="customer_email" id="customer_email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_email', $projectRequest->customer_email) }}">
-                        </div>
-                        <div class="md:col-span-3">
-                            <label for="customer_address" class="block text-sm font-medium text-gray-700 mb-1 required">Địa chỉ</label>
-                    <input type="text" name="customer_address" id="customer_address" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('customer_address', $projectRequest->customer_address) }}">
-                        </div>
-                    </div>
-                </div>
+               
                 
                 <div class="mb-6">
                     <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
@@ -341,6 +385,58 @@
 @section('scripts')
 <script src="{{ asset('js/project-request-edit.js') }}"></script>
 <script>
+    // Đồng bộ project dropdown -> project_name + customer hiển thị (giống create)
+    document.addEventListener('DOMContentLoaded', function() {
+        const projectSelect = document.getElementById('project_id');
+        const customerSelect = document.getElementById('customer_id');
+        const projectNameInput = document.getElementById('project_name');
+        const projectTypeInput = document.getElementById('project_type');
+
+        function updateProjectAndCustomer() {
+            const selectedOption = projectSelect.options[projectSelect.selectedIndex];
+            if (!selectedOption) return;
+
+            const name = selectedOption.getAttribute('data-project-name');
+            const type = selectedOption.getAttribute('data-type');
+            const customerId = selectedOption.getAttribute('data-customer-id');
+            const customerName = selectedOption.getAttribute('data-customer-name');
+            const customerPhone = selectedOption.getAttribute('data-customer-phone');
+            const customerEmail = selectedOption.getAttribute('data-customer-email');
+            const customerAddress = selectedOption.getAttribute('data-customer-address');
+
+            if (projectNameInput) projectNameInput.value = name || '';
+            if (projectTypeInput) projectTypeInput.value = type || '';
+
+            // Cập nhật đối tác readonly select
+            customerSelect.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = customerId || '';
+            option.textContent = customerName || '';
+            customerSelect.appendChild(option);
+
+            // Hiển thị chi tiết đối tác như create
+            document.getElementById('customer_name_display').textContent = customerName || 'N/A';
+            document.getElementById('customer_phone_display').textContent = customerPhone || 'N/A';
+            document.getElementById('customer_email_display').textContent = customerEmail || 'N/A';
+            document.getElementById('customer_address_display').textContent = customerAddress || 'N/A';
+
+            // Đồng bộ hidden inputs
+            const nameHidden = document.getElementById('customer_name');
+            const phoneHidden = document.getElementById('customer_phone');
+            const emailHidden = document.getElementById('customer_email');
+            const addressHidden = document.getElementById('customer_address');
+            if (nameHidden) nameHidden.value = customerName || '';
+            if (phoneHidden) phoneHidden.value = customerPhone || '';
+            if (emailHidden) emailHidden.value = customerEmail || '';
+            if (addressHidden) addressHidden.value = customerAddress || '';
+        }
+
+        if (projectSelect) {
+            projectSelect.addEventListener('change', updateProjectAndCustomer);
+            updateProjectAndCustomer();
+        }
+    });
+
     // Xử lý hiển thị thông tin phương thức xử lý
     document.querySelectorAll('input[name="approval_method"]').forEach(radio => {
         radio.addEventListener('change', function() {
@@ -351,6 +447,8 @@
             // Hiển thị thông tin tương ứng
             if (this.value === 'production') {
                 document.getElementById('production_info').classList.remove('hidden');
+                // Hiển thị trường "Kỹ thuật đề xuất" khi chọn "Sản xuất lắp ráp"
+                document.getElementById('proposer_section').style.display = 'block';
                 // Chỉ hiển thị radio "Thành phẩm" khi chọn "Sản xuất lắp ráp"
                 document.getElementById('equipment_radio').style.display = 'flex';
                 document.getElementById('material_radio').style.display = 'none';
@@ -361,6 +459,8 @@
                 document.getElementById('equipment_type').dispatchEvent(new Event('change'));
             } else if (this.value === 'warehouse') {
                 document.getElementById('warehouse_info').classList.remove('hidden');
+                // Ẩn trường "Kỹ thuật đề xuất" khi chọn "Xuất kho"
+                document.getElementById('proposer_section').style.display = 'none';
                 // Hiển thị radio "Thành phẩm" và "Hàng hóa" khi chọn "Xuất kho", ẩn "Vật tư"
                 document.getElementById('equipment_radio').style.display = 'flex';
                 document.getElementById('material_radio').style.display = 'none';
@@ -381,12 +481,14 @@
         
         if (productionRadio.checked) {
             // Nếu mặc định chọn "Sản xuất lắp ráp"
+            document.getElementById('proposer_section').style.display = 'block';
             document.getElementById('equipment_radio').style.display = 'flex';
             document.getElementById('material_radio').style.display = 'none';
             document.getElementById('good_radio').style.display = 'none';
             document.getElementById('equipment_type').checked = true;
         } else if (warehouseRadio.checked) {
             // Nếu mặc định chọn "Xuất kho"
+            document.getElementById('proposer_section').style.display = 'none';
             document.getElementById('equipment_radio').style.display = 'flex';
             document.getElementById('material_radio').style.display = 'none';
             document.getElementById('good_radio').style.display = 'flex';

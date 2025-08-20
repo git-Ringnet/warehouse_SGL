@@ -44,7 +44,7 @@
                             <label for="request_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày đề xuất</label>
                     <input type="date" name="request_date" id="request_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('request_date', date('Y-m-d')) }}">
                 </div>
-                <div>
+                <div id="proposer_section">
                     <label for="proposer_id" class="block text-sm font-medium text-gray-700 mb-1 required" id="proposer_label">Nhân viên đề xuất</label>
                     <select name="proposer_id" id="proposer_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">-- Chọn nhân viên --</option>
@@ -54,7 +54,7 @@
                             </option>
                         @endforeach
                     </select>
-                        </div>
+                </div>
                         <div>
                     <label for="implementer_id" class="block text-sm font-medium text-gray-700 mb-1" id="implementer_label">Nhân viên thực hiện</label>
                     <select name="implementer_id" id="implementer_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -430,6 +430,9 @@
             // Hiển thị thông tin tương ứng
             if (this.value === 'production') {
                 document.getElementById('production_info').classList.remove('hidden');
+                // Hiển thị trường "Nhân viên đề xuất" khi chọn "Sản xuất lắp ráp"
+                document.getElementById('proposer_section').style.display = 'block';
+                document.getElementById('proposer_id').required = true;
                 // Chỉ hiển thị radio "Thành phẩm" khi chọn "Sản xuất lắp ráp"
                 document.getElementById('equipment_radio').style.display = 'flex';
                 document.getElementById('material_radio').style.display = 'none';
@@ -440,6 +443,14 @@
                 document.getElementById('equipment_type').dispatchEvent(new Event('change'));
             } else if (this.value === 'warehouse') {
                 document.getElementById('warehouse_info').classList.remove('hidden');
+                // Ẩn trường "Nhân viên đề xuất" khi chọn "Xuất kho" và tự động map với tài khoản hiện tại
+                document.getElementById('proposer_section').style.display = 'none';
+                document.getElementById('proposer_id').required = false;
+                // Tự động chọn tài khoản hiện tại
+                const currentEmployeeId = '{{ $currentEmployee->id ?? "" }}';
+                if (currentEmployeeId) {
+                    document.getElementById('proposer_id').value = currentEmployeeId;
+                }
                 // Hiển thị radio "Thành phẩm" và "Hàng hóa" khi chọn "Xuất kho", ẩn "Vật tư"
                 document.getElementById('equipment_radio').style.display = 'flex';
                 document.getElementById('material_radio').style.display = 'none';
@@ -460,12 +471,21 @@
         
         if (productionRadio.checked) {
             // Nếu mặc định chọn "Sản xuất lắp ráp"
+            document.getElementById('proposer_section').style.display = 'block';
+            document.getElementById('proposer_id').required = true;
             document.getElementById('equipment_radio').style.display = 'flex';
             document.getElementById('material_radio').style.display = 'none';
             document.getElementById('good_radio').style.display = 'none';
             document.getElementById('equipment_type').checked = true;
         } else if (warehouseRadio.checked) {
             // Nếu mặc định chọn "Xuất kho"
+            document.getElementById('proposer_section').style.display = 'none';
+            document.getElementById('proposer_id').required = false;
+            // Tự động chọn tài khoản hiện tại
+            const currentEmployeeId = '{{ $currentEmployee->id ?? "" }}';
+            if (currentEmployeeId) {
+                document.getElementById('proposer_id').value = currentEmployeeId;
+            }
             document.getElementById('equipment_radio').style.display = 'flex';
             document.getElementById('material_radio').style.display = 'none';
             document.getElementById('good_radio').style.display = 'flex';
@@ -761,7 +781,7 @@
             var implementerLabel = document.getElementById('implementer_label');
             
             if (prod.checked) {
-                proposerLabel.innerHTML = 'Người phụ trách lắp ráp <span class="text-danger">*</span>';
+                proposerLabel.innerHTML = 'Người phụ trách lắp ráp <span class="text-danger"></span>';
                 implementerLabel.innerHTML = 'Người tiếp nhận kiểm thử <span class="text-danger">*</span>';
                 document.getElementById('implementer_id').setAttribute('required', 'required');
             } else {
