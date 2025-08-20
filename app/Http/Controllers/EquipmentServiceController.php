@@ -22,6 +22,48 @@ use Carbon\Carbon;
 class EquipmentServiceController extends Controller
 {
     /**
+     * Lấy ID người dùng đang đăng nhập từ guard mặc định hoặc guard 'employee'
+     */
+    private function getAuthenticatedActorId(): ?int
+    {
+        $userId = Auth::id();
+        if ($userId) {
+            return (int) $userId;
+        }
+        try {
+            $employeeId = Auth::guard('employee')->id();
+            return $employeeId ? (int) $employeeId : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Lấy user_id hợp lệ để lưu vào các bảng có FK tới `users`.
+     * Ưu tiên guard mặc định; nếu không có thì fallback về user hệ thống (ID=1).
+     */
+    private function getAuditUserId(): int
+    {
+        // Always prefer web guard (users table). Verify existence in users table to avoid FK violations.
+        try {
+            $webUserId = Auth::guard('web')->id();
+            if ($webUserId && DB::table('users')->where('id', $webUserId)->exists()) {
+                return (int) $webUserId;
+            }
+        } catch (\Throwable $e) {
+            // ignore guard errors
+        }
+
+        // Fallback to default guard but also validate against users table
+        $defaultId = Auth::id();
+        if ($defaultId && DB::table('users')->where('id', $defaultId)->exists()) {
+            return (int) $defaultId;
+        }
+
+        // Final fallback: system user id = 1 (must exist in users table)
+        return 1;
+    }
+    /**
      * Xử lý yêu cầu thu hồi thiết bị dự phòng/bảo hành
      */
     public function returnEquipment(Request $request)
@@ -79,7 +121,8 @@ class EquipmentServiceController extends Controller
                 'return_code' => DispatchReturn::generateReturnCode(),
                 'dispatch_item_id' => $dispatchItem->id,
                 'warehouse_id' => $warehouse->id,
-                'user_id' => Auth::id() ?? 1,
+                // dispatch_returns.user_id FK -> users.id
+                'user_id' => $this->getAuditUserId(),
                 'return_date' => Carbon::now(),
                 'reason_type' => 'return',
                 'reason' => $validatedData['reason'],
@@ -133,7 +176,7 @@ class EquipmentServiceController extends Controller
                     'warehouse_code' => $warehouse->code,
                     'reason' => $validatedData['reason'],
                     'return_date' => $dispatchReturn->return_date->toDateTimeString(),
-                    'returned_by' => Auth::id(),
+                    'returned_by' => $this->getAuthenticatedActorId(),
                     'serial_number' => $serialToReturn, // Thêm serial number vào nhật ký
                 ];
 
@@ -340,7 +383,8 @@ class EquipmentServiceController extends Controller
                 'replacement_dispatch_item_id' => $replacementItem->id,
                 'original_serial' => $requestedOriginalSerial,
                 'replacement_serial' => $requestedReplacementSerial,
-                'user_id' => Auth::id() ?? 1,
+                // dispatch_replacements.user_id FK -> users.id, nên dùng user web; nếu không có, fallback 1
+                'user_id' => $this->getAuditUserId(),
                 'replacement_date' => Carbon::now(),
                 'reason' => $validatedData['reason'],
                 'status' => 'completed',
@@ -461,18 +505,39 @@ class EquipmentServiceController extends Controller
             // Redirect với timestamp để tránh cache
             $redirectUrl = '';
             if ($originalItem->dispatch->dispatch_type === 'rental') {
-                // Tìm rental ID từ dispatch
+                // Tìm rental ID từ dispatch - sử dụng logic tương tự getEquipmentHistory
                 $rental = null;
+                
+                // Cách 1: Tìm theo dispatch_note
                 if ($originalItem->dispatch->dispatch_note) {
                     $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->dispatch_note}%")->first();
                 }
+                
+                // Cách 2: Tìm theo project_receiver nếu cách 1 không tìm thấy
                 if (!$rental && $originalItem->dispatch->project_receiver) {
                     $rental = \App\Models\Rental::where('rental_code', 'LIKE', "%{$originalItem->dispatch->project_receiver}%")->first();
                 }
+                
+                // Cách 3: Tìm tất cả rentals và so sánh
+                if (!$rental) {
+                    $allRentals = \App\Models\Rental::all();
+                    foreach ($allRentals as $r) {
+                        if (strpos($originalItem->dispatch->dispatch_note ?? '', $r->rental_code) !== false ||
+                            strpos($originalItem->dispatch->project_receiver ?? '', $r->rental_code) !== false) {
+                            $rental = $r;
+                            break;
+                        }
+                    }
+                }
+                
                 if ($rental) {
                     $redirectUrl = route('rentals.show', $rental->id) . '?t=' . time() . '&refresh=1';
                 } else {
-                    $redirectUrl = route('rentals.index') . '?t=' . time() . '&refresh=1';
+                    // Fallback: redirect về trang trước đó với thông báo
+                    $redirectUrl = redirect()->back()->getTargetUrl();
+                    if (empty($redirectUrl) || strpos($redirectUrl, 'rentals.index') !== false) {
+                        $redirectUrl = route('rentals.index') . '?t=' . time() . '&refresh=1';
+                    }
                 }
             } else {
                 $redirectUrl = route('projects.show', $originalItem->dispatch->project_id) . '?t=' . time() . '&refresh=1';
@@ -693,7 +758,8 @@ class EquipmentServiceController extends Controller
             'notes' => "Bảo hành tạo từ yêu cầu thay thế ngày " . Carbon::now()->format('d/m/Y H:i') . 
                     ". Lý do: {$reason}" . 
                     ". Thiết bị thay thế: " . $this->getItemCode($replacementItem),
-            'created_by' => Auth::id() ?? 1,
+            // warranties.created_by không FK users, nhưng ta vẫn ghi nhận user web nếu có
+            'created_by' => $this->getAuditUserId(),
             'activated_at' => now(),
         ]);
 
