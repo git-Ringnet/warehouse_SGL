@@ -1127,18 +1127,18 @@
                 quantityInputs.forEach((inp, index) => {
                     console.log(`Input ${index}:`, inp.name, 'value:', inp.value);
                     
-                    // tránh gán trùng listener
+                        // tránh gán trùng listener
                     if (inp.dataset.listenerAttached) {
                         console.log('Listener already attached for:', inp.name);
                         return;
                     }
-                    inp.dataset.listenerAttached = 'true';
+                        inp.dataset.listenerAttached = 'true';
                     
                     // Store original quantity for validation
                     inp.dataset.originalQuantity = inp.value;
                     console.log('Stored original quantity for:', inp.name, '=', inp.value);
                     
-                    inp.addEventListener('change', function() {
+                        inp.addEventListener('change', function() {
                         console.log('=== QUANTITY CHANGE EVENT TRIGGERED ===');
                         console.log('Input name:', this.name);
                         console.log('New value:', this.value);
@@ -1166,16 +1166,16 @@
                             console.log('Assembly not in progress - allowing all changes');
                         }
                         
-                        const row = this.closest('.component-row');
-                        if (!row) return;
-                        const block = row.closest('.component-block');
-                        if (!block) return;
-                        const pid = block.getAttribute('data-product-id');
-                        if (pid) {
-                            setTimeout(() => updateCreateNewProductButton(pid), 100);
-                        }
+                            const row = this.closest('.component-row');
+                            if (!row) return;
+                            const block = row.closest('.component-block');
+                            if (!block) return;
+                            const pid = block.getAttribute('data-product-id');
+                            if (pid) {
+                                setTimeout(() => updateCreateNewProductButton(pid), 100);
+                            }
+                        });
                     });
-                });
                 }
                 // attachMaterialQtyListeners(); // Temporarily disabled to avoid conflicts
                 
@@ -1516,8 +1516,13 @@
                 // Check component serials
                 const componentSerialSelects = document.querySelectorAll(
                     'select[name*="components"][name*="serials"]');
+                const componentSerialInputs = document.querySelectorAll(
+                    'input[name*="components"][name*="serials"]');
+                console.log('Found component serial selects:', componentSerialSelects.length);
+                console.log('Found component serial inputs:', componentSerialInputs.length);
                 const componentSerials = {};
 
+                // Process select elements
                 componentSerialSelects.forEach(select => {
                     const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
                     if (!componentSerials[componentIndex]) {
@@ -1525,6 +1530,17 @@
                     }
                     if (select.value && select.value.trim() !== '') {
                         componentSerials[componentIndex].push(select.value.trim());
+                    }
+                });
+
+                // Process input elements
+                componentSerialInputs.forEach(input => {
+                    const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
+                    if (!componentSerials[componentIndex]) {
+                        componentSerials[componentIndex] = [];
+                    }
+                    if (input.value && input.value.trim() !== '') {
+                        componentSerials[componentIndex].push(input.value.trim());
                     }
                 });
 
@@ -1544,6 +1560,88 @@
                                 showSerialError(select, 'Serial trùng lặp');
                             }
                         });
+                    }
+                });
+
+                // Check for duplicate serials across different product units
+                const allComponentSerials = [];
+                
+                // Process select elements
+                componentSerialSelects.forEach(select => {
+                    if (select.value && select.value.trim() !== '') {
+                        const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                        const productUnit = select.getAttribute('data-product-unit') || '0';
+                        
+                        console.log('Serial select found:', {
+                            name: select.name,
+                            value: select.value,
+                            componentIndex: componentIndex,
+                            productUnit: productUnit,
+                            dataProductUnit: select.getAttribute('data-product-unit')
+                        });
+                        
+                        allComponentSerials.push({
+                            serial: select.value.trim(),
+                            componentIndex: componentIndex,
+                            productUnit: productUnit,
+                            element: select
+                        });
+                    }
+                });
+
+                // Process input elements
+                componentSerialInputs.forEach(input => {
+                    if (input.value && input.value.trim() !== '') {
+                        const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
+                        // For input elements, we need to find the product unit from the hidden input
+                        const row = input.closest('tr');
+                        const productUnitInput = row ? row.querySelector('input[name*="product_unit"]') : null;
+                        const productUnit = productUnitInput ? productUnitInput.value : '0';
+                        
+                        console.log('Serial input found:', {
+                            name: input.name,
+                            value: input.value,
+                            componentIndex: componentIndex,
+                            productUnit: productUnit
+                        });
+                        
+                        allComponentSerials.push({
+                            serial: input.value.trim(),
+                            componentIndex: componentIndex,
+                            productUnit: productUnit,
+                            element: input
+                        });
+                    }
+                });
+
+                // Group serials by serial value and check for duplicates across units
+                const serialGroups = {};
+                allComponentSerials.forEach(item => {
+                    if (!serialGroups[item.serial]) {
+                        serialGroups[item.serial] = [];
+                    }
+                    serialGroups[item.serial].push(item);
+                });
+
+                // Check for duplicates across different product units
+                Object.keys(serialGroups).forEach(serial => {
+                    const items = serialGroups[serial];
+                    if (items.length > 1) {
+                        // Check if duplicates are in different product units
+                        const productUnits = [...new Set(items.map(item => item.productUnit))];
+                        console.log(`Checking serial ${serial}:`, {
+                            items: items,
+                            productUnits: productUnits,
+                            isDuplicate: productUnits.length > 1
+                        });
+                        
+                        if (productUnits.length > 1) {
+                            console.log(`Found duplicate serial ${serial} across units:`, productUnits);
+                            // Show error for all instances of this serial
+                            items.forEach(item => {
+                                showSerialError(item.element, `Serial trùng lặp (Đơn vị ${parseInt(item.productUnit) + 1})`);
+                            });
+                        }
                     }
                 });
             }
@@ -1601,7 +1699,7 @@
                                 console.log('handleQuantityChange PREVENTING DECREASE');
                                 alert('Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
                                 this.value = originalQuantity;
-                                return;
+                            return;
                             }
                         }
 
@@ -1776,10 +1874,14 @@
                 // Check for duplicate serials in components
                 const componentSerialSelects = document.querySelectorAll(
                     'select[name*="components"][name*="serials"]');
+                const componentSerialInputs = document.querySelectorAll(
+                    'input[name*="components"][name*="serials"]');
                 const componentSerials = {};
 
                 console.log('Found component serial selects:', componentSerialSelects.length);
+                console.log('Found component serial inputs:', componentSerialInputs.length);
 
+                // Process select elements
                 componentSerialSelects.forEach(select => {
                     const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
                     if (!componentSerials[componentIndex]) {
@@ -1789,6 +1891,18 @@
                         componentSerials[componentIndex].push(select.value.trim());
                     }
                     console.log(`Select ${select.name}: value="${select.value}"`);
+                });
+
+                // Process input elements
+                componentSerialInputs.forEach(input => {
+                    const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
+                    if (!componentSerials[componentIndex]) {
+                        componentSerials[componentIndex] = [];
+                    }
+                    if (input.value && input.value.trim() !== '') {
+                        componentSerials[componentIndex].push(input.value.trim());
+                    }
+                    console.log(`Input ${input.name}: value="${input.value}"`);
                 });
 
                 // Check for duplicates within each component
@@ -1802,10 +1916,69 @@
                     }
                 });
 
+                // Check for duplicate serials across different product units
+                const allComponentSerials = [];
+                
+                // Process select elements
+                componentSerialSelects.forEach(select => {
+                    if (select.value && select.value.trim() !== '') {
+                        const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                        const productUnit = select.getAttribute('data-product-unit') || '0';
+                        
+                        allComponentSerials.push({
+                            serial: select.value.trim(),
+                            componentIndex: componentIndex,
+                            productUnit: productUnit
+                        });
+                    }
+                });
+
+                // Process input elements
+                componentSerialInputs.forEach(input => {
+                    if (input.value && input.value.trim() !== '') {
+                        const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
+                        // For input elements, we need to find the product unit from the hidden input
+                        const row = input.closest('tr');
+                        const productUnitInput = row ? row.querySelector('input[name*="product_unit"]') : null;
+                        const productUnit = productUnitInput ? productUnitInput.value : '0';
+                        
+                        allComponentSerials.push({
+                            serial: input.value.trim(),
+                            componentIndex: componentIndex,
+                            productUnit: productUnit
+                        });
+                    }
+                });
+
+                // Group serials by serial value and check for duplicates across units
+                const serialGroups = {};
+                allComponentSerials.forEach(item => {
+                    if (!serialGroups[item.serial]) {
+                        serialGroups[item.serial] = [];
+                    }
+                    serialGroups[item.serial].push(item);
+                });
+
+                // Check for duplicates across different product units
+                Object.keys(serialGroups).forEach(serial => {
+                    const items = serialGroups[serial];
+                    if (items.length > 1) {
+                        // Check if duplicates are in different product units
+                        const productUnits = [...new Set(items.map(item => item.productUnit))];
+                        if (productUnits.length > 1) {
+                            hasError = true;
+                            const unitInfo = productUnits.map(unit => `Đơn vị ${parseInt(unit) + 1}`).join(', ');
+                            errorMessages.push(`Serial '${serial}' được sử dụng ở nhiều đơn vị thành phẩm: ${unitInfo}`);
+                        }
+                    }
+                });
+
                 // Debug logging
                 console.log('Validation check:', {
                     productSerials: productSerials,
                     componentSerials: componentSerials,
+                    allComponentSerials: allComponentSerials,
+                    serialGroups: serialGroups,
                     hasError: hasError,
                     errorMessages: errorMessages
                 });

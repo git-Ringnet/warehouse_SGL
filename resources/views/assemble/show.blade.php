@@ -565,11 +565,6 @@
                                 class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
                                 <i class="fas fa-truck mr-2"></i> Xem phiếu xuất kho
                             </a>
-                        @elseif (isset($dispatches) && $dispatches->count() > 0)
-                            <a href="{{ route('inventory.dispatch.show', $dispatches->first()->id) }}"
-                                class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center">
-                                <i class="fas fa-truck mr-2"></i> Xem phiếu xuất kho
-                            </a>
                         @endif
                     @endif
                     <a href="{{ route('assemblies.export.excel', $assembly->id) }}"

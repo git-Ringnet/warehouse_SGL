@@ -484,39 +484,28 @@ class AssemblyController extends Controller
     {
         $assembly->load(['product', 'products.product', 'materials.material', 'assignedEmployee', 'tester', 'warehouse', 'targetWarehouse', 'project']);
 
-        // Lấy các phiếu xuất kho liên quan đến assembly này
-        $dispatches = \App\Models\Dispatch::where(function ($q) use ($assembly) {
-            $q->where('dispatch_note', 'like', '%' . $assembly->code . '%');
-        })
-            ->orWhere(function ($q) use ($assembly) {
-                if ($assembly->project_id) {
-                    $q->where('project_id', $assembly->project_id);
-                }
+        // Luôn ưu tiên phiếu xuất kho vật tư sinh ra từ phiếu lắp ráp này
+        // Tiêu chí: dispatch_note chứa mã phiếu và không gắn project (project_id NULL)
+        $dispatch = \App\Models\Dispatch::where(function ($q) use ($assembly) {
+                $q->where('dispatch_note', 'like', '%Sinh từ phiếu lắp ráp: ' . $assembly->code . '%')
+                  ->orWhere('dispatch_note', 'like', '%Sinh ra từ phiếu lắp ráp ' . $assembly->code . '%')
+                  ->orWhere('dispatch_note', 'like', '%Từ phiếu lắp ráp ' . $assembly->code . '%');
             })
-            ->orderByDesc('created_at')
-            ->get();
-
-        // Ưu tiên chọn đúng phiếu xuất sinh ra từ phiếu lắp ráp hiện tại
-        $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%Sinh ra từ phiếu lắp ráp ' . $assembly->code . '%')
+            ->whereNull('project_id')
             ->orderByDesc('created_at')
             ->first();
 
-        if (!$dispatch) {
-            $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%Sinh từ phiếu lắp ráp: ' . $assembly->code . '%')
-                ->orderByDesc('created_at')
-                ->first();
-        }
-
+        // Fallback: nếu không có, vẫn chọn phiếu note chứa mã và null project
         if (!$dispatch) {
             $dispatch = \App\Models\Dispatch::where('dispatch_note', 'like', '%' . $assembly->code . '%')
+                ->whereNull('project_id')
                 ->orderByDesc('created_at')
                 ->first();
         }
 
-        if (!$dispatch && $assembly->project_id) {
-            $dispatch = \App\Models\Dispatch::where('project_id', $assembly->project_id)
-                ->orderByDesc('created_at')
-                ->first();
+        $dispatches = collect();
+        if ($dispatch) {
+            $dispatches->push($dispatch);
         }
 
         // Ghi nhật ký xem chi tiết phiếu lắp ráp
