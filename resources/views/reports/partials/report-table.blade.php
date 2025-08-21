@@ -27,6 +27,9 @@
             <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(9)">
                 Chênh lệch <i class="fas fa-sort text-gray-300 ml-1"></i>
             </th>
+            <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(10)">
+                Hư hỏng <i class="fas fa-sort text-gray-300 ml-1"></i>
+            </th>
             <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
         </tr>
     </thead>
@@ -64,6 +67,13 @@
                     {{ number_format($difference) }}
                 @endif
             </td>
+            <td class="py-3 px-4 text-sm text-gray-900 text-orange-600 font-medium">
+                @if($item['damaged_quantity'] > 0)
+                    {{ number_format($item['damaged_quantity']) }}
+                @else
+                    0
+                @endif
+            </td>
             <td class="py-3 px-4 text-sm">
                 <a href="{{ route('materials.show', $item['item_id']) }}" class="text-blue-500 hover:text-blue-700 mr-2" title="Xem chi tiết">
                     <i class="fas fa-eye"></i>
@@ -75,7 +85,7 @@
         </tr>
         @empty
         <tr>
-            <td colspan="11" class="py-8 px-4 text-center text-gray-500">
+            <td colspan="12" class="py-8 px-4 text-center text-gray-500">
                 <i class="fas fa-inbox text-4xl mb-4 text-gray-400"></i>
                 <p class="text-lg font-medium">Không có dữ liệu</p>
                 <p class="text-sm">Thử thay đổi bộ lọc để xem kết quả khác</p>
@@ -102,6 +112,7 @@
                     {{ number_format($totalDifference) }}
                 @endif
             </td>
+            <td class="py-3 px-4 text-sm font-medium text-orange-600">{{ number_format($reportData->sum('damaged_quantity')) }}</td>
             <td class="py-3 px-4"></td>
         </tr>
     </tfoot>

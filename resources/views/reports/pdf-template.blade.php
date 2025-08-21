@@ -306,6 +306,7 @@
             <strong>Tồn cuối kỳ</strong>: Tồn đầu kỳ + Nhập - Xuất (tính toán theo lý thuyết)<br>
             <strong>Tồn hiện tại</strong>: Số lượng thực tế trong kho hiện tại<br>
             <strong>Chênh lệch</strong>: Tồn hiện tại - Tồn cuối kỳ (tính toán)<br>
+            <strong>Hư hỏng</strong>: Số lượng vật tư hư hỏng từ kiểm thử trong kỳ báo cáo<br>
             <strong>Ý nghĩa chênh lệch:</strong><br>
             • Chênh lệch dương (+): Thừa so với tính toán<br>
             • Chênh lệch âm (-): Thiếu so với tính toán<br>
@@ -338,6 +339,7 @@
                         <th style="width: 8%">Tồn cuối kỳ</th>
                         <th style="width: 8%">Tồn hiện tại</th>
                         <th style="width: 8%">Chênh lệch</th>
+                        <th style="width: 8%">Hư hỏng</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -375,6 +377,13 @@
                                     {{ number_format($difference) }}
                                 @endif
                             </td>
+                            <td class="text-right">
+                                @if($item['damaged_quantity'] > 0)
+                                    {{ number_format($item['damaged_quantity']) }}
+                                @else
+                                    0
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -398,6 +407,7 @@
                                 {{ number_format($totalDiff) }}
                             @endif
                         </td>
+                        <td class="text-right" style="font-size: 11px;">{{ number_format($reportData->sum('damaged_quantity')) }}</td>
                     </tr>
                 </tfoot>
             </table>

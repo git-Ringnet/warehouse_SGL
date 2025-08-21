@@ -28,22 +28,39 @@
             <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Bộ lọc báo cáo</h3>
                 <div id="filterForm">
-                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-7 gap-4">
+                        <!-- Bộ lọc thời gian -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Thời gian</label>
+                            <select name="time_filter" id="timeFilter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="custom" {{ $timeFilter == 'custom' || !$timeFilter ? 'selected' : '' }}>Tùy chọn</option>
+                                <option value="quarter" {{ $timeFilter == 'quarter' ? 'selected' : '' }}>Theo Quý</option>
+                                <option value="year" {{ $timeFilter == 'year' ? 'selected' : '' }}>Theo Năm</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Từ ngày -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
-                            <input type="date" name="from_date" value="{{ $dateFrom }}" 
+                            <input type="date" name="from_date" id="fromDate" value="{{ $dateFrom }}" 
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        
+                        <!-- Đến ngày -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
-                            <input type="date" name="to_date" value="{{ $dateTo }}" 
+                            <input type="date" name="to_date" id="toDate" value="{{ $dateTo }}" 
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        
+                        <!-- Tìm kiếm -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
                             <input type="text" name="search" value="{{ $search }}" placeholder="Mã, tên vật tư..."
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        
+                        <!-- Danh mục -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Danh mục</label>
                             <select name="category_filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -53,12 +70,16 @@
                                 @endforeach
                             </select>
                         </div>
+                        
+                        <!-- Nút áp dụng -->
                         <div class="flex items-end">
                             <button type="button" onclick="applyFilter()" 
                                     class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200">
                                 <i class="fas fa-search mr-1"></i> Áp dụng
                             </button>
                         </div>
+                        
+                        <!-- Nút xuất -->
                         <div class="flex items-end space-x-1">
                             <button type="button" onclick="exportToExcel()" 
                                     class="flex-1 bg-green-600 text-white px-2 py-2 rounded-md hover:bg-green-700 transition duration-200 text-sm">
@@ -82,7 +103,7 @@
 
             <!-- Thống kê tổng quan -->
             <div class="mb-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <!-- Tổng vật tư -->
                     <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500">
                         <div class="flex justify-between">
@@ -145,6 +166,22 @@
                             </div>
                             <div class="bg-red-100 rounded-full h-12 w-12 flex items-center justify-center">
                                 <i class="fas fa-sign-out-alt text-red-500 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vật tư hư hỏng -->
+                    <div class="bg-white rounded-xl shadow-md p-5 border-l-4 border-orange-500">
+                        <div class="flex justify-between">
+                            <div>
+                                <div class="text-sm font-medium text-gray-500">Vật tư hư hỏng (trong kỳ)</div>
+                                <div class="text-2xl font-bold text-gray-800">{{ number_format($stats['damaged_quantity'] ?? 0) }}</div>
+                                <div class="mt-1 text-xs text-orange-500 font-medium">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i> Từ kiểm thử
+                                </div>
+                            </div>
+                            <div class="bg-orange-100 rounded-full h-12 w-12 flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-orange-500 text-xl"></i>
                             </div>
                         </div>
                     </div>
@@ -224,6 +261,9 @@
                                 <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(9)">
                                     Chênh lệch <i class="fas fa-sort text-gray-300 ml-1"></i>
                                 </th>
+                                <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable(10)">
+                                    Hư hỏng <i class="fas fa-sort text-gray-300 ml-1"></i>
+                                </th>
                                 <th class="py-3 px-4 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                             </tr>
                         </thead>
@@ -261,6 +301,13 @@
                                         {{ number_format($difference) }}
                                     @endif
                                 </td>
+                                <td class="py-3 px-4 text-sm text-gray-900 text-orange-600 font-medium">
+                                    @if($item['damaged_quantity'] > 0)
+                                        {{ number_format($item['damaged_quantity']) }}
+                                    @else
+                                        0
+                                    @endif
+                                </td>
                                 <td class="py-3 px-4 text-sm">
                                     <a href="{{ route('materials.show', $item['item_id']) }}" class="text-blue-500 hover:text-blue-700 mr-2" title="Xem chi tiết">
                                         <i class="fas fa-eye"></i>
@@ -272,7 +319,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="11" class="py-8 px-4 text-center text-gray-500">
+                                <td colspan="12" class="py-8 px-4 text-center text-gray-500">
                                     <i class="fas fa-inbox text-4xl mb-4 text-gray-400"></i>
                                     <p class="text-lg font-medium">Không có dữ liệu</p>
                                     <p class="text-sm">Thử thay đổi bộ lọc để xem kết quả khác</p>
@@ -299,6 +346,7 @@
                                         {{ number_format($totalDifference) }}
                                     @endif
                                 </td>
+                                <td class="py-3 px-4 text-sm font-medium text-orange-600">{{ number_format($reportData->sum('damaged_quantity')) }}</td>
                                 <td class="py-3 px-4"></td>
                             </tr>
                         </tfoot>
@@ -460,8 +508,29 @@
             // Thêm thông tin sắp xếp hiện tại
             const currentSort = getCurrentSortInfo();
             if (currentSort) {
-                data.sort_column = currentSort.column;
+                // Map columnIndex sang tên cột cho backend
+                const columnMap = {
+                    0: 'item_id', // STT
+                    1: 'item_code', // Mã vật tư
+                    2: 'item_name', // Tên vật tư
+                    3: 'item_unit', // Đơn vị
+                    4: 'opening_stock', // Tồn đầu kỳ
+                    5: 'imports', // Nhập
+                    6: 'exports', // Xuất
+                    7: 'closing_stock', // Tồn cuối kỳ
+                    8: 'current_stock', // Tồn hiện tại
+                    9: 'current_stock', // Chênh lệch (sort by current_stock)
+                    10: 'damaged_quantity', // Hư hỏng
+                };
+                
+                data.sort_column = columnMap[currentSort.column] || 'item_name';
                 data.sort_direction = currentSort.direction;
+            }
+            
+            // Thêm thông tin filter thời gian
+            const timeFilter = document.getElementById('timeFilter');
+            if (timeFilter && timeFilter.value !== 'custom') {
+                data.time_filter = timeFilter.value;
             }
             
             console.log('Filter data:', data); // Debug log
@@ -499,6 +568,11 @@
             if (statCards[3]) {
                 statCards[3].textContent = stats.exports.toLocaleString();
             }
+
+            // Cập nhật vật tư hư hỏng
+            if (statCards[4]) {
+                statCards[4].textContent = stats.damaged_quantity.toLocaleString();
+            }
             
             // Cập nhật % thay đổi nhập kho
             const importsChange = document.querySelector('.text-xs.text-green-500.font-medium, .text-xs.text-red-500.font-medium');
@@ -520,6 +594,46 @@
         // Variables để lưu charts
         let trendsChart = null;
         let topChart = null;
+
+        // Xử lý filter thời gian
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeFilter = document.getElementById('timeFilter');
+            const fromDate = document.getElementById('fromDate');
+            const toDate = document.getElementById('toDate');
+
+            if (timeFilter && fromDate && toDate) {
+                timeFilter.addEventListener('change', function() {
+                    const selectedValue = this.value;
+                    const today = new Date();
+                    
+                    switch (selectedValue) {
+                        case 'quarter':
+                            // Tính quý hiện tại
+                            const currentQuarter = Math.ceil((today.getMonth() + 1) / 3);
+                            const quarterStart = new Date(today.getFullYear(), (currentQuarter - 1) * 3, 1);
+                            const quarterEnd = new Date(today.getFullYear(), currentQuarter * 3, 0);
+                            
+                            fromDate.value = quarterStart.toISOString().split('T')[0];
+                            toDate.value = quarterEnd.toISOString().split('T')[0];
+                            break;
+                            
+                        case 'year':
+                            // Tính năm hiện tại
+                            const yearStart = new Date(today.getFullYear(), 0, 1);
+                            const yearEnd = new Date(today.getFullYear(), 11, 31);
+                            
+                            fromDate.value = yearStart.toISOString().split('T')[0];
+                            toDate.value = yearEnd.toISOString().split('T')[0];
+                            break;
+                            
+                        case 'custom':
+                        default:
+                            // Giữ nguyên giá trị hiện tại
+                            break;
+                    }
+                });
+            }
+        });
 
         // Cập nhật biểu đồ
         function updateCharts(chartData) {

@@ -1148,7 +1148,7 @@ class MaterialController extends Controller
             ->leftJoin('warehouses', 'inventory_import_materials.warehouse_id', '=', 'warehouses.id')
             ->where('inventory_import_materials.material_id', $id)
             ->select([
-                'inventory_imports.import_date as date',
+                DB::raw("COALESCE(inventory_imports.created_at, inventory_imports.import_date) as date"),
                 'inventory_import_materials.quantity',
                 'inventory_import_materials.warehouse_id',
                 'warehouses.name as warehouse_name',
@@ -1159,10 +1159,10 @@ class MaterialController extends Controller
 
         // Áp dụng bộ lọc thời gian cho nhập kho
         if ($fromDate) {
-            $importsQuery->where('inventory_imports.import_date', '>=', $fromDate);
+            $importsQuery->whereDate(DB::raw('COALESCE(inventory_imports.created_at, inventory_imports.import_date)'), '>=', $fromDate);
         }
         if ($toDate) {
-            $importsQuery->where('inventory_imports.import_date', '<=', $toDate);
+            $importsQuery->whereDate(DB::raw('COALESCE(inventory_imports.created_at, inventory_imports.import_date)'), '<=', $toDate);
         }
 
         $imports = $importsQuery->get();
@@ -1175,7 +1175,7 @@ class MaterialController extends Controller
             ->where('dispatch_items.item_type', 'material')
             ->whereIn('dispatches.status', ['approved', 'completed'])
             ->select([
-                'dispatches.dispatch_date as date',
+                DB::raw("COALESCE(dispatches.created_at, dispatches.dispatch_date) as date"),
                 'dispatch_items.quantity',
                 'dispatch_items.warehouse_id',
                 'warehouses.name as warehouse_name',
@@ -1186,10 +1186,10 @@ class MaterialController extends Controller
 
         // Áp dụng bộ lọc thời gian cho xuất kho
         if ($fromDate) {
-            $exportsQuery->where('dispatches.dispatch_date', '>=', $fromDate);
+            $exportsQuery->whereDate(DB::raw('COALESCE(dispatches.created_at, dispatches.dispatch_date)'), '>=', $fromDate);
         }
         if ($toDate) {
-            $exportsQuery->where('dispatches.dispatch_date', '<=', $toDate);
+            $exportsQuery->whereDate(DB::raw('COALESCE(dispatches.created_at, dispatches.dispatch_date)'), '<=', $toDate);
         }
 
         $exports = $exportsQuery->get();

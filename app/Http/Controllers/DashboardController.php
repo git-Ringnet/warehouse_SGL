@@ -44,25 +44,86 @@ class DashboardController extends Controller
      */
     private function getMaterialStats()
     {
-        // Tổng nhập kho vật tư - chỉ tính từ các kho active và vật tư active
-        $totalImport = WarehouseMaterial::where('item_type', 'material')
-            ->whereHas('warehouse', function($query) {
-                $query->where('status', 'active');
+        // Tổng nhập kho vật tư - lấy từ lịch sử nhập kho thực tế trong kỳ hiện tại (tháng hiện tại)
+        $currentMonthStart = now()->startOfMonth();
+        $currentMonthEnd = now()->endOfMonth();
+        
+        $totalImport = DB::table('inventory_import_materials')
+            ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->where('inventory_import_materials.item_type', 'material')
+            ->where('inventory_import_materials.material_id', '>', 0) // Đảm bảo có material_id
+            ->whereDate('inventory_imports.import_date', '>=', $currentMonthStart)
+            ->whereDate('inventory_imports.import_date', '<=', $currentMonthEnd)
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('materials')
+                    ->whereColumn('materials.id', 'inventory_import_materials.material_id')
+                    ->where('materials.status', 'active')
+                    ->where('materials.is_hidden', false);
             })
-            ->whereHas('material', function($query) {
-                $query->where('status', '!=', 'deleted');
+            ->sum('inventory_import_materials.quantity');
+
+        // Tổng xuất kho vật tư - lấy từ lịch sử xuất kho thực tế trong kỳ hiện tại (tháng hiện tại)
+        $currentMonthStart = now()->startOfMonth();
+        $currentMonthEnd = now()->endOfMonth();
+        
+        $totalExport = DB::table('dispatch_items')
+            ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatch_items.item_type', 'material')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->where('dispatch_items.item_id', '>', 0) // Đảm bảo có item_id
+            ->whereDate('dispatches.dispatch_date', '>=', $currentMonthStart)
+            ->whereDate('dispatches.dispatch_date', '<=', $currentMonthEnd)
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('materials')
+                    ->whereColumn('materials.id', 'dispatch_items.item_id')
+                    ->where('materials.status', 'active')
+                    ->where('materials.is_hidden', false);
             })
-            ->sum('quantity');
+            ->sum('dispatch_items.quantity');
 
-        // Tổng xuất kho vật tư (số lượng đã sử dụng trong lắp ráp)
-        $totalExport = DB::table('assembly_materials')
-            ->sum('quantity');
+        // Tổng hư hỏng - số lượng vật tư trong kiểm thử có kết quả là fail trong kỳ hiện tại
+        // Sử dụng logic giống như Reports: parse JSON serial_results
+        $testingItems = DB::table('testing_items')
+            ->join('testings', 'testing_items.testing_id', '=', 'testings.id')
+            ->where('testing_items.item_type', 'material')
+            ->where('testings.status', 'completed')
+            ->where('testing_items.material_id', '>', 0) // Đảm bảo có material_id
+            ->whereDate('testings.test_date', '>=', $currentMonthStart)
+            ->whereDate('testings.test_date', '<=', $currentMonthEnd)
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('materials')
+                    ->whereColumn('materials.id', 'testing_items.material_id')
+                    ->where('materials.status', 'active')
+                    ->where('materials.is_hidden', false);
+            })
+            ->select('testing_items.serial_results', 'testing_items.quantity')
+            ->get();
 
-        // Tổng hư hỏng - số lượng vật tư trong kiểm thử có kết quả là fail
-        $totalDamaged = DB::table('testing_items')
-            ->where('item_type', 'material')
-            ->where('result', 'fail')
-            ->sum('quantity');
+        $totalDamaged = 0;
+
+        foreach ($testingItems as $item) {
+            if (!empty($item->serial_results)) {
+                try {
+                    // Parse JSON serial_results
+                    $serialResults = json_decode($item->serial_results, true);
+                    
+                    if (is_array($serialResults)) {
+                        // Đếm số lượng "fail" trong serial_results
+                        foreach ($serialResults as $serial => $result) {
+                            if ($result === 'fail') {
+                                $totalDamaged++;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Nếu JSON không hợp lệ, bỏ qua
+                    continue;
+                }
+            }
+        }
 
         return [
             'total_import' => $totalImport,
