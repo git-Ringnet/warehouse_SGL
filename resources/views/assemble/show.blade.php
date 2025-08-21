@@ -553,7 +553,7 @@
                             </button>
                         </form>
                     @endif
-                    @if ($assembly->status !== 'pending')
+                    @if ($assembly->status === 'in_progress' || $assembly->status === 'completed')
                         @if ($assembly->testings && $assembly->testings->count() > 0)
                             <a href="{{ route('testing.show', $assembly->testings->first()->id) }}"
                                 class="px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 flex items-center">
