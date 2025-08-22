@@ -174,6 +174,7 @@ class AssemblyController extends Controller
             'assembly_date' => 'required|date',
             'warehouse_id' => 'nullable|exists:warehouses,id', // Changed to nullable since each component has its own warehouse
             'target_warehouse_id' => 'nullable|exists:warehouses,id',
+            'default_warehouse_id' => 'nullable|exists:warehouses,id', // New field for default warehouse
             'assigned_to' => 'required|exists:employees,id',
             'tester_id' => 'required|exists:employees,id',
             'purpose' => 'required|in:storage,project',
@@ -259,8 +260,8 @@ class AssemblyController extends Controller
             }
 
             // Create single assembly record for all products
-            // Use warehouse_id from first component or null if no components
-            $defaultWarehouseId = !empty($components) ? $components[0]['warehouse_id'] : null;
+            // Use default_warehouse_id if provided, otherwise use warehouse_id from first component or null
+            $defaultWarehouseId = $request->default_warehouse_id ?? (!empty($components) ? $components[0]['warehouse_id'] : null);
 
             $assembly = Assembly::create([
                 'code' => $request->assembly_code,
@@ -1050,8 +1051,39 @@ class AssemblyController extends Controller
                                 Serial::where('id', $component['serial_id'])
                                     ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
                             }
+                        } else if ($assembly->status === 'pending') {
+                            // For pending status, allow quantity, serial and note updates
+                            // Reset old serial if exists
+                            if ($assemblyMaterial->serial_id) {
+                                Serial::where('id', $assemblyMaterial->serial_id)
+                                    ->update(['notes' => null]);
+                            }
+
+                            // Process serials if present
+                            $serial = null;
+                            if (isset($component['serials']) && is_array($component['serials'])) {
+                                // Filter out empty serials
+                                $filteredSerials = array_filter($component['serials']);
+
+                                // Only use unique values to prevent duplicates
+                                $uniqueSerials = array_unique($filteredSerials);
+
+                                // Convert to comma-separated string
+                                $serial = implode(',', $uniqueSerials);
+                            } elseif (isset($component['serial'])) {
+                                $serial = $component['serial'];
+                            } else {
+                                $serial = $component['serial'] ?? null;
+                            }
+
+                            $updateData = [
+                                'quantity' => (int)($component['quantity'] ?? $assemblyMaterial->quantity),
+                                'serial' => $serial,
+                                'note' => $component['note'] ?? null,
+                                'serial_id' => null, // Reset first
+                            ];
                         } else {
-                            // For other statuses, allow serial and note updates
+                            // For other statuses, allow serial and note updates only
                             // Reset old serial if exists
                             if ($assemblyMaterial->serial_id) {
                                 Serial::where('id', $assemblyMaterial->serial_id)

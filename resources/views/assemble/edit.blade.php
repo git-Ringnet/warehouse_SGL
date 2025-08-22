@@ -22,6 +22,115 @@
         console.log('Assembly Status:', ASSEMBLY_STATUS);
         console.log('IS_IN_PROGRESS:', IS_IN_PROGRESS);
         console.log('IS_PENDING:', IS_PENDING);
+        
+        // Debounce function to limit the rate of function calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Function to update serial selects for warehouse change (clears existing serials)
+        async function updateSerialSelectsForWarehouseChange(container, newQuantity) {
+            console.log('=== UPDATE SERIAL SELECTS FOR WAREHOUSE CHANGE ===');
+            console.log('Container:', container);
+            console.log('New quantity:', newQuantity);
+            
+            // Clear the warehouse-changed flag
+            container.removeAttribute('data-warehouse-changed');
+            
+            // Get the row to extract material and warehouse info
+            const row = container.closest('tr');
+            if (!row) {
+                console.error('Could not find parent row for serial container');
+                return;
+            }
+            
+            // Get material ID
+            const materialIdInput = row.querySelector('input[name*="[material_id]"]');
+            const materialId = materialIdInput ? materialIdInput.value : null;
+            
+            // Get warehouse ID from the select (current selection)
+            const warehouseSelect = row.querySelector('.warehouse-select');
+            const warehouseId = warehouseSelect ? warehouseSelect.value : null;
+            
+            // Update container data attributes to reflect new warehouse
+            if (materialId) container.setAttribute('data-material-id', materialId);
+            if (warehouseId) container.setAttribute('data-warehouse-id', warehouseId);
+            
+            console.log('Material ID:', materialId, 'Warehouse ID:', warehouseId);
+            console.log('Container data attributes updated - material-id:', container.getAttribute('data-material-id'), 'warehouse-id:', container.getAttribute('data-warehouse-id'));
+            
+            if (!materialId || !warehouseId) {
+                console.log('Missing material ID or warehouse ID, clearing container');
+                container.innerHTML = '<div class="text-gray-500 text-sm">Vui lòng chọn kho để hiển thị serial</div>';
+                return;
+            }
+            
+            // Fetch available serials for the new warehouse
+            let availableSerials = [];
+            try {
+                const url = `{{ route('assemblies.material-serials') }}?` + new URLSearchParams({
+                    material_id: materialId,
+                    warehouse_id: warehouseId
+                });
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    availableSerials = Array.isArray(data.serials) ? data.serials : [];
+                    console.log('Fetched available serials for new warehouse:', availableSerials);
+                }
+            } catch (e) {
+                console.error('Error fetching serials:', e);
+            }
+            
+            // Clear the container completely
+            container.innerHTML = '';
+            
+            // Create fresh serial selects without any pre-selected values
+            for (let i = 0; i < newQuantity; i++) {
+                console.log(`Creating fresh serial select for index ${i}`);
+                
+                const newSelect = document.createElement('select');
+                newSelect.className = 'material-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 block mb-2';
+                newSelect.setAttribute('data-serial-index', i.toString());
+                newSelect.setAttribute('data-material-id', materialId);
+                newSelect.setAttribute('data-warehouse-id', warehouseId);
+                
+                // Create name for the select
+                const quantityInput = row.querySelector('input[name*="[quantity]"]');
+                if (quantityInput) {
+                    const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
+                    if (componentMatch) {
+                        newSelect.name = `components[${componentMatch[1]}][serials][${i}]`;
+                    }
+                }
+                
+                // Add default option
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Chọn serial --';
+                newSelect.appendChild(defaultOption);
+                
+                // Add available serials as options
+                availableSerials.forEach(serial => {
+                    const option = document.createElement('option');
+                    option.value = serial.serial_number;
+                    option.textContent = serial.serial_number;
+                    newSelect.appendChild(option);
+                });
+                
+                container.appendChild(newSelect);
+            }
+            
+            console.log('Created fresh serial selects for warehouse change');
+        }
     </script>
     <style>
         /* Styles for product units */
@@ -83,6 +192,36 @@
             background-color: rgba(236, 72, 153, 0.1);
             padding: 2px 6px;
             border-radius: 4px;
+        }
+
+        /* Serial selects styling */
+        .material-serial-selects-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 200px;
+            width: 100%;
+        }
+
+        .material-serial-select {
+            margin-bottom: 8px !important;
+            width: 100% !important;
+            display: block !important;
+        }
+
+        /* Override any flex layout on serial containers */
+        .material-serial-selects-container > * {
+            display: block !important;
+            width: 100% !important;
+        }
+
+        /* Remove flex styling from any parent containers of serials */
+        .material-serial-selects-container .flex {
+            display: block !important;
+        }
+
+        .material-serial-selects-container .flex.items-center {
+            display: block !important;
         }
     </style>
 </head>
@@ -786,7 +925,7 @@
                                                                                 }
                                                                             @endphp
                                                                             @for ($i = 0; $i < $component['material']->quantity; $i++)
-                                                                                <div class="flex items-center">
+                                                                                <div class="mb-2">
                                                                                     <select
                                                                                         name="components[{{ $component['globalIndex'] }}][serials][]"
                                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
@@ -839,7 +978,7 @@
                                                                                 @for ($i = 0; $i < $component['material']->quantity; $i++)
                                                                                     @if (isset($serials[$i]) && !empty($serials[$i]))
                                                                                         <!-- Serial đã chọn trước đó - không cho sửa -->
-                                                                                        <div class="flex items-center">
+                                                                                        <div class="mb-2">
                                                                                             <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-sm text-gray-600">
                                                                                                 {{ $serials[$i] }}
                                                                                             </div>
@@ -1037,7 +1176,7 @@
                                                                                 </div>
                                                                             @else
                                                                                 <!-- Serial mới - cho phép chọn -->
-                                                                                <div class="flex items-center">
+                                                                                <div class="mb-2">
                                                                                     <select
                                                                                         name="components[{{ $index }}][serials][]"
                                                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
@@ -1604,7 +1743,7 @@
                 });
             }
 
-            // Function to check for duplicate serials in real-time
+            // Function to check for duplicate serials in real-time (now optional - no error display)
             function checkDuplicateSerialsRealTime() {
                 // Clear previous error indicators and red borders
                 document.querySelectorAll('.serial-error-indicator').forEach(el => el.remove());
@@ -1614,10 +1753,10 @@
                     }
                 });
 
-                // Debug logging
-                console.log('Checking for duplicate serials in real-time...');
+                // Debug logging only - no validation errors
+                console.log('Checking for duplicate serials in real-time (optional validation)...');
 
-                // Check product serials
+                // Check product serials (for logging only)
                 const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
                 const productSerials = {};
 
@@ -1631,23 +1770,18 @@
                     }
                 });
 
-                // Check for duplicates within each product
+                // Check for duplicates within each product (for logging only)
                 Object.keys(productSerials).forEach(productId => {
                     const serials = productSerials[productId];
                     const duplicates = serials.filter((item, index) => serials.indexOf(item) !== index);
 
                     if (duplicates.length > 0) {
-                        productSerialInputs.forEach(input => {
-                            const inputProductId = input.name.match(/products\[(\d+)\]/)[1];
-                            if (inputProductId === productId && duplicates.includes(input.value
-                                    .trim())) {
-                                showSerialError(input, 'Serial trùng lặp');
-                            }
-                        });
+                        console.log(`Product ${productId} has duplicate serials:`, duplicates);
+                        // No error display - serials are optional
                     }
                 });
 
-                // Check component serials
+                // Check component serials (for logging only)
                 const componentSerialSelects = document.querySelectorAll(
                     'select[name*="components"][name*="serials"]');
                 const componentSerialInputs = document.querySelectorAll(
@@ -1678,7 +1812,7 @@
                     }
                 });
 
-                // Check for duplicates within each component
+                // Check for duplicates within each component (for logging only)
                 Object.keys(componentSerials).forEach(componentIndex => {
                     const serials = componentSerials[componentIndex];
                     const duplicates = serials.filter((item, index) => serials.indexOf(item) !== index);
@@ -1686,14 +1820,8 @@
                     console.log(`Component ${componentIndex} serials:`, serials, 'Duplicates:', duplicates);
 
                     if (duplicates.length > 0) {
-                        componentSerialSelects.forEach(select => {
-                            const selectComponentIndex = select.name.match(/components\[(\d+)\]/)[
-                            1];
-                            if (selectComponentIndex === componentIndex && duplicates.includes(
-                                    select.value.trim())) {
-                                showSerialError(select, 'Serial trùng lặp');
-                            }
-                        });
+                        console.log(`Component ${componentIndex} has duplicate serials:`, duplicates);
+                        // No error display - serials are optional
                     }
                 });
 
@@ -1847,19 +1975,6 @@
             // Initialize material serial selects
             initializeMaterialSerialSelects();
 
-            // Debounce function to limit the rate of function calls
-            function debounce(func, wait) {
-                let timeout;
-                return function executedFunction(...args) {
-                    const later = () => {
-                        clearTimeout(timeout);
-                        func(...args);
-                    };
-                    clearTimeout(timeout);
-                    timeout = setTimeout(later, wait);
-                };
-            }
-
             // Function to handle quantity changes for pending and in_progress assemblies
             async function handleQuantityChange() {
                 const quantityInputs = document.querySelectorAll('input[name*="[quantity]"]');
@@ -1963,6 +2078,26 @@
                                 }, 100);
                             }
                         }
+                        
+                        // Update form data after quantity change
+                        setTimeout(() => {
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                        }, 150);
+                        
+                        // Force update form data again to ensure consistency
+                        setTimeout(() => {
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                        }, 500);
                     });
                     
                     // Add input event listener to catch arrow button clicks and real-time updates
@@ -1996,6 +2131,10 @@
                                 // Use debounced update to avoid excessive calls
                                 const debouncedUpdate = debounce(async () => {
                                     await updateSerialSelects(serialContainer, newQuantity);
+                                    // Update form data after serial selects are updated
+                                    if (typeof updateFormData === 'function') {
+                                        updateFormData();
+                                    }
                                 }, 300);
                                 debouncedUpdate();
                             }
@@ -2011,15 +2150,17 @@
                                 setTimeout(async () => {
                                     await updateSerialSelects(serialContainer, newQuantity);
                                     // Update form data after serial selects are updated
-                                    setTimeout(() => {
+                                    if (typeof updateFormData === 'function') {
                                         updateFormData();
-                                    }, 50);
+                                    }
                                 }, 100);
                             }
                         }
                     });
                 });
             }
+
+
 
             // Function to update serial selects based on quantity
             async function updateSerialSelects(container, newQuantity) {
@@ -2034,7 +2175,7 @@
                 if (!template) {
                     console.log('No template found, creating new template...');
                     template = document.createElement('select');
-                    template.className = 'material-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+                    template.className = 'material-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 block mb-2';
                     template.setAttribute('data-serial-index', '0');
                     
                     // Lấy thông tin từ container hoặc tạo mặc định
@@ -2063,29 +2204,44 @@
                     console.log('Created template with product-id:', productId, 'product-index:', productIndex);
                 }
 
-                // Lưu lại các giá trị serial đã chọn trước đó
+                // Check if warehouse has changed - if so, don't preserve existing serials
+                const warehouseChanged = container.hasAttribute('data-warehouse-changed');
+                console.log('Warehouse changed flag:', warehouseChanged);
+                
+                // Lưu lại các giá trị serial đã chọn trước đó (chỉ khi warehouse không đổi)
                 const existingSerials = [];
                 const originalSerials = [];
                 
-                container.querySelectorAll('.material-serial-select, .bg-gray-50').forEach(element => {
-                    if (element.classList.contains('bg-gray-50')) {
-                        // Đây là serial từ bản ghi gốc (read-only hiển thị)
-                        const hiddenInput = element.nextElementSibling;
-                        if (hiddenInput && hiddenInput.tagName === 'INPUT') {
-                            const value = hiddenInput.value.trim();
+                if (!warehouseChanged) {
+                    // Lấy tất cả serial selects hiện tại (cả editable và read-only)
+                    container.querySelectorAll('.material-serial-select, .bg-gray-50').forEach(element => {
+                        if (element.classList.contains('bg-gray-50')) {
+                            // Đây là serial từ bản ghi gốc (read-only hiển thị)
+                            const hiddenInput = element.nextElementSibling;
+                            if (hiddenInput && hiddenInput.tagName === 'INPUT') {
+                                const value = hiddenInput.value.trim();
+                                if (value) {
+                                    originalSerials.push(value);
+                                    existingSerials.push(value);
+                                }
+                            }
+                        } else {
+                            // Đây là select có thể chỉnh sửa (do người dùng chọn hiện tại)
+                            const value = element.value.trim();
                             if (value) {
-                                originalSerials.push(value);
                                 existingSerials.push(value);
                             }
                         }
-                    } else {
-                        // Đây là select có thể chỉnh sửa (do người dùng chọn hiện tại)
-                        const value = element.value.trim();
-                        if (value) {
-                            existingSerials.push(value);
-                        }
-                    }
-                });
+                    });
+                } else {
+                    console.log('Warehouse changed - clearing existing serials');
+                    // Clear the flag after processing
+                    container.removeAttribute('data-warehouse-changed');
+                }
+                
+                // Debug: log các giá trị đã lưu
+                console.log('Existing serials before update:', existingSerials);
+                console.log('Original serials:', originalSerials);
                 
                 // Số lượng serial gốc (server render) cần giữ read-only
                 const originalCount = parseInt(container.getAttribute('data-original-count') || '0');
@@ -2171,7 +2327,7 @@
                         // Vị trí thuộc serial gốc: giữ read-only (chỉ cho in_progress)
                         console.log(`Creating read-only serial for original index ${i}:`, existingValue);
                         const serialDiv = document.createElement('div');
-                        serialDiv.className = 'flex items-center';
+                        serialDiv.className = 'mb-2';
                         // Tạo name cho hidden input
                         let hiddenName = '';
                         if (template.name && template.name.includes('[serials]')) {
@@ -2204,10 +2360,6 @@
                         
                         // Tạo name mới cho serial select
                         let newName = '';
-                        if (template.name && template.name.includes('[serials]')) {
-                            newName = template.name.replace(/\[serials\]\[\d+\]/, `[serials][${i}]`);
-                        } else {
-                            // Nếu không có name, tạo name mặc định
                             const row = container.closest('tr');
                             if (row) {
                                 // Ưu tiên lấy từ quantity input
@@ -2224,11 +2376,13 @@
                                         const componentMatch = materialIdInput.name.match(/components\[(\d+)\]/);
                                         if (componentMatch) {
                                             newName = `components[${componentMatch[1]}][serials][${i}]`;
-                                        }
                                     }
                                 }
                             }
                         }
+                        
+                        // Debug: log name creation
+                        console.log(`Creating serial select name for index ${i}: ${newName}`);
                         
                         if (newName) {
                             newSelect.name = newName;
@@ -2242,7 +2396,6 @@
                         });
                         
                         // Cập nhật data-warehouse-id với giá trị warehouse hiện tại
-                        const row = container.closest('tr');
                         if (row) {
                             const warehouseSelect = row.querySelector('.warehouse-select');
                             if (warehouseSelect && warehouseSelect.value) {
@@ -2272,13 +2425,52 @@
                         } else {
                             newSelect.value = '';
                         }
+                        
+                        // Debug: log giá trị cuối cùng của serial select
+                        console.log(`Final serial select ${i} value:`, newSelect.value, 'name:', newSelect.name);
                         newSelect.removeEventListener('change', handleSerialChange);
                         newSelect.addEventListener('change', handleSerialChange);
+                        
+                        // Also add a custom change event listener for better form data synchronization
+                        newSelect.addEventListener('change', function() {
+                            console.log('Custom serial change event for index', i, 'value:', this.value);
+                                                    // Force update form data
+                        setTimeout(() => {
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                        }, 100);
+                        });
                         
                         // Also add input event listener for real-time validation
                         newSelect.addEventListener('input', function() {
                             console.log('Serial input event triggered for:', this.value);
                             checkDuplicateSerialsRealTime();
+                            // Update form data when serial input changes
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                            // Force update form data again to ensure consistency
+                            setTimeout(() => {
+                                if (typeof updateFormData === 'function') {
+                                    updateFormData();
+                                }
+                            }, 200);
+                        });
+                        
+                        // Also add change event listener for better form data synchronization
+                        newSelect.addEventListener('change', function() {
+                            console.log('Serial change event triggered for:', this.value);
+                            // Update form data when serial changes
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                            // Force update form data again to ensure consistency
+                            setTimeout(() => {
+                                if (typeof updateFormData === 'function') {
+                                    updateFormData();
+                                }
+                            }, 200);
                         });
 
                         // Bọc trong div để hiển thị dọc
@@ -2290,6 +2482,13 @@
                 }
                 
                 console.log('Finished creating serial elements. Total created:', container.children.length);
+                
+                // Update form data after serial selects are updated
+                setTimeout(() => {
+                    if (typeof updateFormData === 'function') {
+                        updateFormData();
+                    }
+                }, 100);
             }
 
             // Function to handle serial change events
@@ -2303,12 +2502,84 @@
                 checkDuplicateSerialsRealTime();
                 
                 // Update form data immediately
+                if (typeof updateFormData === 'function') {
                 updateFormData();
+                }
+                
+                // Also update the form data after a short delay to ensure all changes are captured
+                setTimeout(() => {
+                    if (typeof updateFormData === 'function') {
+                        updateFormData();
+                    }
+                }, 200);
+            }
+
+            // Function to fix serial select names
+            function fixSerialSelectNames() {
+                console.log('=== FIXING SERIAL SELECT NAMES ===');
+                
+                document.querySelectorAll('.material-serial-selects-container').forEach(container => {
+                    const row = container.closest('tr');
+                    if (row) {
+                        const quantityInput = row.querySelector('input[name*="[quantity]"]');
+                        if (quantityInput) {
+                            const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
+                            if (componentMatch) {
+                                const componentIndex = componentMatch[1];
+                                const serialSelects = container.querySelectorAll('.material-serial-select');
+                                
+                                serialSelects.forEach((select, index) => {
+                                    const correctName = `components[${componentIndex}][serials][${index}]`;
+                                    if (select.name !== correctName) {
+                                        console.log(`Fixing serial select name: ${select.name} -> ${correctName}`);
+                                        select.name = correctName;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
+                
+                console.log('Serial select names fixed');
+            }
+
+            // Function to ensure quantity inputs have correct values
+            function fixQuantityInputs() {
+                console.log('=== FIXING QUANTITY INPUTS ===');
+                
+                document.querySelectorAll('input[name*="components"][name*="quantity"]').forEach(quantityInput => {
+                    const row = quantityInput.closest('tr');
+                    if (row) {
+                        const serialContainer = row.querySelector('.material-serial-selects-container');
+                        if (serialContainer) {
+                            const serialSelects = serialContainer.querySelectorAll('.material-serial-select');
+                            const actualQuantity = serialSelects.length;
+                            const currentQuantity = parseInt(quantityInput.value) || 0;
+                            
+                            if (actualQuantity !== currentQuantity) {
+                                console.log(`Fixing quantity input: ${currentQuantity} -> ${actualQuantity} for ${quantityInput.name}`);
+                                quantityInput.value = actualQuantity;
+                            }
+                        }
+                    }
+                });
+                
+                console.log('Quantity inputs fixed');
             }
 
             // Function to update form data with current serial selections
             function updateFormData() {
                 console.log('=== UPDATING FORM DATA ===');
+                
+                // Fix serial select names first
+                if (typeof fixSerialSelectNames === 'function') {
+                    fixSerialSelectNames();
+                }
+                
+                // Fix quantity inputs
+                if (typeof fixQuantityInputs === 'function') {
+                    fixQuantityInputs();
+                }
                 
                 // Update all serial inputs in the form
                 document.querySelectorAll('.material-serial-selects-container').forEach(container => {
@@ -2323,27 +2594,78 @@
                             
                             console.log(`Updating form data for material ${materialId}, quantity: ${quantity}`);
                             
-                            // Get all serial selects in this container
+                            // Get all serial selects and hidden inputs in this container
                             const serialSelects = container.querySelectorAll('.material-serial-select');
+                            const hiddenInputs = container.querySelectorAll('input[name*="[serials]"]');
+                            
+                            console.log(`Found ${serialSelects.length} serial selects and ${hiddenInputs.length} hidden inputs`);
+                            
+                            // Update serial selects
                             serialSelects.forEach((select, index) => {
                                 if (index < quantity) {
                                     const serialValue = select.value;
-                                    console.log(`Serial ${index}: ${serialValue}`);
+                                    console.log(`Serial ${index}: ${serialValue}, name: ${select.name}`);
                                     
-                                    // Ensure the select has the correct name
-                                    if (!select.name || !select.name.includes('[serials]')) {
-                                        // Create proper name if missing
+                                    // Always ensure the select has the correct name with proper index
                                         const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
                                         if (componentMatch) {
-                                            select.name = `components[${componentMatch[1]}][serials][${index}]`;
-                                            console.log(`Fixed name for serial ${index}:`, select.name);
+                                        const correctName = `components[${componentMatch[1]}][serials][${index}]`;
+                                        if (select.name !== correctName) {
+                                            select.name = correctName;
+                                            console.log(`Fixed name for serial ${index}: ${select.name}`);
                                         }
                                     }
+                                    
+                                    // Also update the value to ensure it's current
+                                    if (select.value !== serialValue) {
+                                        select.value = serialValue;
+                                    }
+                                    
+                                    // Debug: log final state
+                                    console.log(`Final serial select ${index}: name="${select.name}", value="${select.value}"`);
                                 }
                             });
+                            
+                            // Update hidden inputs for read-only serials
+                            hiddenInputs.forEach((input, index) => {
+                                if (index < quantity) {
+                                    const serialValue = input.value;
+                                    console.log(`Hidden Serial ${index}: ${serialValue}, name: ${input.name}`);
+                                    
+                                    // Ensure the hidden input has the correct name
+                                    if (!input.name || !input.name.includes('[serials]')) {
+                                        const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
+                                        if (componentMatch) {
+                                            input.name = `components[${componentMatch[1]}][serials][${index}]`;
+                                            console.log(`Fixed name for hidden serial ${index}:`, input.name);
+                                        }
+                                    }
+                                    
+                                    // Debug: log final state
+                                    console.log(`Final hidden input ${index}: name="${input.name}", value="${input.value}"`);
+                                }
+                            });
+                            
+                            // Ensure quantity input has correct value
+                            const currentQuantity = parseInt(quantityInput.value) || 0;
+                            if (currentQuantity !== quantity) {
+                                quantityInput.value = quantity;
+                                console.log(`Updated quantity input from ${currentQuantity} to ${quantity}`);
+                            }
                         }
                     }
                 });
+                
+                // Also update any product quantity inputs
+                document.querySelectorAll('input[name*="products"][name*="quantity"]').forEach(input => {
+                    const currentValue = parseInt(input.value) || 0;
+                    const originalValue = parseInt(input.dataset.originalQuantity) || 0;
+                    if (currentValue !== originalValue) {
+                        console.log(`Product quantity updated: ${originalValue} -> ${currentValue}`);
+                    }
+                });
+                
+                console.log('Form data update completed');
             }
 
             // Function to create a new serial select
@@ -2398,193 +2720,30 @@
 
                 // Add event listener for duplicate validation
                 newSelect.addEventListener('change', handleSerialChange);
+                        
+                        // Also add input event listener for real-time updates
+                        newSelect.addEventListener('input', function() {
+                            console.log('Serial input event triggered for:', this.value);
+                            checkDuplicateSerialsRealTime();
+                            updateFormData();
+                        });
 
                 return newSelect;
             }
 
-            // Function to validate duplicate serials
+                        // Function to validate duplicate serials (now optional - always returns true)
             function validateDuplicateSerials() {
-                let hasError = false;
-                const errorMessages = [];
-
-                // Check for duplicate serials in products
-                const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
-                const productSerials = {};
-
-                productSerialInputs.forEach(input => {
-                    const productId = input.name.match(/products\[(\d+)\]/)[1];
-                    if (!productSerials[productId]) {
-                        productSerials[productId] = [];
-                    }
-                    if (input.value && input.value.trim() !== '') {
-                        productSerials[productId].push(input.value.trim());
-                    }
-                });
-
-                // Check for duplicates within each product
-                Object.keys(productSerials).forEach(productId => {
-                    const serials = productSerials[productId];
-                    const uniqueSerials = new Set(serials);
-                    if (serials.length !== uniqueSerials.size) {
-                        hasError = true;
-                        errorMessages.push(`Thành phẩm #${parseInt(productId) + 1}: Có serial trùng lặp`);
-                    }
-                });
-
-                // Check for duplicate serials in components
-                const componentSerialSelects = document.querySelectorAll(
-                    'select[name*="components"][name*="serials"]');
-                const componentSerialInputs = document.querySelectorAll(
-                    'input[name*="components"][name*="serials"]');
-                const componentSerials = {};
-
-                console.log('Found component serial selects:', componentSerialSelects.length);
-                console.log('Found component serial inputs:', componentSerialInputs.length);
-
-                // Process select elements (editable serials)
-                componentSerialSelects.forEach(select => {
-                    const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
-                    if (!componentSerials[componentIndex]) {
-                        componentSerials[componentIndex] = [];
-                    }
-                    if (select.value && select.value.trim() !== '') {
-                        componentSerials[componentIndex].push(select.value.trim());
-                    }
-                    console.log(`Select ${select.name}: value="${select.value}"`);
-                });
-
-                // Process input elements (read-only serials)
-                componentSerialInputs.forEach(input => {
-                    const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
-                    if (!componentSerials[componentIndex]) {
-                        componentSerials[componentIndex] = [];
-                    }
-                    if (input.value && input.value.trim() !== '') {
-                        componentSerials[componentIndex].push(input.value.trim());
-                    }
-                    console.log(`Input ${input.name}: value="${input.value}"`);
-                });
-
-                // Check for duplicates within each component
-                Object.keys(componentSerials).forEach(componentIndex => {
-                    const serials = componentSerials[componentIndex];
-                    const uniqueSerials = new Set(serials);
-                    if (serials.length !== uniqueSerials.size) {
-                        hasError = true;
-                        errorMessages.push(
-                            `Linh kiện #${parseInt(componentIndex) + 1}: Có serial trùng lặp`);
-                    }
-                });
-
-                // Check for duplicate serials across different product units
-                const allComponentSerials = [];
-                
-                // Process select elements (editable serials)
-                componentSerialSelects.forEach(select => {
-                    if (select.value && select.value.trim() !== '') {
-                        const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
-                        const productUnit = select.getAttribute('data-product-unit') || '0';
-                        
-                        allComponentSerials.push({
-                            serial: select.value.trim(),
-                            componentIndex: componentIndex,
-                            productUnit: productUnit
-                        });
-                    }
-                });
-
-                // Process input elements (read-only serials)
-                componentSerialInputs.forEach(input => {
-                    if (input.value && input.value.trim() !== '') {
-                        const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
-                        // For input elements, we need to find the product unit from the hidden input
-                        const row = input.closest('tr');
-                        const productUnitInput = row ? row.querySelector('input[name*="product_unit"]') : null;
-                        const productUnit = productUnitInput ? productUnitInput.value : '0';
-                        
-                        allComponentSerials.push({
-                            serial: input.value.trim(),
-                            componentIndex: componentIndex,
-                            productUnit: productUnit
-                        });
-                    }
-                });
-
-                // Group serials by serial value and check for duplicates across units
-                const serialGroups = {};
-                allComponentSerials.forEach(item => {
-                    if (!serialGroups[item.serial]) {
-                        serialGroups[item.serial] = [];
-                    }
-                    serialGroups[item.serial].push(item);
-                });
-
-                // Check for duplicates across different product units
-                Object.keys(serialGroups).forEach(serial => {
-                    const items = serialGroups[serial];
-                    if (items.length > 1) {
-                        // Check if duplicates are in different product units
-                        const productUnits = [...new Set(items.map(item => item.productUnit))];
-                        if (productUnits.length > 1) {
-                            hasError = true;
-                            const unitInfo = productUnits.map(unit => `Đơn vị ${parseInt(unit) + 1}`).join(', ');
-                            errorMessages.push(`Serial '${serial}' được sử dụng ở nhiều đơn vị thành phẩm: ${unitInfo}`);
-                        }
-                    }
-                });
-
-                // Check for duplicate serials across different materials within the same product unit
-                const materialSerialGroups = {};
-                allComponentSerials.forEach(item => {
-                    const key = `${item.productUnit}_${item.serial}`;
-                    if (!materialSerialGroups[key]) {
-                        materialSerialGroups[key] = [];
-                    }
-                    materialSerialGroups[key].push(item);
-                });
-
-                // Check for duplicates within the same product unit (different materials)
-                Object.keys(materialSerialGroups).forEach(key => {
-                    const items = materialSerialGroups[key];
-                    if (items.length > 1) {
-                        // Get material names for better error message
-                        const materialNames = items.map(item => {
-                            const row = item.element.closest('tr');
-                            const materialNameCell = row ? row.querySelector('td:nth-child(3)') : null; // Material name column
-                            return materialNameCell ? materialNameCell.textContent.trim() : 'Vật tư không xác định';
-                        });
-                        
-                        hasError = true;
-                        const unitNumber = parseInt(items[0].productUnit) + 1;
-                        errorMessages.push(`Serial '${items[0].serial}' được sử dụng bởi nhiều vật tư trong Đơn vị ${unitNumber}: ${materialNames.join(', ')}`);
-                    }
-                });
-
-                // Debug logging
-                console.log('Validation check:', {
-                    productSerials: productSerials,
-                    componentSerials: componentSerials,
-                    allComponentSerials: allComponentSerials,
-                    serialGroups: serialGroups,
-                    hasError: hasError,
-                    errorMessages: errorMessages
-                });
-
-                if (hasError) {
-                    alert('Phát hiện trùng lặp serial:\n\n' + errorMessages.join('\n'));
-                    return false;
-                }
-
-                return true;
+                console.log('Serial validation is optional - skipping duplicate checks');
+                return true; // Always return true since serials are optional
             }
 
-            // Add validation to form submit
-            document.getElementById('assembly-form').addEventListener('submit', function(e) {
-                if (!validateDuplicateSerials()) {
-                    e.preventDefault();
-                    return false;
-                }
-            });
+            // Serial validation is now optional - no validation required
+            // document.getElementById('assembly-form').addEventListener('submit', function(e) {
+            //     if (!validateDuplicateSerials()) {
+            //         e.preventDefault();
+            //         return false;
+            //     }
+            // });
 
             // Initialize quantity change handlers
             handleQuantityChange();
@@ -2860,11 +3019,11 @@
                             const serials = await fetchMaterialSerials(component.id, component.warehouseId);
                             for (let i = 0; i < q; i++) {
                                 const wrap = document.createElement('div');
-                                wrap.className = 'flex items-center mb-2 last:mb-0';
+                                wrap.className = 'mb-2 last:mb-0';
                                 const sel = document.createElement('select');
                                 sel.name = `components[${index}][serials][]`;
                                 sel.className =
-                                    'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                                    'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select block mb-2';
                                 const o0 = document.createElement('option');
                                 o0.value = '';
                                 o0.textContent = `-- Chọn serial ${i+1} --`;
@@ -3560,7 +3719,7 @@
                                         duplicateSection.className = 'duplicate-section';
                                         duplicateSection.setAttribute('data-unit', unitIndex);
                                         duplicateSection.innerHTML = `
-                                            <td colspan="7" class="bg-yellow-50 border-t border-yellow-200 p-3">
+                                            <td colspan="7" class="bg-yellow-50 border-t border-yellow-200 p-3 hidden">
                                                 <div class="flex justify-between items-center">
                                                     <div class="text-sm text-yellow-700">
                                                         <i class="fas fa-info-circle mr-2"></i>Bạn đã thay đổi công thức gốc. Bạn có thể tạo một thành phẩm mới với công thức này.
@@ -3680,6 +3839,14 @@
 
         // Thêm event listener cho warehouse select và material input để cập nhật serial khi thay đổi
         document.addEventListener('DOMContentLoaded', function() {
+            // Update form data periodically for pending assemblies to ensure data consistency
+            if (IS_PENDING) {
+                setInterval(() => {
+                    if (typeof updateFormData === 'function') {
+                        updateFormData();
+                    }
+                }, 1000); // Update every second for pending assemblies
+            }
             // Warehouse change event
             document.querySelectorAll('.warehouse-select').forEach(select => {
                 select.addEventListener('change', async function() {
@@ -3693,20 +3860,61 @@
                         const currentQuantity = quantityInput ? parseInt(quantityInput.value) : 1;
                         
                         console.log('Updating serials after warehouse change, quantity:', currentQuantity);
+                        
+                        // IMPORTANT: Clear existing serials when warehouse changes
+                        // This ensures we don't keep old serials from previous warehouse
+                        serialContainer.setAttribute('data-warehouse-changed', 'true');
+                        
+                        // Update hidden warehouse_id input if it exists
+                        const warehouseIdInput = row.querySelector('input[name*="[warehouse_id]"]');
+                        if (warehouseIdInput) {
+                            warehouseIdInput.value = this.value;
+                            console.log('Updated hidden warehouse_id input to:', this.value);
+                        }
+                        
                         // Use debounced update to avoid excessive calls
                         const debouncedUpdate = debounce(async () => {
-                            await updateSerialSelects(serialContainer, currentQuantity);
+                            await updateSerialSelectsForWarehouseChange(serialContainer, currentQuantity);
+                            // Update form data after serial selects are updated
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
                         }, 300);
                         debouncedUpdate();
 
                         // Also update immediately for better responsiveness
                         setTimeout(async () => {
-                            await updateSerialSelects(serialContainer, currentQuantity);
+                            await updateSerialSelectsForWarehouseChange(serialContainer, currentQuantity);
                             // Update form data after serial selects are updated
-                            setTimeout(() => {
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
                                 updateFormData();
-                            }, 50);
+                            }
                         }, 100);
+                        
+                        // Force update form data again to ensure consistency
+                        setTimeout(() => {
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                        }, 500);
                     }
                 });
             });
@@ -3728,6 +3936,16 @@
                         // Use debounced update to avoid excessive calls
                         const debouncedUpdate = debounce(async () => {
                             await updateSerialSelects(serialContainer, currentQuantity);
+                            // Update form data after serial selects are updated
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
                         }, 300);
                         debouncedUpdate();
 
@@ -3735,10 +3953,29 @@
                         setTimeout(async () => {
                             await updateSerialSelects(serialContainer, currentQuantity);
                             // Update form data after serial selects are updated
-                            setTimeout(() => {
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
                                 updateFormData();
-                            }, 50);
+                            }
                         }, 100);
+                        
+                        // Force update form data again to ensure consistency
+                        setTimeout(() => {
+                            if (typeof fixSerialSelectNames === 'function') {
+                                fixSerialSelectNames();
+                            }
+                            if (typeof fixQuantityInputs === 'function') {
+                                fixQuantityInputs();
+                            }
+                            if (typeof updateFormData === 'function') {
+                                updateFormData();
+                            }
+                        }, 500);
                     }
                 }
             });
@@ -3758,48 +3995,85 @@
 
         // Add form submit event listener to ensure form data is updated
         document.addEventListener('DOMContentLoaded', function() {
+            // Update form data when page loads
+            setTimeout(() => {
+                if (typeof fixSerialSelectNames === 'function') {
+                    fixSerialSelectNames();
+                }
+                if (typeof fixQuantityInputs === 'function') {
+                    fixQuantityInputs();
+                }
+                if (typeof updateFormData === 'function') {
+                    updateFormData();
+                }
+            }, 500);
+            
+            // Also update form data periodically for pending assemblies
+            if (IS_PENDING) {
+                setInterval(() => {
+                    if (typeof fixSerialSelectNames === 'function') {
+                        fixSerialSelectNames();
+                    }
+                    if (typeof fixQuantityInputs === 'function') {
+                        fixQuantityInputs();
+                    }
+                    if (typeof updateFormData === 'function') {
+                        updateFormData();
+                    }
+                }, 1000); // Update every second for pending assemblies
+            }
+            
+            // Also add a global change event listener for all form inputs
+            document.addEventListener('change', function(e) {
+                if (e.target.name && (e.target.name.includes('[serials]') || e.target.name.includes('[quantity]'))) {
+                    console.log('Global change event detected:', e.target.name, 'value:', e.target.value);
+                    // Update form data when any serial or quantity changes
+                    setTimeout(() => {
+                        if (typeof fixSerialSelectNames === 'function') {
+                            fixSerialSelectNames();
+                        }
+                        if (typeof fixQuantityInputs === 'function') {
+                            fixQuantityInputs();
+                        }
+                        if (typeof updateFormData === 'function') {
+                            updateFormData();
+                        }
+                    }, 100);
+                }
+            });
+            
             const form = document.getElementById('assembly-form');
             if (form) {
                 form.addEventListener('submit', function(e) {
                     console.log('=== FORM SUBMIT TRIGGERED ===');
                     
-                    // Update form data before submit
-                    updateFormData();
-                    
-                    // Validate that all required serials are selected
-                    let isValid = true;
-                    const errors = [];
-                    
-                    document.querySelectorAll('.material-serial-selects-container').forEach(container => {
-                        const row = container.closest('tr');
-                        if (row) {
-                            const quantityInput = row.querySelector('input[name*="[quantity]"]');
-                            const materialNameCell = row.querySelector('td:nth-child(3)');
-                            
-                            if (quantityInput && materialNameCell) {
-                                const quantity = parseInt(quantityInput.value) || 0;
-                                const materialName = materialNameCell.textContent.trim();
-                                
-                                // Check if all serials are selected for the quantity
-                                const serialSelects = container.querySelectorAll('.material-serial-select');
-                                for (let i = 0; i < quantity; i++) {
-                                    if (i < serialSelects.length) {
-                                        const serialValue = serialSelects[i].value.trim();
-                                        if (!serialValue) {
-                                            isValid = false;
-                                            errors.push(`Vật tư "${materialName}" - Serial ${i + 1} chưa được chọn`);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                    
-                    if (!isValid) {
-                        e.preventDefault();
-                        alert('Vui lòng chọn đầy đủ serial cho tất cả vật tư:\n\n' + errors.join('\n'));
-                        return false;
+                    // Fix serial select names and update form data before submit
+                    if (typeof fixSerialSelectNames === 'function') {
+                        fixSerialSelectNames();
                     }
+                    if (typeof fixQuantityInputs === 'function') {
+                        fixQuantityInputs();
+                    }
+                    if (typeof updateFormData === 'function') {
+                        updateFormData();
+                    }
+                    
+                    // Force update form data one more time to ensure consistency
+                    setTimeout(() => {
+                        if (typeof updateFormData === 'function') {
+                            updateFormData();
+                        }
+                    }, 100);
+                    
+                    // Also force update form data one more time before validation
+                    setTimeout(() => {
+                        if (typeof updateFormData === 'function') {
+                            updateFormData();
+                        }
+                    }, 300);
+                    
+                    // Serial validation is now optional - no validation required
+                    console.log('Serial validation skipped - serials are optional');
                     
                     console.log('Form validation passed, submitting...');
                 });
@@ -3855,11 +4129,11 @@
                 const serials = await fetchMaterialSerialsForAdd(component.id, component.warehouseId);
                 for (let i = 0; i < q; i++) {
                     const wrap = document.createElement('div');
-                    wrap.className = 'flex items-center mb-2 last:mb-0';
+                    wrap.className = 'mb-2 last:mb-0';
                     const sel = document.createElement('select');
                     sel.name = `components[${index}][serials][]`;
                     sel.className =
-                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select block mb-2';
                     const o0 = document.createElement('option');
                     o0.value = '';
                     o0.textContent = `-- Chọn serial ${i+1} --`;
@@ -3873,6 +4147,16 @@
                     sel.addEventListener('change', () => {
                         if (typeof checkDuplicateSerialsRealTime === 'function')
                     checkDuplicateSerialsRealTime();
+                        // Update form data when serial changes
+                        if (typeof updateFormData === 'function') {
+                            updateFormData();
+                            // Force update form data again to ensure consistency
+                            setTimeout(() => {
+                                if (typeof updateFormData === 'function') {
+                                    updateFormData();
+                                }
+                            }, 200);
+                        }
                     });
                     wrap.appendChild(sel);
                     cell.appendChild(wrap);

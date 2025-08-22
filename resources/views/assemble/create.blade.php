@@ -209,6 +209,35 @@
                         </div>
                     </div>
 
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label for="default_warehouse_id" class="block text-sm font-medium text-gray-700 mb-1">
+                                Kho để xuất xuất vật tư
+                                <span class="text-xs text-gray-500 ml-1">(Tùy chọn)</span>
+                            </label>
+                            <select id="default_warehouse_id" name="default_warehouse_id"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">-- Chọn kho mặc định --</option>
+                                @foreach ($warehouses as $warehouse)
+                                    <option value="{{ $warehouse->id }}">{{ $warehouse->name }} ({{ $warehouse->code }})</option>
+                                @endforeach
+                            </select>
+                            <div class="text-xs text-gray-500 mt-1">Chọn kho này để tự động điền vào tất cả các cột "Kho xuất" của vật tư. Bạn vẫn có thể thay đổi từng kho xuất riêng lẻ nếu muốn.</div>
+                        </div>
+                        <div>
+                            <label for="apply_default_warehouse" class="block text-sm font-medium text-gray-700 mb-1">
+                                Áp dụng kho mặc định
+                            </label>
+                            <button type="button" id="apply_default_warehouse" 
+                                class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
+                                <i class="fas fa-magic mr-2"></i>
+                                Áp dụng cho tất cả vật tư
+                            </button>
+                            <div class="text-xs text-gray-500 mt-1">Nhấn để áp dụng kho mặc định cho tất cả vật tư hiện tại</div>
+                        </div>
+                    </div>
+
                     <div class="mt-4">
                         <div>
                             <label for="assembly_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
@@ -2138,13 +2167,17 @@
                             // Recreate for all units
                             for (let unitIndex = 0; unitIndex < productQty; unitIndex++) {
                                 baseComponents.forEach(baseComponent => {
+                                    // Get default warehouse if available
+                                    const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                                    
                                     const newComponent = {
                                         ...baseComponent,
                                         productUnit: unitIndex,
                                         unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` : '',
                                         isFromExistingProduct: true,
                                         isFromProduct: true,
-                                        originalQuantity: baseComponent.originalQuantity || baseComponent.quantity
+                                        originalQuantity: baseComponent.originalQuantity || baseComponent.quantity,
+                                        warehouseId: defaultWarehouseId || baseComponent.warehouseId || ''
                                     };
                                     console.log(`Creating component for unit ${unitIndex}:`, newComponent);
                                     selectedComponents.push(newComponent);
@@ -2158,6 +2191,9 @@
                     if (product.originalComponents) {
                         for (let unitIndex = 0; unitIndex < productQty; unitIndex++) {
                             product.originalComponents.forEach(originalComponent => {
+                                // Get default warehouse if available
+                                const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                                
                                 const newComponent = {
                                     ...originalComponent,
                                     id: originalComponent.id,
@@ -2174,7 +2210,7 @@
                                     actualProductId: product.id,
                                     isFromProduct: true,
                                     isOriginal: true,
-                                    warehouseId: '',
+                                    warehouseId: defaultWarehouseId,
                                     productUnit: unitIndex,
                                     unitLabel: unitIndex > 0 ? `Đơn vị ${unitIndex + 1}` : ''
                                 };
@@ -2192,11 +2228,15 @@
                     const product = selectedProducts.find(p => p.uniqueId === component.productId);
                     if (product) {
                         // Only add to the specific unit where it was originally added
+                        // Get default warehouse if available
+                        const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                        
                         const newComponent = {
                             ...component,
                             productUnit: component.productUnit, // Keep original unit
                             unitLabel: component.productUnit > 0 ?
-                                `Đơn vị ${component.productUnit + 1}` : ''
+                                `Đơn vị ${component.productUnit + 1}` : '',
+                            warehouseId: defaultWarehouseId || component.warehouseId || ''
                         };
 
                         console.log(
@@ -2212,13 +2252,17 @@
                     const product = selectedProducts.find(p => p.uniqueId === component.productId);
                     if (product && product.isUsingExisting) {
                         // Only add to the specific unit where it was originally added
+                        // Get default warehouse if available
+                        const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                        
                         const newComponent = {
                             ...component,
                             productUnit: component.productUnit, // Keep original unit
                             unitLabel: component.productUnit > 0 ?
                                 `Đơn vị ${component.productUnit + 1}` : '',
                             isFromExistingProduct: true,
-                            isFromProduct: true
+                            isFromProduct: true,
+                            warehouseId: defaultWarehouseId || component.warehouseId || ''
                         };
 
                         console.log(
@@ -3520,14 +3564,26 @@
                         }));
 
                         // Persist base components on the product for later quantity changes
-                        currentProduct.baseComponents = baseComponents.map(c => ({ ...c }));
+                        // Get default warehouse if available
+                        const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                        currentProduct.baseComponents = baseComponents.map(c => ({ 
+                            ...c, 
+                            warehouseId: defaultWarehouseId || c.warehouseId || '' 
+                        }));
 
                         const productQty = parseInt(currentProduct.quantity) || 1;
                         console.log('Adding components for productQty:', productQty, 'baseComponents:', baseComponents.length);
                         
                         for (let unit = 0; unit < productQty; unit++) {
                             baseComponents.forEach(base => {
-                                const cloned = { ...base, productUnit: unit, unitLabel: unit > 0 ? `Đơn vị ${unit + 1}` : '' };
+                                // Get default warehouse if available
+                                const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                                const cloned = { 
+                                    ...base, 
+                                    productUnit: unit, 
+                                    unitLabel: unit > 0 ? `Đơn vị ${unit + 1}` : '',
+                                    warehouseId: defaultWarehouseId || base.warehouseId || ''
+                                };
                                 selectedComponents.push(cloned);
                                 console.log('Added component:', {
                                     id: cloned.id,
@@ -3681,6 +3737,32 @@
             // Validation trước khi submit
             document.querySelector('form').addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent default submission
+
+                // Check if default warehouse is selected and apply it to all components if needed
+                const defaultWarehouseId = document.getElementById('default_warehouse_id').value;
+                if (defaultWarehouseId) {
+                    const warehouseSelects = document.querySelectorAll('.warehouse-select');
+                    let updatedCount = 0;
+                    
+                    warehouseSelects.forEach(select => {
+                        if (!select.value) {
+                            select.value = defaultWarehouseId;
+                            // Update component data
+                            const componentIndex = select.name.match(/components\[(\d+)\]\[warehouse_id\]/)?.[1];
+                            if (componentIndex !== undefined) {
+                                const component = selectedComponents[componentIndex];
+                                if (component) {
+                                    component.warehouseId = defaultWarehouseId;
+                                }
+                            }
+                            updatedCount++;
+                        }
+                    });
+
+                    if (updatedCount > 0) {
+                        console.log(`Auto-applied default warehouse to ${updatedCount} components`);
+                    }
+                }
 
                 // Loại bỏ name của toàn bộ input/select/textarea hiển thị thuộc components để không ghi đè hidden inputs
                 const visibleComponentInputs = document.querySelectorAll('table input[name^="components["], table select[name^="components["], table textarea[name^="components["]');
@@ -4704,6 +4786,9 @@
                             for (let unitIndex = 0; unitIndex < quantity; unitIndex++) {
                                 if (!existingUnitCounts.includes(unitIndex)) {
                                     product.originalComponents.forEach(originalComponent => {
+                                        // Get default warehouse if available
+                                        const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value || '';
+                                        
                                         const newComponent = {
                                             id: originalComponent.id,
                                             code: originalComponent.code,
@@ -4719,7 +4804,7 @@
                                             actualProductId: product.id,
                                             isFromProduct: true,
                                             isOriginal: true,
-                                            warehouseId: '',
+                                            warehouseId: defaultWarehouseId,
                                             productUnit: unitIndex,
                                             unitLabel: unitIndex > 0 ?
                                                 `Đơn vị ${unitIndex + 1}` : ''
@@ -4786,6 +4871,11 @@
 
             // Function to safely get warehouse ID
             function getWarehouseId() {
+                // Priority: default warehouse > target warehouse > null
+                const defaultWarehouseId = document.getElementById('default_warehouse_id')?.value;
+                if (defaultWarehouseId) {
+                    return defaultWarehouseId;
+                }
                 return warehouseSelect?.value || null;
             }
 
@@ -4898,6 +4988,113 @@
                     }
                 }
             });
+
+            // Event listener for default warehouse selection
+            document.getElementById('default_warehouse_id').addEventListener('change', function() {
+                const defaultWarehouseId = this.value;
+                const applyButton = document.getElementById('apply_default_warehouse');
+                
+                if (defaultWarehouseId) {
+                    applyButton.disabled = false;
+                    applyButton.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    applyButton.disabled = true;
+                    applyButton.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            });
+
+            // Event listener for apply default warehouse button
+            document.getElementById('apply_default_warehouse').addEventListener('click', function() {
+                const defaultWarehouseId = document.getElementById('default_warehouse_id').value;
+                
+                if (!defaultWarehouseId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Chưa chọn kho mặc định',
+                        text: 'Vui lòng chọn kho mặc định trước khi áp dụng',
+                        confirmButtonText: 'Đóng'
+                    });
+                    return;
+                }
+
+                // Confirm action
+                Swal.fire({
+                    icon: 'question',
+                    title: 'Áp dụng kho mặc định',
+                    text: 'Bạn có muốn áp dụng kho mặc định cho tất cả vật tư hiện tại?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Áp dụng',
+                    cancelButtonText: 'Hủy'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        applyDefaultWarehouseToAllComponents(defaultWarehouseId);
+                    }
+                });
+            });
+
+            // Function to apply default warehouse to all components
+            function applyDefaultWarehouseToAllComponents(defaultWarehouseId) {
+                let updatedCount = 0;
+                const warehouseSelects = document.querySelectorAll('.warehouse-select');
+                
+                warehouseSelects.forEach(select => {
+                    const oldValue = select.value;
+                    select.value = defaultWarehouseId;
+                    
+                    // Trigger change event to update component data and reload serials
+                    const changeEvent = new Event('change', { bubbles: true });
+                    select.dispatchEvent(changeEvent);
+                    
+                    updatedCount++;
+                });
+
+                // Show success message
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Đã áp dụng kho mặc định',
+                    text: `Đã cập nhật kho xuất cho ${updatedCount} vật tư`,
+                    confirmButtonText: 'Đóng'
+                });
+
+                // Update selectedComponents array
+                selectedComponents.forEach(component => {
+                    component.warehouseId = defaultWarehouseId;
+                });
+            }
+
+            // Function to update warehouse selects when new components are added
+            function updateNewComponentWarehouse(componentElement, defaultWarehouseId) {
+                if (defaultWarehouseId) {
+                    const warehouseSelect = componentElement.querySelector('.warehouse-select');
+                    if (warehouseSelect) {
+                        warehouseSelect.value = defaultWarehouseId;
+                        // Trigger change event
+                        const changeEvent = new Event('change', { bubbles: true });
+                        warehouseSelect.dispatchEvent(changeEvent);
+                    }
+                }
+            }
+
+            // Override the existing addWarehouseSelectToCell function to support default warehouse
+            const originalAddWarehouseSelectToCell = addWarehouseSelectToCell;
+            addWarehouseSelectToCell = function(cell, component, index) {
+                // Call original function
+                originalAddWarehouseSelectToCell.call(this, cell, component, index);
+                
+                // Check if default warehouse is selected and apply it
+                const defaultWarehouseId = document.getElementById('default_warehouse_id').value;
+                if (defaultWarehouseId) {
+                    const warehouseSelect = cell.querySelector('.warehouse-select');
+                    if (warehouseSelect) {
+                        warehouseSelect.value = defaultWarehouseId;
+                        component.warehouseId = defaultWarehouseId;
+                        
+                        // Trigger change event to reload serials
+                        const changeEvent = new Event('change', { bubbles: true });
+                        warehouseSelect.dispatchEvent(changeEvent);
+                    }
+                }
+            };
         });
     </script>
 </body>
