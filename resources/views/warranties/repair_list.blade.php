@@ -127,6 +127,10 @@
                             <tr>
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    STT
+                                </th>
+                                <th scope="col"
+                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Mã phiếu
                                 </th>
                                 <th scope="col"
@@ -162,6 +166,9 @@
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse ($repairs as $repair)
                                 <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $repairs->firstItem() + $loop->index }}
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">
                                         <span class="font-medium text-blue-600">{{ $repair->repair_code }}</span>
                                     </td>

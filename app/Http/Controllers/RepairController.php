@@ -86,7 +86,7 @@ class RepairController extends Controller
 
         $repairs = $query->orderBy('repair_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->paginate(20);
+            ->paginate(10);
 
         return view('warranties.repair_list', compact('repairs'));
     }
@@ -196,7 +196,7 @@ class RepairController extends Controller
             if ($warranty->dispatch) {
                 $dispatch = $warranty->dispatch;
                 $items = $dispatch->items()
-                    ->where('category', '!=', 'backup')
+                    // Bao gồm cả thiết bị dự phòng/backup theo yêu cầu mới
                     ->whereIn('item_type', ['product', 'good'])
                     ->with(['product', 'good'])
                     ->get();
@@ -216,6 +216,41 @@ class RepairController extends Controller
             }
 
             $devices = array_values($indexed);
+
+            // Tách thành 1 hàng/1 serial thiết bị (nếu có danh sách serial)
+            $expandedDevices = [];
+            foreach ($devices as $d) {
+                $serials = is_array($d['serial_numbers'] ?? null) ? $d['serial_numbers'] : [];
+                if (!empty($serials)) {
+                    foreach ($serials as $sn) {
+                        $expandedDevices[] = [
+                            'id' => $d['code'] . '_' . $sn . '_' . microtime(true) . '_' . uniqid(),
+                            'code' => $d['code'],
+                            'name' => $d['name'],
+                            'quantity' => 1,
+                            'serial' => $sn,
+                            'serial_numbers' => [$sn],
+                            'serial_numbers_text' => $sn,
+                            'status' => $d['status'] ?? 'active',
+                            'type' => $d['type'] ?? 'product',
+                        ];
+                    }
+                } else {
+                    // Không có serial -> vẫn giữ một hàng (serial = N/A)
+                    $expandedDevices[] = [
+                        'id' => $d['id'],
+                        'code' => $d['code'],
+                        'name' => $d['name'],
+                        'quantity' => 1,
+                        'serial' => $d['serial'] ?? '',
+                        'serial_numbers' => [],
+                        'serial_numbers_text' => $d['serial_numbers_text'] ?? 'N/A',
+                        'status' => $d['status'] ?? 'active',
+                        'type' => $d['type'] ?? 'product',
+                    ];
+                }
+            }
+            $devices = $expandedDevices;
 
             // Nếu input là serial (khác mã bảo hành), lọc chỉ còn thiết bị chứa đúng serial đó
             $isSerialSearch = strcasecmp($input, $warranty->warranty_code) !== 0;

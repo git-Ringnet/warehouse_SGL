@@ -107,14 +107,7 @@
                                                 class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Loại
                                             </th>
-                                            <th scope="col"
-                                                class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Số lượng
-                                            </th>
-                                            <th scope="col"
-                                                class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Trạng thái
-                                            </th>
+                                            
                                             <th scope="col"
                                                 class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Chú thích
@@ -920,6 +913,10 @@
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">${(material.materialSerial && material.materialSerial.trim()) ? material.materialSerial : 'N/A'}</td>
                         <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700">
                             <div class="flex items-center space-x-2">
+                                <label class="inline-flex items-center space-x-1 text-xs mr-2">
+                                    <input type="checkbox" class="material-damaged-checkbox" data-index="${index}" ${material.isDamaged ? 'checked' : ''} />
+                                    <span>Hư hỏng</span>
+                                </label>
                                 <button type="button" class="material-repair-btn ${repairBtnClass} px-2 py-1 rounded hover:bg-blue-200 transition-colors text-xs" data-index="${index}">
                                     <i class="fas ${repairIcon} mr-1"></i> ${repairLabel}
                                 </button>
@@ -1150,6 +1147,40 @@
 
             // Toggle Sửa chữa vật tư: mở subtab inline với trường Ghi chú *; toggle lần nữa để huỷ
             document.addEventListener('click', function(e) {
+                // Checkbox Hư hỏng
+                const damagedCheckbox = e.target.closest && e.target.closest('.material-damaged-checkbox');
+                if (damagedCheckbox) {
+                    const index = parseInt(damagedCheckbox.getAttribute('data-index'));
+                    if (!isNaN(index) && deviceMaterialsList[index]) {
+                        deviceMaterialsList[index].isDamaged = damagedCheckbox.checked;
+                        const tbody = document.getElementById('device_materials_body');
+                        const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.classList.contains('material-repair-subtab'));
+                        const row = rows[index];
+                        const next = row ? row.nextElementSibling : null;
+                        if (damagedCheckbox.checked && row && (!next || !next.classList.contains('material-repair-subtab'))) {
+                            // Mở subtab ghi chú để người dùng có thể nhập ngay
+                            const sub = document.createElement('tr');
+                            sub.className = 'material-repair-subtab';
+                            sub.innerHTML = `
+                                <td colspan="4" class="px-3 py-2 bg-blue-50">
+                                    <div class="flex items-center space-x-2">
+                                        <label class="text-sm text-gray-700 w-[100px]">Ghi chú:</label>
+                                        <input type="text" class="repair-note-input w-full border border-blue-200 rounded px-2 py-1 text-sm" placeholder="Nhập ghi chú (không bắt buộc)" />
+                                    </div>
+                                </td>`;
+                            row.after(sub);
+                            const input = sub.querySelector('.repair-note-input');
+                            input.addEventListener('input', function() {
+                                deviceMaterialsList[index].repairNote = this.value;
+                            });
+                        }
+                        if (!damagedCheckbox.checked && next && next.classList.contains('material-repair-subtab')) {
+                            next.remove();
+                            deviceMaterialsList[index].repairNote = '';
+                        }
+                    }
+                    return;
+                }
                 const btn = e.target.closest && e.target.closest('.material-repair-btn');
                 if (btn) {
                     const index = parseInt(btn.getAttribute('data-index'));
@@ -2127,16 +2158,16 @@
                     formData.append('material_replacements', JSON.stringify(materialReplacements));
                 }
 
-                // Thêm thông tin sửa chữa vật tư (ghi chú bắt buộc)
+                // Thêm thông tin sửa chữa vật tư (theo checkbox Hư hỏng hoặc có ghi chú)
                 const damagedMaterialsPayload = [];
                 deviceMaterialsList.forEach(m => {
-                    if (m.repairNote && m.repairNote.trim()) {
+                    if ((m.isDamaged === true) || (m.repairNote && m.repairNote.trim())) {
                         damagedMaterialsPayload.push({
                             device_code: m.deviceCode,
                             material_code: m.materialCode,
                             material_name: m.materialName,
                             serial: (m.materialSerial && m.materialSerial.trim()) ? m.materialSerial : null,
-                            damage_description: m.repairNote
+                            damage_description: (m.repairNote && m.repairNote.trim()) ? m.repairNote : ''
                         });
                     }
                 });

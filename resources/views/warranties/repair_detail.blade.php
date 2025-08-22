@@ -310,14 +310,7 @@
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Loại
                                 </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Số lượng
-                                </th>
-                                <th scope="col"
-                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Trạng thái
-                                </th>
+                                
                                 <th scope="col"
                                     class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Chú thích
@@ -340,30 +333,7 @@
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                         {{ $item->device_type === 'good' ? 'Hàng hoá' : 'Thành phẩm' }}
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                        {{ $item->device_quantity ?? 1 }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span
-                                            class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                            @if ($item->device_status == 'selected') bg-green-100 text-green-800
-                                            @elseif($item->device_status == 'rejected') bg-red-100 text-red-800
-                                            @else bg-gray-100 text-gray-800 @endif">
-                                            @switch($item->device_status)
-                                                @case('selected')
-                                                    Đã xử lý
-                                                @break
-
-                                                @case('rejected')
-                                                    Từ chối
-                                                @break
-
-                                                @default
-                                                    {{ ucfirst($item->device_status) }}
-                                                @break
-                                            @endswitch
-                                        </span>
-                                    </td>
+                                    
                                     <td class="px-6 py-4 text-sm text-gray-700">
                                         <div class="max-w-xs">
                                             <p>{{ $item->device_notes ?: 'Không có ghi chú' }}</p>

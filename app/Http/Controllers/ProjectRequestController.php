@@ -1390,11 +1390,9 @@ class ProjectRequestController extends Controller
             'project_receiver' => $customer ? $customer->company_name : $projectRequest->project_name
         ]);
         
-        // Xác định loại (project hoặc rental) dựa trên project_name
-        // Kiểm tra xem project_name có chứa từ khóa "cho thuê" hoặc "rental" không
-        $isRental = stripos($projectRequest->project_name, 'cho thuê') !== false || 
-                    stripos($projectRequest->project_name, 'rental') !== false ||
-                    stripos($projectRequest->project_name, 'thuê') !== false;
+        // Xác định loại (project hoặc rental) dựa trên dữ liệu của phiếu đề xuất
+        // ƯU TIÊN dựa vào cột khóa ngoại thay vì suy đoán theo tên
+        $isRental = !empty($projectRequest->rental_id);
         
         // Debug log để kiểm tra
         Log::info('Debug rental logic:', [
@@ -1404,16 +1402,30 @@ class ProjectRequestController extends Controller
         ]);
         
         // Sử dụng project_id nếu có, nếu không thì null
-        $actualProjectId = $projectId;
-        
-        // Tạo trường project_receiver theo định dạng yêu cầu
+        $actualProjectId = $isRental ? null : $projectId;
+
+        // Tạo trường project_receiver theo đúng mã thực tế
         $projectReceiver = '';
         if ($isRental) {
-            // Nếu là cho thuê, sử dụng project_name
-            $projectReceiver = 'RENTAL-' . date('YmdHis') . ' - ' . $projectRequest->project_name . ' (' . ($customer ? $customer->name : 'N/A') . ')';
+            // Cho thuê: lấy theo rental thực tế nếu có
+            $rental = \App\Models\Rental::with('customer')->find($projectRequest->rental_id);
+            if ($rental) {
+                // Với cho thuê: luôn hiển thị Tên công ty trong ngoặc
+                $companyName = $rental->customer->company_name ?? 'N/A';
+                $projectReceiver = ($rental->rental_code ?? ('RENTAL-' . date('YmdHis'))) . ' - ' . ($rental->rental_name ?? $projectRequest->project_name) . ' (' . $companyName . ')';
+            } else {
+                // Fallback
+                $projectReceiver = 'RENTAL-' . date('YmdHis') . ' - ' . $projectRequest->project_name . ' (' . ($customer ? $customer->name : 'N/A') . ')';
+            }
         } else {
-            // Nếu là dự án, sử dụng project_name
-            $projectReceiver = 'PRJ-' . date('YmdHis') . ' - ' . $projectRequest->project_name . ' (' . ($customer ? $customer->name : 'N/A') . ')';
+            // Dự án: lấy theo project thực tế nếu có
+            $project = $actualProjectId ? Project::with('customer')->find($actualProjectId) : null;
+            if ($project) {
+                $projectReceiver = ($project->project_code ?? ('PRJ-' . date('YmdHis'))) . ' - ' . ($project->project_name ?? $projectRequest->project_name) . ' (' . ($project->customer->name ?? $project->customer->company_name ?? 'N/A') . ')';
+            } else {
+                // Fallback
+                $projectReceiver = 'PRJ-' . date('YmdHis') . ' - ' . $projectRequest->project_name . ' (' . ($customer ? $customer->name : 'N/A') . ')';
+            }
         }
 
         // Tạo trường dispatch_note theo định dạng yêu cầu
@@ -1422,9 +1434,9 @@ class ProjectRequestController extends Controller
         $dispatch = Dispatch::create([
             'dispatch_code' => 'DISP-' . date('YmdHis'),
             'dispatch_date' => now(), // Ngày xuất = ngày duyệt
-            'dispatch_type' => 'project', // Loại hình: Dự án (enum chỉ chấp nhận 'project', 'warranty', 'all')
+            'dispatch_type' => $isRental ? 'rental' : 'project', // Loại hình
             'dispatch_detail' => 'contract', // Chi tiết xuất kho: Xuất theo hợp đồng
-            'project_id' => $actualProjectId, // Lưu project_id nếu có
+            'project_id' => $actualProjectId, // Lưu project_id nếu có (rental thì để null)
             'project_receiver' => $projectReceiver, // Người nhận theo định dạng yêu cầu
             'company_representative_id' => $companyRepresentative ? $companyRepresentative->id : ($projectRequest->implementer_id ?? $projectRequest->proposer_id), // Người đại diện = employee tương ứng
             'dispatch_note' => $dispatchNote, // Ghi chú theo định dạng yêu cầu

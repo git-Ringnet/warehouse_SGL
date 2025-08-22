@@ -165,21 +165,49 @@ class Repair extends Model
      */
     public function getCustomerNameAttribute()
     {
-        // First try to get from warranty
-        if ($this->warranty && $this->warranty->customer_name) {
-            return $this->warranty->customer_name;
+        // Ưu tiên định dạng theo nguồn của bảo hành (chuẩn theo dự án/cho thuê)
+        if ($this->warranty) {
+            // Dự án: Mã dự án - Tên dự án (Tên người đại diện khách hàng)
+            if ($this->warranty->item_type === 'project' && $this->warranty->item_id) {
+                $project = \App\Models\Project::with('customer')->find($this->warranty->item_id);
+                if ($project) {
+                    $customerRep = $project->customer->name
+                        ?? $project->customer->company_name
+                        ?? 'N/A';
+                    return sprintf('%s - %s (%s)', $project->project_code, $project->project_name, $customerRep);
+                }
+            }
+
+            // Cho thuê: Mã phiếu - Tên phiếu (Tên người đại diện khách hàng)
+            if ($this->warranty->item_type === 'rental' && $this->warranty->item_id) {
+                $rental = \App\Models\Rental::with('customer')->find($this->warranty->item_id);
+                if ($rental) {
+                    $customerRep = $rental->customer->name
+                        ?? $rental->customer->company_name
+                        ?? 'N/A';
+                    return sprintf('%s - %s (%s)', $rental->rental_code, $rental->rental_name, $customerRep);
+                }
+            }
+
+            // Nếu bảo hành có sẵn tên khách hàng, dùng như fallback
+            if ($this->warranty->customer_name) {
+                return $this->warranty->customer_name;
+            }
         }
-        
-        // Then try to get from maintenance request
-        if ($this->maintenanceRequest && $this->maintenanceRequest->customer_name) {
-            return $this->maintenanceRequest->customer_name;
+
+        // Fallback: từ phiếu bảo trì (nếu có)
+        if ($this->maintenanceRequest) {
+            // Nếu có quan hệ customer => lấy tên đại diện; nếu không có thì dùng tên lưu sẵn
+            if ($this->maintenanceRequest->customer) {
+                return $this->maintenanceRequest->customer->name
+                    ?? $this->maintenanceRequest->customer->company_name
+                    ?? $this->maintenanceRequest->customer_name;
+            }
+            if ($this->maintenanceRequest->customer_name) {
+                return $this->maintenanceRequest->customer_name;
+            }
         }
-        
-        // If maintenance request has customer relationship, try that
-        if ($this->maintenanceRequest && $this->maintenanceRequest->customer) {
-            return $this->maintenanceRequest->customer->company_name ?? $this->maintenanceRequest->customer->name;
-        }
-        
+
         return null;
     }
 }
