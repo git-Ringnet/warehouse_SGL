@@ -815,6 +815,26 @@ class WarehouseTransferController extends Controller
                 ]);
             }
 
+            // Cập nhật warehouse_id trong bảng serials
+            if (!empty($serialArray)) {
+                foreach ($serialArray as $serialNumber) {
+                    $serial = \App\Models\Serial::where('serial_number', $serialNumber)
+                        ->where('product_id', $materialId)
+                        ->where('type', $itemType)
+                        ->first();
+                    
+                    if ($serial) {
+                        $oldWarehouseId = $serial->warehouse_id;
+                        $serial->warehouse_id = $destinationWarehouseId;
+                        $serial->save();
+                        
+                        Log::info("Cập nhật serial {$serialNumber} warehouse_id: {$oldWarehouseId} -> {$destinationWarehouseId}");
+                    } else {
+                        Log::warning("Không tìm thấy serial {$serialNumber} trong bảng serials để cập nhật warehouse_id");
+                    }
+                }
+            }
+
             Log::info("Chuyển serial thành công: từ kho {$sourceWarehouseId} sang kho {$destinationWarehouseId}, materialId={$materialId}, itemType={$itemType}, quantity={$quantity}, serials=" . json_encode($serialArray) . ", ghi chú={$note}");
             return true;
 

@@ -110,7 +110,7 @@
                             <label for="dispatch_type"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Loại hình</label>
                             <select id="dispatch_type" name="dispatch_type" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100' : '' }}"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                 {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="">-- Chọn loại hình --</option>
                                 <option value="project" {{ $dispatch->dispatch_type == 'project' ? 'selected' : '' }}>
@@ -129,7 +129,7 @@
                             <label for="dispatch_detail" class="block text-sm font-medium text-gray-700 mb-1">Chi tiết
                                 xuất kho <span class="text-red-500">*</span></label>
                             <select id="dispatch_detail" name="dispatch_detail"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100' : '' }}"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                 {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="all" {{ $dispatch->dispatch_detail == 'all' ? 'selected' : '' }}>Tất
                                     cả</option>
@@ -151,7 +151,7 @@
                             <label for="project_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
                             <select id="project_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100' : '' }}"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                 {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
                                 <option value="">-- Chọn dự án --</option>
                                 @if (isset($projects))
@@ -179,7 +179,7 @@
                         <div id="rental_section" class="hidden">
                             <label for="rental_receiver" class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
                             <select id="rental_receiver" name="rental_receiver"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                 @if ($dispatch->status !== 'pending') disabled @endif>
                                 <option value="">-- Chọn hợp đồng cho thuê --</option>
                                 <!-- Động load từ API -->
@@ -191,7 +191,7 @@
                         <div id="warranty_section" class="hidden">
                             <label for="warranty_receiver" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
                             <select id="warranty_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
                                 @if ($dispatch->status !== 'pending') disabled @endif>
                                 <option value="">-- Chọn dự án / hợp đồng cho thuê --</option>
                                 <optgroup label="Dự án">
@@ -1028,16 +1028,18 @@
             handleDispatchDetailDisplay();
 
             // Force render after a delay to ensure everything is loaded
-            setTimeout(function() {
+            setTimeout(async function() {
                 renderContractProductTable();
                 renderBackupProductTable();
                 handleDispatchDetailDisplay();
 
-                // Load available serials for all serial selects
-                loadAvailableSerials();
+                // Load available serials for all serial selects FIRST
+                console.log('=== Step 1: Loading available serials ===');
+                await loadAvailableSerials();
 
-                // Load device codes from database để cập nhật serial_main
-                loadDeviceCodesOnPageLoad();
+                // Load device codes from database để cập nhật serial_main AFTER serials are filtered
+                console.log('=== Step 2: Loading device codes ===');
+                await loadDeviceCodesOnPageLoad();
 
                 // Initial validation and option availability update
                 setTimeout(function() {
@@ -1283,6 +1285,10 @@
                         // Hiển thị phần cho thuê, ẩn phần dự án
                         rentalSection.classList.remove('hidden');
                         rentalReceiverInput.setAttribute('required', 'required');
+                        // Đảm bảo rental receiver bị disable nếu phiếu đã approved
+                        if ('{{ $dispatch->status }}' !== 'pending') {
+                            rentalReceiverInput.disabled = true;
+                        }
 
                         // Load danh sách hợp đồng cho thuê
                         loadRentals();
@@ -1313,7 +1319,8 @@
 
                         // Reset dispatch detail về mặc định cho rental
                         if (dispatchDetailSelect) {
-                            dispatchDetailSelect.disabled = false;
+                            // Chỉ enable nếu phiếu đang pending
+                            dispatchDetailSelect.disabled = '{{ $dispatch->status }}' !== 'pending';
                         }
 
                         // Xóa hidden input nếu có
@@ -1325,7 +1332,8 @@
                         if (contractProductsSection) contractProductsSection.classList.remove('hidden');
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
                         if (projectReceiverInput) {
-                            projectReceiverInput.disabled = false;
+                            // Chỉ enable nếu phiếu đang pending
+                            projectReceiverInput.disabled = '{{ $dispatch->status }}' !== 'pending';
                             projectReceiverInput.setAttribute('required','required');
                         }
                         // Remove hidden_project_receiver if exists
@@ -1341,7 +1349,8 @@
 
                         // Reset dispatch detail về mặc định cho project
                         if (dispatchDetailSelect) {
-                            dispatchDetailSelect.disabled = false;
+                            // Chỉ enable nếu phiếu đang pending
+                            dispatchDetailSelect.disabled = '{{ $dispatch->status }}' !== 'pending';
                         }
 
                         // Xóa hidden input nếu có
@@ -1353,7 +1362,10 @@
                         if (contractProductsSection) contractProductsSection.classList.add('hidden');
                         if (backupProductsSection) backupProductsSection.classList.remove('hidden');
                         if (projectReceiverInput) projectReceiverInput.disabled = true;
-                        if (warrantyReceiverInput) warrantyReceiverInput.disabled = false;
+                        if (warrantyReceiverInput) {
+                            // Chỉ enable nếu phiếu đang pending
+                            warrantyReceiverInput.disabled = '{{ $dispatch->status }}' !== 'pending';
+                        }
 
                         // Xóa các sản phẩm hợp đồng đã chọn khi chuyển sang bảo hành
                         const contractTbody = document.getElementById('contract_product_list_body');
@@ -1409,9 +1421,11 @@
                     }
                 });
 
-                // Trigger change event khi load page để setup initial state
-                const event = new Event('change');
-                dispatchTypeSelect.dispatchEvent(event);
+                // Trigger change event khi load page để setup initial state (chỉ khi phiếu pending)
+                if ('{{ $dispatch->status }}' === 'pending') {
+                    const event = new Event('change');
+                    dispatchTypeSelect.dispatchEvent(event);
+                }
             }
 
             // Xử lý sự kiện change cho project_receiver
@@ -1474,7 +1488,9 @@
 
             // Hàm load available serial numbers cho tất cả serial selects
             async function loadAvailableSerials() {
+                console.log('=== loadAvailableSerials() called ===');
                 const serialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
+                console.log(`Found ${serialSelects.length} serial selects`);
 
                 for (const select of serialSelects) {
                     if (select.disabled) continue; // Skip disabled selects
@@ -1497,10 +1513,12 @@
 
                         if (data.success) {
                             // Log serial availability info for debugging
+                            console.log(`API Response for ${itemType} ${itemId}:`, data);
                             if (data.total_serials && data.used_serials) {
                                 console.log(
                                     `Serials for ${itemType} ${itemId}: ${data.available_serials}/${data.total_serials} available (${data.used_serials} used)`
                                 );
+                                console.log(`Available serials from API:`, data.serials);
 
                                 // Show warning if low availability
                                 if (data.available_serials < data.total_serials * 0.2 && data
@@ -1518,45 +1536,51 @@
                             if (data.serials.length > 0) {
                                 // Save currently selected value if any
                                 const valueToPreserve = currentValue || selectedSerial;
+                                console.log(`Value to preserve for ${itemType} ${itemId}: currentValue="${currentValue}", selectedSerial="${selectedSerial}", final="${valueToPreserve}"`);
 
-                                // Clear existing options except default and currently selected
+                                // Clear ALL existing options except default
                                 const optionsToRemove = [];
                                 for (let i = 1; i < select.children.length; i++) {
-                                    const option = select.children[i];
-                                    if (option.value !== valueToPreserve) {
-                                        optionsToRemove.push(option);
-                                    }
+                                    optionsToRemove.push(select.children[i]);
                                 }
                                 optionsToRemove.forEach(option => option.remove());
 
-                                // Add serial options that are not already added
+                                // Add serial options from API
                                 data.serials.forEach(serial => {
-                                    // Check if this serial already exists in the select
-                                    const existingOption = Array.from(select.options).find(opt => opt
-                                        .value === serial);
-                                    if (!existingOption) {
-                                        const option = document.createElement('option');
-                                        option.value = serial;
-                                        option.textContent = serial;
-                                        select.appendChild(option);
-                                    }
+                                    console.log(`Adding serial "${serial}" to options for ${itemType} ${itemId}`);
+                                    const option = document.createElement('option');
+                                    option.value = serial;
+                                    option.textContent = serial;
+                                    select.appendChild(option);
                                 });
 
-                                // Set the correct selected value
-                                if (valueToPreserve) {
+                                // Set the correct selected value ONLY if it's available from API
+                                if (valueToPreserve && data.serials.includes(valueToPreserve)) {
+                                    console.log(`Setting preserved value "${valueToPreserve}" for ${itemType} ${itemId} (available from API)`);
                                     select.value = valueToPreserve;
+                                } else if (valueToPreserve && !data.serials.includes(valueToPreserve)) {
+                                    console.log(`WARNING: Serial "${valueToPreserve}" not available from API for ${itemType} ${itemId}, clearing selection`);
+                                    select.value = '';
+                                    select.setAttribute('data-selected-serial', '');
                                 }
                             } else {
-                                // If no serials available from API but we have a selected value (for existing items)
-                                // Keep the selected value as an option
+                                // If no serials available from API, clear all options and selections
+                                console.log(`No serials available from API for ${itemType} ${itemId} in warehouse ${warehouseId}`);
+                                console.log(`Current value: ${currentValue}, Selected serial: ${selectedSerial}`);
+                                
+                                // Clear ALL existing options except default
+                                const optionsToRemove = [];
+                                for (let i = 1; i < select.children.length; i++) {
+                                    optionsToRemove.push(select.children[i]);
+                                }
+                                optionsToRemove.forEach(option => option.remove());
+                                
+                                // Clear selection since no serials are available
                                 const valueToPreserve = currentValue || selectedSerial;
-                                if (valueToPreserve && !Array.from(select.options).find(opt => opt.value ===
-                                        valueToPreserve)) {
-                                    const option = document.createElement('option');
-                                    option.value = valueToPreserve;
-                                    option.textContent = valueToPreserve;
-                                    option.selected = true;
-                                    select.appendChild(option);
+                                if (valueToPreserve) {
+                                    console.log(`WARNING: Serial "${valueToPreserve}" not available from API for ${itemType} ${itemId}, clearing selection`);
+                                    select.value = '';
+                                    select.setAttribute('data-selected-serial', '');
                                 }
 
                                 // Add change event listener for validation
@@ -1569,16 +1593,22 @@
                     } catch (error) {
                         console.error('Error loading serials:', error);
 
-                        // If API call fails but we have a selected value, preserve it
+                        // If API call fails, clear all options and selections to avoid showing invalid serials
                         const valueToPreserve = currentValue || selectedSerial;
-                        if (valueToPreserve && !Array.from(select.options).find(opt => opt.value ===
-                                valueToPreserve)) {
-                            const option = document.createElement('option');
-                            option.value = valueToPreserve;
-                            option.textContent = valueToPreserve;
-                            option.selected = true;
-                            select.appendChild(option);
+                        if (valueToPreserve) {
+                            console.log(`API error - Clearing value "${valueToPreserve}" for ${itemType} ${itemId} to avoid showing potentially invalid serials`);
                         }
+                        
+                        // Clear ALL existing options except default
+                        const optionsToRemove = [];
+                        for (let i = 1; i < select.children.length; i++) {
+                            optionsToRemove.push(select.children[i]);
+                        }
+                        optionsToRemove.forEach(option => option.remove());
+                        
+                        // Clear selection
+                        select.value = '';
+                        select.setAttribute('data-selected-serial', '');
 
                         // Add change event listener for validation even on error
                         if (!select.hasAttribute('data-validation-listener')) {
@@ -1871,11 +1901,9 @@
 
                     const serialValue = existingSerials[i] || '';
 
-                    // Create select with existing serial value if available
+                    // Create select without pre-populating options - let loadAvailableSerials() handle it
                     let selectOptions = `<option value="">-- Chọn Serial ${i + 1} --</option>`;
-                    if (serialValue) {
-                        selectOptions += `<option value="${serialValue}" selected>${serialValue}</option>`;
-                    }
+                    // Don't pre-populate serial value - let API filter decide what's available
                     const isReadonly = product.is_existing && '{{ $dispatch->status }}' !== 'pending';
                     inputs +=
                         `<select name="${inputName}" ${isReadonly ? 'disabled' : ''}
@@ -2093,7 +2121,7 @@
                         <!-- Existing item hidden inputs -->
                         <input type="hidden" name="contract_items[${product.existing_item_id}][item_type]" value="${product.type}">
                         <input type="hidden" name="contract_items[${product.existing_item_id}][item_id]" value="${product.id}">
-                        <input type="hidden" name="contract_items[${product.existing_item_id}][warehouse_id]" value="${product.selected_warehouse_id}">
+                        <input type="hidden" name="contract_items[${product.existing_item_id}][warehouse_id]" value="${product.selected_warehouse_id}" class="contract-warehouse-hidden" data-index="${index}">
                         <input type="hidden" name="contract_items[${product.existing_item_id}][category]" value="contract">
                         <input type="hidden" name="contract_items[${product.existing_item_id}][quantity]" value="${product.quantity}" class="contract-quantity-hidden" data-index="${index}">
                     ` : `
@@ -2175,6 +2203,9 @@
                             `.contract-warehouse-hidden[data-index="${index}"]`);
                         if (hiddenWarehouseInput) {
                             hiddenWarehouseInput.value = newWarehouseId;
+                            console.log(`Updated contract warehouse hidden input for index ${index}: ${newWarehouseId}`);
+                        } else {
+                            console.warn(`Contract warehouse hidden input not found for index ${index}`);
                         }
 
                         const hiddenQuantityInput = document.querySelector(
@@ -2184,14 +2215,22 @@
                                 selectedContractProducts[index].quantity;
                         }
 
-                        // Cập nhật data-warehouse-id cho tất cả serial selects của product này
-                        const serialSelects = document.querySelectorAll(
-                            `#contract-serials-${index} select`);
-                        serialSelects.forEach(select => {
-                            select.setAttribute('data-warehouse-id', newWarehouseId);
-                        });
+                        // Reset serial khi thay đổi kho
+                        const serialContainer = document.getElementById(`contract-serials-${index}`);
+                        if (serialContainer) {
+                            console.log(`Warehouse changed to ${newWarehouseId} - resetting serials for product index ${index}`);
+                            // Xóa tất cả serial đã chọn trước đó
+                            const serialSelects = serialContainer.querySelectorAll('select');
+                            serialSelects.forEach(serialSelect => {
+                                console.log(`Clearing serial select: old value="${serialSelect.value}", old warehouse="${serialSelect.dataset.warehouseId}"`);
+                                serialSelect.value = '';
+                                serialSelect.setAttribute('data-warehouse-id', newWarehouseId);
+                                serialSelect.setAttribute('data-selected-serial', ''); // Xóa giá trị cũ
+                            });
+                        }
 
                         // Load lại available serials cho warehouse mới
+                        console.log(`Loading available serials for new warehouse ${newWarehouseId}`);
                         loadAvailableSerials();
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
@@ -2287,7 +2326,7 @@
                         <!-- Existing item hidden inputs -->
                         <input type="hidden" name="backup_items[${product.existing_item_id}][item_type]" value="${product.type}">
                         <input type="hidden" name="backup_items[${product.existing_item_id}][item_id]" value="${product.id}">
-                        <input type="hidden" name="backup_items[${product.existing_item_id}][warehouse_id]" value="${product.selected_warehouse_id}">
+                        <input type="hidden" name="backup_items[${product.existing_item_id}][warehouse_id]" value="${product.selected_warehouse_id}" class="backup-warehouse-hidden" data-index="${index}">
                         <input type="hidden" name="backup_items[${product.existing_item_id}][category]" value="backup">
                         <input type="hidden" name="backup_items[${product.existing_item_id}][quantity]" value="${product.quantity}" class="backup-quantity-hidden" data-index="${index}">
                     ` : `
@@ -2369,6 +2408,9 @@
                             `.backup-warehouse-hidden[data-index="${index}"]`);
                         if (hiddenWarehouseInput) {
                             hiddenWarehouseInput.value = newWarehouseId;
+                            console.log(`Updated backup warehouse hidden input for index ${index}: ${newWarehouseId}`);
+                        } else {
+                            console.warn(`Backup warehouse hidden input not found for index ${index}`);
                         }
 
                         const hiddenQuantityInput = document.querySelector(
@@ -2378,14 +2420,22 @@
                                 selectedBackupProducts[index].quantity;
                         }
 
-                        // Cập nhật data-warehouse-id cho tất cả serial selects của product này
-                        const serialSelects = document.querySelectorAll(
-                            `#backup-serials-${index} select`);
-                        serialSelects.forEach(select => {
-                            select.setAttribute('data-warehouse-id', newWarehouseId);
-                        });
+                        // Reset serial khi thay đổi kho
+                        const serialContainer = document.getElementById(`backup-serials-${index}`);
+                        if (serialContainer) {
+                            console.log(`Warehouse changed to ${newWarehouseId} - resetting serials for backup product index ${index}`);
+                            // Xóa tất cả serial đã chọn trước đó
+                            const serialSelects = serialContainer.querySelectorAll('select');
+                            serialSelects.forEach(serialSelect => {
+                                console.log(`Clearing backup serial select: old value="${serialSelect.value}", old warehouse="${serialSelect.dataset.warehouseId}"`);
+                                serialSelect.value = '';
+                                serialSelect.setAttribute('data-warehouse-id', newWarehouseId);
+                                serialSelect.setAttribute('data-selected-serial', ''); // Xóa giá trị cũ
+                            });
+                        }
 
                         // Load lại available serials cho warehouse mới
+                        console.log(`Loading available serials for new backup warehouse ${newWarehouseId}`);
                         loadAvailableSerials();
 
                         // Kiểm tra tồn kho ngay khi thay đổi kho
@@ -2809,6 +2859,29 @@
             const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', function(e) {
+                    // Debug: Log tất cả warehouse_id trước khi submit
+                    console.log('=== FORM SUBMIT DEBUG ===');
+                    
+                    // Log contract warehouse IDs
+                    const contractWarehouseInputs = form.querySelectorAll('input[name*="contract_items"][name*="warehouse_id"], input[name*="items"][name*="contract"][name*="warehouse_id"]');
+                    contractWarehouseInputs.forEach((input, index) => {
+                        console.log(`Contract warehouse input ${index}:`, {
+                            name: input.name,
+                            value: input.value,
+                            disabled: input.disabled
+                        });
+                    });
+                    
+                    // Log backup warehouse IDs
+                    const backupWarehouseInputs = form.querySelectorAll('input[name*="backup_items"][name*="warehouse_id"], input[name*="items"][name*="backup"][name*="warehouse_id"]');
+                    backupWarehouseInputs.forEach((input, index) => {
+                        console.log(`Backup warehouse input ${index}:`, {
+                            name: input.name,
+                            value: input.value,
+                            disabled: input.disabled
+                        });
+                    });
+                    
                     // Kiểm tra xem còn item nào không bị disable (existing items + newly added items)
                     const activeContractItems = form.querySelectorAll(
                         'input[name*="contract_items"][name*="[item_id]"]:not([disabled])');
@@ -3141,19 +3214,23 @@
                         window.deviceCodesData = window.deviceCodesData || {};
                         window.deviceCodesData[type] = data.deviceCodes;
                         
+                        // Debug log để kiểm tra dữ liệu
+                        console.log(`Device codes loaded for type ${type}:`, data.deviceCodes);
+                        
                         renderDeviceCodeTable(data.deviceCodes, type);
                         
                         // Cập nhật serial numbers trong giao diện chính theo type
                         updateMainInterfaceSerials(type);
                     } else {
-                        tbody.innerHTML =
-                            `<tr><td colspan="8" class="px-4 py-3 text-center text-red-500">${data.message || 'Không thể tải dữ liệu'}</td></tr>`;
+                        // Nếu không có device codes, vẫn hiển thị bảng với sản phẩm
+                        console.log(`No device codes found for type ${type}, rendering new table`);
+                        renderNewDeviceCodeTable(type);
                     }
                 } catch (error) {
                     console.error('Error loading device codes:', error);
-                    const tbody = document.getElementById('device-code-tbody');
-                    tbody.innerHTML =
-                        '<tr><td colspan="8" class="px-4 py-3 text-center text-red-500">Lỗi khi tải dữ liệu</td></tr>';
+                    // Nếu có lỗi, vẫn hiển thị bảng với sản phẩm
+                    console.log(`Error loading device codes for type ${type}, rendering new table`);
+                    renderNewDeviceCodeTable(type);
                 }
             }
 
@@ -3200,15 +3277,19 @@
                                 // Tìm select tương ứng trong giao diện chính
                                 const serialSelect = document.querySelector(`select[name*="contract_items"][name*="serial_numbers"][data-item-id="${product.id}"][data-serial-index="${serialIndex}"]`);
                                 if (serialSelect) {
-                                    // Tìm option tương ứng hoặc tạo mới
+                                    // Chỉ set value nếu option đã tồn tại (serial available)
                                     let option = Array.from(serialSelect.options).find(opt => opt.value === deviceCode.serial_main);
-                                    if (!option) {
-                                        option = document.createElement('option');
-                                        option.value = deviceCode.serial_main;
-                                        option.textContent = deviceCode.serial_main;
-                                        serialSelect.appendChild(option);
+                                    if (option) {
+                                        console.log(`Setting serial ${deviceCode.serial_main} for product ${product.id} (available)`);
+                                        serialSelect.value = deviceCode.serial_main;
+                                        serialSelect.setAttribute('data-selected-serial', deviceCode.serial_main);
+                                    } else {
+                                        // Nếu serial không available (đã được approved ở dispatch khác), clear value
+                                        console.log(`Serial ${deviceCode.serial_main} not available for product ${product.id}, clearing selection`);
+                                        console.log(`Available options:`, Array.from(serialSelect.options).map(opt => opt.value));
+                                        serialSelect.value = '';
+                                        serialSelect.setAttribute('data-selected-serial', '');
                                     }
-                                    serialSelect.value = deviceCode.serial_main;
                                 }
                             }
                         });
@@ -3223,15 +3304,19 @@
                                 // Tìm select tương ứng trong giao diện chính
                                 const serialSelect = document.querySelector(`select[name*="backup_items"][name*="serial_numbers"][data-item-id="${product.id}"][data-serial-index="${serialIndex}"]`);
                                 if (serialSelect) {
-                                    // Tìm option tương ứng hoặc tạo mới
+                                    // Chỉ set value nếu option đã tồn tại (serial available)
                                     let option = Array.from(serialSelect.options).find(opt => opt.value === deviceCode.serial_main);
-                                    if (!option) {
-                                        option = document.createElement('option');
-                                        option.value = deviceCode.serial_main;
-                                        option.textContent = deviceCode.serial_main;
-                                        serialSelect.appendChild(option);
+                                    if (option) {
+                                        console.log(`Setting serial ${deviceCode.serial_main} for product ${product.id} (available)`);
+                                        serialSelect.value = deviceCode.serial_main;
+                                        serialSelect.setAttribute('data-selected-serial', deviceCode.serial_main);
+                                    } else {
+                                        // Nếu serial không available (đã được approved ở dispatch khác), clear value
+                                        console.log(`Serial ${deviceCode.serial_main} not available for product ${product.id}, clearing selection`);
+                                        console.log(`Available options:`, Array.from(serialSelect.options).map(opt => opt.value));
+                                        serialSelect.value = '';
+                                        serialSelect.setAttribute('data-selected-serial', '');
                                     }
-                                    serialSelect.value = deviceCode.serial_main;
                                 }
                             }
                         });
@@ -3249,24 +3334,58 @@
                 const tbody = document.getElementById('device-code-tbody');
                 tbody.innerHTML = '';
 
+                // Luôn hiển thị tất cả sản phẩm, kể cả khi không có device codes
+                // Điều này đảm bảo không mất sản phẩm nào
+                let productsToShow = [];
+                if (type === 'contract') {
+                    productsToShow = selectedContractProducts;
+                } else if (type === 'backup') {
+                    productsToShow = selectedBackupProducts;
+                }
+
+                // Debug log để kiểm tra sản phẩm
+                console.log(`renderDeviceCodeTable for type ${type}:`, productsToShow);
+                console.log(`Device codes received:`, deviceCodes);
+
+                if (productsToShow.length === 0) {
+                    tbody.innerHTML =
+                        `<tr><td colspan="8" class="px-4 py-3 text-center">Chưa có sản phẩm nào được chọn</td></tr>`;
+                    return;
+                }
+
+                // Nếu không có device codes, sử dụng renderNewDeviceCodeTable
                 if (!deviceCodes || deviceCodes.length === 0) {
-                    // Nếu không có dữ liệu, hiển thị thông báo và tạo UI mới dựa vào serial đã chọn
                     renderNewDeviceCodeTable(type);
                     return;
                 }
 
                 // Nhóm device codes theo product_id để hiển thị
                 const groupedDeviceCodes = {};
+                console.log(`Raw device codes for type ${type}:`, deviceCodes);
+                
                 deviceCodes.forEach(deviceCode => {
                     if (!groupedDeviceCodes[deviceCode.product_id]) {
                         groupedDeviceCodes[deviceCode.product_id] = [];
                     }
                     groupedDeviceCodes[deviceCode.product_id].push(deviceCode);
+                    console.log(`Added device code for product ${deviceCode.product_id}:`, deviceCode);
+                });
+                
+                console.log(`Grouped device codes:`, groupedDeviceCodes);
+
+                // Đảm bảo tất cả sản phẩm đều được hiển thị, kể cả khi không có device codes
+                console.log(`Products to show for type ${type}:`, productsToShow.map(p => `${p.id}-${p.code}`));
+                productsToShow.forEach(product => {
+                    if (!groupedDeviceCodes[product.id]) {
+                        groupedDeviceCodes[product.id] = [];
+                        console.log(`Added empty device codes for product ${product.id} (${product.code})`);
+                    }
                 });
 
                 // Render từng nhóm product
                 Object.keys(groupedDeviceCodes).forEach(productId => {
                     const productDeviceCodes = groupedDeviceCodes[productId];
+                    console.log(`Rendering product ${productId}, device codes:`, productDeviceCodes);
 
                     // Find product info from selected products
                     let productInfo = null;
@@ -3291,7 +3410,10 @@
                         }
                     }
 
-                    if (!productInfo) return;
+                    if (!productInfo) {
+                        console.warn(`Product ${productId} not found in selected products for type ${type}`);
+                        return;
+                    }
 
                     // Create a single row for the product
                     const row = document.createElement('tr');
@@ -3310,16 +3432,38 @@
                     // Create serial fields based on quantity
                     let serialFieldsHtml = '';
                     for (let i = 0; i < productQuantity; i++) {
+                        // Tìm device code chính xác cho sản phẩm này và index này
+                        // Sử dụng index để lấy đúng device code cho từng serial
                         const deviceCode = productDeviceCodes[i] || {};
+                        
+                        // Debug log để kiểm tra mapping
+                        console.log(`Product ${productId} (${productInfo.code}), index ${i}:`, {
+                            deviceCode: deviceCode,
+                            allProductDeviceCodes: productDeviceCodes,
+                            productInfo: productInfo,
+                            productDeviceCodesLength: productDeviceCodes.length,
+                            productId: productId,
+                            serialIndex: i,
+                            hasDeviceCode: !!deviceCode.id
+                        });
                         
                         // Ưu tiên serial_main từ database (serial mới được đổi tên)
                         // Nếu không có serial_main, mới dùng serial từ giao diện chính
                         let mainSerialValue = '';
-                        if (deviceCode.serial_main) {
+                        
+                        // Chỉ hiển thị serial khi thực sự có device code cho index này
+                        if (deviceCode.id && deviceCode.serial_main) {
                             mainSerialValue = deviceCode.serial_main; // Ưu tiên serial_main từ database
                         } else if (productInfo.serial_numbers && productInfo.serial_numbers[i]) {
                             mainSerialValue = productInfo.serial_numbers[i]; // Fallback về serial hiện tại
                         }
+                        
+                        console.log(`Serial value for product ${productId}, index ${i}:`, {
+                            mainSerialValue: mainSerialValue,
+                            hasDeviceCodeId: !!deviceCode.id,
+                            deviceCodeSerialMain: deviceCode.serial_main,
+                            productInfoSerial: productInfo.serial_numbers?.[i]
+                        });
 
                         // For first row, include the product info cell
                         const firstRowExtra = i === 0 ? mainCellContent : '';
@@ -3332,7 +3476,8 @@
                             let serialComponents = [];
                             console.log('Raw serial_components from DB:', deviceCode.serial_components, typeof deviceCode.serial_components);
                             
-                            if (deviceCode.serial_components && deviceCode.serial_components !== 'null' && deviceCode.serial_components !== '[]' && deviceCode.serial_components !== '[""]') {
+                            // Chỉ parse serial_components khi có device code thực sự
+                            if (deviceCode.id && deviceCode.serial_components && deviceCode.serial_components !== 'null' && deviceCode.serial_components !== '[]' && deviceCode.serial_components !== '[""]') {
                                 if (typeof deviceCode.serial_components === 'string') {
                                     try {
                                         // Xử lý double-encoded JSON: "[\"1\",\"2\",\"3\"]" -> ["1","2","3"]
@@ -3401,31 +3546,31 @@
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
                                         name="${type}_serial_sim[${productId}][${i}]" 
-                                        value="${deviceCode.serial_sim || ''}"
+                                        value="${deviceCode.id ? (deviceCode.serial_sim || '') : ''}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </td>
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
                                         name="${type}_access_code[${productId}][${i}]" 
-                                        value="${deviceCode.access_code || ''}"
+                                        value="${deviceCode.id ? (deviceCode.access_code || '') : ''}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </td>
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
                                         name="${type}_iot_id[${productId}][${i}]" 
-                                        value="${deviceCode.iot_id || ''}"
+                                        value="${deviceCode.id ? (deviceCode.iot_id || '') : ''}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </td>
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
                                         name="${type}_mac_4g[${productId}][${i}]" 
-                                        value="${deviceCode.mac_4g || ''}"
+                                        value="${deviceCode.id ? (deviceCode.mac_4g || '') : ''}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </td>
                                 <td class="px-2 py-2 border border-gray-200">
                                     <input type="text" 
                                         name="${type}_note[${productId}][${i}]" 
-                                        value="${deviceCode.note || ''}"
+                                        value="${deviceCode.id ? (deviceCode.note || '') : ''}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </td>
                             </tr>
@@ -3450,6 +3595,9 @@
                 } else if (type === 'backup') {
                     productsToShow = selectedBackupProducts;
                 }
+
+                // Debug log để kiểm tra sản phẩm
+                console.log(`renderNewDeviceCodeTable for type ${type}:`, productsToShow);
 
                 if (productsToShow.length === 0) {
                     tbody.innerHTML =
@@ -3694,45 +3842,22 @@
                             refreshMainInterface();
                         }, 200);
                         
-                        // Đảm bảo sync cuối cùng sau khi tất cả đã hoàn thành
-                        setTimeout(() => {
+                        // Load lại device codes từ database để đảm bảo dữ liệu mới nhất
+                        setTimeout(async () => {
                             const currentType = getCurrentModalType();
-                            console.log(`Final sync for type: ${currentType}`);
+                            console.log(`Reloading device codes for type: ${currentType}`);
                             
-                            // Cập nhật trực tiếp các select trong giao diện chính (chỉ loại tương ứng)
-                            let mainSerialSelects = document.querySelectorAll(`select[name*="serial_numbers"][data-type="${currentType}"]`);
-                            
-                            // Nếu không tìm thấy select elements với data-type, thử tìm theo name pattern
-                            if (mainSerialSelects.length === 0) {
-                                console.log(`No selects found with data-type="${currentType}", trying name pattern...`);
-                                const namePatternSelects = document.querySelectorAll(`select[name*="${currentType}_items"][name*="serial_numbers"]`);
-                                console.log(`Selects with name pattern "${currentType}_items":`, namePatternSelects.length);
+                            try {
+                                // Load lại device codes từ database
+                                await loadDeviceCodesFromDatabase(currentType);
                                 
-                                if (namePatternSelects.length > 0) {
-                                    // Sử dụng name pattern selects
-                                    mainSerialSelects = namePatternSelects;
-                                    console.log('Using name pattern selects for final sync');
-                                }
+                                // Cập nhật lại giao diện chính
+                                updateMainInterfaceSerials(currentType);
+                                
+                                console.log(`Device codes reloaded successfully for type: ${currentType}`);
+                            } catch (error) {
+                                console.error(`Error reloading device codes for type ${currentType}:`, error);
                             }
-                            
-                            mainSerialSelects.forEach((select, index) => {
-                                if (modalSerials[index]) {
-                                    const modalSerial = modalSerials[index];
-                                    console.log(`Final sync: updating select ${index} with ${modalSerial} for type ${currentType}`);
-                                    
-                                    // Tìm hoặc tạo option
-                                    let option = Array.from(select.options).find(opt => opt.value === modalSerial);
-                                    if (!option) {
-                                        option = document.createElement('option');
-                                        option.value = modalSerial;
-                                        option.textContent = modalSerial;
-                                        select.appendChild(option);
-                                    }
-                                    
-                                    select.value = modalSerial;
-                                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                                }
-                            });
                             
                             // Vô hiệu hóa sync sau khi hoàn tất
                             disableAllSync();
