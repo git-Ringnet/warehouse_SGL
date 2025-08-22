@@ -1895,7 +1895,11 @@ class AssemblyController extends Controller
         Log::info('Generated export code', ['export_code' => $exportCode]);
 
         // Tạo trường project_receiver theo định dạng yêu cầu
-        $projectReceiver = 'Lắp ráp lưu kho: ' . $assembly->code;
+        // - Nếu xuất đi dự án: hiển thị mã phiếu xuất
+        // - Nếu lưu kho: hiển thị mã phiếu lắp ráp
+        $projectReceiver = $assembly->purpose === 'project'
+            ? ('Lắp ráp xuất đi dự án: ' . $exportCode)
+            : ('Lắp ráp lưu kho: ' . $assembly->code);
 
         // Tạo trường dispatch_note theo định dạng yêu cầu
         $dispatchNote = 'Sinh từ phiếu lắp ráp: ' . $assembly->code;
@@ -2609,6 +2613,16 @@ class AssemblyController extends Controller
         try {
             DB::beginTransaction();
 
+            // Hard conflict check: any selected serial in this assembly already used by another approved/in_progress assembly
+            $serialConflict = $this->checkSerialConflictAcrossAssemblies($assembly);
+            if ($serialConflict['conflict'] === true) {
+                DB::rollBack();
+                if (request()->expectsJson()) {
+                    return response()->json(['error' => $serialConflict['message']], 400);
+                }
+                return back()->withErrors(['error' => $serialConflict['message']])->withInput();
+            }
+
             // Check if assembly is already approved
             if ($assembly->status === 'approved') {
                 if (request()->expectsJson()) {
@@ -2633,17 +2647,13 @@ class AssemblyController extends Controller
             // Create testing record
             $testing = $this->createTestingRecordForAssembly($assembly);
 
-            // Create dispatch record if purpose is project
+            // Do not create product dispatch for project purpose anymore
             $dispatch = null;
-            if ($assembly->purpose === 'project' && $assembly->project_id) {
-                // Always reload assembly from DB to ensure project_id is up-to-date
-                $assemblyFresh = Assembly::with('project')->find($assembly->id);
-                $dispatch = $this->createDispatchForAssembly($assemblyFresh);
-            }
 
             // Create material export slip for both storage and project (xuất vật tư)
             if (in_array($assembly->purpose, ['storage', 'project'], true)) {
-                $this->createMaterialExportSlipForAssembly($assembly);
+                // Use material export dispatch as the primary dispatch reference
+                $dispatch = $this->createMaterialExportSlipForAssembly($assembly);
             }
 
             // Update assembly status to in_progress (đang thực hiện)
@@ -2731,6 +2741,87 @@ class AssemblyController extends Controller
 
             return back()->withErrors(['error' => $errorMessage]);
         }
+    }
+
+    /**
+     * Kiểm tra xung đột serial của vật tư giữa các phiếu khác (đang thực hiện/đã hoàn thành)
+     */
+    private function checkSerialConflictAcrossAssemblies(Assembly $assembly): array
+    {
+        // Thu thập tất cả serial đã chọn trong phiếu hiện tại (theo vật tư)
+        $currentSerialsByMaterialId = [];
+        $materials = $assembly->materials()->with('material')->get();
+        foreach ($materials as $am) {
+            $serials = [];
+            if (!empty($am->serial)) {
+                $serials = array_filter(array_map('trim', explode(',', $am->serial)));
+            } elseif (!empty($am->serial_id)) {
+                $s = Serial::find($am->serial_id);
+                if ($s) {
+                    $serials = [trim($s->serial_number)];
+                }
+            }
+
+            if (!empty($serials)) {
+                $mid = (int) $am->material_id;
+                if (!isset($currentSerialsByMaterialId[$mid])) {
+                    $currentSerialsByMaterialId[$mid] = [];
+                }
+                $currentSerialsByMaterialId[$mid] = array_values(array_unique(array_merge($currentSerialsByMaterialId[$mid], $serials)));
+            }
+        }
+
+        if (empty($currentSerialsByMaterialId)) {
+            return ['conflict' => false, 'message' => ''];
+        }
+
+        // Kiểm tra trùng với các phiếu khác
+        foreach ($currentSerialsByMaterialId as $materialId => $serialList) {
+            if (empty($serialList)) continue;
+
+            // Tìm các assembly_material khác (không phải phiếu hiện tại) có chứa bất kỳ serial nào, và phiếu ở trạng thái đang thực hiện/hoàn thành
+            $others = AssemblyMaterial::where('material_id', $materialId)
+                ->where('assembly_id', '!=', $assembly->id)
+                ->where(function ($q) {
+                    $q->whereNotNull('serial')->orWhereNotNull('serial_id');
+                })
+                ->whereHas('assembly', function ($q) {
+                    $q->whereIn('status', ['in_progress', 'completed']);
+                })
+                ->with(['assembly', 'material'])
+                ->get();
+
+            if ($others->isEmpty()) continue;
+
+            // Đối sánh chính xác theo từng serial (tách chuỗi)
+            foreach ($others as $row) {
+                $otherSerials = [];
+                if (!empty($row->serial)) {
+                    $otherSerials = array_filter(array_map('trim', explode(',', $row->serial)));
+                } elseif (!empty($row->serial_id)) {
+                    $s = Serial::find($row->serial_id);
+                    if ($s) {
+                        $otherSerials = [trim($s->serial_number)];
+                    }
+                }
+
+                if (empty($otherSerials)) continue;
+
+                // Tìm giao nhau
+                $conflicted = array_values(array_intersect($serialList, $otherSerials));
+                if (!empty($conflicted)) {
+                    $materialName = $row->material->name ?? ('#' . $materialId);
+                    $serialStr = implode(', ', $conflicted);
+                    $otherAssemblyCode = $row->assembly->code ?? ('ID ' . $row->assembly_id);
+                    return [
+                        'conflict' => true,
+                        'message' => "Serial {$serialStr} của vật tư '{$materialName}' đã được sử dụng ở phiếu lắp ráp {$otherAssemblyCode}."
+                    ];
+                }
+            }
+        }
+
+        return ['conflict' => false, 'message' => ''];
     }
 
     /**
