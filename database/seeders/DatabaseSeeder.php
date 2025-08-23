@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
             // SupplierSeeder::class,
             PermissionSeeder::class,
             RoleSeeder::class,
-            // EmployeeSeeder::class,
+            EmployeeSeeder::class,
             AdminSeeder::class, // Tạo admin sau khi có role
             // WarehouseSeeder::class,
             // MaterialSeeder::class,
