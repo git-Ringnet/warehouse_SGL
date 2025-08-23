@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             // EmployeeSeeder::class,
             AdminSeeder::class, // Tạo admin sau khi có role
-            WarehouseSeeder::class,
+            // WarehouseSeeder::class,
             // MaterialSeeder::class,
             // SoftwareSeeder::class,
             // WarehouseMaterialSeeder::class,
