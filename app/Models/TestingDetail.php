@@ -11,6 +11,7 @@ class TestingDetail extends Model
 
     protected $fillable = [
         'testing_id',
+        'item_id',
         'test_item_name',
         'result',
         'notes',

@@ -25,6 +25,7 @@ class TestingItem extends Model
         'pass_quantity',
         'fail_quantity',
         'serial_results',
+        'notes',
     ];
 
     /**

@@ -2254,21 +2254,21 @@ class AssemblyController extends Controller
                 }
 
                 // Add default testing items
-                $defaultTestItems = [
-                    'Kiểm tra ngoại quan',
-                    'Kiểm tra chức năng cơ bản',
-                    'Kiểm tra hoạt động liên tục'
-                ];
+                // $defaultTestItems = [
+                //     'Kiểm tra ngoại quan',
+                //     'Kiểm tra chức năng cơ bản',
+                //     'Kiểm tra hoạt động liên tục'
+                // ];
 
-                foreach ($defaultTestItems as $testItem) {
-                    \App\Models\TestingDetail::create([
-                        'testing_id' => $testing->id,
-                        'test_item_name' => $testItem,
-                        'result' => 'pending',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
+                // foreach ($defaultTestItems as $testItem) {
+                //     \App\Models\TestingDetail::create([
+                //         'testing_id' => $testing->id,
+                //         'test_item_name' => $testItem,
+                //         'result' => 'pending',
+                //         'created_at' => now(),
+                //         'updated_at' => now(),
+                //     ]);
+                // }
 
                 // Ghi nhật ký tạo mới phiếu kiểm thử
                 if (Auth::check()) {

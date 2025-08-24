@@ -200,8 +200,8 @@ class TestingController extends Controller
                 TestingItem::create($itemData);
             }
 
-            // Add testing details if provided
-            if ($request->has('test_items')) {
+            // Add testing details if provided (only for non-finished_product)
+            if ($request->has('test_items') && $testing->test_type !== 'finished_product') {
                 foreach ($request->test_items as $testItem) {
                     if (!empty($testItem)) {
                         TestingDetail::create([
@@ -296,7 +296,7 @@ class TestingController extends Controller
      */
     public function edit(Testing $testing)
     {
-        $testing->load(['tester', 'items.material', 'items.product', 'items.good', 'items.warehouse', 'items.supplier', 'details']);
+        $testing->load(['tester', 'items.material', 'items.product', 'items.good', 'items.warehouse', 'items.supplier', 'details', 'assembly.materials.material', 'assembly.materials.warehouse', 'assembly.products.product']);
 
         $employees = Employee::where('status', 'active')->get();
         $materials = Material::where('is_hidden', false)->get();
@@ -330,11 +330,72 @@ class TestingController extends Controller
         
         $isAutoSave = $hasAutoSaveData && !$hasBasicInfo;
         
-        Log::info('Auto-save logic', [
+        // Kiểm tra xem có phải là request thêm/xóa hạng mục kiểm thử không
+        $isAddTestDetail = $request->has('action') && $request->action === 'add_test_detail';
+        $isDeleteTestDetail = $request->has('action') && $request->action === 'delete_test_detail';
+        
+        Log::info('Testing update logic', [
             'hasBasicInfo' => $hasBasicInfo,
             'hasAutoSaveData' => $hasAutoSaveData,
             'isAutoSave' => $isAutoSave,
+            'isAddTestDetail' => $isAddTestDetail,
+            'isDeleteTestDetail' => $isDeleteTestDetail,
         ]);
+        
+        // EARLY HANDLERS: Bỏ qua validator tổng khi chỉ thêm/xóa hạng mục kiểm thử
+        if ($isAddTestDetail) {
+            try {
+                $newTestDetail = TestingDetail::create([
+                    'testing_id' => $testing->id,
+                    'item_id' => $request->item_id ?? null, // item_id có thể null
+                    'test_item_name' => $request->test_item_name,
+                    'result' => 'pending',
+                    'test_pass_quantity' => 0,
+                    'test_fail_quantity' => 0,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đã thêm hạng mục kiểm thử mới thành công.',
+                    'test_detail_id' => $newTestDetail->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Lỗi khi tạo hạng mục kiểm thử mới: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lỗi khi tạo hạng mục kiểm thử mới: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+
+        if ($isDeleteTestDetail) {
+            try {
+                $detailId = $request->detail_id;
+                $testDetail = TestingDetail::where('id', $detailId)
+                    ->where('testing_id', $testing->id)
+                    ->first();
+
+                if (!$testDetail) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Không tìm thấy hạng mục kiểm thử để xóa.'
+                    ], 404);
+                }
+
+                $testDetail->delete();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Đã xóa hạng mục kiểm thử thành công.'
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Lỗi khi xóa hạng mục kiểm thử: ' . $e->getMessage());
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lỗi khi xóa hạng mục kiểm thử: ' . $e->getMessage()
+                ], 500);
+            }
+        }
         
         $validator = Validator::make($request->all(), [
             'tester_id' => $isAutoSave ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
@@ -361,6 +422,8 @@ class TestingController extends Controller
             'test_results.*' => 'nullable|in:pass,fail,pending',
             'test_notes' => 'nullable|array',
             'test_notes.*' => 'nullable|string',
+            'item_pass_quantity_no_serial' => 'nullable|array',
+            'item_pass_quantity_no_serial.*' => 'nullable|integer|min:0',
         ]);
 
         // Lưu dữ liệu cũ trước khi cập nhật
@@ -454,12 +517,15 @@ class TestingController extends Controller
                         $query->where('testing_id', $testing->id)
                             ->where(function ($q) use ($itemId) {
                                 $q->where('id', $itemId)
-                                    ->orWhere('material_id', $itemId);
+                                    ->orWhere('material_id', $itemId)
+                                    ->orWhere('good_id', $itemId)
+                                    ->orWhere('product_id', $itemId);
                             });
                     })->first();
 
                     if ($item) {
                         $item->update(['notes' => $note]);
+                        Log::info('Updated item note', ['testing_id' => $testing->id, 'testing_item_id' => $item->id]);
                     }
                 }
             }
@@ -473,17 +539,29 @@ class TestingController extends Controller
 
                 // Xử lý pass quantities
                 if ($request->has('item_pass_quantity')) {
+                    $providedFailForMaterialIds = array_keys($request->get('item_fail_quantity', []));
                     foreach ($request->item_pass_quantity as $materialId => $passQuantity) {
                         $item = TestingItem::where('testing_id', $testing->id)
                             ->where('material_id', $materialId)
                             ->first();
 
                         if ($item) {
+                            $passQuantity = (int) $passQuantity;
+                            $maxPass = (int) ($item->quantity ?? $passQuantity);
+                            if ($passQuantity > $maxPass) {
+                                $passQuantity = $maxPass;
+                            }
                             $item->update(['pass_quantity' => $passQuantity]);
-                            Log::info('Đã cập nhật pass_quantity cho vật tư', [
+                            // Nếu không gửi fail_quantity cho material này, tự tính = quantity - pass
+                            if (!in_array($materialId, $providedFailForMaterialIds, true)) {
+                                $autoFail = max(0, (int)($item->quantity ?? 0) - $passQuantity);
+                                $item->update(['fail_quantity' => $autoFail]);
+                            }
+                            Log::info('Đã cập nhật pass/fail (auto) cho vật tư', [
                                 'testing_id' => $testing->id,
                                 'material_id' => $materialId,
-                                'pass_quantity' => $passQuantity
+                                'pass_quantity' => $passQuantity,
+                                'fail_quantity' => $item->fail_quantity
                             ]);
                         } else {
                             Log::warning('Không tìm thấy testing item cho material_id', [
@@ -520,13 +598,23 @@ class TestingController extends Controller
 
             // Update item pass/fail quantities
             if ($request->has('item_pass_quantity')) {
+                $providedFailForItemIds = array_keys($request->get('item_fail_quantity', []));
                 foreach ($request->item_pass_quantity as $itemId => $quantity) {
                     $item = TestingItem::where('testing_id', $testing->id)
                         ->where('id', $itemId)
                         ->first();
                     
                     if ($item) {
+                        $quantity = (int) $quantity;
+                        $maxPass = (int) ($item->quantity ?? $quantity);
+                        if ($quantity > $maxPass) {
+                            $quantity = $maxPass;
+                        }
                         $item->update(['pass_quantity' => $quantity]);
+                        if (!in_array($itemId, $providedFailForItemIds, true)) {
+                            $autoFail = max(0, (int)($item->quantity ?? 0) - $quantity);
+                            $item->update(['fail_quantity' => $autoFail]);
+                        }
                     }
                 }
             }
@@ -543,9 +631,139 @@ class TestingController extends Controller
                 }
             }
 
+            // Xử lý item_pass_quantity_no_serial (số lượng Đạt cho vật tư không có serial)
+            if ($request->has('item_pass_quantity_no_serial')) {
+                Log::info('Bắt đầu xử lý item_pass_quantity_no_serial', [
+                    'item_pass_quantity_no_serial' => $request->item_pass_quantity_no_serial
+                ]);
+
+                // Đảm bảo đã có dữ liệu assembly materials để phân bổ theo đơn vị
+                $testing->loadMissing('assembly.materials');
+
+                foreach ($request->item_pass_quantity_no_serial as $unitIdx => $unitPassQuantityRaw) {
+                    $unitIdx = (int) $unitIdx;
+                    $unitPassQuantity = max(0, (int) $unitPassQuantityRaw);
+
+                    Log::info('Xử lý pass quantity no serial cho unit', [
+                        'unit_idx' => $unitIdx,
+                        'unit_pass_quantity' => $unitPassQuantity
+                    ]);
+
+                    // Lưu lại số lượng vào notes (để hiện lại trên form)
+                    $currentNotes = $testing->notes ?? '';
+                    $noSerialData = json_decode($currentNotes, true) ?: [];
+                    $noSerialData['no_serial_pass_quantity'] = $noSerialData['no_serial_pass_quantity'] ?? [];
+                    $noSerialData['no_serial_pass_quantity'][$unitIdx] = $unitPassQuantity;
+                    $testing->update(['notes' => json_encode($noSerialData)]);
+
+                    // Phân bổ số lượng Đạt cho các vật tư không có serial trong đơn vị này
+                    if ($testing->assembly && $testing->assembly->materials) {
+                        $materialsInUnit = $testing->assembly->materials->where('product_unit', $unitIdx);
+
+                        // Tạo danh sách các vật tư không có serial cùng với số slot N/A cần xét
+                        $noSerialRows = [];
+                        foreach ($materialsInUnit as $asmMaterial) {
+                            $quantity = (int) ($asmMaterial->quantity ?? 0);
+                            $serialCount = 0;
+                            if (!empty($asmMaterial->serial)) {
+                                $serialArray = array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial))));
+                                $serialCount = count($serialArray);
+                            }
+                            $noSerialCount = max(0, $quantity - $serialCount);
+                            if ($noSerialCount > 0) {
+                                $noSerialRows[] = [
+                                    'material_id' => $asmMaterial->material_id,
+                                    'no_serial_count' => $noSerialCount
+                                ];
+                            }
+                        }
+
+                        $remainingPass = $unitPassQuantity;
+
+                        foreach ($noSerialRows as $row) {
+                            if ($remainingPass <= 0) break;
+
+                            $materialId = $row['material_id'];
+                            $noSerialCount = $row['no_serial_count'];
+
+                            // Tìm TestingItem tương ứng
+                            $item = TestingItem::where('testing_id', $testing->id)
+                                ->where('material_id', $materialId)
+                                ->first();
+
+                            if ($item) {
+                                // Tính pass/fail từ serial_results (nếu có)
+                                $serialPass = 0;
+                                $serialFail = 0;
+                                if (!empty($item->serial_results)) {
+                                    $serialResults = json_decode($item->serial_results, true);
+                                    if (is_array($serialResults)) {
+                                        foreach ($serialResults as $label => $val) {
+                                            if ($val === 'pass') $serialPass++;
+                                            if ($val === 'fail') $serialFail++;
+                                        }
+                                    }
+                                }
+
+                                $allocatePass = min($noSerialCount, $remainingPass);
+                                // Gộp với pass đã có (ưu tiên lớn nhất giữa pass hiện có và số pass từ serial)
+                                $currentPass = (int) ($item->pass_quantity ?? 0);
+                                $basePass = max($currentPass, $serialPass);
+                                $newPass = $basePass + $allocatePass;
+
+                                $quantityTotal = (int) ($item->quantity ?? ($serialPass + $serialFail + $noSerialCount));
+                                if ($quantityTotal <= 0) {
+                                    $quantityTotal = $serialPass + $serialFail + $noSerialCount; // fallback
+                                }
+                                $newFail = max(0, $quantityTotal - $newPass);
+
+                                $item->update([
+                                    'pass_quantity' => $newPass,
+                                    'fail_quantity' => $newFail,
+                                ]);
+
+                                Log::info('Đã phân bổ Đạt cho vật tư không serial', [
+                                    'testing_id' => $testing->id,
+                                    'material_id' => $materialId,
+                                    'allocated_pass' => $allocatePass,
+                                    'final_pass' => $newPass,
+                                    'final_fail' => $newFail
+                                ]);
+
+                                $remainingPass -= $allocatePass;
+                            } else {
+                                Log::warning('Không tìm thấy TestingItem để phân bổ N/A', [
+                                    'testing_id' => $testing->id,
+                                    'material_id' => $materialId
+                                ]);
+                            }
+                        }
+
+                        // Nếu vẫn còn dư số lượng Đạt mà không có hàng để phân bổ, chỉ log lại
+                        if ($remainingPass > 0) {
+                            Log::info('Số lượng Đạt N/A còn dư sau phân bổ', [
+                                'testing_id' => $testing->id,
+                                'unit_idx' => $unitIdx,
+                                'remaining_pass' => $remainingPass
+                            ]);
+                        }
+                    }
+                }
+            }
+
             // Update serial results
             if ($request->has('serial_results')) {
+                Log::info('DEBUG: Xử lý serial_results', [
+                    'testing_id' => $testing->id,
+                    'serial_results_data' => $request->serial_results
+                ]);
+                
                 foreach ($request->serial_results as $itemId => $serialResults) {
+                    Log::info('DEBUG: Xử lý serial_results cho item', [
+                        'item_id' => $itemId,
+                        'serial_results' => $serialResults
+                    ]);
+                    
                     // Kiểm tra xem đây có phải là testing_item_id hay material_id
                     $item = TestingItem::where('testing_id', $testing->id)
                         ->where(function($query) use ($itemId) {
@@ -555,8 +773,47 @@ class TestingController extends Controller
                         ->first();
                     
                     if ($item) {
+                        Log::info('DEBUG: Tìm thấy testing item', [
+                            'item_id' => $item->id,
+                            'material_id' => $item->material_id,
+                            'old_serial_results' => $item->serial_results
+                        ]);
+                        
+                        // Chuyển tất cả giá trị 'pending' thành 'pass' khi lưu kết quả
+                        $normalizedSerialResults = [];
+                        foreach ($serialResults as $label => $value) {
+                            $normalizedSerialResults[$label] = ($value === 'pending' || $value === null || $value === '') ? 'pass' : $value;
+                        }
+
                         // Lưu serial results trực tiếp vào database
-                        $item->update(['serial_results' => json_encode($serialResults)]);
+                        $item->update(['serial_results' => json_encode($normalizedSerialResults)]);
+
+                        // Đồng thời cập nhật pass_quantity và fail_quantity dựa trên serial_results
+                        $passCount = 0;
+                        $failCount = 0;
+                        foreach ($normalizedSerialResults as $val) {
+                            if ($val === 'pass') $passCount++;
+                            if ($val === 'fail') $failCount++;
+                        }
+                        // Với các slot không có serial (N/A), nếu item->quantity > tổng serials thì số còn lại sẽ tính khi nhập ở phần N/A
+                        // Ở đây chỉ set từ serials để đảm bảo tổng quan thành phẩm hiển thị ngay sau lưu
+                        if ($passCount + $failCount > 0) {
+                            $item->update([
+                                'pass_quantity' => $passCount,
+                                'fail_quantity' => $failCount,
+                            ]);
+                        }
+                        
+                        Log::info('DEBUG: Đã cập nhật serial_results', [
+                            'new_serial_results' => json_encode($normalizedSerialResults),
+                            'pass' => $passCount,
+                            'fail' => $failCount
+                        ]);
+                    } else {
+                        Log::warning('DEBUG: Không tìm thấy testing item', [
+                            'item_id' => $itemId,
+                            'testing_id' => $testing->id
+                        ]);
                     }
                 }
             }
@@ -2119,8 +2376,8 @@ class TestingController extends Controller
             // Thêm materials vào phiếu nhập kho
             $this->addMaterialsToInventoryImport($inventoryImport, $testing, $type);
 
-            // Tự động cập nhật kho khi phiếu được duyệt
-            $this->approveInventoryImportAutomatically($inventoryImport);
+            // Tự động cập nhật kho khi tạo phiếu nhập kho từ kiểm thử
+            // $this->approveInventoryImportAutomatically($inventoryImport);
 
             return $inventoryImport;
 
@@ -2159,33 +2416,155 @@ class TestingController extends Controller
             $items = $testing->items->where('item_type', 'product')->filter(function($item) {
                 return ($item->pass_quantity ?? 0) > 0;
             });
+            
+            // KHÔNG lấy vật tư từ assembly vào phiếu thành phẩm
+            // Vật tư sẽ được xử lý riêng trong phiếu vật tư hư hỏng
         } else {
-            // Lấy vật tư không đạt
+            // Lấy vật tư không đạt từ testing items
             $items = $testing->items->where('item_type', 'material')->filter(function($item) {
                 return ($item->fail_quantity ?? 0) > 0;
             });
+            
+            Log::info('DEBUG: Vật tư có fail_quantity > 0', [
+                'count' => $items->count(),
+                'items' => $items->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'material_id' => $item->material_id,
+                        'fail_quantity' => $item->fail_quantity
+                    ];
+                })->toArray()
+            ]);
+            
+            // Nếu không có vật tư nào có fail_quantity > 0, thử đếm từ serial_results
+            if ($items->count() == 0) {
+                Log::info('DEBUG: Không có vật tư nào có fail_quantity > 0, thử đếm từ serial_results');
+                
+                foreach ($testing->items->where('item_type', 'material') as $item) {
+                    if (!empty($item->serial_results)) {
+                        $serialResults = json_decode($item->serial_results, true);
+                        if (is_array($serialResults)) {
+                            $failCount = 0;
+                            foreach ($serialResults as $serial => $result) {
+                                if ($result === 'fail') {
+                                    $failCount++;
+                                }
+                            }
+                            
+                            Log::info('DEBUG: Đếm từ serial_results', [
+                                'item_id' => $item->id,
+                                'material_id' => $item->material_id,
+                                'serial_results' => $serialResults,
+                                'fail_count' => $failCount
+                            ]);
+                            
+                            if ($failCount > 0) {
+                                // Tạo item mới với fail_quantity được tính từ serial_results
+                                $newItem = (object) [
+                                    'item_type' => 'material',
+                                    'material_id' => $item->material_id,
+                                    'quantity' => $failCount,
+                                    'serial_number' => $item->serial_number,
+                                    'pass_quantity' => 0,
+                                    'fail_quantity' => $failCount
+                                ];
+                                $items = $items->push($newItem);
+                                
+                                Log::info('DEBUG: Đã thêm item từ serial_results', [
+                                    'new_item' => $newItem
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
+        Log::info('DEBUG: Tổng số items để tạo phiếu nhập kho', [
+            'type' => $type,
+            'count' => $items->count()
+        ]);
+        
         foreach ($items as $item) {
-            $quantity = $type == 'success' ? ($item->pass_quantity ?? 0) : ($item->fail_quantity ?? 0);
+            // Xác định item_type và material_id
+            $itemType = $item->item_type ?? 'material';
+            $materialId = $item->material_id ?? $item->product_id ?? $item->good_id;
             
-            if ($quantity > 0) {
-                // Xác định item_type và material_id
-                $itemType = $item->item_type;
-                $materialId = $item->material_id ?? $item->product_id ?? $item->good_id;
-
-                if ($materialId) {
-                    \App\Models\InventoryImportMaterial::create([
-                        'inventory_import_id' => $inventoryImport->id,
-                        'material_id' => $materialId,
-                        'warehouse_id' => $inventoryImport->warehouse_id,
-                        'quantity' => $quantity,
-                        'serial' => $item->serial_number,
-                        'serial_numbers' => $item->serial_number ? json_encode(explode(',', $item->serial_number)) : null,
-                        'notes' => $type == 'success' ? 'Thành phẩm đạt từ kiểm thử' : 'Vật tư lắp ráp không đạt từ kiểm thử',
-                        'item_type' => $itemType
-                    ]);
+            // Xác định quantity dựa trên loại item
+            $quantity = 0;
+            if ($itemType == 'product') {
+                // Thành phẩm: lấy pass_quantity
+                $quantity = $item->pass_quantity ?? 0;
+            } elseif ($itemType == 'material') {
+                if ($type == 'success') {
+                    // Vật tư trong assembly: lấy quantity từ assembly
+                    $quantity = $item->quantity ?? 0;
+                } else {
+                    // Vật tư không đạt: lấy fail_quantity
+                    $quantity = $item->fail_quantity ?? 0;
                 }
+            }
+            
+            Log::info('DEBUG: Xử lý item cho phiếu nhập kho', [
+                'item_type' => $itemType,
+                'material_id' => $materialId,
+                'quantity' => $quantity,
+                'pass_quantity' => $item->pass_quantity ?? 0,
+                'fail_quantity' => $item->fail_quantity ?? 0
+            ]);
+            
+            if ($quantity > 0 && $materialId) {
+                // Xử lý serial numbers nếu có
+                $serialNumbers = null;
+                if (!empty($item->serial_number)) {
+                    $serialArray = explode(',', $item->serial_number);
+                    $serialArray = array_map('trim', $serialArray);
+                    $serialArray = array_filter($serialArray);
+                    
+                    // Nếu là phiếu vật tư hư hỏng, chỉ lấy serial có kết quả "fail"
+                    if ($type == 'fail' && !empty($item->serial_results)) {
+                        $serialResults = json_decode($item->serial_results, true);
+                        if (is_array($serialResults)) {
+                            $failSerials = [];
+                            foreach ($serialArray as $index => $serial) {
+                                $serialLabel = chr(65 + $index); // A, B, C, D, E...
+                                if (isset($serialResults[$serialLabel]) && $serialResults[$serialLabel] === 'fail') {
+                                    $failSerials[] = $serial;
+                                }
+                            }
+                            
+                            Log::info('DEBUG: Xử lý serial cho phiếu vật tư hư hỏng', [
+                                'item_id' => $item->id,
+                                'material_id' => $materialId,
+                                'all_serials' => $serialArray,
+                                'serial_results' => $serialResults,
+                                'fail_serials' => $failSerials,
+                                'final_serial_numbers' => $failSerials
+                            ]);
+                            
+                            if (count($failSerials) > 0) {
+                                $serialNumbers = $failSerials;
+                            }
+                        }
+                    } else {
+                        // Phiếu thành phẩm đạt: lấy tất cả serial
+                        if (count($serialArray) > 0) {
+                            $serialNumbers = $serialArray;
+                        }
+                    }
+                }
+
+                \App\Models\InventoryImportMaterial::create([
+                    'inventory_import_id' => $inventoryImport->id,
+                    'material_id' => $materialId,
+                    'warehouse_id' => $inventoryImport->warehouse_id,
+                    'quantity' => $quantity,
+                    'serial_numbers' => $serialNumbers,
+                    'notes' => $type == 'success' ? 
+                        ($itemType == 'product' ? 'Thành phẩm đạt từ kiểm thử' : 'Vật tư lắp ráp từ kiểm thử') : 
+                        'Vật tư lắp ráp không đạt từ kiểm thử',
+                    'item_type' => $itemType
+                ]);
             }
         }
     }
@@ -2219,6 +2598,8 @@ class TestingController extends Controller
                     $mergedSerials = array_unique(array_merge($currentSerials, $serials));
                     $warehouseMaterial->serial_number = json_encode($mergedSerials);
                 }
+
+                // Lưu warehouse material sau khi cập nhật quantity và serial
                 $warehouseMaterial->save();
 
                 // Lưu serial numbers vào bảng serials (nếu có)

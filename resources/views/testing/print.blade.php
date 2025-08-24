@@ -71,7 +71,12 @@
                 
                 <div class="mb-4 pb-4 border-b border-gray-200">
                     <p class="text-sm text-gray-500 font-medium mb-1">Người tạo phiếu</p>
-                    <p class="text-base text-gray-800 font-semibold">{{ $testing->tester->name ?? 'N/A' }}</p>
+                    <p class="text-base text-gray-800 font-semibold">{{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
+                </div>
+
+                <div class="mb-4 pb-4 border-b border-gray-200">
+                    <p class="text-sm text-gray-500 font-medium mb-1">Chỉnh sửa lần cuối</p>
+                    <p class="text-base text-gray-800 font-semibold">{{ $testing->updated_at->format('d/m/Y H:i') }}</p>
                 </div>
                 
                 <div class="mb-4 pb-4 border-b border-gray-200">
@@ -279,7 +284,7 @@
                     </div>
 
                     <!-- Hạng mục kiểm thử cho thiết bị này -->
-                    @if($testing->test_type != 'finished_product' || $testing->details->count() > 0)
+                    @if($testing->test_type != 'finished_product' || $testing->details->where('item_id', $item->id)->count() > 0)
                     <div class="mb-4">
                         <div class="flex justify-between items-center mb-3">
                             <h5 class="font-medium text-gray-800">Hạng mục kiểm thử</h5>
@@ -291,7 +296,7 @@
                         </div>
                         
                         <div class="space-y-4">
-                            @forelse($testing->details as $detailIndex => $detail)
+                            @forelse($testing->details->where('item_id', $item->id) as $detailIndex => $detail)
                                 <div class="border border-gray-200 rounded-lg p-3">
                                     <div class="flex justify-between items-center mb-3">
                                         <h6 class="font-medium text-gray-700">{{ $detail->test_item_name }}</h6>
@@ -400,100 +405,12 @@
             Thông tin lắp ráp liên quan
         </h2>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <div class="mb-4 pb-4 border-b border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium mb-1">Mã phiếu lắp ráp</p>
-                    <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->code }}</p>
-                </div>
-                
-                <div class="mb-4 pb-4 border-b border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium mb-1">Ngày lắp ráp</p>
-                    <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->date ? \Carbon\Carbon::parse($testing->assembly->date)->format('d/m/Y') : 'N/A' }}</p>
-                </div>
-                
-                <div class="mb-4 pb-4 border-b border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium mb-1">Người lắp ráp</p>
-                    <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->assignedEmployee->name ?? 'N/A' }}</p>
-                </div>
-            </div>
-            
-            <div>
-                <div class="mb-4 pb-4 border-b border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium mb-1">Thành phẩm</p>
-                    <div class="space-y-2">
-                        @if($testing->assembly->products && $testing->assembly->products->count() > 0)
-                            @foreach($testing->assembly->products as $product)
-                                <div class="flex items-center">
-                                    <span class="text-base text-gray-800 font-semibold">{{ $product->product->name ?? 'N/A' }}</span>
-                                    <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{{ $product->quantity }} cái</span>
-                                </div>
-                                @if($product->serials)
-                                    <div class="text-sm text-gray-600">Serial: {{ $product->serials }}</div>
-                                @endif
-                            @endforeach
-                        @else
-                            <p class="text-base text-gray-800 font-semibold">{{ $testing->assembly->product->name ?? 'N/A' }} ({{ $testing->assembly->quantity }})</p>
-                        @endif
-                    </div>
-                </div>
-                
-                <div class="mb-4 pb-4 border-b border-gray-200">
-                    <p class="text-sm text-gray-500 font-medium mb-1">Trạng thái lắp ráp</p>
-                    <p class="text-base text-gray-800 font-semibold">
-                        @if($testing->assembly->status == 'pending')
-                            <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">Chờ xử lý</span>
-                        @elseif($testing->assembly->status == 'in_progress')
-                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">Đang thực hiện</span>
-                        @elseif($testing->assembly->status == 'completed')
-                            <span class="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">Hoàn thành</span>
-                        @elseif($testing->assembly->status == 'cancelled')
-                            <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">Đã hủy</span>
-                        @endif
-                    </p>
-                </div>
-            </div>
+        <div class="flex items-center">
+            <p class="text-sm text-gray-500 font-medium mr-2">Mã phiếu lắp ráp:</p>
+            <span class="text-blue-600 font-semibold">{{ $testing->assembly->code }}</span>
         </div>
-        
-        @if($testing->assembly->materials && $testing->assembly->materials->count() > 0)
-        <div class="mt-4 pt-4 border-t border-gray-200">
-            <h3 class="text-md font-medium text-gray-800 mb-3">Danh sách vật tư lắp ráp</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">STT</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên vật tư</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số lượng</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Serial</th>
-                </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                        @foreach($testing->assembly->materials as $index => $material)
-                        <tr>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ $index + 1 }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ $material->material->code }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ $material->material->name }}</td>
-                            <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{{ $material->quantity }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">
-                                @if($material->serial && str_contains($material->serial, ','))
-                                    <div class="space-y-1">
-                                        @foreach(explode(',', $material->serial) as $serial)
-                                            @if(!empty($serial))
-                                                <div class="bg-gray-50 px-2 py-1 rounded">{{ $serial }}</div>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                    <div class="text-xs text-gray-400 mt-1">{{ count(array_filter(explode(',', $material->serial))) }} serial</div>
-                                @else
-                                    {{ $material->serial ?: 'N/A' }}
-                                @endif
-                            </td>
-                </tr>
-                        @endforeach
-            </tbody>
-        </table>
+    </div>
+    
             </div>
         </div>
         @endif
@@ -624,8 +541,8 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="text-center">
             <p class="font-medium">Người tạo phiếu</p>
-                <p>{{ $testing->tester->name ?? 'N/A' }}</p>
-            <p class="text-sm text-gray-500 mt-2">{{ $testing->test_date ? $testing->test_date->format('d/m/Y') : '' }}</p>
+                <p>{{ $testing->assignedEmployee->name ?? 'N/A' }}</p>
+            <p class="text-sm text-gray-500 mt-2">{{ $testing->created_at ? $testing->created_at->format('d/m/Y') : '' }}</p>
         </div>
            
         <div class="text-center">
@@ -635,6 +552,11 @@
                 <p class="text-sm text-gray-500 mt-2">{{ $testing->received_at->format('d/m/Y') }}</p>
                 @endif
             </div>
+
+        <div class="text-center">
+            <p class="font-medium">Chỉnh sửa lần cuối</p>
+            <p>{{ $testing->updated_at ? $testing->updated_at->format('d/m/Y H:i') : 'N/A' }}</p>
+        </div>
             </div>
         </div>
     </div>
