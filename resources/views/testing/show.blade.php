@@ -295,172 +295,208 @@
             </div>
     </div>
 
-    <!-- Kết quả kiểm thử thiết bị -->
-    <div class="mb-6 border-t border-gray-200 pt-6">
-        <h3 class="text-md font-medium text-gray-800 mb-3">Kết quả kiểm thử thiết bị</h3>
+    <!-- Form cập nhật kết quả kiểm thử -->
+    @if($testing->status == 'in_progress')
+    <form action="{{ route('testing.update', $testing->id) }}" method="POST" class="mb-4" id="test-item-form">
+        @csrf
+        @method('PUT')
 
-        @if($testing->status == 'in_progress')
-        <form action="{{ route('testing.update', $testing->id) }}" method="POST" class="mb-4" id="test-item-form">
-            @csrf
-            @method('PUT')
+        <!-- Thêm các trường ẩn cần thiết -->
+        <input type="hidden" name="tester_id" value="{{ $testing->tester_id }}">
+        <input type="hidden" name="assigned_to" value="{{ $testing->assigned_to ?? $testing->tester_id ?? '' }}">
+        <input type="hidden" name="receiver_id" value="{{ $testing->receiver_id }}">
+        <input type="hidden" name="test_date" value="{{ $testing->test_date->format('Y-m-d') }}">
+        <input type="hidden" name="notes" value="{{ $testing->notes }}">
 
-            <!-- Thêm các trường ẩn cần thiết -->
-            <input type="hidden" name="tester_id" value="{{ $testing->tester_id }}">
-            <input type="hidden" name="assigned_to" value="{{ $testing->assigned_to ?? $testing->tester_id ?? '' }}">
-            <input type="hidden" name="receiver_id" value="{{ $testing->receiver_id }}">
-            <input type="hidden" name="test_date" value="{{ $testing->test_date->format('Y-m-d') }}">
-            <input type="hidden" name="notes" value="{{ $testing->notes }}">
-
-            @if ($errors->any())
-            <div class="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-4">
-                <div class="font-medium">Có lỗi xảy ra:</div>
-                <ul class="mt-1.5 list-disc list-inside">
-                    @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
+    <!-- Vật tư/Hàng hóa cho phiếu kiểm thử loại vật tư/hàng hóa -->
+    @if($testing->test_type == 'material')
+    @foreach($testing->items as $idx => $item)
+    @php
+        $code = $item->material->code ?? ($item->good->code ?? '');
+        $name = $item->material->name ?? ($item->good->name ?? '');
+        $typeText = $item->item_type == 'material' ? 'Vật tư' : 'Hàng hóa';
+        $serialsRow = $item->serial_number ? array_values(array_filter(array_map('trim', explode(',', $item->serial_number)))) : [];
+        $quantity = (int)($item->quantity ?? 0);
+        $serialCount = count($serialsRow);
+        $resultMap = $item->serial_results ? json_decode($item->serial_results, true) : [];
+    @endphp
+    <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
+        <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
+            <div class="text-sm text-green-800 font-medium">
+                <i class="fas fa-box-open mr-2"></i>{{ $idx + 1 }}. {{ $code }} - {{ $name }} ({{ $typeText }})
             </div>
-            @endif
-
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white border border-gray-200">
-                    <thead>
-                        <tr class="bg-gray-100">
-                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">STT</th>
-                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">LOẠI</th>
-                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">MÃ - TÊN</th>
-                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SỐ LƯỢNG</th>
-                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">SERIAL</th>
-                            <th class="py-2 px-3 border-b border-gray-200 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">KẾT QUẢ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($testing->items->filter(function($item) use ($testing) {
-                        if ($testing->test_type == 'finished_product') {
-                        return $item->item_type == 'product' || $item->item_type == 'finished_product';
-                        }
-                        return true;
-                        }) as $index => $item)
-                        <tr class="hover:bg-gray-50">
-                            <td class="py-2 px-3 border-b border-gray-200">{{ $index + 1 }}</td>
-                            <td class="py-2 px-3 border-b border-gray-200">
-                                @if($item->item_type == 'material')
-                                Vật tư
-                                @elseif($item->item_type == 'product' && $testing->test_type == 'finished_product')
-                                Thành phẩm
-                                @elseif($item->item_type == 'product')
-                                Hàng hóa
-                                @elseif($item->item_type == 'finished_product')
-                                Thành phẩm
-                                @endif
-                            </td>
-                            <td class="py-2 px-3 border-b border-gray-200">
-                                @if($item->item_type == 'material' && $item->material)
-                                {{ $item->material->code }} - {{ $item->material->name }}
-                                @elseif($item->item_type == 'product' && $item->product)
-                                {{ $item->product->code }} - {{ $item->product->name }}
-                                @elseif($item->item_type == 'product' && $item->good)
-                                {{ $item->good->code }} - {{ $item->good->name }}
-                                @elseif($item->item_type == 'finished_product' && $item->good)
-                                {{ $item->good->code }} - {{ $item->good->name }}
-                                @else
-                                <span class="text-red-500">Không tìm thấy thông tin</span>
-                                @endif
-                            </td>
-                            <td class="py-2 px-3 border-b border-gray-200">{{ $item->quantity }}</td>
-                            <td class="py-2 px-3 border-b border-gray-200">
-                                @php
-                                $serialsRow = $item->serial_number ? array_values(array_filter(array_map('trim', explode(',', $item->serial_number)))) : [];
-                                $quantity = $item->quantity ?? 0;
-                                $serialCount = count($serialsRow);
-                                $noSerialCount = $quantity - $serialCount;
-                                @endphp
-                                @if(count($serialsRow) > 0)
-                                <div class="text-xs text-gray-700">
-                                    @foreach($serialsRow as $s)
-                                    <div class="mb-0.5">{{ $s }}</div>
-                                    @endforeach
-                                    @for($i = 0; $i < $noSerialCount; $i++)
-                                        <div class="mb-0.5 text-gray-400">N/A
-                                </div>
-                                @endfor
-                                <div class="text-gray-400">{{ $serialCount }} serial{{ $serialCount > 1 ? 's' : '' }}{{ $noSerialCount > 0 ? ', ' . $noSerialCount . ' N/A' : '' }}</div>
-            </div>
-            @else
-            @if($quantity > 0)
-            <div class="text-xs text-gray-700">
-                @for($i = 0; $i < $quantity; $i++)
-                    <div class="mb-0.5 text-gray-400">N/A</div>
-            @endfor
-            <div class="text-gray-400">{{ $quantity }} N/A</div>
+            <div class="text-xs text-green-700">Số lượng: {{ $quantity }}</div>
         </div>
-        @else
-        N/A
-        @endif
-        @endif
-        </td>
-        <td class="py-2 px-3 border-b border-gray-200">
-            @if(empty($item->serial_number))
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Đạt</label>
-                    <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-full h-8 border border-gray-300 rounded px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->pass_quantity ?? 0 }}">
-                </div>
-                <div>
-                    <label class="block text-xs text-gray-600 mb-1">Không đạt</label>
-                    <input type="number" name="item_fail_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-full h-8 border border-gray-300 rounded px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->fail_quantity ?? 0 }}">
-                </div>
-            </div>
-            @else
-            @php
-            $serials = [];
-            if ($item->serial_number) {
-            $serials = array_filter(array_map('trim', explode(',', $item->serial_number)));
-            }
-            $serialCount = count($serials);
-            @endphp
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead>
+                    <tr class="bg-gray-50 text-left text-xs text-gray-600">
+                        <th class="px-3 py-2">STT</th>
+                        <th class="px-3 py-2">MÃ</th>
+                        <th class="px-3 py-2">LOẠI</th>
+                        <th class="px-3 py-2">TÊN</th>
+                        <th class="px-3 py-2">SERIAL</th>
+                        <th class="px-3 py-2">KHO</th>
+                        <th class="px-3 py-2">THAO TÁC</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @for($row = 0; $row < $quantity; $row++)
+                        @php
+                            $label = chr(65 + $row);
+                            $serialValue = $serialsRow[$row] ?? null;
+                        @endphp
+                        <tr>
+                            <td class="px-3 py-2 text-sm text-gray-700">{{ $row + 1 }}</td>
+                            <td class="px-3 py-2 text-sm text-gray-700">{{ $code }}</td>
+                            <td class="px-3 py-2 text-sm text-gray-700">{{ $typeText }}</td>
+                            <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ $name }}</td>
+                            <td class="px-3 py-2 text-sm text-gray-700">{{ $serialValue ?? 'N/A' }}</td>
+                            <td class="px-3 py-2 text-sm text-gray-700">{{ $item->warehouse->name ?? 'N/A' }}</td>
+                            <td class="px-3 py-2 text-sm text-gray-700">
+                                <select name="serial_results[{{ $item->id }}][{{ $label }}]" class="w-32 h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                    <option value="pending" {{ ($resultMap[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                    <option value="pass" {{ ($resultMap[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                    <option value="fail" {{ ($resultMap[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                </select>
+                            </td>
+                        </tr>
+                    @endfor
+                </tbody>
+                @if($serialCount == 0)
+                <tfoot>
+                    <tr class="bg-gray-50 border-t border-gray-200">
+                        <td class="px-3 py-2 text-sm text-gray-700" colspan="6">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-600">Số lượng Đạt</span>
+                                <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $quantity }}" value="{{ $item->pass_quantity ?? 0 }}" class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white" />
+                            </div>
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
+        </div>
 
-            @if($serialCount > 0)
-            <div class="space-y-1">
-                @foreach($serials as $index => $serial)
-                @php
-                $serialLabel = chr(65 + $index);
-                $serialResults = [];
-                if ($item->serial_results) {
-                $serialResults = json_decode($item->serial_results, true);
-                }
-                $selectedValue = $serialResults[$serialLabel] ?? 'pending';
-                @endphp
+        <!-- Hạng mục kiểm thử (Không bắt buộc) cho Vật tư/Hàng hóa - NẰM TRONG BẢNG -->
+        <div class="mt-4 border-t border-gray-200 pt-4">
+            <div class="flex justify-between items-center mb-3">
+                <h5 class="font-medium text-gray-800 text-sm">🔍 Hạng mục kiểm thử (Không bắt buộc)</h5>
+                @if($testing->status == 'in_progress')
                 <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-600">{{ $serialLabel }}:</span>
-                    <select name="serial_results[{{ $item->id }}][{{ $serialLabel }}]" class="w-20 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                        <option value="pending" {{ $selectedValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                        <option value="pass" {{ $selectedValue == 'pass' ? 'selected' : '' }}>Đạt</option>
-                        <option value="fail" {{ $selectedValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                    </select>
+                    <input type="text" placeholder="Nhập hạng mục kiểm thử" class="h-7 border border-gray-300 rounded px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" id="new_test_item_name_show_{{ $item->id }}">
+                    <button type="button" onclick="addDefaultTestItemsForShow('{{ $item->id }}')" class="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs flex items-center">
+                        <i class="fas fa-list-check mr-1"></i> Mặc định
+                    </button>
+                    <button type="button" onclick="addTestItemForShow('{{ $item->id }}')" class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs flex items-center">
+                        <i class="fas fa-plus mr-1"></i> Thêm
+                    </button>
                 </div>
-                @endforeach
+                @endif
             </div>
-            @else
-            <span class="text-gray-400 text-xs">Không có serial</span>
-            @endif
-            @endif
-        </td>
-        </tr>
-        @empty
-        <tr class="text-gray-500 text-center">
-            <td colspan="6" class="py-4">Chưa có vật tư/hàng hóa nào được thêm</td>
-        </tr>
-        @endforelse
-        </tbody>
-        </table>
+            <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                <div class="space-y-2" id="test_items_container_show_{{ $item->id }}">
+                    @php
+                        $testDetails = $testing->details ? $testing->details->where('item_id', $item->id) : collect();
+                    @endphp
+                    @forelse($testDetails as $detail)
+                        <div class="test-item flex items-center gap-3" data-detail-id="{{ $detail->id }}">
+                            <input type="text" value="{{ $detail->test_item_name }}" class="h-8 border border-gray-300 rounded px-2 py-1 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" @if($testing->status != 'in_progress') readonly @endif>
+                            @if($testing->status == 'in_progress')
+                            <button type="button" onclick="removeTestItemForShow('{{ $detail->id }}', this)" class="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 text-xs">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="text-center text-gray-500 py-2 text-sm">Chưa có hạng mục kiểm thử nào được thêm</div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <!-- Ghi chú cho vật tư/hàng hóa này -->
+        <div class="mt-4 border-t border-gray-200 pt-4">
+            <div class="flex justify-between items-center mb-3">
+                <h5 class="font-medium text-gray-800 text-sm">📝 Ghi chú</h5>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded p-3">
+                <textarea name="item_notes[{{ $item->id }}]" rows="2" class="w-full border-0 focus:outline-none focus:ring-0 resize-none text-sm" placeholder="Nhập ghi chú cho {{ $typeText }} này...">{{ $item->notes }}</textarea>
+            </div>
+        </div>
     </div>
+    @endforeach
+    @endif
+
+
 
     <!-- Vật tư lắp ráp cho từng thành phẩm -->
     @if($testing->test_type == 'finished_product')
     @foreach($testing->items->filter(function($item) use ($testing) {
     return $item->item_type == 'product' || $item->item_type == 'finished_product';
     }) as $index => $item)
+    <div class="border border-gray-200 rounded-lg p-4 mb-6">
+        <div class="mb-4">
+            <h4 class="font-medium text-gray-800">
+                {{ $index + 1 }}. 
+                @if($item->item_type == 'product' && $item->product)
+                    {{ $item->product->code }} - {{ $item->product->name }}
+                @elseif($item->item_type == 'finished_product' && $item->good)
+                    {{ $item->good->code }} - {{ $item->good->name }}
+                @else
+                    <span class="text-red-500">Không tìm thấy thông tin (Type: {{ $item->item_type }}, ID: {{ $item->product_id ?? $item->good_id }})</span>
+                @endif
+            </h4>
+            <div class="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                <span>Loại: Thành phẩm</span>
+                <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
+                <span>Số lượng: {{ $item->quantity }}</span>
+                @if($testing->status == 'in_progress')
+                <span class="ml-4">
+                    <span class="text-gray-700 font-medium">KẾT QUẢ:</span>
+                    @if(empty($item->serial_number))
+                    <div class="inline-flex items-center gap-2 ml-2">
+                        <label class="text-xs text-gray-600">Đạt:</label>
+                        <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->pass_quantity ?? 0 }}">
+                        <label class="text-xs text-gray-600">Không đạt:</label>
+                        <input type="number" name="item_fail_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->fail_quantity ?? 0 }}">
+            </div>
+                    @else
+                    @php
+                    $serials = [];
+                    if ($item->serial_number) {
+                        $serials = array_filter(array_map('trim', explode(',', $item->serial_number)));
+                    }
+                    $serialCount = count($serials);
+                    @endphp
+                    @if($serialCount > 0)
+                    <div class="inline-flex items-center gap-1 ml-2">
+                        @foreach($serials as $index => $serial)
+                        @php
+                        $serialLabel = chr(65 + $index);
+                        $serialResults = [];
+                        if ($item->serial_results) {
+                            $serialResults = json_decode($item->serial_results, true);
+                        }
+                        $selectedValue = $serialResults[$serialLabel] ?? 'pending';
+                        @endphp
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-gray-600">{{ $serialLabel }}:</span>
+                            <select name="serial_results[{{ $item->id }}][{{ $serialLabel }}]" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="pending" {{ $selectedValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                <option value="pass" {{ $selectedValue == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                <option value="fail" {{ $selectedValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                            </select>
+        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                    @endif
+                </span>
+                @endif
+            </div>
+        </div>
     @php
     // Lấy product_id từ testing item
     $productIdForView = null;
@@ -499,7 +535,14 @@
     }
     ksort($materialsByUnit);
     }
-    $testingMaterialMap = $testing->items->where('item_type','material')->keyBy('material_id');
+    // Tạo mapping chính xác giữa assembly material và testing item
+    $testingMaterialMap = collect();
+    foreach ($testing->items->where('item_type', 'material') as $testingItem) {
+        if ($testingItem->material_id) {
+            // Sử dụng item->id thay vì material_id để tránh ảnh hưởng chéo
+            $testingMaterialMap->put($testingItem->id, $testingItem);
+        }
+    }
     @endphp
 
     @if(!empty($materialsByUnit))
@@ -530,8 +573,30 @@
                     @foreach($unitMaterials as $rowIdx => $asmMaterial)
                     @php
                     $m = $asmMaterial->material;
-                    $testingItemRow = $testingMaterialMap->get($asmMaterial->material_id);
+                    // Tìm testing item dựa trên material_id và serial để tránh ảnh hưởng chéo
+                    $testingItemRow = null;
                     $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
+                    
+                    // Tìm item có material_id và serial khớp
+                    foreach ($testing->items->where('item_type', 'material') as $testingItem) {
+                        if ($testingItem->material_id == $asmMaterial->material_id) {
+                            // Kiểm tra serial có khớp không
+                            if (!empty($testingItem->serial_number) && !empty($asmMaterial->serial)) {
+                                $itemSerials = array_values(array_filter(array_map('trim', explode(',', $testingItem->serial_number))));
+                                $asmSerials = array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial))));
+                                
+                                // So sánh serial arrays
+                                if (count(array_intersect($itemSerials, $asmSerials)) > 0) {
+                                    $testingItemRow = $testingItem;
+                                    break;
+                                }
+                    } else {
+                                // Nếu không có serial, dùng item đầu tiên có material_id khớp
+                                $testingItemRow = $testingItem;
+                                break;
+                            }
+                        }
+                    }
                     @endphp
                     <tr>
                         <td class="px-3 py-2 text-sm text-gray-700">{{ $rowIdx + 1 }}</td>
@@ -579,7 +644,14 @@
         N/A
         @endif
     </td>
-    <td class="px-3 py-2 text-sm text-gray-700">{{ $asmMaterial->note ?? ($testingItemRow->notes ?? '') }}</td>
+    <td class="px-3 py-2 text-sm text-gray-700">
+        @php
+            $noteToShow = isset($testingItemRow) && isset($testingItemRow->notes) && trim((string)$testingItemRow->notes) !== ''
+                ? $testingItemRow->notes
+                : ($asmMaterial->note ?? '');
+        @endphp
+        {{ $noteToShow }}
+    </td>
     <td class="px-3 py-2 text-sm text-gray-700">
         @if($testing->status == 'in_progress')
         @php
@@ -593,7 +665,7 @@
             @for($i = 0; $i < $quantity; $i++)
                 @php $label=chr(65 + $i); @endphp
                 @if($i < $serialCount)
-                <select name="serial_results[{{ $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                    <select name="serial_results[{{ $testingItemRow->id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
                 <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
                 <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
                 <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
@@ -604,13 +676,13 @@
                 </div>
                 @endif
                 @endfor
-        </div>
+                </div>
         @else
         @php $maxQtyRow = (int)($asmMaterial->quantity ?? 0); @endphp
         <div class="flex items-center gap-2">
             <span class="text-xs text-gray-600">Số lượng Đạt</span>
             <input type="number" name="item_pass_quantity[{{ $asmMaterial->material_id }}]" min="0" max="{{ $maxQtyRow }}" value="{{ $testingItemRow->pass_quantity ?? 0 }}" class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white" />
-        </div>
+            </div>
         @endif
         @else
         <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
@@ -648,25 +720,25 @@
                 $savedNoSerialPassQuantity = 0;
                 if ($testing->notes) {
                 $notesData = json_decode($testing->notes, true);
-                if (is_array($notesData) && isset($notesData['no_serial_pass_quantity'][$unitIdx])) {
-                $savedNoSerialPassQuantity = (int) $notesData['no_serial_pass_quantity'][$unitIdx];
+                if (is_array($notesData) && isset($notesData['no_serial_pass_quantity'][$item->id]) && isset($notesData['no_serial_pass_quantity'][$item->id][$unitIdx])) {
+                $savedNoSerialPassQuantity = (int) $notesData['no_serial_pass_quantity'][$item->id][$unitIdx];
                 }
                 }
                 @endphp
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-600">Số lượng Đạt</span>
                     <input type="number"
-                        name="item_pass_quantity_no_serial[{{ $unitIdx }}]"
+                        name="item_pass_quantity_no_serial[{{ $item->id }}][{{ $unitIdx }}]"
                         min="0"
                         max="{{ $totalNoSerialQuantity }}"
                         value="{{ $savedNoSerialPassQuantity }}"
                         class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white"
                         placeholder="0" />
                     <span class="text-xs text-gray-500">≤ {{ $totalNoSerialQuantity }}</span>
-                </div>
+        </div>
                 @else
                 <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
-                @endif
+        @endif
             </td>
         </tr>
     </tfoot>
@@ -678,6 +750,7 @@
     <div class="mt-6 text-center text-gray-500 py-4">Không có vật tư lắp ráp cho thành phẩm này</div>
     @endif
     
+    @if($testing->test_type != 'material')
     <!-- Hạng mục kiểm thử (Không bắt buộc) - NHÚNG TRỰC TIẾP vào card thành phẩm -->
     @php
         $productName = $item->product ? $item->product->name : ($item->good ? $item->good->name : 'Thành phẩm');
@@ -748,8 +821,21 @@
                 @endforelse
             </div>
         </div>
+        
     </div>
+     <!-- Ghi chú cho thành phẩm này -->
+     <div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Ghi chú cho thành phẩm này:</label>
+            <textarea name="item_notes[{{ $item->id }}]" rows="2" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho thành phẩm này">{{ $item->notes }}</textarea>
+        </div>
+        
+
+    </div>
+    
+    @endif
+    
     @endforeach
+    
     @endif
 
     <div class="mt-8 flex justify-end">
@@ -760,6 +846,7 @@
 
 
     </form>
+    @endif
     @else
     <!-- Read-only view for completed status -->
     <div class="space-y-6">
@@ -866,7 +953,14 @@
                 }
                 ksort($materialsByUnit);
                 }
-                $testingMaterialMap = $testing->items->where('item_type','material')->keyBy('material_id');
+                // Tạo mapping chính xác giữa assembly material và testing item
+    $testingMaterialMap = collect();
+    foreach ($testing->items->where('item_type', 'material') as $testingItem) {
+        if ($testingItem->material_id) {
+            // Sử dụng item->id thay vì material_id để tránh ảnh hưởng chéo
+            $testingMaterialMap->put($testingItem->id, $testingItem);
+        }
+    }
                 @endphp
 
                 @if(!empty($materialsByUnit))
@@ -875,7 +969,6 @@
                     <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
                         <div class="text-sm text-green-800 font-medium">
                             <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ $productSerialsForUnits[$unitIdx-1] ?? ($item->serial_number ?: 'N/A') }}
-                            <!-- Debug: productIdForView={{ $productIdForView }}, apForProduct={{ $apForProduct ? 'found' : 'not found' }}, assembly_serials={{ $apForProduct->serials ?? 'null' }}, testing_serial={{ $item->serial_number ?? 'null' }}, final_serials={{ implode(',', $productSerialsForUnits) }} -->
                         </div>
                         <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
                     </div>
@@ -898,8 +991,30 @@
                                 @foreach($unitMaterials as $rowIdx => $asmMaterial)
                                 @php
                                 $m = $asmMaterial->material;
-                                $testingItemRow = $testingMaterialMap->get($asmMaterial->material_id);
+                                    // Tìm testing item dựa trên material_id và serial để tránh ảnh hưởng chéo
+                                    $testingItemRow = null;
                                 $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
+                                
+                                    // Tìm item có material_id và serial khớp
+                                    foreach ($testing->items->where('item_type', 'material') as $testingItem) {
+                                        if ($testingItem->material_id == $asmMaterial->material_id) {
+                                            // Kiểm tra serial có khớp không
+                                            if (!empty($testingItem->serial_number) && !empty($asmMaterial->serial)) {
+                                                $itemSerials = array_values(array_filter(array_map('trim', explode(',', $testingItem->serial_number))));
+                                                $asmSerials = array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial))));
+                                                
+                                                // So sánh serial arrays
+                                                if (count(array_intersect($itemSerials, $asmSerials)) > 0) {
+                                                    $testingItemRow = $testingItem;
+                                                    break;
+                                                }
+                                } else {
+                                                // Nếu không có serial, dùng item đầu tiên có material_id khớp
+                                                $testingItemRow = $testingItem;
+                                                break;
+                                            }
+                                        }
+                                }
                                 @endphp
                                 <tr>
                                     <td class="px-3 py-2 text-sm text-gray-700">{{ $rowIdx + 1 }}</td>
@@ -934,7 +1049,7 @@
                                         <div class="space-y-1">
                                             @foreach($serialsRow as $sIndex => $s)
                                             @php $label = chr(65 + $sIndex); @endphp
-                                            <select name="serial_results[{{ $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                <select name="serial_results[{{ $testingItemRow->id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
                                                 <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
                                                 <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
                                                 <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
@@ -966,9 +1081,6 @@
             @endif
         </div>
         @endforeach
-    </div>
-    @endif
-    </div>
     </div>
     @endif
 
@@ -1026,10 +1138,47 @@
             break;
             }
 
-            // Tính toán dựa trên pass_quantity và fail_quantity của từng item
+            // Tính toán chặt chẽ theo thứ tự ưu tiên:
+            // Ưu tiên cho Thành phẩm:
+            // - Nếu là thành phẩm (product) và có serial_results: ĐẾM THEO serial_results
+            // - Ngược lại: dùng pass_quantity/fail_quantity; nếu chưa có thì đếm từ serial_results; nếu vẫn chưa có thì dùng field result
+            // Lý do: tránh trường hợp pass_quantity cũ sai lệch làm tổng bị 100% Đạt
             foreach($itemsToCount as $item) {
-            $passQuantity = $item->pass_quantity ?? 0;
-            $failQuantity = $item->fail_quantity ?? 0;
+            $passQuantity = 0;
+            $failQuantity = 0;
+
+            // Thành phẩm có serial_results thì đếm theo serial_results trước
+            if ($item->item_type === 'product' && !empty($item->serial_results)) {
+            $sr = json_decode($item->serial_results, true);
+            if (is_array($sr)) {
+            foreach ($sr as $val) {
+            if ($val === 'pass') $passQuantity++;
+            elseif ($val === 'fail') $failQuantity++;
+            }
+            }
+            } else {
+            // Các trường hợp khác: ưu tiên pass/fail quantities
+            $passQuantity = (int)($item->pass_quantity ?? 0);
+            $failQuantity = (int)($item->fail_quantity ?? 0);
+
+            if (($passQuantity + $failQuantity) === 0) {
+            // Thử đếm từ serial_results (nếu có) — KHÔNG áp dụng cho thành phẩm
+            if ($item->item_type !== 'product' && !empty($item->serial_results)) {
+            $sr = json_decode($item->serial_results, true);
+            if (is_array($sr)) {
+            foreach ($sr as $val) {
+            if ($val === 'pass') $passQuantity++;
+            elseif ($val === 'fail') $failQuantity++;
+            }
+            }
+            }
+            }
+            }
+
+            if (($passQuantity + $failQuantity) === 0 && !empty($item->result) && in_array($item->result, ['pass','fail'])) {
+            $passQuantity = $item->result === 'pass' ? 1 : 0;
+            $failQuantity = $item->result === 'fail' ? 1 : 0;
+            }
 
             $totalPassQuantity += $passQuantity;
             $totalFailQuantity += $failQuantity;
@@ -1075,8 +1224,12 @@
             if (!empty($testing->notes)) {
             $notesData = json_decode($testing->notes, true);
             if (is_array($notesData) && isset($notesData['no_serial_pass_quantity']) && is_array($notesData['no_serial_pass_quantity'])) {
-            foreach ($notesData['no_serial_pass_quantity'] as $v) {
-            $naPassFromNotes += (int) $v;
+            foreach ($notesData['no_serial_pass_quantity'] as $byItem) {
+            if (is_array($byItem)) {
+            foreach ($byItem as $v) { $naPassFromNotes += (int) $v; }
+            } else {
+            $naPassFromNotes += (int) $byItem;
+            }
             }
             }
             }
@@ -1789,6 +1942,13 @@
                     });
                 });
 
+                // Auto-save khi thay đổi item notes
+                testItemForm.querySelectorAll('textarea[name^="item_notes"]').forEach(function(textarea) {
+                    textarea.addEventListener('input', function() {
+                        autoSaveTestResults();
+                    });
+                });
+
                 function autoSaveTestResults() {
                     const formData = new FormData();
 
@@ -1822,6 +1982,12 @@
                     const testFailQuantityInputs = testItemForm.querySelectorAll('input[name^="test_fail_quantity"]');
                     testFailQuantityInputs.forEach(input => {
                         formData.append(input.name, input.value);
+                    });
+
+                    // Thêm item_notes
+                    const itemNotesTextareas = testItemForm.querySelectorAll('textarea[name^="item_notes"]');
+                    itemNotesTextareas.forEach(textarea => {
+                        formData.append(textarea.name, textarea.value);
                     });
 
                     fetch(testItemForm.action, {
@@ -1889,6 +2055,55 @@
                     if (failRateElement) {
                         failRateElement.textContent = `${failRate}% của tổng số thiết bị kiểm thử`;
                     }
+                }
+
+                // Function để lưu kết quả cho từng thành phẩm
+                window.saveProductResult = function(productId) {
+                    const formData = new FormData();
+                    formData.append('_token', document.querySelector('input[name="_token"]').value);
+                    formData.append('_method', 'PUT');
+
+                    // Lấy dữ liệu kết quả của thành phẩm này
+                    const passQuantityInput = document.querySelector(`input[name="item_pass_quantity[${productId}]"]`);
+                    const failQuantityInput = document.querySelector(`input[name="item_fail_quantity[${productId}]"]`);
+                    const serialResults = document.querySelectorAll(`select[name^="serial_results[${productId}]"]`);
+                    const itemNotes = document.querySelector(`textarea[name="item_notes[${productId}]"]`);
+
+                    if (passQuantityInput) {
+                        formData.append(passQuantityInput.name, passQuantityInput.value);
+                    }
+                    if (failQuantityInput) {
+                        formData.append(failQuantityInput.name, failQuantityInput.value);
+                    }
+                    if (serialResults.length > 0) {
+                        serialResults.forEach(select => {
+                            formData.append(select.name, select.value);
+                        });
+                    }
+                    if (itemNotes) {
+                        formData.append(itemNotes.name, itemNotes.value);
+                    }
+
+                    // Gửi request
+                    fetch(`{{ route('testing.update', $testing->id) }}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Đã lưu kết quả thành phẩm thành công!', 'success');
+                        } else {
+                            showNotification('Có lỗi khi lưu kết quả: ' + (data.message || 'Lỗi không xác định'), 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showNotification('Có lỗi khi lưu kết quả', 'error');
+                    });
                 }
             }
 

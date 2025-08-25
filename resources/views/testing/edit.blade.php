@@ -98,13 +98,15 @@
                         </div>
                         
                         <div class="mt-4">
-                                <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tiếp nhận kiểm thử</label>
-                                <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
+                                <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1">Người tiếp nhận kiểm thử</label>
+                                <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-100" disabled>
                                 <option value="">-- Chọn người tiếp nhận --</option>
                                     @foreach($employees as $employee)
                                         <option value="{{ $employee->id }}" {{ $testing->receiver_id == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
                                     @endforeach
                                 </select>
+                                <!-- Hidden field để gửi giá trị receiver_id -->
+                                <input type="hidden" name="receiver_id" value="{{ $testing->receiver_id ?? '' }}">
                             @error('receiver_id')
                                 <span class="text-red-500 text-xs">{{ $message }}</span>
                             @enderror
@@ -226,6 +228,7 @@
                                     return true; // Hiển thị tất cả cho các loại khác
                                 }) as $index => $item)
                                 <div class="border border-gray-200 rounded-lg p-4">
+                                @if($testing->test_type != 'material')
                                 <div class="mb-4">
                                             <h4 class="font-medium text-gray-800">
                                                 {{ $index + 1 }}. 
@@ -253,29 +256,59 @@
                                                         Thành phẩm
                                                     @endif
                                                 </span>
-                                        <span>Kho: {{ $item->warehouse ? $item->warehouse->name : 'N/A' }}</span>
+                                                <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
                                                 <span>Số lượng: {{ $item->quantity }}</span>
+                                                @if($testing->status == 'in_progress')
+                                                <span class="ml-4">
+                                                    <span class="text-gray-700 font-medium">KẾT QUẢ:</span>
+                                                    @if(empty($item->serial_number))
+                                                    <div class="inline-flex items-center gap-2 ml-2">
+                                                        <label class="text-xs text-gray-600">Đạt:</label>
+                                                        <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->pass_quantity ?? 0 }}">
+                                                        <label class="text-xs text-gray-600">Không đạt:</label>
+                                                        <input type="number" name="item_fail_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->fail_quantity ?? 0 }}">
+                                                    </div>
+                                                    @else
+                                                    @php
+                                                    $serials = [];
+                                                    if ($item->serial_number) {
+                                                        $serials = array_filter(array_map('trim', explode(',', $item->serial_number)));
+                                                    }
+                                                    $serialCount = count($serials);
+                                                    @endphp
+                                                    @if($serialCount > 0)
+                                                    <div class="inline-flex items-center gap-1 ml-2">
+                                                        @foreach($serials as $index => $serial)
+                                                        @php
+                                                        $serialLabel = chr(65 + $index);
+                                                        $serialResults = [];
+                                                        if ($item->serial_results) {
+                                                            $serialResults = json_decode($item->serial_results, true);
+                                                        }
+                                                        $selectedValue = $serialResults[$serialLabel] ?? 'pending';
+                                                        @endphp
+                                                        <div class="flex items-center gap-1">
+                                                            <span class="text-xs text-gray-600">{{ $serialLabel }}:</span>
+                                                            <select name="serial_results[{{ $item->id }}][{{ $serialLabel }}]" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                                                <option value="pending" {{ $selectedValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                <option value="pass" {{ $selectedValue == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                <option value="fail" {{ $selectedValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                            </select>
+                                                        </div>
+                                                        @endforeach
+                                                    </div>
+                                                    @endif
+                                                    @endif
+                                                </span>
+                                                @endif
                                             </div>
-                                </div>
-
-                                @if(empty($item->serial_number))
-                                <!-- Kết quả tổng thể cho thiết bị này (không có Serial) -->
-                                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
-                                    <h5 class="font-medium text-gray-800 mb-2">Kết quả tổng thể</h5>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng thiết bị đạt</label>
-                                            <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-full h-10 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->pass_quantity ?? 0 }}">
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng thiết bị không đạt</label>
-                                            <input type="number" name="item_fail_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-full h-10 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->fail_quantity ?? 0 }}">
-                                        </div>
-                                    </div>
                                 </div>
                                 @endif
 
-                                <!-- Hạng mục kiểm thử (UI giống trang tạo mới) -->
+
+
+                                @if($testing->test_type != 'material')
+                                <!-- Hạng mục kiểm thử (UI giống trang tạo mới) - chỉ cho thành phẩm -->
                                 <div class="mb-4">
                                     <div class="flex justify-between items-center mb-3">
                                         <h5 class="font-medium text-gray-800">Hạng mục kiểm thử (Không bắt buộc)</h5>
@@ -305,6 +338,110 @@
                                         </div>
                                     </div>
                                 </div>
+                                @endif
+
+                                    <!-- Vật tư/Hàng hóa cho phiếu kiểm thử loại vật tư/hàng hóa -->
+                                @if($testing->test_type == 'material' && ($item->item_type == 'material' || $item->item_type == 'product'))
+                                <div class="mb-4 border-t border-gray-200 pt-4">
+                                    <div class="mb-3 rounded-lg overflow-hidden border border-green-200">
+                                        <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
+                                            <div class="text-sm text-green-800 font-medium">
+                                                <i class="fas fa-box-open mr-2"></i>{{ $item->material->code ?? ($item->good->code ?? '') }} - {{ $item->material->name ?? ($item->good->name ?? '') }}
+                                            </div>
+                                            <div class="text-xs text-green-700">Số lượng: {{ $quantity }}</div>
+                                        </div>
+                                    </div>
+                                    @php
+                                        $serialsRow = $item->serial_number ? array_values(array_filter(array_map('trim', explode(',', $item->serial_number)))) : [];
+                                        $quantity = (int)($item->quantity ?? 0);
+                                        $serialCount = count($serialsRow);
+                                        $resultMapRow = $item->serial_results ? json_decode($item->serial_results, true) : [];
+                                    @endphp
+                                    @php
+                                        $code = $item->material->code ?? ($item->good->code ?? '');
+                                        $name = $item->material->name ?? ($item->good->name ?? '');
+                                        $typeText = $item->item_type == 'material' ? 'Vật tư' : 'Hàng hóa';
+                                    @endphp
+                                    <div class="overflow-x-auto">
+                                        <table class="min-w-full bg-white">
+                                            <thead>
+                                                <tr class="bg-gray-50 text-left text-xs text-gray-600">
+                                                    <th class="px-3 py-2">STT</th>
+                                                    <th class="px-3 py-2">MÃ</th>
+                                                    <th class="px-3 py-2">LOẠI</th>
+                                                    <th class="px-3 py-2">TÊN</th>
+                                                    <th class="px-3 py-2">SERIAL</th>
+                                                    <th class="px-3 py-2">KHO</th>
+                                                    <th class="px-3 py-2">THAO TÁC</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-100">
+                                                @for($row = 0; $row < $quantity; $row++)
+                                                    @php $label = chr(65 + $row); $serialValue = $serialsRow[$row] ?? null; @endphp
+                                                    <tr>
+                                                        <td class="px-3 py-2 text-sm text-gray-700">{{ $row + 1 }}</td>
+                                                        <td class="px-3 py-2 text-sm text-gray-700">{{ $code }}</td>
+                                                        <td class="px-3 py-2 text-sm text-gray-700">{{ $typeText }}</td>
+                                                        <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ $name }}</td>
+                                                        <td class="px-3 py-2 text-sm text-gray-700">{{ $serialValue ?? 'N/A' }}</td>
+                                                        <td class="px-3 py-2 text-sm text-gray-700">{{ $item->warehouse->name ?? 'N/A' }}</td>
+                                                        <td class="px-3 py-2 text-sm text-gray-700">
+                                                            <select name="serial_results[{{ $item->id }}][{{ $label }}]" class="w-32 h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                            </select>
+                                                        </td>
+                                                    </tr>
+                                                @endfor
+                                            </tbody>
+                                            @if($serialCount == 0)
+                                            <tfoot>
+                                                <tr class="bg-gray-50 border-t border-gray-200">
+                                                    <td class="px-3 py-2 text-sm text-gray-700" colspan="6">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-xs text-gray-600">Số lượng Đạt</span>
+                                                            <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $quantity }}" value="{{ $item->pass_quantity ?? 0 }}" class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white" />
+                                                        </div>
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                            @endif
+                                        </table>
+                                    </div>
+
+                                    <!-- Hạng mục kiểm thử (Không bắt buộc) cho Vật tư/Hàng hóa - NẰM TRONG BẢNG -->
+                                    <div class="mt-4 border-t border-gray-200 pt-4">
+                                        <div class="flex justify-between items-center mb-3">
+                                            <h5 class="font-medium text-gray-800 text-sm">🔍 Hạng mục kiểm thử (Không bắt buộc)</h5>
+                                            <div class="flex items-center gap-2">
+                                                <input type="text" placeholder="Nhập hạng mục kiểm thử" class="h-7 border border-gray-300 rounded px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" id="new_test_item_name_{{ $item->id }}">
+                                                <button type="button" onclick="addDefaultTestItemsForEdit('{{ $item->id }}')" class="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs flex items-center">
+                                                    <i class="fas fa-list-check mr-1"></i> Mặc định
+                                                </button>
+                                                <button type="button" onclick="addTestItemForItem('{{ $item->id }}')" class="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs flex items-center">
+                                                    <i class="fas fa-plus mr-1"></i> Thêm
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                                            <div class="space-y-2" id="test_items_container_{{ $item->id }}">
+                                                @forelse($testing->details->where('item_id', $item->id) as $detailIndex => $detail)
+                                                    <div class="test-item flex items-center gap-3" data-detail-id="{{ $detail->id }}">
+                                                        <input type="text" value="{{ $detail->test_item_name }}" class="h-8 border border-gray-300 rounded px-2 py-1 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" disabled>
+                                                        <button type="button" onclick="removeTestItemForEdit('{{ $detail->id }}', this)" class="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 text-xs">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                @empty
+                                                    <div class="text-center text-gray-500 py-2 text-sm">Chưa có hạng mục kiểm thử nào được thêm</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                @endif
 
                                     <!-- Vật tư lắp ráp cho thành phẩm này (chỉ hiển thị cho finished_product) -->
                                 @if($item->item_type == 'finished_product' || ($item->item_type == 'product' && $testing->test_type == 'finished_product'))
@@ -333,7 +470,12 @@
                                             }
                                             ksort($materialsByUnit);
                                         }
-                                        $testingMaterialMap = $testing->items->where('item_type','material')->keyBy('material_id');
+                                        $testingMaterialMap = collect();
+                                        foreach ($testing->items->where('item_type','material') as $testingItem) {
+                                            if ($testingItem->material_id) {
+                                                $testingMaterialMap->push($testingItem);
+                                            }
+                                        }
                                     @endphp
 
                                     @if(!empty($materialsByUnit))
@@ -364,8 +506,17 @@
                                                             @foreach($unitMaterials as $rowIdx => $asmMaterial)
                                                                 @php
                                                                     $m = $asmMaterial->material;
-                                                                    $testingItemRow = $testingMaterialMap->get($asmMaterial->material_id);
+                                                                    // Tìm đúng testing item theo material_id và serial khớp
+                                                                    $testingItemRow = null;
                                                                     $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
+                                                                    foreach ($testingMaterialMap as $tItem) {
+                                                                        if ($tItem->material_id == $asmMaterial->material_id) {
+                                                                            if (!empty($tItem->serial_number) && !empty($asmMaterial->serial)) {
+                                                                                $itemSerials = array_values(array_filter(array_map('trim', explode(',', $tItem->serial_number))));
+                                                                                if (count(array_intersect($itemSerials, $serialsRow)) > 0) { $testingItemRow = $tItem; break; }
+                                                                            } else { $testingItemRow = $tItem; break; }
+                                                                        }
+                                                                    }
                                                                 @endphp
                                                                 <tr>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">{{ $rowIdx + 1 }}</td>
@@ -375,14 +526,34 @@
                                                                     <td class="px-3 py-2 text-sm text-gray-700">{{ $asmMaterial->quantity }}</td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
                                                                         @if(count($serialsRow) > 0)
+                                                                            @php
+                                                                                $quantity = $asmMaterial->quantity ?? 0;
+                                                                                $serialCount = count($serialsRow);
+                                                                                $noSerialCount = $quantity - $serialCount;
+                                                                            @endphp
                                                                             <div class="text-xs text-gray-700">
                                                                                 @foreach($serialsRow as $s)
                                                                                     <div class="mb-0.5">{{ $s }}</div>
                                                                                 @endforeach
-                                                                                <div class="text-gray-400">{{ count($serialsRow) }} serial</div>
+                                                                                @for($i = 0; $i < $noSerialCount; $i++)
+                                                                                    <div class="mb-0.5 text-gray-400">N/A</div>
+                                                                                @endfor
+                                                                                <div class="text-gray-400">{{ $serialCount }} serial{{ $serialCount > 1 ? 's' : '' }}{{ $noSerialCount > 0 ? ', ' . $noSerialCount . ' N/A' : '' }}</div>
                                                                             </div>
                                                                         @else
-                                                                            N/A
+                                                                            @php
+                                                                                $quantity = $asmMaterial->quantity ?? 0;
+                                                                            @endphp
+                                                                            @if($quantity > 0)
+                                                                                <div class="text-xs text-gray-700">
+                                                                                    @for($i = 0; $i < $quantity; $i++)
+                                                                                        <div class="mb-0.5 text-gray-400">N/A</div>
+                                                                                    @endfor
+                                                                                    <div class="text-gray-400">{{ $quantity }} N/A</div>
+                                                                                </div>
+                                                                            @else
+                                                                                N/A
+                                                                            @endif
                                                                         @endif
                                                                     </td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
@@ -392,20 +563,37 @@
                                                                             N/A
                                                                         @endif
                                                                     </td>
-                                                                    <td class="px-3 py-2 text-sm text-gray-700">{{ $asmMaterial->note ?? ($testingItemRow->notes ?? '') }}</td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
                                                                         @if($testing->status == 'in_progress')
-                                                                            @if(count($serialsRow) > 0)
+                                                                            <textarea name="item_notes[{{ $testingItemRow->id ?? $asmMaterial->material_id }}]" rows="1" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho vật tư này">{{ $testingItemRow->notes ?? ($asmMaterial->note ?? '') }}</textarea>
+                                                                        @else
+                                                                            {{ $asmMaterial->note ?? ($testingItemRow->notes ?? '') }}
+                                                                        @endif
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-sm text-gray-700">
+                                                                        @if($testing->status == 'in_progress')
+                                                                            @php
+                                                                                $quantity = $asmMaterial->quantity ?? 0;
+                                                                                $serialCount = count($serialsRow);
+                                                                                $noSerialCount = $quantity - $serialCount;
+                                                                            @endphp
+                                                                            @if($quantity > 0)
                                                                                 @php $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : []; @endphp
                                                                                 <div class="space-y-1">
-                                                                                    @foreach($serialsRow as $sIndex => $s)
-                                                                                        @php $label = chr(65 + $sIndex); @endphp
-                                                                                        <select name="serial_results[{{ $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
-                                                                                            <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                                                                            <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                                                                            <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                                                                                        </select>
-                                                                                    @endforeach
+                                                                                    @for($i = 0; $i < $quantity; $i++)
+                                                                                        @php $label = chr(65 + $i); @endphp
+                                                                                        @if($i < $serialCount)
+                                                                                            <select name="serial_results[{{ $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                                                <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                                                <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                                                <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                                                            </select>
+                                                                                        @else
+                                                                                            <div class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-gray-100 text-gray-500 flex items-center">
+                                                                                                N/A
+                                                                                            </div>
+                                                                                        @endif
+                                                                                    @endfor
                                                                                 </div>
                                                                             @else
                                                                                 @php $maxQtyRow = (int)($asmMaterial->quantity ?? 0); @endphp
@@ -421,6 +609,59 @@
                                                                 </tr>
                                                             @endforeach
                                                         </tbody>
+
+                                                        <!-- Hàng tổng hợp cho vật tư không có serial -->
+                                                        <tfoot>
+                                                            <tr class="bg-gray-50 border-t border-gray-200">
+                                                                <td class="px-3 py-2 text-sm text-gray-700 font-medium">{{ count($unitMaterials) }}</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">N/A</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
+                                                                <td class="px-3 py-2 text-sm text-gray-700">
+                                                                    @if($testing->status == 'in_progress')
+                                                                    @php
+                                                                    // Tính tổng số lượng của các item không có serial (N/A)
+                                                                    $totalNoSerialQuantity = 0;
+                                                                    foreach($unitMaterials as $asmMaterial) {
+                                                                        $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
+                                                                        $quantity = $asmMaterial->quantity ?? 0;
+                                                                        $serialCount = count($serialsRow);
+                                                                        $noSerialCount = $quantity - $serialCount;
+                                                                        $totalNoSerialQuantity += $noSerialCount;
+                                                                    }
+
+                                                                    // Lấy giá trị đã lưu từ notes
+                                                                    $savedNoSerialPassQuantity = 0;
+                                                                    if ($testing->notes) {
+                                                                        $notesData = json_decode($testing->notes, true);
+                                                                        if (is_array($notesData)
+                                                                            && isset($notesData['no_serial_pass_quantity'][$item->id])
+                                                                            && isset($notesData['no_serial_pass_quantity'][$item->id][$unitIdx])) {
+                                                                            $savedNoSerialPassQuantity = (int) $notesData['no_serial_pass_quantity'][$item->id][$unitIdx];
+                                                                        }
+                                                                    }
+                                                                    @endphp
+                                                                    <div class="flex items-center gap-2">
+                                                                        <span class="text-xs text-gray-600">Số lượng Đạt</span>
+                                                                        <input type="number"
+                                                                            name="item_pass_quantity_no_serial[{{ $item->id }}][{{ $unitIdx }}]"
+                                                                            min="0"
+                                                                            max="{{ $totalNoSerialQuantity }}"
+                                                                            value="{{ $savedNoSerialPassQuantity }}"
+                                                                            class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white"
+                                                                            placeholder="0" />
+                                                                        <span class="text-xs text-gray-500">≤ {{ $totalNoSerialQuantity }}</span>
+                                                                    </div>
+                                                                    @else
+                                                                    <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
+                                                                    @endif
+                                                                </td>
+                                                            </tr>
+                                                        </tfoot>
                                                     </table>
                                                 </div>
                                             </div>
@@ -538,7 +779,7 @@
                                                                     @if($i < $materialSerialCount)
                                                                         <div>
                                                                             <label class="block text-xs text-gray-600 mb-1">Serial {{ $serialLabel }} ({{ $materialSerials[$i] }})</label>
-                                                                            <select name="serial_results[{{ $material->material_id }}][{{ $serialLabel }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                                                            <select name="serial_results[{{ $testingItemForMaterial ? $testingItemForMaterial->id : $material->material_id }}][{{ $serialLabel }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
                                                                                 <option value="pending" {{ $selectedValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
                                                                                 <option value="pass" {{ $selectedValue == 'pass' ? 'selected' : '' }}>Đạt</option>
                                                                                 <option value="fail" {{ $selectedValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
@@ -633,11 +874,13 @@
                             </div>
                         </div>
 
-                        <!-- Ghi chú -->
+                    @if($testing->test_type != 'material')
+                    <!-- Ghi chú (chỉ áp dụng cho thành phẩm) -->
                     <div class="mb-6 border-t border-gray-200 pt-6">
-                            <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                            <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú bổ sung nếu có">{{ $testing->notes }}</textarea>
+                        <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                        <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú bổ sung nếu có">{{ $testing->notes }}</textarea>
                     </div>
+                    @endif
 
                     <!-- Submit buttons -->
                     <div class="mt-8 pt-6 border-t border-gray-200 flex justify-end space-x-3">
@@ -657,7 +900,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Auto-save logic here (if needed)
             const form = document.querySelector('form');
-            const autoSaveInterval = 5000; // 5 seconds
+            const autoSaveInterval = 2000; // 2 seconds - giảm thời gian để lưu nhanh hơn
             let autoSaveTimer;
             window.triggerAutoSave = function() {
                 clearTimeout(autoSaveTimer);
@@ -704,15 +947,41 @@
                     .then(data => {
                         if (data.success) {
                             console.log('Auto-saved successfully', data.message);
-                            // Optionally show a small success message on the UI
+                            // Hiển thị thông báo nhỏ khi lưu thành công
+                            showAutoSaveNotification('Đã lưu thành công', 'success');
                         } else {
                             console.error('Auto-save failed', data.message, data.errors);
+                            showAutoSaveNotification('Lỗi khi lưu: ' + (data.message || 'Không xác định'), 'error');
                         }
                     })
                     .catch(error => {
                         console.error('Error during auto-save:', error);
+                        showAutoSaveNotification('Có lỗi khi lưu', 'error');
                     });
                 }, autoSaveInterval);
+            }
+
+            // Function để hiển thị thông báo auto-save
+            function showAutoSaveNotification(message, type) {
+                // Xóa thông báo cũ nếu có
+                const existingNotification = document.querySelector('.auto-save-notification');
+                if (existingNotification) {
+                    existingNotification.remove();
+                }
+
+                const notification = document.createElement('div');
+                notification.className = `auto-save-notification fixed top-4 right-4 px-3 py-2 rounded-lg text-white text-sm z-50 ${
+                    type === 'success' ? 'bg-green-500' : 'bg-red-500'
+                }`;
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                // Tự động ẩn sau 2 giây
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 2000);
             }
 
             // Attach event listeners to all relevant input fields for auto-save
@@ -797,25 +1066,45 @@
                 'Kiểm tra an toàn'
             ];
 
-            defaultItems.forEach(itemName => {
-                const newItemDiv = document.createElement('div');
-                newItemDiv.className = 'test-item flex items-center gap-4';
-                newItemDiv.setAttribute('data-detail-id', 'new_' + itemName); // Use a prefix for new items
-                newItemDiv.innerHTML = `
-                    <input type="text" value="${itemName}" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" disabled>
-                    <button type="button" onclick="removeTestItemForEdit('new_${itemName}', this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                `;
-                container.appendChild(newItemDiv);
+            const updateUrl = '{{ route("testing.update", $testing->id) }}';
+            const csrf = document.querySelector('input[name="_token"]').value;
 
-                // Re-attach event listeners for auto-save to new inputs
-                newItemDiv.querySelectorAll('input, select, textarea').forEach(element => {
-                    element.addEventListener('input', triggerAutoSave);
-                    element.addEventListener('change', triggerAutoSave);
-                });
+            defaultItems.forEach(itemName => {
+                const formData = new FormData();
+                formData.append('_token', csrf);
+                formData.append('_method', 'PUT');
+                formData.append('action', 'add_test_detail');
+                formData.append('testing_id', '{{ $testing->id }}');
+                formData.append('item_id', itemId);
+                formData.append('test_item_name', itemName);
+
+                fetch(updateUrl, {
+                    method: 'POST',
+                    headers: { 'X-HTTP-Method-Override': 'PUT' },
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        const newDetailId = data.test_detail_id;
+                        const newItemDiv = document.createElement('div');
+                        newItemDiv.className = 'test-item flex items-center gap-4';
+                        newItemDiv.setAttribute('data-detail-id', newDetailId);
+                        newItemDiv.innerHTML = `
+                            <input type="text" value="${itemName}" class="h-10 border border-gray-300 rounded px-3 py-2 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" disabled>
+                            <button type="button" onclick="removeTestItemForEdit('${newDetailId}', this)" class="px-3 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        `;
+                        container.appendChild(newItemDiv);
+                    } else {
+                        alert('Thêm hạng mục mặc định thất bại: ' + (data.message || 'Không xác định'));
+                    }
+                })
+                .catch(err => console.error('Add default item error', err));
             });
-            console.log('Đã thêm các hạng mục mặc định.');
+
+            console.log('Đã gửi lưu các hạng mục mặc định.');
         }
         
         function removeTestItemForEdit(detailId, button) {
