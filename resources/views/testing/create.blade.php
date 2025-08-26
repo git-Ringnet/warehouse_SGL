@@ -110,7 +110,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Loại</label>
-                                        <select name="items[0][item_type]" class="item-type w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="updateItemOptions(this, 0)">
+                                        <select name="items[0][item_type]" class="item-type w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
                                     <option value="">-- Chọn loại --</option>
                                     <option value="material">Vật tư</option>
                                             <option value="product">Hàng hóa</option>
@@ -322,27 +322,116 @@
         }
 
         // Thêm sự kiện kiểm tra khi nhập mã
-        document.getElementById('test_code').addEventListener('input', function(e) {
+        const testCodeElement = document.getElementById('test_code');
+        if (testCodeElement) {
+            // Remove existing event listeners to prevent duplicates
+            testCodeElement.removeEventListener('input', checkTestCodeHandler);
+            testCodeElement.addEventListener('input', checkTestCodeHandler);
+        }
+        
+        function checkTestCodeHandler(e) {
             checkTestCode(e.target.value);
-        });
+        }
+        
+        // Biến để theo dõi việc đang fetch data
+        let isFetching = false;
+        
+        // Gắn event listener cho tất cả các dropdown item-type
+        function attachItemTypeListeners() {
+            document.querySelectorAll('.item-type').forEach((select, index) => {
+                // Remove existing event listeners
+                select.removeEventListener('change', itemTypeChangeHandler);
+                // Add new event listener
+                select.addEventListener('change', itemTypeChangeHandler);
+            });
+        }
+        
+        function itemTypeChangeHandler(e) {
+            const index = Array.from(document.querySelectorAll('.item-type')).indexOf(e.target);
+            updateItemOptions(e.target, index);
+        }
+        
+        // Gắn event listener cho tất cả các field khác
+        function attachAllListeners() {
+            // Gắn event listener cho item-type dropdowns
+            attachItemTypeListeners();
+            
+            // Gắn event listener cho các field khác
+            document.querySelectorAll('.item-name, .warehouse-select, .quantity-input').forEach((element, index) => {
+                const itemRow = element.closest('.item-row');
+                const itemIndex = Array.from(document.querySelectorAll('.item-row')).indexOf(itemRow);
+                
+                // Remove existing event listeners
+                element.removeEventListener('change', inventoryChangeHandler);
+                // Add new event listener
+                element.addEventListener('change', inventoryChangeHandler);
+            });
+        }
+        
+        function inventoryChangeHandler(e) {
+            const itemRow = e.target.closest('.item-row');
+            const itemIndex = Array.from(document.querySelectorAll('.item-row')).indexOf(itemRow);
+            checkInventory(e.target, itemIndex);
+            
+            // Force validation khi quantity thay đổi
+            if (e.target.type === 'number') {
+                const quantity = parseInt(e.target.value) || 0;
+                const itemType = itemRow.querySelector('.item-type')?.value;
+                const itemId = itemRow.querySelector('.item-name')?.value;
+                const warehouseId = itemRow.querySelector('.warehouse-select')?.value;
+                
+                if (itemType && itemId && warehouseId && quantity > 0) {
+                    setTimeout(() => {
+                        console.log('🔄 Force validation after quantity change...');
+                        validateSerialSelection(itemIndex, itemType, itemId, warehouseId, quantity);
+                    }, 100);
+                }
+            }
+        }
+        
+        // Gắn event listener ban đầu
+        attachAllListeners();
         
         function updateItemOptions(selectElement, index) {
             const itemType = selectElement.value;
             const itemNameSelect = document.getElementById('item_name_' + index);
             
-            // Reset item name select
+            console.log('updateItemOptions called for index:', index, 'type:', itemType);
+            
+            // Ngăn chặn gọi nhiều lần
+            if (isFetching) {
+                console.log('Already fetching, skipping...');
+                return;
+            }
+            
+            // Reset item name select và itemsData
             itemNameSelect.innerHTML = '<option value="">-- Chọn --</option>';
+            itemsData = itemsData.filter(item => item.type !== itemType);
             
             if (!itemType) return;
+            
+            isFetching = true;
             
             // Fetch items based on type
             fetch(`/api/testing/materials/${itemType}`)
                 .then(response => response.json())
                 .then(items => {
-                    // Clear existing itemsData for this type
-                    itemsData = itemsData.filter(item => item.type !== itemType);
+                    console.log('Raw items from API:', items.length);
                     
+                    // Sử dụng Set để loại bỏ duplicate dựa trên id
+                    const uniqueItems = new Map();
                     items.forEach(item => {
+                        if (!uniqueItems.has(item.id)) {
+                            uniqueItems.set(item.id, item);
+                        } else {
+                            console.log('Duplicate found in API response:', item);
+                        }
+                    });
+                    
+                    console.log('Before adding options, dropdown has:', itemNameSelect.children.length, 'options');
+                    
+                    // Thêm options vào dropdown
+                    uniqueItems.forEach(item => {
                         const option = document.createElement('option');
                         option.value = item.id;
                         option.textContent = `[${item.code}] ${item.name}`;
@@ -356,6 +445,24 @@
                             type: itemType
                         });
                     });
+                    
+                    console.log('After adding options, dropdown has:', itemNameSelect.children.length, 'options');
+                    console.log('Items loaded:', items.length, 'Unique items:', uniqueItems.size);
+                    
+                    // Kiểm tra xem có duplicate trong dropdown không
+                    const optionValues = Array.from(itemNameSelect.children).map(opt => opt.value);
+                    const uniqueValues = [...new Set(optionValues)];
+                    if (optionValues.length !== uniqueValues.length) {
+                        console.warn('WARNING: Duplicate options found in dropdown!');
+                        console.log('All option values:', optionValues);
+                        console.log('Unique option values:', uniqueValues);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching items:', error);
+                })
+                .finally(() => {
+                    isFetching = false;
                 });
         }
 
@@ -427,12 +534,13 @@
         function addItem() {
             const container = document.getElementById('items-container');
             const template = container.children[0].cloneNode(true);
+            const currentItemCounter = container.children.length;
                                     
             // Update indices
             template.querySelectorAll('select, input').forEach(element => {
-                element.name = element.name.replace('[0]', `[${itemCounter}]`);
+                element.name = element.name.replace('[0]', `[${currentItemCounter}]`);
                 if (element.id) {
-                    element.id = element.id.replace('_0', `_${itemCounter}`);
+                    element.id = element.id.replace('_0', `_${currentItemCounter}`);
                 }
             });
             
@@ -449,14 +557,11 @@
                 warning.classList.add('hidden');
             });
             
-            // Update event listeners
-            template.querySelector('.item-type').setAttribute('onchange', `updateItemOptions(this, ${itemCounter})`);
-            template.querySelector('.item-name').setAttribute('onchange', `checkInventory(this, ${itemCounter})`);
-            template.querySelector('.warehouse-select').setAttribute('onchange', `checkInventory(this, ${itemCounter})`);
-            template.querySelector('.quantity-input').setAttribute('onchange', `checkInventory(this, ${itemCounter})`);
-            
             container.appendChild(template);
-            itemCounter++;
+            
+            // Gắn event listener cho dropdown mới
+            attachAllListeners();
+            
             updateSummaryTable();
         }
         
@@ -542,51 +647,259 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.serials && data.serials.length > 0) {
-                        data.serials.forEach((serial, serialIndex) => {
-                            const checkboxDiv = document.createElement('div');
-                            checkboxDiv.className = 'flex items-center mb-1';
-                            
-                            const checkbox = document.createElement('input');
-                            checkbox.type = 'checkbox';
-                            checkbox.name = `items[${index}][serials][]`;
-                            checkbox.value = serial.serial_number || '';
-                            checkbox.id = `serial_${index}_${serialIndex}`;
-                            checkbox.className = 'mr-2';
-                            
-                            // Tự động check checkbox đầu tiên nếu có ít hơn hoặc bằng số lượng cần
-                            if (serialIndex < quantity) {
-                                checkbox.checked = true;
-                            }
-                            
-                            // Thêm event listener để theo dõi thay đổi serial
-                            checkbox.addEventListener('change', function() {
-                                // Có thể thêm logic khác ở đây nếu cần
+                        // Lọc bỏ serial rỗng
+                        const validSerials = data.serials.filter(serial => !empty(serial.serial_number));
+                        
+                        if (validSerials.length > 0) {
+                            validSerials.forEach((serial, serialIndex) => {
+                                const checkboxDiv = document.createElement('div');
+                                checkboxDiv.className = 'flex items-center mb-1';
+                                
+                                const checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.name = `items[${index}][serials][]`;
+                                checkbox.value = serial.serial_number || '';
+                                checkbox.id = `serial_${index}_${serialIndex}`;
+                                checkbox.className = 'mr-2';
+                                
+                                // Tự động check checkbox đầu tiên nếu có ít hơn hoặc bằng số lượng cần
+                                if (serialIndex < quantity) {
+                                    checkbox.checked = true;
+                                }
+                                
+                                // Thêm event listener để theo dõi thay đổi serial và validation
+                                checkbox.addEventListener('change', function(e) {
+                                    console.log('🔍 Serial checkbox changed:', {
+                                        value: e.target.value,
+                                        checked: e.target.checked,
+                                        index: index,
+                                        quantity: quantity
+                                    });
+                                    
+                                    // Gọi validation NGAY LẬP TỨC
+                                    setTimeout(() => {
+                                        validateSerialSelection(index, itemType, itemId, warehouseId, quantity);
+                                    }, 10);
+                                });
+                                
+                                const label = document.createElement('label');
+                                label.htmlFor = `serial_${index}_${serialIndex}`;
+                                label.textContent = serial.serial_number || 'Không có Serial';
+                                label.className = 'text-sm';
+                                
+                                checkboxDiv.appendChild(checkbox);
+                                checkboxDiv.appendChild(label);
+                                containerElement.appendChild(checkboxDiv);
                             });
                             
-                            const label = document.createElement('label');
-                            label.htmlFor = `serial_${index}_${serialIndex}`;
-                            label.textContent = serial.serial_number || 'Không có Serial';
-                            label.className = 'text-sm';
+                            // Thêm thông báo về số lượng serial
+                            const infoDiv = document.createElement('div');
+                            infoDiv.className = 'text-blue-600 text-xs mt-2 bg-blue-50 p-2 rounded border border-blue-300';
+                            infoDiv.innerHTML = `
+                                <div class="font-bold">📊 Thông tin Serial:</div>
+                                <div>• Có <strong>${validSerials.length}</strong> serial khả dụng</div>
+                                <div>• Số lượng kiểm thử: <strong>${quantity}</strong></div>
+                                <div class="text-xs text-gray-600 mt-1">💡 Chỉ hiển thị serial từ kho có tồn kho > 0</div>
+                            `;
+                            containerElement.appendChild(infoDiv);
                             
-                            checkboxDiv.appendChild(checkbox);
-                            checkboxDiv.appendChild(label);
-                            containerElement.appendChild(checkboxDiv);
-                        });
+                            // Test validation ngay sau khi load serial
+                            setTimeout(() => {
+                                console.log('🧪 Testing validation after loading serials...');
+                                validateSerialSelection(index, itemType, itemId, warehouseId, quantity);
+                            }, 200);
+                        } else {
+                            const noSerialDiv = document.createElement('div');
+                            noSerialDiv.className = 'text-gray-600 text-sm bg-gray-50 p-3 rounded-lg border border-gray-300';
+                            noSerialDiv.innerHTML = `
+                                <div class="flex items-center">
+                                    <span class="text-lg mr-2">ℹ️</span>
+                                    <div>
+                                        <div class="font-bold">Không có dữ liệu Serial</div>
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            • API không trả về dữ liệu serial<br>
+                                            • Hoặc có lỗi trong quá trình xử lý<br>
+                                            • Vui lòng kiểm tra lại thông tin
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                            containerElement.appendChild(noSerialDiv);
+                        }
                     } else {
                         const noSerialDiv = document.createElement('div');
-                        noSerialDiv.className = 'text-gray-500 text-sm';
-                        noSerialDiv.textContent = 'Không có Serial';
+                        noSerialDiv.className = 'text-gray-600 text-sm bg-gray-50 p-3 rounded-lg border border-gray-300';
+                        noSerialDiv.innerHTML = `
+                            <div class="flex items-center">
+                                <span class="text-lg mr-2">ℹ️</span>
+                                <div>
+                                    <div class="font-bold">Không có dữ liệu Serial</div>
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        • API không trả về dữ liệu serial<br>
+                                        • Hoặc có lỗi trong quá trình xử lý<br>
+                                        • Vui lòng kiểm tra lại thông tin
+                                    </div>
+                                </div>
+                            </div>
+                        `;
                         containerElement.appendChild(noSerialDiv);
                     }
                 })
                 .catch(error => {
                     console.error('Error loading serials:', error);
                     const errorDiv = document.createElement('div');
-                    errorDiv.className = 'text-red-500 text-sm';
-                    errorDiv.textContent = 'Lỗi tải Serial';
+                    errorDiv.className = 'text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-300';
+                    errorDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-lg mr-2">❌</span>
+                            <div>
+                                <div class="font-bold">Lỗi tải Serial</div>
+                                <div class="text-xs text-red-600 mt-1">
+                                    • Không thể kết nối đến server<br>
+                                    • Hoặc có lỗi trong quá trình xử lý<br>
+                                    • Vui lòng thử lại hoặc liên hệ admin
+                                </div>
+                            </div>
+                        </div>
+                    `;
                     containerElement.appendChild(errorDiv);
                 });
         }
+        
+        // Validation: Kiểm tra số lượng serial được chọn không vượt quá số lượng kiểm thử
+        function validateSerialSelection(index, itemType, itemId, warehouseId, quantity) {
+            console.log('=== validateSerialSelection START ===');
+            console.log('Index:', index, 'Type:', itemType, 'ID:', itemId, 'Warehouse:', warehouseId, 'Quantity:', quantity);
+            
+            // Tìm item row theo index
+            const allItemRows = document.querySelectorAll('.item-row');
+            console.log('Total item rows found:', allItemRows.length);
+            
+            if (index >= allItemRows.length) {
+                console.error('Index out of range:', index, 'vs', allItemRows.length);
+                return;
+            }
+            
+            const itemRow = allItemRows[index];
+            console.log('Item row found:', itemRow);
+            
+            // Tìm tất cả checkbox serial trong item này - sử dụng selector cụ thể hơn
+            const serialCheckboxes = itemRow.querySelectorAll('input[type="checkbox"][name*="serials"]');
+            const selectedSerials = itemRow.querySelectorAll('input[type="checkbox"][name*="serials"]:checked');
+            const selectedCount = selectedSerials.length;
+            
+            console.log('Serial elements found:', {
+                totalCheckboxes: serialCheckboxes.length,
+                selectedCount: selectedCount,
+                quantity: quantity,
+                checkboxes: Array.from(serialCheckboxes).map(cb => ({value: cb.value, checked: cb.checked}))
+            });
+            
+            // Xóa cảnh báo cũ nếu có
+            const oldWarning = itemRow.querySelector('.serial-warning');
+            if (oldWarning) oldWarning.remove();
+            
+            const oldInfo = itemRow.querySelector('.serial-info');
+            if (oldInfo) oldInfo.remove();
+            
+            if (selectedCount > quantity) {
+                // Hiển thị cảnh báo NGAY LẬP TỨC - LỚN VÀ RÕ RÀNG
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'serial-warning text-red-700 text-sm font-bold bg-red-100 p-3 rounded-lg border-2 border-red-400 shadow-lg';
+                warningDiv.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="text-xl mr-2">⚠️</span>
+                        <div>
+                            <div class="font-bold">LỖI VALIDATION!</div>
+                            <div>Đã chọn <strong>${selectedCount}</strong> serial nhưng số lượng kiểm thử chỉ <strong>${quantity}</strong></div>
+                        </div>
+                    </div>
+                `;
+                warningDiv.style.display = 'block';
+                warningDiv.style.marginTop = '10px';
+                warningDiv.style.marginBottom = '10px';
+                
+                // Thêm vào item row - đặt ở vị trí dễ nhìn
+                const serialContainer = itemRow.querySelector('.serial-container');
+                if (serialContainer) {
+                    serialContainer.appendChild(warningDiv);
+                } else {
+                    itemRow.appendChild(warningDiv);
+                }
+                
+                console.log('⚠️ Warning displayed:', warningDiv.textContent);
+                
+                // Bỏ check serial cuối cùng được chọn
+                const lastChecked = selectedSerials[selectedSerials.length - 1];
+                if (lastChecked) {
+                    lastChecked.checked = false;
+                    console.log(`🔒 Unchecked serial: ${lastChecked.value}`);
+                    
+                    // Gọi lại validation để cập nhật warning
+                    setTimeout(() => validateSerialSelection(index, itemType, itemId, warehouseId, quantity), 100);
+                }
+            } else {
+                // Hiển thị thông tin OK nếu có serial được chọn
+                if (selectedCount > 0) {
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'serial-info text-green-700 text-sm font-bold bg-green-100 p-3 rounded-lg border-2 border-green-400';
+                    infoDiv.innerHTML = `
+                        <div class="flex items-center">
+                            <span class="text-xl mr-2">✅</span>
+                            <div>
+                                <div class="font-bold">OK!</div>
+                                <div>Đã chọn <strong>${selectedCount}/${quantity}</strong> serial</div>
+                            </div>
+                        </div>
+                    `;
+                    infoDiv.style.display = 'block';
+                    infoDiv.style.marginTop = '10px';
+                    infoDiv.style.marginBottom = '10px';
+                    
+                    const serialContainer = itemRow.querySelector('.serial-container');
+                    if (serialContainer) {
+                        serialContainer.appendChild(infoDiv);
+                    } else {
+                        itemRow.appendChild(infoDiv);
+                    }
+                    
+                    console.log('✅ Info displayed:', infoDiv.textContent);
+                }
+            }
+            
+            console.log('=== validateSerialSelection END ===');
+        }
+        
+        // Helper function để kiểm tra empty
+        function empty(value) {
+            return value === null || value === undefined || value === '';
+        }
+        
+        // Test function để kiểm tra validation hoạt động
+        function testSerialValidation() {
+            console.log('🧪 Testing serial validation...');
+            const itemRows = document.querySelectorAll('.item-row');
+            console.log('Found', itemRows.length, 'item rows');
+            
+            itemRows.forEach((row, index) => {
+                const quantityInput = row.querySelector('input[type="number"]');
+                if (quantityInput) {
+                    const quantity = parseInt(quantityInput.value) || 0;
+                    console.log(`Item ${index} quantity:`, quantity);
+                    
+                    // Test validation với quantity hiện tại
+                    if (quantity > 0) {
+                        validateSerialSelection(index, 'material', '1', '1', quantity);
+                    }
+                }
+            });
+        }
+        
+        // Gọi test function khi trang load xong
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Page loaded, testing serial validation...');
+            setTimeout(testSerialValidation, 1000); // Đợi 1 giây để đảm bảo mọi thứ load xong
+        });
 
         function addTestItem() {
             const container = document.getElementById('test_items_container');
@@ -637,12 +950,6 @@
                 return false;
             }
 
-            // Log tất cả serial được chọn (chỉ khi debug cần)
-            const allSerialCheckboxes = document.querySelectorAll('input[name*="[serials][]"]:checked');
-            if (allSerialCheckboxes.length > 0) {
-                console.log('Serial checkboxes found:', allSerialCheckboxes.length);
-            }
-
             // Kiểm tra các trường bắt buộc
             const requiredFields = [
                 'test_code',
@@ -661,24 +968,48 @@
                 }
             }
 
-            // Kiểm tra có ít nhất một item được thêm
+            // Kiểm tra có ít nhất một item được thêm và validation serial
             const items = document.querySelectorAll('.item-row');
             let hasValidItem = false;
+            let hasSerialError = false;
+            let errorDetails = [];
+            
+            console.log('Validating form with', items.length, 'items');
             
             items.forEach((item, itemIndex) => {
                 const itemType = item.querySelector('.item-type').value;
                 const itemId = item.querySelector('.item-name').value;
                 const warehouseId = item.querySelector('.warehouse-select').value;
-                const quantity = item.querySelector('input[type="number"]').value;
+                const quantity = parseInt(item.querySelector('input[type="number"]').value) || 0;
                 
-                // Log serial cho từng item (chỉ khi debug cần)
-                const itemSerials = item.querySelectorAll(`input[name="items[${itemIndex}][serials][]"]:checked`);
-                if (itemSerials.length > 0) {
-                    console.log(`Item ${itemIndex} has ${itemSerials.length} serials selected`);
-                }
+                console.log(`Item ${itemIndex}:`, {
+                    itemType,
+                    itemId,
+                    warehouseId,
+                    quantity
+                });
                 
                 if (itemType && itemId && warehouseId && quantity > 0) {
                     hasValidItem = true;
+                    
+                    // Kiểm tra serial selection - tìm tất cả checkbox serial trong item này
+                    const serialCheckboxes = item.querySelectorAll('input[type="checkbox"][name*="[serials][]"]');
+                    const checkedSerials = item.querySelectorAll('input[type="checkbox"][name*="[serials][]"]:checked');
+                    const selectedSerialCount = checkedSerials.length;
+                    
+                    console.log(`Item ${itemIndex} serials:`, {
+                        totalCheckboxes: serialCheckboxes.length,
+                        checkedCount: selectedSerialCount,
+                        quantity: quantity
+                    });
+                    
+                    // Kiểm tra số lượng serial không vượt quá số lượng kiểm thử
+                    if (selectedSerialCount > quantity) {
+                        hasSerialError = true;
+                        const itemName = item.querySelector('.item-name option:checked')?.text || `Item ${itemIndex}`;
+                        errorDetails.push(`${itemName}: Chọn ${selectedSerialCount} serial nhưng số lượng kiểm thử chỉ ${quantity}`);
+                        console.error(`Item ${itemIndex}: ${selectedSerialCount} serials selected but quantity is ${quantity}`);
+                    }
                 }
             });
 
@@ -687,7 +1018,16 @@
                 alert('Vui lòng thêm ít nhất một vật tư/hàng hóa.');
                 return false;
             }
+            
+            if (hasSerialError) {
+                e.preventDefault();
+                const errorMessage = 'Số lượng serial được chọn vượt quá số lượng kiểm thử:\n\n' + errorDetails.join('\n');
+                alert(errorMessage);
+                console.error('Serial validation failed:', errorDetails);
+                return false;
+            }
 
+            console.log('Form validation passed');
             return true;
         });
     </script>

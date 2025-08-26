@@ -151,7 +151,28 @@
 
                         @php
                             $__notesData = is_string($testing->notes) ? json_decode($testing->notes, true) : (is_array($testing->notes) ? $testing->notes : []);
-                            $__generalNote = (is_array($__notesData) && array_key_exists('general_note', $__notesData)) ? $__notesData['general_note'] : (is_string($testing->notes) ? $testing->notes : '');
+                            $__generalNote = '';
+                            
+                            if (is_array($__notesData) && array_key_exists('general_note', $__notesData)) {
+                                $__generalNote = $__notesData['general_note'];
+                                // Nếu general_note vẫn là JSON string, decode thêm lần nữa
+                                if (is_string($__generalNote) && (strpos($__generalNote, '{') === 0 || strpos($__generalNote, '[') === 0)) {
+                                    $decoded = json_decode($__generalNote, true);
+                                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && array_key_exists('general_note', $decoded)) {
+                                        $__generalNote = $decoded['general_note'];
+                                    }
+                                }
+                            } elseif (is_string($testing->notes)) {
+                                // Nếu notes là string thuần, kiểm tra xem có phải JSON không
+                                if (strpos($testing->notes, '{') === 0 || strpos($testing->notes, '[') === 0) {
+                                    $decoded = json_decode($testing->notes, true);
+                                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && array_key_exists('general_note', $decoded)) {
+                                        $__generalNote = $decoded['general_note'];
+                                    }
+                                } else {
+                                    $__generalNote = $testing->notes;
+                                }
+                            }
                         @endphp
                         @if(!empty($__generalNote))
                         <div class="mb-4 pb-4 border-b border-gray-200">
@@ -300,8 +321,9 @@
     </div>
 
     <!-- Form cập nhật kết quả kiểm thử -->
-    @if($testing->status == 'in_progress')
-    <form action="{{ route('testing.update', $testing->id) }}" method="POST" class="mb-4" id="test-item-form">
+    @php $isReadOnly = $testing->status != 'in_progress'; @endphp
+    @if(true)
+    <form action="{{ route('testing.update', $testing->id) }}" method="POST" class="mb-4" id="test-item-form" @if($isReadOnly) onsubmit="return false;" @endif>
         @csrf
         @method('PUT')
 
@@ -387,7 +409,7 @@
         <div class="mt-4 border-t border-gray-200 pt-4">
             <div class="flex justify-between items-center mb-3">
                 <h5 class="font-medium text-gray-800 text-sm">🔍 Hạng mục kiểm thử (Không bắt buộc)</h5>
-                @if($testing->status == 'in_progress')
+                @if(!$isReadOnly)
                 <div class="flex items-center gap-2">
                     <input type="text" placeholder="Nhập hạng mục kiểm thử" class="h-7 border border-gray-300 rounded px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" id="new_test_item_name_show_{{ $item->id }}">
                     <button type="button" onclick="addDefaultTestItemsForShow('{{ $item->id }}')" class="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-xs flex items-center">
@@ -406,8 +428,8 @@
                     @endphp
                     @forelse($testDetails as $detail)
                         <div class="test-item flex items-center gap-3" data-detail-id="{{ $detail->id }}">
-                            <input type="text" value="{{ $detail->test_item_name }}" class="h-8 border border-gray-300 rounded px-2 py-1 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" @if($testing->status != 'in_progress') readonly @endif>
-                            @if($testing->status == 'in_progress')
+                            <input type="text" value="{{ $detail->test_item_name }}" class="h-8 border border-gray-300 rounded px-2 py-1 flex-grow focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm" @if($isReadOnly) readonly @endif>
+                            @if(!$isReadOnly)
                             <button type="button" onclick="removeTestItemForShow('{{ $detail->id }}', this)" class="px-2 py-1 bg-red-100 text-red-500 rounded hover:bg-red-200 text-xs">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -426,7 +448,7 @@
                 <h5 class="font-medium text-gray-800 text-sm">📝 Ghi chú</h5>
             </div>
             <div class="bg-gray-50 border border-gray-200 rounded p-3">
-                <textarea name="item_notes[{{ $item->id }}]" rows="2" class="w-full border-0 focus:outline-none focus:ring-0 resize-none text-sm" placeholder="Nhập ghi chú cho {{ $typeText }} này...">{{ $item->notes }}</textarea>
+                <textarea name="item_notes[{{ $item->id }}]" rows="2" class="w-full border-0 focus:outline-none focus:ring-0 resize-none text-sm" placeholder="Nhập ghi chú cho {{ $typeText }} này..." @if($isReadOnly) readonly @endif>{{ $item->notes }}</textarea>
             </div>
         </div>
     </div>
@@ -456,7 +478,7 @@
                 <span>Loại: Thành phẩm</span>
                 <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
                 <span>Số lượng: {{ $item->quantity }}</span>
-                @if($testing->status == 'in_progress')
+                @if(!$isReadOnly)
                 <span class="ml-4">
                     <span class="text-gray-700 font-medium">KẾT QUẢ:</span>
                     @if(empty($item->serial_number))
@@ -705,7 +727,29 @@
             </div>
         @endif
         @else
-        <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
+        @if($testing->status == 'completed')
+            @php
+                $quantity = (int)($asmMaterial->quantity ?? 0);
+                $serialCount = count($serialsRow);
+                $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : [];
+            @endphp
+            <div class="space-y-1">
+                @for($i = 0; $i < $quantity; $i++)
+                    @php $label=chr(65 + $i); @endphp
+                    @if($i < $serialCount)
+                        <select class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-gray-100 text-gray-700" disabled>
+                            <option {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                            <option {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                            <option {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                        </select>
+                    @else
+                        <div class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-gray-100 text-gray-500 flex items-center">N/A</div>
+                    @endif
+                @endfor
+            </div>
+        @else
+            <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
+        @endif
         @endif
     </td>
     </tr>
@@ -724,9 +768,8 @@
             <td class="px-3 py-2 text-sm text-gray-700">-</td>
             <td class="px-3 py-2 text-sm text-gray-700">-</td>
             <td class="px-3 py-2 text-sm text-gray-700">
-                @if($testing->status == 'in_progress')
                 @php
-                // Tính tổng số lượng của các item không có serial (N/A)
+                // Tính tổng số lượng của các item không có serial (N/A) - luôn tính để dùng cho mọi trạng thái
                 $totalNoSerialQuantity = 0;
                 foreach($unitMaterials as $asmMaterial) {
                 $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
@@ -745,6 +788,8 @@
                 }
                 }
                 @endphp
+                
+                @if(!$isReadOnly)
                 <div class="flex items-center gap-2">
                     <span class="text-xs text-gray-600">Số lượng Đạt</span>
                     <input type="number"
@@ -755,10 +800,18 @@
                         class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white"
                         placeholder="0" />
                     <span class="text-xs text-gray-500">≤ {{ $totalNoSerialQuantity }}</span>
-        </div>
+                </div>
                 @else
-                <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
-        @endif
+                @if($testing->status == 'completed')
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-600">Số lượng Đạt</span>
+                        <input type="number" min="0" max="{{ $totalNoSerialQuantity }}" value="{{ $savedNoSerialPassQuantity }}" class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-gray-100 text-gray-700" disabled />
+                        <span class="text-xs text-gray-500">≤ {{ $totalNoSerialQuantity }}</span>
+                    </div>
+                @else
+                    <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
+                @endif
+                @endif
             </td>
         </tr>
     </tfoot>
@@ -858,16 +911,18 @@
     
     @endif
 
+    @if(!$isReadOnly)
     <div class="mt-8 flex justify-end">
         <button type="submit" class="test-item-submit-button px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center shadow-lg transition-colors">
             <i class="fas fa-save mr-2"></i> Lưu kết quả kiểm thử
         </button>
     </div>
+    @endif
 
 
     </form>
     @endif
-    @else
+    @elseif(false)
     <!-- Read-only view for completed status -->
     <div class="space-y-6">
         @forelse($testing->items->filter(function($item) use ($testing) {
@@ -1005,7 +1060,20 @@
                         <div class="text-sm text-green-800 font-medium">
                             <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
                         </div>
-                        <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
+                        @php
+                            // Đọc số liệu N/A theo đơn vị từ DB (bảng testing_item_unit_results)
+                            $unitSummary = \Illuminate\Support\Facades\DB::table('testing_item_unit_results')
+                                ->where('testing_id', $testing->id)
+                                ->where('product_item_id', $item->id)
+                                ->where('unit_index', (int)$unitIdx)
+                                ->selectRaw('SUM(no_serial_pass_quantity) as pass, SUM(no_serial_fail_quantity) as fail')
+                                ->first();
+                            $naPass = (int)($unitSummary->pass ?? 0);
+                            $naFail = (int)($unitSummary->fail ?? 0);
+                        @endphp
+                        <div class="text-xs text-green-700">
+                            {{ count($unitMaterials) }} vật tư · N/A: Đạt {{ $naPass }}, Không đạt {{ $naFail }}
+                        </div>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-white">
