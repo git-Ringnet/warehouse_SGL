@@ -443,12 +443,18 @@ class TestingController extends Controller
         try {
             // Chỉ update testing record nếu không phải auto-save hoặc có đủ dữ liệu
             if (!$isAutoSave || ($request->has('tester_id') && $request->has('assigned_to') && $request->has('receiver_id') && $request->has('test_date'))) {
+                // Hợp nhất ghi chú: lưu dạng JSON { general_note: string, ... }
+                $existingNotesArray = $this->normalizeNotesArray($testing->notes);
+                if ($request->has('notes')) {
+                    $existingNotesArray['general_note'] = $request->notes;
+                }
+                $mergedNotesJson = !empty($existingNotesArray) ? json_encode($existingNotesArray) : null;
                 $testing->update([
                     'tester_id' => $request->tester_id ?? $testing->tester_id,
                     'assigned_to' => $request->assigned_to ?? $testing->assigned_to ?? $testing->tester_id,
                     'receiver_id' => $request->receiver_id ?? $testing->receiver_id,
                     'test_date' => $request->test_date ? $request->test_date : $testing->test_date,
-                    'notes' => $request->notes ?? $testing->notes,
+                    'notes' => $mergedNotesJson,
                     'pass_quantity' => $request->pass_quantity ?? $testing->pass_quantity ?? 0,
                     'fail_quantity' => $request->fail_quantity ?? $testing->fail_quantity ?? 0,
                     'fail_reasons' => $request->fail_reasons ?? $testing->fail_reasons,
@@ -710,13 +716,12 @@ class TestingController extends Controller
                         $unitIdx = (int)$unitIdx;
                         $unitPassQuantity = max(0, (int) $unitPassQuantityRaw);
 
-                        // Lưu lại số lượng vào notes theo cấu trúc mới
-                        $currentNotes = $testing->notes ?? '';
-                        $noSerialData = json_decode($currentNotes, true) ?: [];
-                        $noSerialData['no_serial_pass_quantity'] = $noSerialData['no_serial_pass_quantity'] ?? [];
-                        $noSerialData['no_serial_pass_quantity'][$productItemId] = $noSerialData['no_serial_pass_quantity'][$productItemId] ?? [];
-                        $noSerialData['no_serial_pass_quantity'][$productItemId][$unitIdx] = $unitPassQuantity;
-                        $testing->update(['notes' => json_encode($noSerialData)]);
+                        // Lưu lại số lượng vào notes theo cấu trúc mới, bảo toàn general_note
+                        $currentNotesArray = $this->normalizeNotesArray($testing->notes);
+                        $currentNotesArray['no_serial_pass_quantity'] = $currentNotesArray['no_serial_pass_quantity'] ?? [];
+                        $currentNotesArray['no_serial_pass_quantity'][$productItemId] = $currentNotesArray['no_serial_pass_quantity'][$productItemId] ?? [];
+                        $currentNotesArray['no_serial_pass_quantity'][$productItemId][$unitIdx] = $unitPassQuantity;
+                        $testing->update(['notes' => json_encode($currentNotesArray)]);
 
                         if (!$testing->assembly || !$testing->assembly->materials) { continue; }
 
@@ -1297,6 +1302,30 @@ class TestingController extends Controller
                 ? $testing->items->where('item_type', 'product')
                 : $testing->items;
 
+            // ĐỒNG BỘ KẾT QUẢ (vật tư/hàng hoá): lấy theo serial_results nếu có
+            if ($testing->test_type !== 'finished_product') {
+                foreach ($itemsToCheck as $item) {
+                    $qty = (int) ($item->quantity ?? 0);
+                    if (!empty($item->serial_results)) {
+                        $serialResults = json_decode($item->serial_results, true);
+                        if (is_array($serialResults)) {
+                            $countPass = 0; $countFail = 0; $countPending = 0;
+                            foreach ($serialResults as $res) {
+                                if ($res === 'pass') $countPass++;
+                                elseif ($res === 'fail') $countFail++;
+                                else $countPending++;
+                            }
+                            // Nếu đã chấm đủ số lượng theo serial (không còn pending), đồng bộ pass/fail
+                            if (($countPass + $countFail) === $qty && $countPending === 0) {
+                                if ((int)($item->pass_quantity ?? 0) !== $countPass || (int)($item->fail_quantity ?? 0) !== $countFail) {
+                                    $item->update(['pass_quantity' => $countPass, 'fail_quantity' => $countFail]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // RÀNG BUỘC + ĐỒNG BỘ: Chỉ đồng bộ từ serial_results khi đã chấm đủ serial, nếu còn pending thì chặn hoàn thành
             $blockingMessages = [];
             if ($testing->test_type == 'finished_product') {
@@ -1358,8 +1387,8 @@ class TestingController extends Controller
             $totalFailQuantity = 0;
             
             foreach ($itemsToCheck as $item) {
-                $passQuantity = $item->pass_quantity ?? 0;
-                $failQuantity = $item->fail_quantity ?? 0;
+                $passQuantity = (int)($item->pass_quantity ?? 0);
+                $failQuantity = (int)($item->fail_quantity ?? 0);
                 
                 $totalQuantity += $item->quantity;
                 $totalPassQuantity += $passQuantity;
@@ -3371,5 +3400,25 @@ class TestingController extends Controller
         }
         
         return true;
+    }
+
+    /**
+     * Chuẩn hóa notes về dạng mảng. Nếu notes là text thuần thì đặt vào general_note.
+     */
+    private function normalizeNotesArray($notes)
+    {
+        if (is_array($notes)) {
+            $arr = $notes;
+        } else if (is_string($notes) && $notes !== '') {
+            $decoded = json_decode($notes, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $arr = $decoded;
+            } else {
+                $arr = ['general_note' => $notes];
+            }
+        } else {
+            $arr = [];
+        }
+        return $arr;
     }
 }

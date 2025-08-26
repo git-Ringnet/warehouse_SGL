@@ -149,10 +149,14 @@
                         </div>
                         @endif
 
-                        @if($testing->notes)
+                        @php
+                            $__notesData = is_string($testing->notes) ? json_decode($testing->notes, true) : (is_array($testing->notes) ? $testing->notes : []);
+                            $__generalNote = (is_array($__notesData) && array_key_exists('general_note', $__notesData)) ? $__notesData['general_note'] : (is_string($testing->notes) ? $testing->notes : '');
+                        @endphp
+                        @if(!empty($__generalNote))
                         <div class="mb-4 pb-4 border-b border-gray-200">
                             <p class="text-sm text-gray-500 font-medium mb-1">Ghi chú</p>
-                            <p class="text-base text-gray-800">{{ $testing->notes }}</p>
+                            <p class="text-base text-gray-800">{{ $__generalNote }}</p>
                         </div>
                         @endif
                     </div>

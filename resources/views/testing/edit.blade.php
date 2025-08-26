@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chỉnh sửa phiếu kiểm thử - SGL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -256,7 +257,18 @@
                                                         Thành phẩm
                                                     @endif
                                                 </span>
-                                                <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
+                                                @php
+                                                    // Map Serial thành phẩm từ phiếu lắp ráp nếu có
+                                                    $mappedProductSerials = [];
+                                                    if ($testing->test_type == 'finished_product' && $testing->assembly) {
+                                                        $apForSerial = $testing->assembly->products ? $testing->assembly->products->firstWhere('product_id', ($item->product_id ?? $item->good_id)) : null;
+                                                        if ($apForSerial && !empty($apForSerial->serials)) {
+                                                            $mappedProductSerials = array_values(array_filter(array_map('trim', explode(',', $apForSerial->serials))));
+                                                        }
+                                                    }
+                                                    $serialDisplay = count($mappedProductSerials) > 0 ? implode(', ', $mappedProductSerials) : ($item->serial_number ?: 'N/A');
+                                                @endphp
+                                                <span>Serial: {{ $serialDisplay }}</span>
                                                 <span>Số lượng: {{ $item->quantity }}</span>
                                                 @if($testing->status == 'in_progress')
                                                 <span class="ml-4">
@@ -270,9 +282,10 @@
                                                     </div>
                                                     @else
                                                     @php
-                                                    $serials = [];
-                                                    if ($item->serial_number) {
-                                                        $serials = array_filter(array_map('trim', explode(',', $item->serial_number)));
+                                                    // Ưu tiên serial thành phẩm từ lắp ráp nếu có
+                                                    $serials = $mappedProductSerials;
+                                                    if (empty($serials)) {
+                                                        $serials = $item->serial_number ? array_filter(array_map('trim', explode(',', $item->serial_number))) : [];
                                                     }
                                                     $serialCount = count($serials);
                                                     @endphp
@@ -297,6 +310,9 @@
                                                         </div>
                                                         @endforeach
                                                     </div>
+                                                    @endif
+                                                    @if($serialCount == 0)
+                                                    <span class="ml-2 text-xs text-gray-500">Thiết bị được lắp ráp mà không sử dụng Serial có vật tư</span>
                                                     @endif
                                                     @endif
                                                 </span>
@@ -589,7 +605,7 @@
                                                                                     @for($i = 0; $i < $quantity; $i++)
                                                                                         @php $label = chr(65 + $i); @endphp
                                                                                         @if($i < $serialCount)
-                                                                                            <select name="serial_results[{{ $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                                            <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
                                                                                                 <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
                                                                                                 <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
                                                                                                 <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
@@ -816,6 +832,7 @@
                                                                 @endfor
                                                                 <div class="text-gray-400">{{ $quantity }} N/A</div>
                                                             </div>
+                                                            <div class="text-xs text-gray-500">Thiết bị được lắp ráp mà không sử dụng Serial có vật tư</div>
                                                         </div>
                                                     @else
                                                         <div class="text-center text-gray-500 py-4">
@@ -881,10 +898,14 @@
                         </div>
 
                     @if($testing->test_type != 'material')
-                    <!-- Ghi chú (chỉ áp dụng cho thành phẩm) -->
+                    <!-- Ghi chú (ghi/đọc từ general_note trong notes JSON) -->
                     <div class="mb-6 border-t border-gray-200 pt-6">
                         <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                        <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú bổ sung nếu có">{{ $testing->notes }}</textarea>
+                        @php
+                            $__notesData = is_string($testing->notes) ? json_decode($testing->notes, true) : (is_array($testing->notes) ? $testing->notes : []);
+                            $__generalNote = (is_array($__notesData) && array_key_exists('general_note', $__notesData)) ? $__notesData['general_note'] : (is_string($testing->notes) ? $testing->notes : '');
+                        @endphp
+                        <textarea id="notes" name="notes" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Nhập ghi chú bổ sung nếu có">{{ $__generalNote }}</textarea>
                     </div>
                     @endif
 
