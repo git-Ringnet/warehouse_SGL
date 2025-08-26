@@ -1297,6 +1297,42 @@ class TestingController extends Controller
                 ? $testing->items->where('item_type', 'product')
                 : $testing->items;
 
+            // Đảm bảo pass/fail quantity cho thành phẩm dựa trên serial_results nếu chưa được set
+            if ($testing->test_type == 'finished_product') {
+                foreach ($itemsToCheck as $item) {
+                    // Chỉ xử lý các item thành phẩm
+                    if ($item->item_type !== 'product') { continue; }
+
+                    $quantityOriginal = (int) ($item->quantity ?? 0);
+                    $currentPass = (int) ($item->pass_quantity ?? 0);
+                    $currentFail = (int) ($item->fail_quantity ?? 0);
+
+                    // Nếu tổng hiện tại chưa khớp với số lượng gốc thì tính lại từ serial_results
+                    if ($quantityOriginal > 0 && ($currentPass + $currentFail) !== $quantityOriginal) {
+                        $passCount = 0; $failCount = 0;
+                        if (!empty($item->serial_results)) {
+                            $serialResults = json_decode($item->serial_results, true);
+                            if (is_array($serialResults)) {
+                                foreach ($serialResults as $result) {
+                                    if ($result === 'pass') { $passCount++; }
+                                    if ($result === 'fail') { $failCount++; }
+                                }
+                            }
+                        }
+
+                        // Phần còn lại coi như không đạt để đảm bảo tổng luôn khớp
+                        if ($passCount + $failCount < $quantityOriginal) {
+                            $failCount = $quantityOriginal - $passCount; // pending -> fail
+                        }
+
+                        $item->update([
+                            'pass_quantity' => $passCount,
+                            'fail_quantity' => $failCount,
+                        ]);
+                    }
+                }
+            }
+
             // Tính tổng số lượng và kết quả
             $totalQuantity = 0;
             $totalPassQuantity = 0;

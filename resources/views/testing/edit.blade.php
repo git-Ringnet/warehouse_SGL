@@ -456,7 +456,13 @@
                                             $apForProduct = $testing->assembly->products ? $testing->assembly->products->firstWhere('product_id', $productIdForView) : null;
                                             if ($apForProduct) {
                                                 if (!empty($apForProduct->serials)) {
-                                                    $productSerialsForUnits = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+                                                    // Tách serial theo từng đơn vị thành phẩm và hỗ trợ cả key 0-based lẫn 1-based
+                                                    $allSerials = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+                                                    $productSerialsForUnits = [];
+                                                    foreach ($allSerials as $idx => $sn) {
+                                                        $productSerialsForUnits[$idx] = $sn;       // 0-based
+                                                        $productSerialsForUnits[$idx + 1] = $sn;   // 1-based
+                                                    }
                                                 }
                                                 // Lấy tên thành phẩm để hiển thị trên header đơn vị
                                                 $unitProductName = $apForProduct->product->name ?? ($apForProduct->product->code ?? 'Thành phẩm');
@@ -483,7 +489,7 @@
                                             <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
                                                 <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
                                                     <div class="text-sm text-green-800 font-medium">
-                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ $productSerialsForUnits[$unitIdx-1] ?? 'N/A' }}
+                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
                                                     </div>
                                                     <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
                                                 </div>
@@ -1155,3 +1161,4 @@
     </script>
 </body>
 </html> 
+

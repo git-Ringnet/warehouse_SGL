@@ -517,13 +517,29 @@
 
     if ($apForProduct) {
     if (!empty($apForProduct->serials)) {
-    $productSerialsForUnits = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+        // Tách serial theo từng đơn vị thành phẩm
+        $allSerials = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+        $productSerialsForUnits = [];
+        
+        // Phân bổ serial cho từng đơn vị thành phẩm
+        foreach ($allSerials as $index => $serial) {
+            // Gán cho cả key 0-based và 1-based để tương thích dữ liệu product_unit
+            $productSerialsForUnits[$index] = $serial;      // 0,1,2,...
+            $productSerialsForUnits[$index + 1] = $serial;  // 1,2,3,...
+        }
     }
     $unitProductName = $apForProduct->product->name ?? ($apForProduct->product->code ?? 'Thành phẩm');
     }
 
     if (empty($productSerialsForUnits) && !empty($item->serial_number)) {
-    $productSerialsForUnits = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+        // Fallback: nếu không có assembly, dùng serial từ testing item
+        $allSerials = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+        $productSerialsForUnits = [];
+        
+        foreach ($allSerials as $index => $serial) {
+            $productSerialsForUnits[$index] = $serial;      // 0-based
+            $productSerialsForUnits[$index + 1] = $serial;  // 1-based
+        }
     }
 
     foreach ($testing->assembly->materials as $asmMaterial) {
@@ -550,7 +566,7 @@
     <div class="mt-6 mb-4 rounded-lg overflow-hidden border border-green-200">
         <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
             <div class="text-sm text-green-800 font-medium">
-                <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ $productSerialsForUnits[$unitIdx-1] ?? ($item->serial_number ?: 'N/A') }}
+                <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
             </div>
             <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
         </div>
@@ -934,7 +950,15 @@
                 if ($apForProduct) {
                 // Lấy serial list theo từng đơn vị từ phiếu lắp ráp
                 if (!empty($apForProduct->serials)) {
-                $productSerialsForUnits = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+                    // Tách serial theo từng đơn vị thành phẩm
+                    $allSerials = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+                    $productSerialsForUnits = [];
+                    
+                    // Phân bổ serial cho từng đơn vị thành phẩm
+                    foreach ($allSerials as $index => $serial) {
+                        $unitIndex = $index + 1; // Đơn vị thành phẩm bắt đầu từ 1
+                        $productSerialsForUnits[$unitIndex] = $serial;
+                    }
                 }
                 // Lấy tên thành phẩm để hiển thị trên header đơn vị
                 $unitProductName = $apForProduct->product->name ?? ($apForProduct->product->code ?? 'Thành phẩm');
@@ -942,7 +966,14 @@
 
                 // Fallback: Nếu không tìm thấy từ assembly_products, lấy từ testing_items
                 if (empty($productSerialsForUnits) && !empty($item->serial_number)) {
-                $productSerialsForUnits = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+                    // Fallback: nếu không có assembly, dùng serial từ testing item
+                    $allSerials = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+                    $productSerialsForUnits = [];
+                    
+                    foreach ($allSerials as $index => $serial) {
+                        $unitIndex = $index + 1; // Đơn vị thành phẩm bắt đầu từ 1
+                        $productSerialsForUnits[$unitIndex] = $serial;
+                    }
                 }
                 foreach ($testing->assembly->materials as $asmMaterial) {
                 $tp = $asmMaterial->target_product_id ?? null;
@@ -968,7 +999,7 @@
                 <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
                     <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
                         <div class="text-sm text-green-800 font-medium">
-                            <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ $productSerialsForUnits[$unitIdx-1] ?? ($item->serial_number ?: 'N/A') }}
+                            <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
                         </div>
                         <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
                     </div>
