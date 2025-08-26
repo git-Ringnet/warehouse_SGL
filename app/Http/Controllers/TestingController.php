@@ -1297,40 +1297,59 @@ class TestingController extends Controller
                 ? $testing->items->where('item_type', 'product')
                 : $testing->items;
 
-            // Đảm bảo pass/fail quantity cho thành phẩm dựa trên serial_results nếu chưa được set
+            // RÀNG BUỘC + ĐỒNG BỘ: Chỉ đồng bộ từ serial_results khi đã chấm đủ serial, nếu còn pending thì chặn hoàn thành
+            $blockingMessages = [];
             if ($testing->test_type == 'finished_product') {
                 foreach ($itemsToCheck as $item) {
-                    // Chỉ xử lý các item thành phẩm
                     if ($item->item_type !== 'product') { continue; }
 
-                    $quantityOriginal = (int) ($item->quantity ?? 0);
-                    $currentPass = (int) ($item->pass_quantity ?? 0);
-                    $currentFail = (int) ($item->fail_quantity ?? 0);
+                    $qty = (int) ($item->quantity ?? 0);
+                    $pass = (int) ($item->pass_quantity ?? 0);
+                    $fail = (int) ($item->fail_quantity ?? 0);
 
-                    // Nếu tổng hiện tại chưa khớp với số lượng gốc thì tính lại từ serial_results
-                    if ($quantityOriginal > 0 && ($currentPass + $currentFail) !== $quantityOriginal) {
-                        $passCount = 0; $failCount = 0;
-                        if (!empty($item->serial_results)) {
-                            $serialResults = json_decode($item->serial_results, true);
-                            if (is_array($serialResults)) {
-                                foreach ($serialResults as $result) {
-                                    if ($result === 'pass') { $passCount++; }
-                                    if ($result === 'fail') { $failCount++; }
-                                }
+                    // Nếu có serial thì bắt buộc phải chấm đủ (không còn pending)
+                    $serials = [];
+                    if (!empty($item->serial_number)) {
+                        $serials = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+                    }
+                    $serialResults = [];
+                    if (!empty($item->serial_results)) {
+                        $decoded = json_decode($item->serial_results, true);
+                        if (is_array($decoded)) { $serialResults = $decoded; }
+                    }
+
+                    if (!empty($serials)) {
+                        // Đếm kết quả
+                        $pending = 0; $countPass = 0; $countFail = 0;
+                        foreach ($serialResults as $res) {
+                            if ($res === 'pass') $countPass++;
+                            elseif ($res === 'fail') $countFail++;
+                            else $pending++;
+                        }
+                        // Nếu còn pending hoặc chưa đủ số lượng, chặn hoàn thành
+                        if (($countPass + $countFail) !== $qty || $pending > 0) {
+                            $name = $item->product ? $item->product->name : ($item->good->name ?? 'Thành phẩm');
+                            $blockingMessages[] = "Thành phẩm '{$name}' chưa chấm đủ kết quả theo serial (còn thiếu hoặc còn 'Chưa có').";
+                        } else {
+                            // Đã đủ -> đồng bộ pass/fail
+                            if ($pass + $fail !== $qty) {
+                                $item->update(['pass_quantity' => $countPass, 'fail_quantity' => $countFail]);
                             }
                         }
-
-                        // Phần còn lại coi như không đạt để đảm bảo tổng luôn khớp
-                        if ($passCount + $failCount < $quantityOriginal) {
-                            $failCount = $quantityOriginal - $passCount; // pending -> fail
+                    } else {
+                        // Không có serial: vẫn phải đảm bảo pass+fail=qty
+                        if ($pass + $fail !== $qty) {
+                            $name = $item->product ? $item->product->name : ($item->good->name ?? 'Thành phẩm');
+                            $blockingMessages[] = "Thành phẩm '{$name}' chưa có đủ số lượng Đạt/Không đạt (cần đúng {$qty}).";
                         }
-
-                        $item->update([
-                            'pass_quantity' => $passCount,
-                            'fail_quantity' => $failCount,
-                        ]);
                     }
                 }
+            }
+
+            // Nếu có lỗi ràng buộc, dừng lại
+            if (!empty($blockingMessages)) {
+                DB::rollBack();
+                return redirect()->back()->with('error', implode("\n", $blockingMessages));
             }
 
             // Tính tổng số lượng và kết quả
