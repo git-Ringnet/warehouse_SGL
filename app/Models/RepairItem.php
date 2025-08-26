@@ -22,6 +22,7 @@ class RepairItem extends Model
         'device_images',
         'device_parts',
         'device_type',
+        'device_source',
         'rejected_reason',
         'rejected_warehouse_id',
         'rejected_at',

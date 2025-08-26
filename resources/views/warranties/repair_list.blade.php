@@ -55,9 +55,9 @@
                 </div>
             @endif
 
-            @if (session('error'))
-                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-                    {{ session('error') }}
+            @if ($errors->has('error'))
+                <div class="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4" id="errorAlert">
+                    {{ $errors->first('error') }}
                 </div>
             @endif
 
@@ -82,7 +82,8 @@
                             </option>
                             <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>Đang
                                 xử lý</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn thành
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Hoàn
+                                thành
                             </option>
                             <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Đã hủy
                             </option>

@@ -322,8 +322,10 @@ Route::middleware(['auth:web,customer', \App\Http\Middleware\CheckUserType::clas
     // API routes for repairs
     Route::prefix('api/repairs')->group(function () {
         Route::get('search-warranty', [App\Http\Controllers\RepairController::class, 'searchWarranty'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        Route::get('search-warehouse-devices', [App\Http\Controllers\RepairController::class, 'searchWarehouseDevices'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::get('device-materials', [App\Http\Controllers\RepairController::class, 'getDeviceMaterials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
         Route::get('available-serials', [App\Http\Controllers\RepairController::class, 'getAvailableSerials'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.view');
+        Route::post('check-stock-availability', [App\Http\Controllers\RepairController::class, 'checkStockAvailability'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
         Route::post('replace-material', [App\Http\Controllers\RepairController::class, 'replaceMaterial'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
         Route::post('update-device-status', [App\Http\Controllers\RepairController::class, 'updateDeviceStatus'])->middleware(\App\Http\Middleware\CheckPermissionMiddleware::class . ':repairs.edit');
     });

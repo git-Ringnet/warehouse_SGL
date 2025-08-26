@@ -283,29 +283,20 @@ class DashboardController extends Controller
                 }
             }
             
-            // Nếu không có dữ liệu, tạo dữ liệu mẫu
+            // Nếu không có dữ liệu, trả về dữ liệu rỗng
             if (!$hasData) {
-                Log::warning('No data found for chart, returning sample data', [
+                Log::warning('No data found for chart, returning empty data', [
                     'category' => $category,
                     'time_range_type' => $timeRangeType
                 ]);
                 
-                // Tạo dữ liệu mẫu phù hợp với số lượng labels
+                // Trả về dữ liệu rỗng
                 $labelCount = count($labels);
-                $sampleData = [];
-                
-                // Tạo dữ liệu mẫu cho từng ngày
-                for ($i = 0; $i < $labelCount; $i++) {
-                    // Tạo dữ liệu ngẫu nhiên nhưng có quy luật
-                    $baseValue = 100 + ($i * 10); // Tăng dần theo thời gian
-                    $randomFactor = rand(-20, 20); // Thêm yếu tố ngẫu nhiên
-                    
-                    $sampleData['import'][] = max(0, $baseValue + $randomFactor);
-                    $sampleData['export'][] = max(0, $baseValue * 0.7 + $randomFactor);
-                    $sampleData['damaged'][] = max(0, $baseValue * 0.1 + rand(-5, 5));
-                }
-                
-                $chartData = $sampleData;
+                $chartData = [
+                    'import' => array_fill(0, $labelCount, 0),
+                    'export' => array_fill(0, $labelCount, 0),
+                    'damaged' => array_fill(0, $labelCount, 0)
+                ];
             }
             
             $response = [
@@ -393,12 +384,12 @@ class DashboardController extends Controller
                 }
             }
             
-            // Nếu tổng là 0, trả về dữ liệu mẫu
+            // Nếu tổng là 0, trả về dữ liệu rỗng
             if ($total == 0) {
-                Log::warning('No inventory data found, returning sample data');
+                Log::warning('No inventory data found, returning empty data');
                 return response()->json([
                     'labels' => ['Vật tư', 'Thành phẩm', 'Hàng hóa'],
-                    'data' => [60, 30, 10]
+                    'data' => [0, 0, 0]
                 ]);
             }
             
@@ -418,10 +409,10 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             
-            // Return sample data in case of error
+            // Return empty data in case of error
             return response()->json([
                 'labels' => ['Vật tư', 'Thành phẩm', 'Hàng hóa'],
-                'data' => [60, 30, 10]
+                'data' => [0, 0, 0]
             ]);
         }
     }
@@ -563,17 +554,14 @@ class DashboardController extends Controller
                 }
             }
             
-            // Nếu không có dữ liệu, trả về dữ liệu mẫu
+            // Nếu không có dữ liệu, trả về dữ liệu rỗng
             if (empty($labels)) {
-                Log::warning('No warehouse data found, returning sample data');
+                Log::warning('No warehouse data found, returning empty data');
                 return response()->json([
-                    'labels' => ['Kho chính', 'Kho phụ'],
-                    'data' => [70, 30],
-                    'colors' => array_slice($colors, 0, 2),
-                    'details' => [
-                        ['id' => 'sample1', 'name' => 'Kho chính', 'material_count' => 700, 'product_count' => 300, 'good_count' => 100, 'total' => 1100, 'percent' => 70],
-                        ['id' => 'sample2', 'name' => 'Kho phụ', 'material_count' => 300, 'product_count' => 100, 'good_count' => 70, 'total' => 470, 'percent' => 30]
-                    ]
+                    'labels' => [],
+                    'data' => [],
+                    'colors' => [],
+                    'details' => []
                 ]);
             }
             
@@ -615,16 +603,12 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             
-            // Return sample data in case of error
+            // Return empty data in case of error
             return response()->json([
-                'labels' => ['Kho A', 'Kho B', 'Kho C'],
-                'data' => [50, 30, 20],
-                'colors' => ['#3b82f6', '#10b981', '#f59e0b'],
-                'details' => [
-                    ['id' => 'sample1', 'name' => 'Kho A', 'material_count' => 500, 'product_count' => 200, 'good_count' => 100, 'total' => 800, 'percent' => 50],
-                    ['id' => 'sample2', 'name' => 'Kho B', 'material_count' => 300, 'product_count' => 150, 'good_count' => 30, 'total' => 480, 'percent' => 30],
-                    ['id' => 'sample3', 'name' => 'Kho C', 'material_count' => 200, 'product_count' => 100, 'good_count' => 20, 'total' => 320, 'percent' => 20]
-                ],
+                'labels' => [],
+                'data' => [],
+                'colors' => [],
+                'details' => [],
                 'error' => $e->getMessage()
             ]);
         }
@@ -1089,10 +1073,10 @@ class DashboardController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
             
-            // Return sample data in case of error
+            // Return empty data in case of error
             return response()->json([
                 'labels' => ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6'],
-                'data' => [12, 19, 25, 37, 45, 56]
+                'data' => [0, 0, 0, 0, 0, 0]
             ]);
         }
     }

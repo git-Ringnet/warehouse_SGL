@@ -20,7 +20,7 @@
     <!-- Main Content -->
     <div class="content-area ml-64">
         <!-- Top Bar -->
-    
+
 
         <!-- Main Content -->
         <main class=" pb-16 px-6">
@@ -50,45 +50,53 @@
                             <i class="fas fa-chevron-down"></i>
                         </div>
                     </div>
-                    
+
                     <!-- Date inputs - will show/hide based on selection -->
                     <div id="dateInputs" class="flex space-x-2">
                         <!-- Single day picker - for "Theo ngày" -->
                         <div id="dayInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="dayStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="dayStartDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="dayEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="dayEndDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
-                        
+
                         <!-- Week picker - for "Theo tuần" -->
                         <div id="weekInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="weekStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="weekStartDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="weekEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="weekEndDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
-                        
+
                         <!-- Month picker - for "Theo tháng" -->
                         <div id="monthInput" class="flex space-x-2">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="monthStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="monthStartDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="monthEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="monthEndDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
-                        
+
                         <!-- Year picker - for "Theo năm" -->
                         <div id="yearInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="yearStartDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="yearStartDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="yearEndDate" class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input type="date" id="yearEndDate"
+                                    class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
-                        
+
 
                     </div>
                 </div>
@@ -100,7 +108,7 @@
                 <div class="flex flex-col md:flex-row gap-3">
                     <div class="flex-grow">
                         <div class="relative">
-                            <input type="text" id="searchQuery" placeholder="Tìm kiếm theo ID hoặc Tên..." 
+                            <input type="text" id="searchQuery" placeholder="Tìm kiếm theo ID hoặc Tên..."
                                 class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 pl-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <i class="fas fa-search text-gray-400"></i>
@@ -108,7 +116,7 @@
                         </div>
                     </div>
                     <div>
-                        <select id="searchCategory" 
+                        <select id="searchCategory"
                             class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full md:w-auto">
                             <option value="all">Tất cả</option>
                             <option value="materials">Vật tư</option>
@@ -123,39 +131,47 @@
                             <i class="fas fa-filter mr-1"></i> Bộ lọc
                         </button>
                     </div> -->
-                    <button id="searchButton" 
+                    <button id="searchButton"
                         class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
                         Tìm kiếm
                     </button>
                 </div>
-                
+
                 <!-- Advanced Filter Panel -->
                 <div id="advancedFilterPanel" class="mt-4 hidden border-t border-gray-200 dark:border-gray-700 pt-4">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <!-- Filter by Warehouse -->
                         <div>
-                            <label for="filterWarehouse" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kho</label>
-                            <select id="filterWarehouse" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="filterWarehouse"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kho</label>
+                            <select id="filterWarehouse"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả kho</option>
                                 <!-- Warehouses will be loaded dynamically -->
                             </select>
                         </div>
-                        
+
                         <!-- Filter by Status -->
                         <div>
-                            <label for="filterStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái</label>
-                            <select id="filterStatus" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="filterStatus"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng
+                                thái</label>
+                            <select id="filterStatus"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả trạng thái</option>
                                 <option value="active">Đang hoạt động</option>
                                 <option value="inactive">Không hoạt động</option>
                                 <option value="pending">Đang chờ xử lý</option>
                             </select>
                         </div>
-                        
+
                         <!-- Filter by Date Range -->
                         <div>
-                            <label for="filterDateRange" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Thời gian</label>
-                            <select id="filterDateRange" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="filterDateRange"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Thời
+                                gian</label>
+                            <select id="filterDateRange"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả thời gian</option>
                                 <option value="today">Hôm nay</option>
                                 <option value="week">Tuần này</option>
@@ -164,22 +180,27 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <!-- Include Out of Stock Checkbox -->
                     <div class="mt-4">
                         <div class="flex items-center">
-                            <input type="checkbox" id="includeOutOfStock" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                            <label for="includeOutOfStock" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" id="includeOutOfStock"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="includeOutOfStock"
+                                class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
                                 Bao gồm cả sản phẩm ngoài kho (số lượng = 0)
                             </label>
                         </div>
                     </div>
-                    
+
                     <!-- Category-specific filters -->
                     <div id="materialFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
                         <div>
-                            <label for="filterMaterialType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại vật tư</label>
-                            <select id="filterMaterialType" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="filterMaterialType"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại vật
+                                tư</label>
+                            <select id="filterMaterialType"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả loại</option>
                                 <option value="electronic">Điện tử</option>
                                 <option value="mechanical">Cơ khí</option>
@@ -187,11 +208,14 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div id="productFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
                         <div>
-                            <label for="filterProductType" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại thành phẩm</label>
-                            <select id="filterProductType" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="filterProductType"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Loại thành
+                                phẩm</label>
+                            <select id="filterProductType"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả loại</option>
                                 <option value="device">Thiết bị</option>
                                 <option value="component">Linh kiện</option>
@@ -199,11 +223,14 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div id="projectFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
                         <div>
-                            <label for="filterProjectStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái dự án</label>
-                            <select id="filterProjectStatus" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="filterProjectStatus"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái dự
+                                án</label>
+                            <select id="filterProjectStatus"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả trạng thái</option>
                                 <option value="planning">Đang lập kế hoạch</option>
                                 <option value="in_progress">Đang thực hiện</option>
@@ -213,54 +240,72 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="mt-4 flex justify-end">
-                        <button id="resetFilters" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors mr-2">
+                        <button id="resetFilters"
+                            class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors mr-2">
                             Đặt lại
                         </button>
-                        <button id="applyFilters" class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                        <button id="applyFilters"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors">
                             Áp dụng
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Search Results -->
                 <div id="searchResults" class="mt-4 hidden">
                     <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
                         <div class="flex justify-between items-center mb-3">
-                            <h4 class="font-semibold text-gray-800 dark:text-white" id="resultTitle">Kết quả tìm kiếm</h4>
-                            <button id="closeResults" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                            <h4 class="font-semibold text-gray-800 dark:text-white" id="resultTitle">Kết quả tìm kiếm
+                            </h4>
+                            <button id="closeResults"
+                                class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        
+
                         <!-- Search Results Count -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-4">
                             <div class="flex justify-between items-center">
                                 <div>
                                     <span class="text-sm text-gray-500 dark:text-gray-400">Tìm thấy </span>
-                                    <span class="text-lg font-semibold text-gray-800 dark:text-white" id="resultCount">0</span>
+                                    <span class="text-lg font-semibold text-gray-800 dark:text-white"
+                                        id="resultCount">0</span>
                                     <span class="text-sm text-gray-500 dark:text-gray-400"> kết quả</span>
                                 </div>
                                 <div>
-                                    <button id="viewAllResults" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
+                                    <button id="viewAllResults"
+                                        class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm">
                                         Xem tất cả <i class="fas fa-arrow-right ml-1"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Search Results List -->
                         <div class="overflow-x-auto">
                             <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
                                 <thead class="bg-gray-100 dark:bg-gray-700">
                                     <tr>
-                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Mã</th>
-                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Tên</th>
-                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Loại</th>
-                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Serial</th>
-                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Vị trí</th>
-                                        <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
+                                        <th
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Mã</th>
+                                        <th
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Tên</th>
+                                        <th
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Loại</th>
+                                        <th
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Serial</th>
+                                        <th
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Vị trí</th>
+                                        <th
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody id="searchResultsList">
@@ -276,7 +321,8 @@
                 <!-- Vật tư -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center mb-3">
-                        <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300 mr-4">
+                        <div
+                            class="p-3 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-500 dark:text-blue-300 mr-4">
                             <i class="fas fa-boxes text-xl"></i>
                         </div>
                         <div>
@@ -302,7 +348,8 @@
                 <!-- Thành phẩm -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center mb-3">
-                        <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-500 dark:text-green-300 mr-4">
+                        <div
+                            class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-500 dark:text-green-300 mr-4">
                             <i class="fas fa-box-open text-xl"></i>
                         </div>
                         <div>
@@ -328,7 +375,8 @@
                 <!-- Hàng hóa -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
                     <div class="flex items-center mb-3">
-                        <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-500 dark:text-purple-300 mr-4">
+                        <div
+                            class="p-3 rounded-full bg-purple-100 dark:bg-purple-900 text-purple-500 dark:text-purple-300 mr-4">
                             <i class="fas fa-shopping-cart text-xl"></i>
                         </div>
                         <div>
@@ -355,20 +403,27 @@
             <!-- Main Chart Row -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 <!-- Inventory Overview Chart -->
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 lg:col-span-2 hover:shadow-md transition-shadow">
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 lg:col-span-2 hover:shadow-md transition-shadow">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white">
                             Tổng quan nhập/xuất/hư hỏng
                         </h3>
                         <div class="flex items-center space-x-2">
                             <div class="flex items-center">
-                                <button data-category="materials" class="category-filter px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800 active">Vật tư</button>
+                                <button data-category="materials"
+                                    class="category-filter px-3 py-1 text-xs rounded-full bg-blue-100 text-blue-800 active">Vật
+                                    tư</button>
                             </div>
                             <div class="flex items-center">
-                                <button data-category="products" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Thành phẩm</button>
+                                <button data-category="products"
+                                    class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Thành
+                                    phẩm</button>
                             </div>
                             <div class="flex items-center">
-                                <button data-category="goods" class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Hàng hóa</button>
+                                <button data-category="goods"
+                                    class="category-filter px-3 py-1 text-xs rounded-full bg-gray-100 text-gray-800">Hàng
+                                    hóa</button>
                             </div>
                         </div>
                     </div>
@@ -414,7 +469,8 @@
                             Phân bố theo kho
                         </h3>
                         <div class="flex items-center space-x-2">
-                            <select id="warehouseChartItemType" class="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <select id="warehouseChartItemType"
+                                class="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
                                 <option value="">Tất cả loại</option>
                                 <option value="material">Vật tư</option>
                                 <option value="product">Thành phẩm</option>
@@ -442,15 +498,18 @@
     </div>
 
     <!-- Modal for viewing item details -->
-    <div id="itemDetailsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div id="itemDetailsModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
+            <div
+                class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800 z-10">
                 <h3 class="text-lg font-semibold text-gray-800 dark:text-white" id="modalTitle">Chi tiết</h3>
-                <button id="closeModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                <button id="closeModal"
+                    class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
+
             <div class="p-4">
                 <!-- Basic Item Details -->
                 <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
@@ -458,31 +517,36 @@
                         <div>
                             <div class="mb-2">
                                 <span class="text-sm text-gray-500 dark:text-gray-400">Mã:</span>
-                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemId"></span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2"
+                                    id="itemId"></span>
                             </div>
                             <div class="mb-2">
                                 <span class="text-sm text-gray-500 dark:text-gray-400">Tên:</span>
-                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemName"></span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2"
+                                    id="itemName"></span>
                             </div>
                             <div class="mb-2">
                                 <span class="text-sm text-gray-500 dark:text-gray-400">Loại:</span>
-                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemCategory"></span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2"
+                                    id="itemCategory"></span>
                             </div>
                         </div>
                         <div>
                             <div class="mb-2">
                                 <span class="text-sm text-gray-500 dark:text-gray-400">Serial:</span>
-                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2" id="itemSerial"></span>
+                                <span class="text-lg font-semibold text-gray-800 dark:text-white ml-2"
+                                    id="itemSerial"></span>
                             </div>
                             <div>
-                                <a href="#" id="viewDetail" class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                                <a href="#" id="viewDetail"
+                                    class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
                                     Xem chi tiết <i class="fas fa-arrow-right ml-1"></i>
                                 </a>
                             </div>
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Detailed Information Tables -->
                 <!-- Materials Info Table -->
                 <div id="materialsInfo" class="hidden">
@@ -492,29 +556,35 @@
                             <tbody>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Nhà cung cấp</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialSupplier"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="materialSupplier"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemDate"></td>
                                 </tr>
                                 <tr>
-                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialQuantity"></td>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có
+                                    </td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="materialQuantity"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Đơn vị</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="materialUnit"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="materialUnit"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemLocation"></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                
+
                 <!-- Finished Products Info Table -->
                 <div id="finishedInfo" class="hidden">
                     <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin thành phẩm</h5>
@@ -523,29 +593,35 @@
                             <tbody>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày sản xuất</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedManufactureDate"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="finishedManufactureDate"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập kho</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemDate"></td>
                                 </tr>
                                 <tr>
-                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedQuantity"></td>
+                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng hiện có
+                                    </td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="finishedQuantity"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Thuộc dự án</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="finishedProject"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="finishedProject"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemLocation"></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                
+
                 <!-- Goods Info Table -->
                 <div id="goodsInfo" class="hidden">
                     <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin hàng hóa</h5>
@@ -554,29 +630,34 @@
                             <tbody>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Nhà phân phối</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsDistributor"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="goodsDistributor"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày nhập</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemDate"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemDate"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Giá nhập</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsPrice"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="goodsPrice"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="goodsQuantity"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="goodsQuantity"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Vị trí</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemLocation"></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                
+
                 <!-- Projects Info Table -->
                 <div id="projectsInfo" class="hidden">
                     <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin dự án</h5>
@@ -585,25 +666,29 @@
                             <tbody>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Khách hàng</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectCustomer"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="projectCustomer"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Địa điểm</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="itemLocation"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="itemLocation"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Ngày bắt đầu</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectStartDate"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="projectStartDate"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Hạn hoàn thành</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="projectEndDate"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="projectEndDate"></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                
+
                 <!-- Customers Info Table -->
                 <div id="customersInfo" class="hidden">
                     <h5 class="font-semibold text-gray-800 dark:text-white mb-3">Thông tin khách hàng</h5>
@@ -612,30 +697,42 @@
                             <tbody>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số điện thoại</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerPhone"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="customerPhone"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Email</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerEmail"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="customerEmail"></td>
                                 </tr>
                                 <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Địa chỉ</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium" id="customerAddress"></td>
+                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
+                                        id="customerAddress"></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    
+
                     <!-- Related Projects Table for Customer -->
                     <h5 class="font-semibold text-gray-800 dark:text-white mt-4 mb-3">Các dự án liên quan</h5>
                     <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden" id="customerProjectsTable">
+                        <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden"
+                            id="customerProjectsTable">
                             <thead class="bg-gray-100 dark:bg-gray-700">
                                 <tr>
-                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Mã dự án</th>
-                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Tên dự án</th>
-                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Ngày bắt đầu</th>
-                                    <th class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">Trạng thái</th>
+                                    <th
+                                        class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Mã dự án</th>
+                                    <th
+                                        class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Tên dự án</th>
+                                    <th
+                                        class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Ngày bắt đầu</th>
+                                    <th
+                                        class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Trạng thái</th>
                                 </tr>
                             </thead>
                             <tbody id="customerProjectsList">
@@ -650,29 +747,31 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            
+
             // Update current time
             updateCurrentTime();
             setInterval(updateCurrentTime, 1000);
-            
+
             // Initialize charts
             if (typeof initCharts === 'function') {
                 window.chartInstances = initCharts();
             }
-            
+
             // Thêm event listener cho các trường ngày để tự động cập nhật biểu đồ
             const dateInputs = document.querySelectorAll('input[type="date"]');
             dateInputs.forEach(input => {
                 input.addEventListener('change', function() {
                     // Tự động cập nhật biểu đồ khi thay đổi ngày
                     setTimeout(() => {
-                        if (window.chartInstances && window.chartInstances.inventoryOverviewChart) {
-                            updateInventoryOverviewChart('materials', window.chartInstances);
+                        if (window.chartInstances && window.chartInstances
+                            .inventoryOverviewChart) {
+                            updateInventoryOverviewChart('materials', window
+                                .chartInstances);
                         }
                     }, 100);
                 });
             });
-            
+
             // Thêm event listener cho advanced filter button nếu tồn tại
             const advancedFilterBtn = document.getElementById('advancedFilterBtn');
             const advancedFilterPanel = document.getElementById('advancedFilterPanel');
@@ -729,13 +828,13 @@
 
         // Initialize all charts and store references
         let charts;
-        
+
         const initCharts = () => {
             // Nếu đã có charts thì không khởi tạo lại
             if (window.chartInstances) {
                 return window.chartInstances;
             }
-            
+
             const textColor = "#000000";
             const gridColor = "rgba(255, 255, 255, 0.1)";
             const borderColor = "rgba(255, 255, 255, 0.2)";
@@ -746,7 +845,7 @@
                     if (chart) chart.destroy();
                 });
             }
-            
+
             // Inventory Overview Chart
             const inventoryOverviewCtx = document
                 .getElementById("inventoryOverviewChart")
@@ -754,29 +853,22 @@
             const inventoryOverviewChart = new Chart(inventoryOverviewCtx, {
                 type: "bar",
                 data: {
-                    labels: [
-                        "Tháng 1",
-                        "Tháng 2",
-                        "Tháng 3",
-                        "Tháng 4",
-                        "Tháng 5",
-                        "Tháng 6",
-                    ],
+                    labels: [],
                     datasets: [{
                             label: "Nhập kho",
-                            data: [0, 0, 0, 0, 0, 0],
+                            data: [],
                             backgroundColor: "#10b981",
                             borderRadius: 4,
                         },
                         {
                             label: "Xuất kho",
-                            data: [0, 0, 0, 0, 0, 0],
+                            data: [],
                             backgroundColor: "#ef4444",
                             borderRadius: 4,
                         },
                         {
                             label: "Hư hỏng",
-                            data: [0, 0, 0, 0, 0, 0],
+                            data: [],
                             backgroundColor: "#f59e0b",
                             borderRadius: 4,
                         }
@@ -858,10 +950,10 @@
             const projectGrowthChart = new Chart(projectGrowthCtx, {
                 type: "line",
                 data: {
-                    labels: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6"],
+                    labels: [],
                     datasets: [{
                         label: "Số lượng dự án",
-                        data: [12, 19, 25, 37, 45, 56],
+                        data: [],
                         fill: true,
                         backgroundColor: "rgba(139, 92, 246, 0.2)",
                         borderColor: "#8b5cf6",
@@ -921,9 +1013,9 @@
             const warehouseDistributionChart = new Chart(warehouseDistributionCtx, {
                 type: "doughnut",
                 data: {
-                    labels: ["Đang tải dữ liệu..."],
+                    labels: [],
                     datasets: [{
-                        data: [100],
+                        data: [],
                         backgroundColor: ["#3b82f6"],
                         borderWidth: 0,
                     }, ],
@@ -965,13 +1057,9 @@
             const inventoryCategoriesChart = new Chart(inventoryCategoriesCtx, {
                 type: "polarArea",
                 data: {
-                    labels: [
-                        "Vật tư",
-                        "Thành phẩm",
-                        "Hàng hóa",
-                    ],
+                    labels: [],
                     datasets: [{
-                        data: [0, 0, 0],
+                        data: [],
                         backgroundColor: [
                             "rgba(59, 130, 246, 0.8)",
                             "rgba(16, 185, 129, 0.8)",
@@ -1136,15 +1224,15 @@
 
             // Toggle appropriate date input based on selection
             const selectedValue = this.value;
-            
+
             // Hide all inputs first
             document.getElementById('dayInput').classList.add('hidden');
             document.getElementById('weekInput').classList.add('hidden');
             document.getElementById('monthInput').classList.add('hidden');
             document.getElementById('yearInput').classList.add('hidden');
-            
+
             // Show the selected input
-            switch(selectedValue) {
+            switch (selectedValue) {
                 case 'day':
                     document.getElementById('dayInput').classList.remove('hidden');
                     break;
@@ -1206,19 +1294,19 @@
         document.querySelectorAll('.category-filter').forEach(button => {
             button.addEventListener('click', function() {
                 console.log('Category filter clicked:', this.dataset.category);
-                
+
                 // Remove active class from all buttons
                 document.querySelectorAll('.category-filter').forEach(btn => {
                     btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
                     btn.classList.add('bg-gray-100', 'text-gray-800');
                 });
-                
+
                 // Add active class to clicked button
                 this.classList.add('active', 'bg-blue-100', 'text-blue-800');
                 this.classList.remove('bg-gray-100', 'text-gray-800');
-                
+
                 const category = this.dataset.category;
-                
+
                 // Call the updateInventoryOverviewChart function directly
                 updateInventoryOverviewChart(category, charts);
             });
@@ -1228,21 +1316,21 @@
         document.getElementById('searchButton').addEventListener('click', function() {
             const searchQuery = document.getElementById('searchQuery').value.trim();
             const searchCategory = document.getElementById('searchCategory').value;
-            
+
             if (searchQuery === '') {
                 showToast('warning', 'Vui lòng nhập ID hoặc Serial để tìm kiếm');
                 return;
             }
-            
+
             // Show loading state
             showToast('info', 'Đang tìm kiếm...');
-            
+
             // In a real application, you would make an API call here
             // For demonstration, we'll simulate a search with setTimeout
             setTimeout(() => {
                 // Simulate search results based on the category
                 const result = simulateSearchResult(searchQuery, searchCategory);
-                
+
                 if (result) {
                     displaySearchResult(result);
                     showToast('success', 'Tìm thấy thông tin!');
@@ -1252,12 +1340,12 @@
                 }
             }, 800);
         });
-        
+
         // Close search results
         document.getElementById('closeResults').addEventListener('click', function() {
             document.getElementById('searchResults').classList.add('hidden');
         });
-        
+
         // Display search result in the UI
         function displaySearchResult(result) {
             // Set the common item details
@@ -1265,20 +1353,20 @@
             document.getElementById('itemName').textContent = result.name;
             document.getElementById('itemCategory').textContent = result.categoryName;
             document.getElementById('itemSerial').textContent = result.serial;
-            
+
             // Set view detail link
             document.getElementById('viewDetail').setAttribute('href', result.detailUrl);
-            
+
             // Hide all category specific info sections
             document.getElementById('materialsInfo').classList.add('hidden');
             document.getElementById('finishedInfo').classList.add('hidden');
             document.getElementById('goodsInfo').classList.add('hidden');
             document.getElementById('projectsInfo').classList.add('hidden');
             document.getElementById('customersInfo').classList.add('hidden');
-            
+
             // Show the appropriate category info section and populate it
             const category = result.category;
-            
+
             switch (category) {
                 case 'materials':
                     const materialsInfo = document.getElementById('materialsInfo');
@@ -1287,7 +1375,7 @@
                     document.getElementById('materialQuantity').textContent = result.additionalInfo.quantity;
                     document.getElementById('materialUnit').textContent = result.additionalInfo.unit;
                     break;
-                    
+
                 case 'finished':
                     const finishedInfo = document.getElementById('finishedInfo');
                     finishedInfo.classList.remove('hidden');
@@ -1295,7 +1383,7 @@
                     document.getElementById('finishedQuantity').textContent = result.additionalInfo.quantity;
                     document.getElementById('finishedProject').textContent = result.additionalInfo.project;
                     break;
-                    
+
                 case 'goods':
                     const goodsInfo = document.getElementById('goodsInfo');
                     goodsInfo.classList.remove('hidden');
@@ -1303,7 +1391,7 @@
                     document.getElementById('goodsPrice').textContent = result.additionalInfo.price;
                     document.getElementById('goodsQuantity').textContent = result.additionalInfo.quantity;
                     break;
-                    
+
                 case 'projects':
                     const projectsInfo = document.getElementById('projectsInfo');
                     projectsInfo.classList.remove('hidden');
@@ -1311,41 +1399,41 @@
                     document.getElementById('projectStartDate').textContent = result.additionalInfo.startDate;
                     document.getElementById('projectEndDate').textContent = result.additionalInfo.endDate;
                     break;
-                    
+
                 case 'customers':
                     const customersInfo = document.getElementById('customersInfo');
                     customersInfo.classList.remove('hidden');
                     document.getElementById('customerPhone').textContent = result.additionalInfo.phone;
                     document.getElementById('customerEmail').textContent = result.additionalInfo.email;
                     document.getElementById('customerAddress').textContent = result.additionalInfo.address;
-                    
+
                     // Populate related projects table for customers
                     if (result.additionalInfo.relatedProjects && result.additionalInfo.relatedProjects.length > 0) {
                         const projectsListContainer = document.getElementById('customerProjectsList');
                         projectsListContainer.innerHTML = ''; // Clear existing content
-                        
+
                         result.additionalInfo.relatedProjects.forEach(project => {
                             const row = document.createElement('tr');
-                            
+
                             const idCell = document.createElement('td');
                             idCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                             idCell.textContent = project.id;
-                            
+
                             const nameCell = document.createElement('td');
                             nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                             nameCell.textContent = project.name;
-                            
+
                             const dateCell = document.createElement('td');
                             dateCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                             dateCell.textContent = project.startDate;
-                            
+
                             const statusCell = document.createElement('td');
                             statusCell.className = 'py-2 px-4 border-b';
-                            
+
                             const statusBadge = document.createElement('span');
                             statusBadge.textContent = project.status;
                             statusBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
-                            
+
                             // Add color based on status
                             if (project.status === 'Hoàn thành') {
                                 statusBadge.classList.add('bg-green-500');
@@ -1356,33 +1444,33 @@
                             } else {
                                 statusBadge.classList.add('bg-gray-500');
                             }
-                            
+
                             statusCell.appendChild(statusBadge);
-                            
+
                             row.appendChild(idCell);
                             row.appendChild(nameCell);
                             row.appendChild(dateCell);
                             row.appendChild(statusCell);
-                            
+
                             projectsListContainer.appendChild(row);
                         });
                     }
                     break;
             }
-            
+
             // Show the result container
             document.getElementById('searchResults').classList.remove('hidden');
         }
-        
+
         // Show toast notifications
         function showToast(type, message) {
             const toast = document.getElementById('toast');
-            
+
             // Xóa thông báo cũ nếu đang hiển thị
             clearTimeout(window.toastTimeout);
-            
+
             let icon, bgColor;
-            
+
             switch (type) {
                 case 'success':
                     icon = 'fa-check-circle';
@@ -1401,22 +1489,22 @@
                     icon = 'fa-info-circle';
                     bgColor = 'bg-blue-500';
             }
-            
+
             toast.innerHTML = `<div class="toast ${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center">
                 <i class="fas ${icon} mr-2"></i>
                 <span>${message}</span>
             </div>`;
-            
+
             toast.classList.remove('hidden');
-            
+
             // Lưu reference đến timeout để có thể xóa nếu cần
             window.toastTimeout = setTimeout(() => {
                 toast.classList.add('hidden');
             }, 3000);
-            
+
             console.log(`Toast notification: [${type}] ${message}`);
         }
-        
+
         // Simulate search results (in a real app, this would be an API call)
         function simulateSearchResult(query, category) {
             // Simulate some example search results based on the query and category
@@ -1499,8 +1587,7 @@
                         phone: '024.2222.1999',
                         email: 'contact@evn.com.vn',
                         address: '11 Cửa Bắc, Trúc Bạch, Ba Đình, Hà Nội',
-                        relatedProjects: [
-                            {
+                        relatedProjects: [{
                                 id: 'DA001',
                                 name: 'Bảo trì hệ thống điều hòa trung tâm',
                                 startDate: '15/03/2023',
@@ -1538,12 +1625,12 @@
                     }
                 }
             };
-            
+
             // Check if we have a direct match in our example data
             if (exampleResults[query]) {
                 return exampleResults[query];
             }
-            
+
             // If no direct match but query resembles a part of a serial
             if (query.length >= 4) {
                 for (const key in exampleResults) {
@@ -1556,11 +1643,11 @@
                     }
                 }
             }
-            
+
             // Return null if no match
             return null;
         }
-        
+
         // Add event listener to search on Enter key press
         document.getElementById('searchQuery').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -1572,16 +1659,16 @@
         document.addEventListener("DOMContentLoaded", function() {
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const selectedValue = timeRangeSelect.value;
-            
+
             // Hide all inputs first
             document.getElementById('dayInput').classList.add('hidden');
             document.getElementById('weekInput').classList.add('hidden');
             document.getElementById('monthInput').classList.add('hidden');
             document.getElementById('yearInput').classList.add('hidden');
 
-            
+
             // Show the selected input
-            switch(selectedValue) {
+            switch (selectedValue) {
                 case 'day':
                     document.getElementById('dayInput').classList.remove('hidden');
                     break;
@@ -1596,7 +1683,7 @@
                     break;
 
             }
-            
+
             // Set default values to current date
             const now = new Date();
             const currentYear = now.getFullYear();
@@ -1605,22 +1692,22 @@
             const currentDay = now.getDate();
             const formattedDay = currentDay < 10 ? `0${currentDay}` : currentDay;
             const today = `${currentYear}-${formattedMonth}-${formattedDay}`;
-            
+
             // Set default values for all date inputs
             setDefaultDateRanges(today);
-            
+
             // Add event listener for time range selection change
             timeRangeSelect.addEventListener('change', function() {
                 const selectedValue = this.value;
-                
+
                 // Hide all inputs first
                 document.getElementById('dayInput').classList.add('hidden');
                 document.getElementById('weekInput').classList.add('hidden');
                 document.getElementById('monthInput').classList.add('hidden');
                 document.getElementById('yearInput').classList.add('hidden');
-                
+
                 // Show the selected input
-                switch(selectedValue) {
+                switch (selectedValue) {
                     case 'day':
                         document.getElementById('dayInput').classList.remove('hidden');
                         break;
@@ -1634,10 +1721,10 @@
                         document.getElementById('yearInput').classList.remove('hidden');
                         break;
                 }
-                
+
                 // Update date ranges based on selection
                 setDefaultDateRanges(today);
-                
+
                 // Tự động cập nhật biểu đồ khi thay đổi loại thời gian
                 setTimeout(() => {
                     if (window.chartInstances && window.chartInstances.inventoryOverviewChart) {
@@ -1651,14 +1738,14 @@
         function setDefaultDateRanges(today) {
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const selectedValue = timeRangeSelect.value;
-            
-            switch(selectedValue) {
+
+            switch (selectedValue) {
                 case 'day':
                     // For day range, set both start and end to today
                     document.getElementById('dayStartDate').value = today;
                     document.getElementById('dayEndDate').value = today;
                     break;
-                    
+
                 case 'week':
                     // For week range, set to current week
                     const weekStart = getWeekStart(today);
@@ -1666,7 +1753,7 @@
                     document.getElementById('weekStartDate').value = weekStart;
                     document.getElementById('weekEndDate').value = weekEnd;
                     break;
-                    
+
                 case 'month':
                     // For month range, set to current month
                     const monthStart = getMonthStart(today);
@@ -1674,7 +1761,7 @@
                     document.getElementById('monthStartDate').value = monthStart;
                     document.getElementById('monthEndDate').value = monthEnd;
                     break;
-                    
+
                 case 'year':
                     // For year range, set to current year
                     const yearStart = getYearStart(today);
@@ -1682,7 +1769,7 @@
                     document.getElementById('yearStartDate').value = yearStart;
                     document.getElementById('yearEndDate').value = yearEnd;
                     break;
-                    
+
 
             }
         }
@@ -1728,33 +1815,33 @@
         function getCurrentDateRange() {
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const selectedValue = timeRangeSelect.value;
-            
-            switch(selectedValue) {
+
+            switch (selectedValue) {
                 case 'day':
                     return {
                         start: document.getElementById('dayStartDate').value,
-                        end: document.getElementById('dayEndDate').value
+                            end: document.getElementById('dayEndDate').value
                     };
                 case 'week':
                     return {
                         start: document.getElementById('weekStartDate').value,
-                        end: document.getElementById('weekEndDate').value
+                            end: document.getElementById('weekEndDate').value
                     };
                 case 'month':
                     return {
                         start: document.getElementById('monthStartDate').value,
-                        end: document.getElementById('monthEndDate').value
+                            end: document.getElementById('monthEndDate').value
                     };
                 case 'year':
                     return {
                         start: document.getElementById('yearStartDate').value,
-                        end: document.getElementById('yearEndDate').value
+                            end: document.getElementById('yearEndDate').value
                     };
 
                 default:
                     return {
                         start: document.getElementById('monthStartDate').value,
-                        end: document.getElementById('monthEndDate').value
+                            end: document.getElementById('monthEndDate').value
                     };
             }
         }
@@ -1788,35 +1875,70 @@
         updateStatistics();
         setInterval(updateStatistics, 300000);
 
+        // Hàm kiểm tra và hiển thị thông báo không có dữ liệu
+        function showNoDataMessage(chartElement, message = 'Không có dữ liệu') {
+            // Tạo một div để hiển thị thông báo thay vì vẽ lên canvas
+            const existingMessage = chartElement.querySelector('.no-data-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className =
+                'no-data-message absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-700 rounded-lg';
+            messageDiv.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-chart-line text-4xl text-gray-400 mb-2"></i>
+                    <p class="text-gray-500 dark:text-gray-400 font-medium">${message}</p>
+                </div>
+            `;
+
+            // Thêm position relative cho container nếu chưa có
+            if (getComputedStyle(chartElement).position === 'static') {
+                chartElement.style.position = 'relative';
+            }
+
+            chartElement.appendChild(messageDiv);
+        }
+
+        // Hàm xóa thông báo không có dữ liệu
+        function removeNoDataMessage(chartElement) {
+            const existingMessage = chartElement.querySelector('.no-data-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+        }
+
         // Thêm hàm cập nhật biểu đồ tổng quan
         function updateInventoryOverviewChart(category = 'materials', charts) {
             console.log('updateInventoryOverviewChart called with category:', category);
-            
+
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
                 charts = window.chartInstances;
             }
-            
+
             // Nếu không có charts, không làm gì cả
             if (!charts) {
                 console.error('Charts not initialized');
                 return;
             }
-            
+
             // Hiển thị trạng thái loading
             const toast = document.getElementById("toast");
-            toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ...</span></div>';
+            toast.innerHTML =
+                '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ...</span></div>';
             toast.classList.remove("hidden");
-            
+
             // Lấy thông tin thời gian từ bộ tìm kiếm
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const timeRangeType = timeRangeSelect ? timeRangeSelect.value : 'month';
-            
+
             let startDate = '';
             let endDate = '';
-            
+
             // Lấy ngày bắt đầu và kết thúc dựa trên loại tìm kiếm
-            switch(timeRangeType) {
+            switch (timeRangeType) {
                 case 'day':
                     startDate = document.getElementById('dayStartDate')?.value || '';
                     endDate = document.getElementById('dayEndDate')?.value || '';
@@ -1834,17 +1956,35 @@
                     endDate = document.getElementById('yearEndDate')?.value || '';
                     break;
             }
-            
+
             // Tạo URL với tham số
             const params = new URLSearchParams({
                 category: category,
                 time_range_type: timeRangeType
             });
-            
+
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
+
+                        // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
+            // Để test hiển thị "không có dữ liệu", comment dòng dưới và uncomment phần API call
+            const testNoData = false; // Set thành false để gọi API thực
             
-            // Gọi API để lấy dữ liệu
+            if (testNoData) {
+                // Hiển thị thông báo không có dữ liệu
+                const chartContainer = document.querySelector('.chart-container-lg');
+                if (chartContainer) {
+                    showNoDataMessage(chartContainer, 'Không có dữ liệu cho khoảng thời gian này');
+                }
+                toast.innerHTML =
+                    '<div class="toast bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-info-circle mr-2"></i><span>Không có dữ liệu cho khoảng thời gian này</span></div>';
+                setTimeout(() => {
+                    toast.classList.add("hidden");
+                }, 3000);
+                return;
+            }
+            
+            // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             fetch(`/dashboard/inventory-overview-chart?${params.toString()}`)
                 .then(response => {
                     console.log('API response received:', response.status);
@@ -1853,6 +1993,39 @@
                 .then(data => {
                     console.log('API data received:', data);
                     
+                    // Kiểm tra xem có dữ liệu không
+                    const hasData = data.labels && data.labels.length > 0 &&
+                        data.datasets && data.datasets.length > 0 &&
+                        data.datasets.some(dataset => dataset.data && dataset.data.length > 0 &&
+                            dataset.data.some(value => value > 0));
+                    
+                    // Debug: Log dữ liệu để kiểm tra
+                    console.log('Chart data check:', {
+                        labels: data.labels,
+                        datasets: data.datasets,
+                        hasData: hasData
+                    });
+
+                    if (!hasData) {
+                        // Hiển thị thông báo không có dữ liệu
+                        const chartContainer = document.querySelector('.chart-container-lg');
+                        if (chartContainer) {
+                            showNoDataMessage(chartContainer, 'Không có dữ liệu cho khoảng thời gian này');
+                        }
+                        toast.innerHTML =
+                            '<div class="toast bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-info-circle mr-2"></i><span>Không có dữ liệu cho khoảng thời gian này</span></div>';
+                        setTimeout(() => {
+                            toast.classList.add("hidden");
+                        }, 3000);
+                        return;
+                    }
+                    
+                    // Xóa thông báo không có dữ liệu nếu có
+                    const chartContainer = document.querySelector('.chart-container-lg');
+                    if (chartContainer) {
+                        removeNoDataMessage(chartContainer);
+                    }
+
                     // Cập nhật biểu đồ
                     charts.inventoryOverviewChart.data.labels = data.labels;
                     charts.inventoryOverviewChart.data.datasets = data.datasets;
@@ -1885,7 +2058,8 @@
                     console.log('Chart updated successfully');
                     
                     // Hiển thị thông báo thành công
-                    toast.innerHTML = '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ!</span></div>';
+                    toast.innerHTML =
+                        '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ!</span></div>';
                     
                     setTimeout(() => {
                         toast.classList.add("hidden");
@@ -1893,7 +2067,8 @@
                 })
                 .catch(error => {
                     console.error('Error fetching chart data:', error);
-                    toast.innerHTML = '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ!</span></div>';
+                    toast.innerHTML =
+                        '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ!</span></div>';
                     
                     setTimeout(() => {
                         toast.classList.add("hidden");
@@ -1901,7 +2076,7 @@
                 });
         }
 
-        // Thêm hàm cập nhật biểu đồ phân loại kho
+                // Thêm hàm cập nhật biểu đồ phân loại kho
         function updateInventoryCategoriesChart(charts) {
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
@@ -1914,9 +2089,42 @@
                 return;
             }
             
+            // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
+            const testNoData = false; // Set thành false để gọi API thực
+            
+            if (testNoData) {
+                // Hiển thị thông báo không có dữ liệu
+                const chartContainer = document.querySelector('.chart-container');
+                if (chartContainer) {
+                    showNoDataMessage(chartContainer, 'Không có dữ liệu phân loại');
+                }
+                return;
+            }
+            
+            // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             fetch('/dashboard/inventory-categories-chart')
                 .then(response => response.json())
                 .then(data => {
+                    // Kiểm tra xem có dữ liệu không
+                    const hasData = data.labels && data.labels.length > 0 &&
+                        data.data && data.data.length > 0 &&
+                        data.data.some(value => value > 0);
+                    
+                    if (!hasData) {
+                        // Hiển thị thông báo không có dữ liệu
+                        const chartContainer = document.querySelector('.chart-container');
+                        if (chartContainer) {
+                            showNoDataMessage(chartContainer, 'Không có dữ liệu phân loại');
+                        }
+                        return;
+                    }
+                    
+                    // Xóa thông báo không có dữ liệu nếu có
+                    const chartContainer = document.querySelector('.chart-container');
+                    if (chartContainer) {
+                        removeNoDataMessage(chartContainer);
+                    }
+                    
                     // Cập nhật biểu đồ
                     charts.inventoryCategoriesChart.data.labels = data.labels;
                     charts.inventoryCategoriesChart.data.datasets[0].data = data.data;
@@ -1927,7 +2135,7 @@
                 });
         }
 
-        // Thêm hàm cập nhật biểu đồ phân bố theo kho
+                // Thêm hàm cập nhật biểu đồ phân bố theo kho
         function updateWarehouseDistributionChart(charts, filters = {}) {
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
@@ -1945,7 +2153,8 @@
             
             // Hiển thị trạng thái loading
             const toast = document.getElementById("toast");
-            toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu phân bố kho...</span></div>';
+            toast.innerHTML =
+                '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu phân bố kho...</span></div>';
             toast.classList.remove("hidden");
             
             // Xây dựng query string từ các tham số lọc
@@ -1954,6 +2163,24 @@
                 queryParams.append('item_type', itemType);
             }
             
+            // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
+            const testNoData = false; // Set thành false để gọi API thực
+            
+            if (testNoData) {
+                // Hiển thị thông báo không có dữ liệu
+                const chartContainer = document.querySelector('.chart-container');
+                if (chartContainer) {
+                    showNoDataMessage(chartContainer, 'Không có dữ liệu phân bố kho');
+                }
+                toast.innerHTML =
+                    '<div class="toast bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-info-circle mr-2"></i><span>Không có dữ liệu phân bố kho</span></div>';
+                setTimeout(() => {
+                    toast.classList.add("hidden");
+                }, 3000);
+                return;
+            }
+            
+            // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             const url = `/dashboard/warehouse-distribution-chart?${queryParams.toString()}`;
             console.log('Fetching warehouse distribution data from:', url);
             
@@ -1962,21 +2189,46 @@
                 .then(data => {
                     console.log('Warehouse distribution data received:', data);
                     
+                    // Kiểm tra xem có dữ liệu không
+                    const hasData = data.labels && data.labels.length > 0 &&
+                        data.data && data.data.length > 0 &&
+                        data.data.some(value => value > 0);
+                    
+                    if (!hasData) {
+                        // Hiển thị thông báo không có dữ liệu
+                        const chartContainer = document.querySelector('.chart-container');
+                        if (chartContainer) {
+                            showNoDataMessage(chartContainer, 'Không có dữ liệu phân bố kho');
+                        }
+                        toast.innerHTML =
+                            '<div class="toast bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-info-circle mr-2"></i><span>Không có dữ liệu phân bố kho</span></div>';
+                        setTimeout(() => {
+                            toast.classList.add("hidden");
+                        }, 3000);
+                        return;
+                    }
+                    
+                    // Xóa thông báo không có dữ liệu nếu có
+                    const chartContainer = document.querySelector('.chart-container');
+                    if (chartContainer) {
+                        removeNoDataMessage(chartContainer);
+                    }
+
                     // Cập nhật biểu đồ
                     charts.warehouseDistributionChart.data.labels = data.labels;
                     charts.warehouseDistributionChart.data.datasets[0].data = data.data;
                     charts.warehouseDistributionChart.data.datasets[0].backgroundColor = data.colors;
                     charts.warehouseDistributionChart.update();
-                    
+
                     // Cập nhật legend bên dưới biểu đồ
                     const legendContainer = document.getElementById('warehouse-distribution-legend');
                     if (legendContainer) {
                         legendContainer.innerHTML = '';
-                        
+
                         // Thêm tiêu đề
                         const titleElement = document.createElement('h4');
                         titleElement.className = 'text-sm font-medium text-gray-700 dark:text-gray-300 mb-2';
-                        
+
                         let titleText = 'Phân bố theo kho';
                         if (itemType === 'material') {
                             titleText += ' - Vật tư';
@@ -1985,10 +2237,10 @@
                         } else if (itemType === 'good') {
                             titleText += ' - Hàng hóa';
                         }
-                        
+
                         titleElement.textContent = titleText;
                         legendContainer.appendChild(titleElement);
-                        
+
                         // Thêm thông tin tổng
                         if (data.total_quantity) {
                             const totalElement = document.createElement('div');
@@ -1996,28 +2248,32 @@
                             totalElement.textContent = `Tổng số lượng: ${data.total_quantity.toLocaleString()} đơn vị`;
                             legendContainer.appendChild(totalElement);
                         }
-                        
+
                         // Thêm các mục trong legend
                         if (data.details && data.details.length > 0) {
                             data.details.forEach((detail, index) => {
                                 const percent = data.data[index];
                                 const color = data.colors[index];
                                 const label = data.labels[index];
-                                
+
                                 const legendItem = document.createElement('div');
-                                legendItem.className = 'flex items-center justify-between mb-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded';
-                                
+                                legendItem.className =
+                                    'flex items-center justify-between mb-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded';
+
                                 let detailsHtml = '';
                                 if (detail.material_count > 0) {
-                                    detailsHtml += `<span class="text-xs text-blue-500">Vật tư: ${detail.material_count}</span> `;
+                                    detailsHtml +=
+                                        `<span class="text-xs text-blue-500">Vật tư: ${detail.material_count}</span> `;
                                 }
                                 if (detail.product_count > 0) {
-                                    detailsHtml += `<span class="text-xs text-green-500">Thành phẩm: ${detail.product_count}</span> `;
+                                    detailsHtml +=
+                                        `<span class="text-xs text-green-500">Thành phẩm: ${detail.product_count}</span> `;
                                 }
                                 if (detail.good_count > 0) {
-                                    detailsHtml += `<span class="text-xs text-orange-500">Hàng hóa: ${detail.good_count}</span>`;
+                                    detailsHtml +=
+                                        `<span class="text-xs text-orange-500">Hàng hóa: ${detail.good_count}</span>`;
                                 }
-                                
+
                                 legendItem.innerHTML = `
                                     <div class="flex items-center">
                                         <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></div>
@@ -2031,7 +2287,7 @@
                                         <span class="text-xs text-gray-500">${detail.total.toLocaleString()} đơn vị</span>
                                     </div>
                                 `;
-                                
+
                                 legendContainer.appendChild(legendItem);
                             });
                         } else {
@@ -2039,7 +2295,7 @@
                             data.labels.forEach((label, index) => {
                                 const percent = data.data[index];
                                 const color = data.colors[index];
-                                
+
                                 const legendItem = document.createElement('div');
                                 legendItem.className = 'flex items-center justify-between mb-2';
                                 legendItem.innerHTML = `
@@ -2049,14 +2305,15 @@
                                     </div>
                                     <span class="text-sm font-medium text-gray-800 dark:text-white">${percent}%</span>
                                 `;
-                                
+
                                 legendContainer.appendChild(legendItem);
                             });
                         }
                     }
-                    
-                    // Hiển thị thông báo thành công
-                    toast.innerHTML = '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu phân bố kho!</span></div>';
+
+                                        // Hiển thị thông báo thành công
+                    toast.innerHTML =
+                        '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu phân bố kho!</span></div>';
                     
                     setTimeout(() => {
                         toast.classList.add("hidden");
@@ -2064,7 +2321,8 @@
                 })
                 .catch(error => {
                     console.error('Error fetching warehouse distribution data:', error);
-                    toast.innerHTML = '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu phân bố kho!</span></div>';
+                    toast.innerHTML =
+                        '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu phân bố kho!</span></div>';
                     
                     setTimeout(() => {
                         toast.classList.add("hidden");
@@ -2072,7 +2330,7 @@
                 });
         }
 
-        // Thêm hàm cập nhật biểu đồ mức độ gia tăng dự án
+                // Thêm hàm cập nhật biểu đồ mức độ gia tăng dự án
         function updateProjectGrowthChart(charts) {
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
@@ -2087,9 +2345,28 @@
             
             // Hiển thị trạng thái loading
             const toast = document.getElementById("toast");
-            toast.innerHTML = '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ dự án...</span></div>';
+            toast.innerHTML =
+                '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ dự án...</span></div>';
             toast.classList.remove("hidden");
             
+            // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
+            const testNoData = false; // Set thành false để gọi API thực
+            
+            if (testNoData) {
+                // Hiển thị thông báo không có dữ liệu
+                const chartContainer = document.querySelector('.chart-container');
+                if (chartContainer) {
+                    showNoDataMessage(chartContainer, 'Không có dữ liệu dự án');
+                }
+                toast.innerHTML =
+                    '<div class="toast bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-info-circle mr-2"></i><span>Không có dữ liệu dự án</span></div>';
+                setTimeout(() => {
+                    toast.classList.add("hidden");
+                }, 3000);
+                return;
+            }
+            
+            // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             fetch('/dashboard/project-growth-chart')
                 .then(response => {
                     console.log('Project growth API response received:', response.status);
@@ -2098,14 +2375,40 @@
                 .then(data => {
                     console.log('Project growth data received:', data);
                     
+                    // Kiểm tra xem có dữ liệu không
+                    const hasData = data.labels && data.labels.length > 0 &&
+                        data.data && data.data.length > 0 &&
+                        data.data.some(value => value > 0);
+                    
+                    if (!hasData) {
+                        // Hiển thị thông báo không có dữ liệu
+                        const chartContainer = document.querySelector('.chart-container');
+                        if (chartContainer) {
+                            showNoDataMessage(chartContainer, 'Không có dữ liệu dự án');
+                        }
+                        toast.innerHTML =
+                            '<div class="toast bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-info-circle mr-2"></i><span>Không có dữ liệu dự án</span></div>';
+                        setTimeout(() => {
+                            toast.classList.add("hidden");
+                        }, 3000);
+                        return;
+                    }
+                    
+                    // Xóa thông báo không có dữ liệu nếu có
+                    const chartContainer = document.querySelector('.chart-container');
+                    if (chartContainer) {
+                        removeNoDataMessage(chartContainer);
+                    }
+
                     // Cập nhật biểu đồ
                     charts.projectGrowthChart.data.labels = data.labels;
                     charts.projectGrowthChart.data.datasets[0].data = data.data;
                     charts.projectGrowthChart.update();
                     console.log('Project growth chart updated successfully');
-                    
-                    // Hiển thị thông báo thành công
-                    toast.innerHTML = '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ dự án!</span></div>';
+
+                                        // Hiển thị thông báo thành công
+                    toast.innerHTML =
+                        '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ dự án!</span></div>';
                     
                     setTimeout(() => {
                         toast.classList.add("hidden");
@@ -2113,7 +2416,8 @@
                 })
                 .catch(error => {
                     console.error('Error fetching project growth data:', error);
-                    toast.innerHTML = '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ dự án!</span></div>';
+                    toast.innerHTML =
+                        '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ dự án!</span></div>';
                     
                     setTimeout(() => {
                         toast.classList.add("hidden");
@@ -2123,69 +2427,71 @@
 
         // Sửa lại cách đăng ký event listener
         let chartsInitialized = false;
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             // Nếu biểu đồ đã được khởi tạo và cập nhật, thì không làm gì cả
             if (chartsInitialized) {
                 return;
             }
-            
+
             // Chỉ khởi tạo biểu đồ một lần khi trang tải xong
             let charts = window.chartInstances;
-            
+
             if (!charts) {
                 charts = initCharts();
-                
+
                 // Initialize with correct theme
                 if (localStorage.getItem("theme") === "dark") {
                     updateChartsForDarkMode(charts);
                 }
-    
+
                 // Đăng ký event listener cho các nút category filter
                 document.querySelectorAll('.category-filter').forEach(button => {
                     button.addEventListener('click', function() {
                         console.log('Category filter clicked:', this.dataset.category);
-                        
+
                         // Remove active class from all buttons
                         document.querySelectorAll('.category-filter').forEach(btn => {
                             btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
                             btn.classList.add('bg-gray-100', 'text-gray-800');
                         });
-                        
+
                         // Add active class to clicked button
                         this.classList.add('active', 'bg-blue-100', 'text-blue-800');
                         this.classList.remove('bg-gray-100', 'text-gray-800');
-                        
+
                         const category = this.dataset.category;
                         updateInventoryOverviewChart(category, charts);
                     });
                 });
-                
+
                 // Đăng ký event listener cho bộ lọc biểu đồ phân bố kho
                 const warehouseChartItemType = document.getElementById('warehouseChartItemType');
                 if (warehouseChartItemType) {
                     warehouseChartItemType.addEventListener('change', function() {
                         const itemType = this.value;
                         console.log('Warehouse chart filter changed:', itemType);
-                        updateWarehouseDistributionChart(charts, { itemType });
+                        updateWarehouseDistributionChart(charts, {
+                            itemType
+                        });
                     });
                 }
             }
-    
+
             // Cập nhật tất cả biểu đồ khi trang tải xong
             updateStatistics();
             updateInventoryOverviewChart('materials', charts);
             updateInventoryCategoriesChart(charts);
             updateWarehouseDistributionChart(charts);
             updateProjectGrowthChart(charts);
-            
+
             // Call updateStatistics every 5 minutes
             setInterval(updateStatistics, 300000);
-            
+
             // Đánh dấu biểu đồ đã được khởi tạo và cập nhật
             chartsInitialized = true;
         });
-        
+
         // Thêm code xử lý tìm kiếm nâng cao
         document.addEventListener('DOMContentLoaded', function() {
             // Lấy các phần tử DOM
@@ -2205,7 +2511,7 @@
 
             // Biến để theo dõi trạng thái tìm kiếm
             let isSearching = false;
-            
+
             // Xử lý sự kiện tìm kiếm
             function handleSearch() {
                 // Nếu đang trong quá trình tìm kiếm, không thực hiện tìm kiếm mới
@@ -2213,37 +2519,37 @@
                     console.log('Search in progress, skipping...');
                     return;
                 }
-                
+
                 // Đánh dấu đang tìm kiếm
                 isSearching = true;
-                
+
                 // Thực hiện tìm kiếm
                 performSearch().finally(() => {
                     // Đánh dấu đã hoàn thành tìm kiếm
                     isSearching = false;
                 });
             }
-            
+
             // Xử lý sự kiện tìm kiếm
             searchButton.addEventListener('click', handleSearch);
-            
+
             // Xử lý sự kiện Enter trong ô tìm kiếm
             searchQuery.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     handleSearch();
                 }
             });
-            
+
             // Xử lý sự kiện áp dụng bộ lọc
             applyFiltersBtn.addEventListener('click', handleSearch);
-            
+
             // Remove any existing event listeners
             const oldSearchButton = searchButton.cloneNode(true);
             searchButton.parentNode.replaceChild(oldSearchButton, searchButton);
-            
+
             // Add the new event listener
             oldSearchButton.addEventListener('click', handleSearch);
-            
+
             // Lấy danh sách kho để hiển thị trong bộ lọc
             fetch('/warehouses/api-search')
                 .then(response => response.json())
@@ -2261,58 +2567,58 @@
                 .catch(error => {
                     console.error('Error loading warehouses:', error);
                 });
-            
+
             // Hiển thị/ẩn bộ lọc nâng cao
             if (advancedFilterBtn && advancedFilterPanel) {
                 advancedFilterBtn.addEventListener('click', function() {
                     advancedFilterPanel.classList.toggle('hidden');
                 });
             }
-            
+
             // Đặt lại bộ lọc
             if (resetFiltersBtn) {
                 resetFiltersBtn.addEventListener('click', function() {
-                document.getElementById('filterWarehouse').value = '';
-                document.getElementById('filterStatus').value = '';
-                document.getElementById('filterDateRange').value = '';
-                
-                // Đặt lại các bộ lọc theo loại
-                document.getElementById('filterMaterialType').value = '';
-                document.getElementById('filterProductType').value = '';
-                document.getElementById('filterProjectStatus').value = '';
-                
-                // Ẩn tất cả các bộ lọc theo loại
-                document.getElementById('materialFilters').classList.add('hidden');
-                document.getElementById('productFilters').classList.add('hidden');
-                document.getElementById('projectFilters').classList.add('hidden');
+                    document.getElementById('filterWarehouse').value = '';
+                    document.getElementById('filterStatus').value = '';
+                    document.getElementById('filterDateRange').value = '';
+
+                    // Đặt lại các bộ lọc theo loại
+                    document.getElementById('filterMaterialType').value = '';
+                    document.getElementById('filterProductType').value = '';
+                    document.getElementById('filterProjectStatus').value = '';
+
+                    // Ẩn tất cả các bộ lọc theo loại
+                    document.getElementById('materialFilters').classList.add('hidden');
+                    document.getElementById('productFilters').classList.add('hidden');
+                    document.getElementById('projectFilters').classList.add('hidden');
                 });
             }
-            
+
             // Hiển thị bộ lọc theo loại khi chọn loại tìm kiếm
             if (searchCategory) {
                 searchCategory.addEventListener('change', function() {
-                const category = this.value;
-                
-                // Ẩn tất cả các bộ lọc theo loại
-                document.getElementById('materialFilters').classList.add('hidden');
-                document.getElementById('productFilters').classList.add('hidden');
-                document.getElementById('projectFilters').classList.add('hidden');
-                
-                // Hiển thị bộ lọc tương ứng
-                switch (category) {
-                    case 'materials':
-                        document.getElementById('materialFilters').classList.remove('hidden');
-                        break;
-                    case 'finished':
-                        document.getElementById('productFilters').classList.remove('hidden');
-                        break;
-                    case 'projects':
-                        document.getElementById('projectFilters').classList.remove('hidden');
-                        break;
-                }
+                    const category = this.value;
+
+                    // Ẩn tất cả các bộ lọc theo loại
+                    document.getElementById('materialFilters').classList.add('hidden');
+                    document.getElementById('productFilters').classList.add('hidden');
+                    document.getElementById('projectFilters').classList.add('hidden');
+
+                    // Hiển thị bộ lọc tương ứng
+                    switch (category) {
+                        case 'materials':
+                            document.getElementById('materialFilters').classList.remove('hidden');
+                            break;
+                        case 'finished':
+                            document.getElementById('productFilters').classList.remove('hidden');
+                            break;
+                        case 'projects':
+                            document.getElementById('projectFilters').classList.remove('hidden');
+                            break;
+                    }
                 });
             }
-            
+
             // Xử lý tìm kiếm
             function performSearch() {
                 return new Promise((resolve, reject) => {
@@ -2322,18 +2628,19 @@
                         resolve();
                         return;
                     }
-                    
+
                     // Hiển thị trạng thái loading
                     showToast('info', 'Đang tìm kiếm...');
-                    
+
                     // Thu thập các bộ lọc
                     const filters = {
                         warehouse_id: document.getElementById('filterWarehouse').value,
                         status: document.getElementById('filterStatus').value,
                         date_range: document.getElementById('filterDateRange').value,
-                        include_out_of_stock: document.getElementById('includeOutOfStock').checked ? 'true' : 'false'
+                        include_out_of_stock: document.getElementById('includeOutOfStock').checked ?
+                            'true' : 'false'
                     };
-                    
+
                     // Thêm bộ lọc theo loại
                     const category = searchCategory.value;
                     switch (category) {
@@ -2347,12 +2654,12 @@
                             filters.project_status = document.getElementById('filterProjectStatus')?.value;
                             break;
                     }
-                    
+
                     // Xây dựng query string từ các bộ lọc
                     let queryParams = new URLSearchParams();
                     queryParams.append('query', query);
                     queryParams.append('category', category);
-                    
+
                     // Thêm các bộ lọc vào query string
                     for (const [key, value] of Object.entries(filters)) {
                         if (value) {
@@ -2364,106 +2671,107 @@
                     console.log('Search category:', category);
                     console.log('Search filters:', filters);
                     console.log('Search URL:', `/dashboard/search?${queryParams.toString()}`);
-                    
+
                     // Ngăn chặn các request trùng lặp
                     if (window.lastSearchRequest) {
                         console.log('Aborting previous search request');
                         window.lastSearchRequest.abort();
                     }
-                    
+
                     // Tạo controller để có thể hủy request
                     const controller = new AbortController();
                     window.lastSearchRequest = controller;
-                    
+
                     // Gọi API tìm kiếm
                     fetch(`/dashboard/search?${queryParams.toString()}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                            // Thêm timestamp để tránh cache
-                            'Cache-Control': 'no-cache',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        signal: controller.signal,
-                        cache: 'no-store'
-                    })
-                    .then(response => {
-                        console.log('Search response status:', response.status);
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('Search response data:', data);
-                        
-                        // Xóa reference đến request hiện tại
-                        window.lastSearchRequest = null;
-                        
-                        if (data.success) {
-                            if (data.count > 0) {
-                                // Hiển thị kết quả
-                                displaySearchResults(data.results, data.count);
-                                showToast('success', `Tìm thấy ${data.count} kết quả`);
-                            } else {
-                                // Không tìm thấy kết quả
-                                searchResults.classList.add('hidden');
-                                showToast('info', 'Không tìm thấy kết quả phù hợp');
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    .getAttribute('content'),
+                                // Thêm timestamp để tránh cache
+                                'Cache-Control': 'no-cache',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            signal: controller.signal,
+                            cache: 'no-store'
+                        })
+                        .then(response => {
+                            console.log('Search response status:', response.status);
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! Status: ${response.status}`);
                             }
-                        } else {
-                            console.error('Search error:', data.message);
-                            searchResults.classList.add('hidden');
-                            showToast('error', data.message || 'Có lỗi xảy ra khi tìm kiếm');
-                        }
-                        resolve();
-                    })
-                    .catch(error => {
-                        // Không hiển thị lỗi nếu request bị hủy
-                        if (error.name === 'AbortError') {
-                            console.log('Search request aborted');
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Search response data:', data);
+
+                            // Xóa reference đến request hiện tại
+                            window.lastSearchRequest = null;
+
+                            if (data.success) {
+                                if (data.count > 0) {
+                                    // Hiển thị kết quả
+                                    displaySearchResults(data.results, data.count);
+                                    showToast('success', `Tìm thấy ${data.count} kết quả`);
+                                } else {
+                                    // Không tìm thấy kết quả
+                                    searchResults.classList.add('hidden');
+                                    showToast('info', 'Không tìm thấy kết quả phù hợp');
+                                }
+                            } else {
+                                console.error('Search error:', data.message);
+                                searchResults.classList.add('hidden');
+                                showToast('error', data.message || 'Có lỗi xảy ra khi tìm kiếm');
+                            }
                             resolve();
-                            return;
-                        }
-                        
-                        console.error('Error searching:', error);
-                        searchResults.classList.add('hidden');
-                        showToast('error', 'Có lỗi xảy ra khi tìm kiếm: ' + error.message);
-                        reject(error);
-                    });
+                        })
+                        .catch(error => {
+                            // Không hiển thị lỗi nếu request bị hủy
+                            if (error.name === 'AbortError') {
+                                console.log('Search request aborted');
+                                resolve();
+                                return;
+                            }
+
+                            console.error('Error searching:', error);
+                            searchResults.classList.add('hidden');
+                            showToast('error', 'Có lỗi xảy ra khi tìm kiếm: ' + error.message);
+                            reject(error);
+                        });
                 });
             }
-            
+
             // Hiển thị kết quả tìm kiếm
             function displaySearchResults(results, count) {
                 // Cập nhật số lượng kết quả
                 resultCount.textContent = count;
-                
+
                 // Xóa kết quả cũ
                 searchResultsList.innerHTML = '';
-                
+
                 // Thêm kết quả mới
                 results.forEach(result => {
                     const row = document.createElement('tr');
-                    
+
                     // Mã
                     const codeCell = document.createElement('td');
                     codeCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                     codeCell.textContent = result.code;
-                    
+
                     // Tên
                     const nameCell = document.createElement('td');
                     nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                     nameCell.textContent = result.name;
-                    
+
                     // Loại
                     const categoryCell = document.createElement('td');
                     categoryCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-                    
+
                     const categoryBadge = document.createElement('span');
                     categoryBadge.textContent = result.categoryName;
                     categoryBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
-                    
+
                     // Màu sắc theo loại
                     switch (result.category) {
                         case 'materials':
@@ -2484,38 +2792,38 @@
                         default:
                             categoryBadge.classList.add('bg-gray-500');
                     }
-                    
+
                     categoryCell.appendChild(categoryBadge);
-                    
+
                     // Serial
                     const serialCell = document.createElement('td');
                     serialCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                     serialCell.textContent = result.serial;
-                    
+
                     // Vị trí
                     const locationCell = document.createElement('td');
                     locationCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                     locationCell.textContent = result.location;
-                    
+
                     // Thao tác
                     const actionCell = document.createElement('td');
                     actionCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-                    
+
                     const viewButton = document.createElement('button');
                     viewButton.className = 'text-blue-500 hover:text-blue-700 mr-2';
                     viewButton.innerHTML = '<i class="fas fa-eye"></i>';
                     viewButton.addEventListener('click', function() {
                         showItemDetails(result);
                     });
-                    
+
                     const detailLink = document.createElement('a');
                     detailLink.href = result.detailUrl;
                     detailLink.className = 'text-green-500 hover:text-green-700';
                     detailLink.innerHTML = '<i class="fas fa-external-link-alt"></i>';
-                    
+
                     actionCell.appendChild(viewButton);
                     actionCell.appendChild(detailLink);
-                    
+
                     // Thêm các ô vào hàng
                     row.appendChild(codeCell);
                     row.appendChild(nameCell);
@@ -2523,34 +2831,34 @@
                     row.appendChild(serialCell);
                     row.appendChild(locationCell);
                     row.appendChild(actionCell);
-                    
+
                     // Thêm hàng vào bảng
                     searchResultsList.appendChild(row);
                 });
-                
+
                 // Hiển thị kết quả
                 searchResults.classList.remove('hidden');
             }
-            
+
             // Hiển thị chi tiết item trong modal
             function showItemDetails(item) {
                 // Cập nhật tiêu đề modal
                 document.getElementById('modalTitle').textContent = `Chi tiết ${item.categoryName}`;
-                
+
                 // Cập nhật thông tin cơ bản
                 document.getElementById('itemId').textContent = item.code;
                 document.getElementById('itemName').textContent = item.name;
                 document.getElementById('itemCategory').textContent = item.categoryName;
                 document.getElementById('itemSerial').textContent = item.serial;
                 document.getElementById('viewDetail').href = item.detailUrl;
-                
+
                 // Ẩn tất cả các phần thông tin chi tiết
                 document.getElementById('materialsInfo').classList.add('hidden');
                 document.getElementById('finishedInfo').classList.add('hidden');
                 document.getElementById('goodsInfo').classList.add('hidden');
                 document.getElementById('projectsInfo').classList.add('hidden');
                 document.getElementById('customersInfo').classList.add('hidden');
-                
+
                 // Hiển thị phần thông tin chi tiết tương ứng
                 switch (item.category) {
                     case 'materials':
@@ -2562,17 +2870,18 @@
                         document.getElementById('itemDate').textContent = item.date;
                         document.getElementById('itemLocation').textContent = item.location;
                         break;
-                        
+
                     case 'finished':
                         const finishedInfo = document.getElementById('finishedInfo');
                         finishedInfo.classList.remove('hidden');
-                        document.getElementById('finishedManufactureDate').textContent = item.additionalInfo.manufactureDate;
+                        document.getElementById('finishedManufactureDate').textContent = item.additionalInfo
+                            .manufactureDate;
                         document.getElementById('finishedQuantity').textContent = item.additionalInfo.quantity;
                         document.getElementById('finishedProject').textContent = item.additionalInfo.project;
                         document.getElementById('itemDate').textContent = item.date;
                         document.getElementById('itemLocation').textContent = item.location;
                         break;
-                        
+
                     case 'goods':
                         const goodsInfo = document.getElementById('goodsInfo');
                         goodsInfo.classList.remove('hidden');
@@ -2582,7 +2891,7 @@
                         document.getElementById('itemDate').textContent = item.date;
                         document.getElementById('itemLocation').textContent = item.location;
                         break;
-                        
+
                     case 'projects':
                         const projectsInfo = document.getElementById('projectsInfo');
                         projectsInfo.classList.remove('hidden');
@@ -2591,41 +2900,41 @@
                         document.getElementById('projectEndDate').textContent = item.additionalInfo.endDate;
                         document.getElementById('itemLocation').textContent = item.location;
                         break;
-                        
+
                     case 'customers':
                         const customersInfo = document.getElementById('customersInfo');
                         customersInfo.classList.remove('hidden');
                         document.getElementById('customerPhone').textContent = item.additionalInfo.phone;
                         document.getElementById('customerEmail').textContent = item.additionalInfo.email;
                         document.getElementById('customerAddress').textContent = item.additionalInfo.address;
-                        
+
                         // Cập nhật bảng dự án liên quan
                         const customerProjectsList = document.getElementById('customerProjectsList');
                         customerProjectsList.innerHTML = '';
-                        
+
                         if (item.additionalInfo.relatedProjects && item.additionalInfo.relatedProjects.length > 0) {
                             item.additionalInfo.relatedProjects.forEach(project => {
                                 const row = document.createElement('tr');
-                                
+
                                 const idCell = document.createElement('td');
                                 idCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                                 idCell.textContent = project.id;
-                                
+
                                 const nameCell = document.createElement('td');
                                 nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                                 nameCell.textContent = project.name;
-                                
+
                                 const dateCell = document.createElement('td');
                                 dateCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
                                 dateCell.textContent = project.startDate;
-                                
+
                                 const statusCell = document.createElement('td');
                                 statusCell.className = 'py-2 px-4 border-b';
-                                
+
                                 const statusBadge = document.createElement('span');
                                 statusBadge.textContent = project.status;
                                 statusBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
-                                
+
                                 // Màu sắc theo trạng thái
                                 switch (project.status) {
                                     case 'Hoàn thành':
@@ -2640,14 +2949,14 @@
                                     default:
                                         statusBadge.classList.add('bg-gray-500');
                                 }
-                                
+
                                 statusCell.appendChild(statusBadge);
-                                
+
                                 row.appendChild(idCell);
                                 row.appendChild(nameCell);
                                 row.appendChild(dateCell);
                                 row.appendChild(statusCell);
-                                
+
                                 customerProjectsList.appendChild(row);
                             });
                         } else {
@@ -2661,17 +2970,17 @@
                         }
                         break;
                 }
-                
+
                 // Hiển thị modal
                 const closeModal = document.getElementById('closeModal');
-                
+
                 if (closeModal) {
                     // Lấy modal element
                     const modalElement = document.getElementById('itemDetailsModal');
                     if (modalElement) {
                         // Hiển thị modal
                         modalElement.classList.remove('hidden');
-                        
+
                         // Xử lý sự kiện đóng modal
                         const closeModalHandler = function(e) {
                             e.preventDefault();
@@ -2680,10 +2989,10 @@
                             // Gỡ bỏ event listener sau khi đóng
                             closeModal.removeEventListener('click', closeModalHandler);
                         };
-                        
+
                         // Thêm event listener cho nút đóng
                         closeModal.addEventListener('click', closeModalHandler);
-                        
+
                         // Xử lý đóng modal khi click bên ngoài
                         const outsideClickHandler = function(e) {
                             if (e.target === modalElement) {
@@ -2692,19 +3001,19 @@
                                 modalElement.removeEventListener('click', outsideClickHandler);
                             }
                         };
-                        
+
                         // Thêm event listener cho click bên ngoài
                         modalElement.addEventListener('click', outsideClickHandler);
                     }
                 }
             }
-            
+
             // Đóng kết quả tìm kiếm
-            
+
             // Thêm event listener cho modal nếu chưa có
             const existingCloseModal = document.getElementById('closeModal');
             const existingItemDetailsModal = document.getElementById('itemDetailsModal');
-            
+
             if (existingCloseModal && existingItemDetailsModal) {
                 // Kiểm tra xem đã có event listener chưa
                 const hasEventListener = existingCloseModal.onclick !== null;
@@ -2712,7 +3021,7 @@
                     existingCloseModal.addEventListener('click', function() {
                         existingItemDetailsModal.classList.add('hidden');
                     });
-                    
+
                     // Đóng modal khi click bên ngoài
                     existingItemDetailsModal.addEventListener('click', function(e) {
                         if (e.target === existingItemDetailsModal) {
@@ -2721,7 +3030,7 @@
                     });
                 }
             }
-            
+
             // Đóng kết quả tìm kiếm
             const existingCloseResults = document.getElementById('closeResults');
             const existingSearchResults = document.getElementById('searchResults');
@@ -2731,7 +3040,6 @@
                 });
             }
         });
-        
     </script>
 </body>
 
