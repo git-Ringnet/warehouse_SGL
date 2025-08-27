@@ -78,10 +78,12 @@ class RepairController extends Controller
 
         // Apply date range filter
         if ($request->filled('date_from')) {
-            $query->whereDate('repair_date', '>=', $request->date_from);
+            $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_from)->format('Y-m-d');
+            $query->whereDate('repair_date', '>=', $dateFrom);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('repair_date', '<=', $request->date_to);
+            $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_to)->format('Y-m-d');
+            $query->whereDate('repair_date', '<=', $dateTo);
         }
 
         $repairs = $query->orderBy('repair_date', 'desc')

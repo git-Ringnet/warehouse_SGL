@@ -480,6 +480,7 @@ class DispatchController extends Controller
      */
     public function update(Request $request, Dispatch $dispatch)
     {
+        
         if (in_array($dispatch->status, ['completed', 'cancelled'])) {
             return redirect()->route('inventory.dispatch.show', $dispatch->id)
                 ->with('error', 'Không thể cập nhật phiếu xuất đã hoàn thành hoặc đã hủy.');
@@ -491,19 +492,38 @@ class DispatchController extends Controller
         // Validation rules depend on dispatch status
         if ($dispatch->status === 'pending') {
             // Full editing for pending dispatch
-            $request->validate([
+            // Build validation rules depending on dispatch_type (project_id can be a Project ID or Rental ID)
+            $rules = [
                 'dispatch_date' => 'required|date',
                 'dispatch_type' => 'required|in:project,rental,warranty',
                 'dispatch_detail' => 'required|in:all,contract,backup',
-                'project_id' => 'nullable|exists:projects,id',
                 'project_receiver' => 'required|string',
                 'company_representative_id' => 'nullable|exists:employees,id',
                 'dispatch_note' => 'nullable|string',
-                // Items validation for pending
                 'contract_items.*' => 'nullable|array',
                 'backup_items.*' => 'nullable|array',
                 'general_items.*' => 'nullable|array',
-            ]);
+            ];
+
+            if ($request->dispatch_type === 'project') {
+                $rules['project_id'] = 'required|exists:projects,id';
+            } elseif ($request->dispatch_type === 'rental') {
+                $rules['project_id'] = 'required|exists:rentals,id';
+            } else { // warranty: allow either project or rental id or empty
+                $rules['project_id'] = [
+                    'nullable',
+                    function ($attribute, $value, $fail) {
+                        if (empty($value)) return; // allow empty
+                        $existsInProjects = DB::table('projects')->where('id', $value)->exists();
+                        $existsInRentals = DB::table('rentals')->where('id', $value)->exists();
+                        if (!$existsInProjects && !$existsInRentals) {
+                            $fail('The selected ' . str_replace('_', ' ', $attribute) . ' is invalid.');
+                        }
+                    }
+                ];
+            }
+
+            $request->validate($rules);
 
             // Additional validation for dispatch detail and items
             $this->validateUpdateItemsByDispatchDetail($request, $dispatch);
@@ -2408,10 +2428,12 @@ class DispatchController extends Controller
 
         // Apply date range filter
         if ($request->filled('date_from')) {
-            $query->whereDate('dispatch_date', '>=', $request->date_from);
+            $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_from)->format('Y-m-d');
+            $query->whereDate('dispatch_date', '>=', $dateFrom);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('dispatch_date', '<=', $request->date_to);
+            $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_to)->format('Y-m-d');
+            $query->whereDate('dispatch_date', '<=', $dateTo);
         }
 
         // Apply sorting

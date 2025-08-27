@@ -106,13 +106,16 @@
                             </div>
                             
                             <div>
-                                <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
-                                <select id="employee_id" name="employee_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                    <option value="">-- Chọn nhân viên --</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->id }}" {{ old('employee_id', $warehouseTransfer->employee_id) == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
-                                    @endforeach
-                                </select>
+                                <label for="employee_search" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
+                                <div class="relative">
+                                    <input type="text" id="employee_search" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Tìm kiếm nhân viên..." value="{{ optional($employees->firstWhere('id', old('employee_id', $warehouseTransfer->employee_id)))->name }}">
+                                    <input type="hidden" id="employee_id" name="employee_id" value="{{ old('employee_id', $warehouseTransfer->employee_id) }}">
+                                    <div id="employee_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        @foreach($employees as $employee)
+                                            <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="{{ $employee->id }}" data-text="{{ $employee->name }}">{{ $employee->name }}</div>
+                                        @endforeach
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -242,9 +245,11 @@
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
-                                            <select class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 bg-white" data-idx="${idx}">
-                                                <option value="">-- Chọn --</option>
-                                            </select>
+                                            <div class="relative">
+                                                <input type="text" name="materials[${idx}][material_search]" class="material-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Tìm kiếm sản phẩm..." value="${item.name || ''}">
+                                                <input type="hidden" name="materials[${idx}][material_id]" class="material-hidden" value="${item.id || ''}">
+                                                <div class="material-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                            </div>
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
@@ -281,16 +286,11 @@
                                 // Gán sự kiện thay đổi loại sản phẩm
                                 row.querySelector('.item-type-select').onchange = function() {
                                     const type = this.value;
-                                    const materialSelect = row.querySelector('.material-select');
-                                    materialSelect.innerHTML = '<option value="">-- Chọn --</option>';
-                                    (itemsData[type] || []).forEach(itemOpt => {
-                                        const opt = document.createElement('option');
-                                        opt.value = itemOpt.id;
-                                        opt.text = itemOpt.name;
-                                        materialSelect.appendChild(opt);
-                                    });
                                     // Reset vật tư và serial khi đổi loại
-                                    materialSelect.value = '';
+                                    const hidden = row.querySelector('.material-hidden');
+                                    const search = row.querySelector('.material-search');
+                                    if (hidden) hidden.value = '';
+                                    if (search) search.value = '';
                                     selectedMaterials[idx].id = '';
                                     selectedMaterials[idx].name = '';
                                     selectedMaterials[idx].type = type; // Cập nhật type
@@ -305,17 +305,58 @@
                                     updateMaterialsJson();
                                     updateSummaryTable();
                                 };
-                                // Gán sự kiện thay đổi vật tư
-                                row.querySelector('.material-select').onchange = function() {
-                                    selectedMaterials[idx].id = this.value;
-                                    selectedMaterials[idx].name = this.options[this.selectedIndex].text;
-                                    // Reset serial numbers khi thay đổi item
-                                    selectedMaterials[idx].serial_numbers = [];
-                                    // Load serial mới cho item mới
-                                    loadSerials(row, idx, []);
-                                    updateMaterialsJson();
-                                    updateSummaryTable();
-                                };
+                                // Khởi tạo tìm kiếm vật tư cho hàng hiện tại
+                                (function initRowSearch(r){
+                                    const search = r.querySelector('.material-search');
+                                    const dropdown = r.querySelector('.material-dropdown');
+                                    const hidden = r.querySelector('.material-hidden');
+                                    if (!search || !dropdown || !hidden) return;
+                                    // build options
+                                    const merged = [];
+                                    ['material','product','good'].forEach(k => {
+                                        (itemsData[k]||[]).forEach(it => {
+                                            merged.push({ id: it.id, text: `${it.code || ''} - ${it.name || ''}`, type: k });
+                                        });
+                                    });
+                                    merged.sort((a,b)=> a.text.localeCompare(b.text,'vi',{sensitivity:'base'}));
+                                    dropdown.innerHTML = merged.map(it => `<div class="material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="${it.id}" data-type="${it.type}" data-text="${it.text}">${it.text}</div>`).join('');
+                                    // bind search
+                                    function bind(){
+                                        search.addEventListener('focus', ()=>{ if (dropdown.children.length>0) dropdown.classList.remove('hidden'); });
+                                        search.addEventListener('input', function(){
+                                            const q = this.value.toLowerCase();
+                                            dropdown.querySelectorAll('.material-option').forEach(opt=>{
+                                                const base = opt.dataset.text || opt.textContent;
+                                                const show = base.toLowerCase().includes(q);
+                                                opt.style.display = show ? 'block' : 'none';
+                                                if (show) opt.innerHTML = base.replace(new RegExp(q,'gi'), m=>`<mark class="bg-yellow-200">${m}</mark>`);
+                                            });
+                                            if (dropdown.children.length>0) dropdown.classList.remove('hidden');
+                                        });
+                                        dropdown.addEventListener('mousedown', e=> e.stopPropagation());
+                                        function pick(e){
+                                            const el = e.target.closest('.material-option');
+                                            if (!el) return;
+                                            el.innerHTML = el.dataset.text;
+                                            dropdown.classList.add('hidden');
+                                            search.value = el.dataset.text;
+                                            hidden.value = el.dataset.value;
+                                            const typeSelect = r.querySelector('.item-type-select');
+                                            if (typeSelect) typeSelect.value = el.dataset.type;
+                                            // Reset serials and load for new selection
+                                            selectedMaterials[idx].id = hidden.value;
+                                            selectedMaterials[idx].name = search.value;
+                                            selectedMaterials[idx].type = typeSelect ? typeSelect.value : el.dataset.type;
+                                            selectedMaterials[idx].serial_numbers = [];
+                                            loadSerials(r, idx, []);
+                                            updateMaterialsJson();
+                                            updateSummaryTable();
+                                        }
+                                        dropdown.addEventListener('click', pick);
+                                        search.addEventListener('blur', ()=> setTimeout(()=> dropdown.classList.add('hidden'), 150));
+                                    }
+                                    bind();
+                                })(row);
                                 // Gán sự kiện thay đổi số lượng, serial, notes
                                 row.querySelector('.quantity-input').oninput = function() {
                                     selectedMaterials[idx].quantity = this.value;
@@ -327,23 +368,9 @@
                                     updateMaterialsJson();
                                     updateSummaryTable();
                                 };
-                                // Khởi tạo options vật tư đúng loại
+                                // Đồng bộ loại sản phẩm đang có để filter UX
                                 const typeSelect = row.querySelector('.item-type-select');
-                                const materialSelect = row.querySelector('.material-select');
-                                // Fill lại options cho select vật tư dựa trên loại đã chọn
-                                materialSelect.innerHTML = '<option value="">-- Chọn --</option>';
-                                if (item.type && itemsData[item.type]) {
-                                    itemsData[item.type].forEach(itemOpt => {
-                                        const opt = document.createElement('option');
-                                        opt.value = itemOpt.id;
-                                        opt.text = itemOpt.name;
-                                        materialSelect.appendChild(opt);
-                                    });
-                                }
-                                // Set lại value nếu đã có id vật tư
-                                if (item.id) {
-                                    materialSelect.value = item.id;
-                                }
+                                // Nếu đã có id và type thì tải serials ngay
                                 // Nếu có serial thì render lại serial
                                 if (item.id && item.type) {
                                     loadSerials(row, idx, item.serial_numbers || []);
@@ -377,7 +404,8 @@
                         // Hàm load serial động (giống create)
                         async function loadSerials(row, idx, preselectedSerials = []) {
                             const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
-                            const materialId = row.querySelector('.material-select').value;
+                            const hiddenEl = row.querySelector('.material-hidden');
+                            const materialId = hiddenEl ? hiddenEl.value : '';
                             const itemType = row.querySelector('.item-type-select').value;
                             const selectedCountEl = row.querySelector('.selected-count');
                             const nonSerialCountEl = row.querySelector('.non-serial-count');
@@ -484,7 +512,8 @@
                             
                             // Thu thập tất cả serials đã chọn từ mỗi hàng
                             rows.forEach((row, index) => {
-                                const materialId = row.querySelector('.material-select').value;
+                                const hiddenEl2 = row.querySelector('.material-hidden');
+                                const materialId = hiddenEl2 ? hiddenEl2.value : '';
                                 const selectedSerials = Array.from(row.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim());
                                 
                                 if (selectedSerials.length > 0) {
@@ -776,6 +805,41 @@
                         document.getElementById('add-material').onclick = addMaterialRow;
                         document.addEventListener('DOMContentLoaded', async function() {
                             await renderMaterials();
+                            // Khởi tạo tìm kiếm nhân viên
+                            (function initEmployeeSearch(){
+                                const search = document.getElementById('employee_search');
+                                const dropdown = document.getElementById('employee_dropdown');
+                                const hidden = document.getElementById('employee_id');
+                                if (!search || !dropdown || !hidden) return;
+                                const onPick = (el)=>{
+                                    search.value = el.dataset.text;
+                                    hidden.value = el.dataset.value;
+                                };
+                                search.addEventListener('focus', ()=>{ if (dropdown.children.length>0) dropdown.classList.remove('hidden'); });
+                                search.addEventListener('input', function(){
+                                    const q = this.value.toLowerCase();
+                                    dropdown.querySelectorAll('.employee-option').forEach(opt=>{
+                                        const base = opt.dataset.text || opt.textContent;
+                                        const show = base.toLowerCase().includes(q);
+                                        opt.style.display = show ? 'block' : 'none';
+                                        if (show) opt.innerHTML = base.replace(new RegExp(q,'gi'), m=>`<mark class="bg-yellow-200">${m}</mark>`);
+                                    });
+                                    if (dropdown.children.length>0) dropdown.classList.remove('hidden');
+                                });
+                                function pick(e){
+                                    const el = e.target.closest('.employee-option');
+                                    if (!el) return;
+                                    el.innerHTML = el.dataset.text;
+                                    dropdown.classList.add('hidden');
+                                    onPick(el);
+                                }
+                                dropdown.addEventListener('click', pick);
+                                dropdown.addEventListener('mousedown', e=>{ e.stopPropagation(); pick(e); });
+                                search.addEventListener('blur', ()=> setTimeout(()=> dropdown.classList.add('hidden'), 150));
+                                document.addEventListener('mousedown', function(e){
+                                    if (!dropdown.contains(e.target) && e.target !== search) dropdown.classList.add('hidden');
+                                });
+                            })();
                         });
                     </script>
                 </form>

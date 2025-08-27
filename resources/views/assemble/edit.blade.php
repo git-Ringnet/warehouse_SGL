@@ -422,15 +422,20 @@
 
                     @if ($assembly->status === 'pending')
                         <div class="flex items-center space-x-2 mb-4">
-                            <div class="w-72">
-                                <select id="product_id"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    <option value="">-- Chọn thành phẩm --</option>
+                            <div class="w-72 relative">
+                                <input type="text" id="product_search" 
+                                       placeholder="Tìm kiếm thành phẩm..." 
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <div id="product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @foreach ($products ?? [] as $p)
-                                        <option value="{{ $p->id }}">[{{ $p->code }}]
-                                            {{ $p->name }}</option>
+                                        <div class="product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                             data-value="{{ $p->id }}" 
+                                             data-text="[{{ $p->code }}] {{ $p->name }}">
+                                            [{{ $p->code }}] {{ $p->name }}
+                                        </div>
                                     @endforeach
-                                </select>
+                                </div>
+                                <input type="hidden" id="product_id">
                             </div>
                             <div class="w-24">
                                 <input type="number" id="product_add_quantity" min="1" step="1"
@@ -3022,10 +3027,61 @@
                 (function() {
                     const addProductBtn = document.getElementById('add_product_btn');
                     if (!addProductBtn) return;
-                    const productSelect = document.getElementById('product_id');
+                    const productSearch = document.getElementById('product_search');
+                    const productHidden = document.getElementById('product_id');
                     const qtyInput = document.getElementById('product_add_quantity');
                     const productList = document.getElementById('product_list');
                     const blocksContainer = document.getElementById('component_blocks_container');
+
+                    // Initialize product search functionality
+                    if (productSearch && productHidden) {
+                        const productDropdown = document.getElementById('product_dropdown');
+                        const productOptions = productDropdown.querySelectorAll('.product-option');
+
+                        // Show dropdown when input is focused
+                        productSearch.addEventListener('focus', function() {
+                            productDropdown.classList.remove('hidden');
+                        });
+
+                        // Handle product search input
+                        productSearch.addEventListener('input', function() {
+                            const searchTerm = this.value.toLowerCase();
+                            productOptions.forEach(option => {
+                                const text = option.textContent.toLowerCase();
+                                if (text.includes(searchTerm)) {
+                                    option.style.display = 'block';
+                                    // Highlight search term
+                                    if (searchTerm) {
+                                        const regex = new RegExp(`(${searchTerm})`, 'gi');
+                                        option.innerHTML = option.dataset.text.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+                                    } else {
+                                        option.innerHTML = option.dataset.text;
+                                    }
+                                } else {
+                                    option.style.display = 'none';
+                                }
+                            });
+                            productDropdown.classList.remove('hidden');
+                        });
+
+                        // Handle product option selection
+                        productOptions.forEach(option => {
+                            option.addEventListener('click', function() {
+                                const productId = this.dataset.value;
+                                const productText = this.dataset.text;
+                                productSearch.value = productText;
+                                productHidden.value = productId;
+                                productDropdown.classList.add('hidden');
+                            });
+                        });
+
+                        // Hide dropdown when clicking outside
+                        document.addEventListener('click', function(e) {
+                            if (!productSearch.contains(e.target) && !productDropdown.contains(e.target)) {
+                                productDropdown.classList.add('hidden');
+                            }
+                        });
+                    }
 
                     // Warehouses + serial helpers
                     const warehousesData = @json($warehouses ?? []);
@@ -3298,7 +3354,7 @@
                     });
                     bindQtyChangeHandlers();
                     addProductBtn.addEventListener('click', function() {
-                        const pid = productSelect && productSelect.value;
+                        const pid = productHidden && productHidden.value;
                         const qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : '1');
                         if (!pid) {
                             alert('Vui lòng chọn thành phẩm');
@@ -3309,8 +3365,7 @@
                             alert('Thành phẩm đã có trong danh sách.');
                             return;
                         }
-                        const opt = productSelect.options[productSelect.selectedIndex];
-                        const text = opt ? opt.text : '';
+                        const text = productSearch.value;
                         const codeMatch = text.match(/\[(.*?)\]/);
                         const code = codeMatch ? codeMatch[1] : '';
                         const name = text.replace(/\[.*?\]\s*/, '');
@@ -3486,6 +3541,11 @@
                                 }, 100);
                             });
                         }
+                        // Reset form after adding product
+                        productSearch.value = '';
+                        productHidden.value = '';
+                        qtyInput.value = '1';
+
                         // add delete handler
                         tr.querySelector('.delete-product-btn').addEventListener('click', function() {
                             const pid = this.getAttribute('data-product-id');

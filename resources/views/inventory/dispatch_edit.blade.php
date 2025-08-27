@@ -52,6 +52,7 @@
             <form action="{{ route('inventory.dispatch.update', $dispatch->id) }}" method="POST">
                 @csrf
                 @method('PUT')
+                <input type="hidden" id="project_receiver_canonical" name="project_receiver" value="{{ $dispatch->project_receiver }}">
 
                 <!-- Thông báo trạng thái phiếu -->
                 <div
@@ -148,86 +149,63 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <!-- Phần chọn dự án (hiển thị khi loại hình = project) -->
                         <div id="project_section">
-                            <label for="project_receiver"
-                                class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
-                            <select id="project_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                {{ $dispatch->status !== 'pending' ? 'disabled' : '' }}>
-                                <option value="">-- Chọn dự án --</option>
-                                @if (isset($projects))
-                                    @foreach ($projects as $project)
-                                        <option
-                                            value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
-                                            data-project-id="{{ $project->id }}"
-                                            data-warranty-period="{{ $project->warranty_period }}"
-                                            {{ $dispatch->project_receiver == $project->project_code . ' - ' . $project->project_name . ' (' . ($project->customer->name ?? 'N/A') . ')' ? 'selected' : '' }}>
-                                            {{ $project->project_code }} - {{ $project->project_name }}
-                                            ({{ $project->customer->name ?? 'N/A' }})
-                                        </option>
-                                    @endforeach
-                                @endif
-                            </select>
-                            @if ($dispatch->status !== 'pending')
-                                <input type="hidden" name="project_receiver"
-                                    value="{{ $dispatch->project_receiver }}">
-                            @endif
-                            <input type="hidden" id="project_id" name="project_id"
-                                value="{{ $dispatch->project_id }}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
+                            <div class="relative">
+                                <input type="text" id="project_receiver_search" placeholder="Tìm kiếm dự án..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->project_receiver }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="project_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    @if (isset($projects))
+                                        @foreach ($projects as $project)
+                                            <div class="project-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})" data-project-id="{{ $project->id }}" data-warranty-period="{{ $project->warranty_period }}">
+                                                {{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})
+                                            </div>
+                                        @endforeach
+                                    @endif
+                                </div>
+                                <input type="hidden" id="project_receiver" name="project_receiver" value="{{ $dispatch->project_receiver }}">
+                                <input type="hidden" id="project_id" name="project_id" value="{{ $dispatch->project_id }}">
+                            </div>
                         </div>
 
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
-                            <label for="rental_receiver" class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
-                            <select id="rental_receiver" name="rental_receiver"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                @if ($dispatch->status !== 'pending') disabled @endif>
-                                <option value="">-- Chọn hợp đồng cho thuê --</option>
-                                <!-- Động load từ API -->
-                            </select>
-                            <input type="hidden" name="project_receiver" id="rental_project_receiver" value="{{ $dispatch->project_receiver }}">
+                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
+                            <div class="relative">
+                                <input type="text" id="rental_receiver_search" placeholder="Tìm kiếm hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="rental_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                <input type="hidden" id="rental_receiver" name="rental_receiver" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}">
+                                <input type="hidden" name="project_receiver" id="rental_project_receiver" value="{{ $dispatch->project_receiver }}">
+                            </div>
                         </div>
 
                         <!-- Phần bảo hành (hiển thị khi loại hình = warranty) -->
                         <div id="warranty_section" class="hidden">
-                            <label for="warranty_receiver" class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
-                            <select id="warranty_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $dispatch->status !== 'pending' ? 'bg-gray-100 cursor-not-allowed' : '' }}"
-                                @if ($dispatch->status !== 'pending') disabled @endif>
-                                <option value="">-- Chọn dự án / hợp đồng cho thuê --</option>
-                                <optgroup label="Dự án">
+                            <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
+                            <div class="relative">
+                                <input type="text" id="warranty_receiver_search" placeholder="Tìm kiếm dự án / hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="warranty_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @if (isset($projects))
                                         @foreach ($projects as $project)
-                                            <option value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
-                                                data-project-id="{{ $project->id }}"
-                                                data-type="project"
-                                                {{ $dispatch->project_receiver == $project->project_code . ' - ' . $project->project_name . ' (' . ($project->customer->name ?? 'N/A') . ')' ? 'selected' : '' }}>
-                                                {{ $project->project_code }} - {{ $project->project_name }}
-                                                ({{ $project->customer->name ?? 'N/A' }})
-                                            </option>
+                                            <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})" data-type="project" data-project-id="{{ $project->id }}">{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})</div>
                                         @endforeach
                                     @endif
-                                </optgroup>
-                                <optgroup label="Hợp đồng cho thuê" id="warranty_rental_group">
-                                    <!-- Động load từ API -->
-                                </optgroup>
-                            </select>
+                                </div>
+                                <input type="hidden" id="warranty_receiver" name="project_receiver" value="{{ $dispatch->dispatch_type==='warranty' ? $dispatch->project_receiver : '' }}">
+                            </div>
                         </div>
 
                         <div>
-                            <label for="company_representative"
-                                class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
-                            <select id="company_representative" name="company_representative_id"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn người đại diện --</option>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
+                            <div class="relative">
+                                <input type="text" id="company_representative_search" placeholder="Tìm kiếm người đại diện..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ optional($employees->firstWhere('id', $dispatch->company_representative_id))->name }}">
+                                <div id="company_representative_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                 @if (isset($employees))
                                     @foreach ($employees as $employee)
-                                        <option value="{{ $employee->id }}"
-                                            {{ $dispatch->company_representative_id == $employee->id ? 'selected' : '' }}>
-                                            {{ $employee->name }}
-                                        </option>
+                                        <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="{{ $employee->id }}" data-text="{{ $employee->name }}">{{ $employee->name }}</div>
                                     @endforeach
                                 @endif
-                            </select>
+                                </div>
+                                <input type="hidden" id="company_representative" name="company_representative_id" value="{{ $dispatch->company_representative_id }}">
+                            </div>
                         </div>
                         <div class="md:col-span-2">
                             <label for="dispatch_note" class="block text-sm font-medium text-gray-700 mb-1">Ghi
@@ -651,14 +629,15 @@
                         </h2>
 
                         @if ($dispatch->status === 'pending')
-                            <!-- Chọn thành phẩm hợp đồng -->
+                            <!-- Chọn thành phẩm hợp đồng (searchable) -->
                             <div class="mb-4">
                                 <div class="flex gap-2">
                                     <div class="flex-1">
-                                        <select id="contract_product_select"
-                                            class="w-full border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
-                                            <option value="">-- Chọn thiết bị theo hợp đồng --</option>
-                                        </select>
+                                        <div class="relative">
+                                            <input type="text" id="contract_product_search" placeholder="Tìm kiếm thiết bị theo hợp đồng..." class="w-full h-10 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
+                                            <div id="contract_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-blue-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                            <input type="hidden" id="contract_product_select">
+                                        </div>
                                     </div>
                                     <button type="button" id="add_contract_product_btn"
                                         class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
@@ -721,14 +700,15 @@
                         </h2>
 
                         @if ($dispatch->status === 'pending')
-                            <!-- Chọn thiết bị dự phòng -->
+                            <!-- Chọn thiết bị dự phòng (searchable) -->
                             <div class="mb-4">
                                 <div class="flex gap-2">
                                     <div class="flex-1">
-                                        <select id="backup_product_select"
-                                            class="w-full border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
-                                            <option value="">-- Chọn thiết bị dự phòng --</option>
-                                        </select>
+                                        <div class="relative">
+                                            <input type="text" id="backup_product_search" placeholder="Tìm kiếm thiết bị dự phòng..." class="w-full h-10 border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
+                                            <div id="backup_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-orange-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                            <input type="hidden" id="backup_product_select">
+                                        </div>
                                     </div>
                                     <button type="button" id="add_backup_product_btn"
                                         class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
@@ -908,6 +888,19 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            function activateProjectReceiver(source) {
+                const projectHidden = document.getElementById('project_receiver');
+                const rentalHidden = document.getElementById('rental_project_receiver');
+                const warrantyHidden = document.getElementById('warranty_receiver');
+                // Disable all first
+                if (projectHidden) projectHidden.disabled = true;
+                if (rentalHidden) rentalHidden.disabled = true;
+                if (warrantyHidden) warrantyHidden.disabled = true;
+                // Enable the one we want submitted
+                if (source === 'project' && projectHidden) projectHidden.disabled = false;
+                if (source === 'rental' && rentalHidden) rentalHidden.disabled = false;
+                if (source === 'warranty' && warrantyHidden) warrantyHidden.disabled = false;
+            }
             // Variables for edit page
             let availableItems = [];
 
@@ -1055,6 +1048,199 @@
                 loadAvailableItems();
             @endif
 
+            // Generic bind function for search dropdowns
+            function bindSearchDropdown({ searchEl, dropdownEl, optionClass, onSelect }) {
+                if (!searchEl || !dropdownEl) return;
+                searchEl.addEventListener('focus', () => {
+                    if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
+                });
+                searchEl.addEventListener('input', function() {
+                    const q = this.value.toLowerCase();
+                    dropdownEl.querySelectorAll('.' + optionClass).forEach(opt => {
+                        const base = opt.dataset.text || opt.textContent;
+                        const show = base.toLowerCase().includes(q);
+                        opt.style.display = show ? 'block' : 'none';
+                        if (show) opt.innerHTML = base.replace(new RegExp(q, 'gi'), m => `<mark class="bg-yellow-200">${m}</mark>`);
+                    });
+                    if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
+                });
+                dropdownEl.addEventListener('mousedown', function(e){
+                    e.stopPropagation();
+                    pick(e);
+                });
+                function pick(e) {
+                    const el = e.target.closest('.' + optionClass);
+                    if (!el) return;
+                    el.innerHTML = el.dataset.text || el.textContent;
+                    dropdownEl.classList.add('hidden');
+                    if (onSelect) onSelect(el);
+                }
+                dropdownEl.addEventListener('click', pick);
+                searchEl.addEventListener('blur', () => setTimeout(() => dropdownEl.classList.add('hidden'), 150));
+                document.addEventListener('mousedown', function(e) {
+                    if (!dropdownEl.contains(e.target) && e.target !== searchEl) dropdownEl.classList.add('hidden');
+                });
+            }
+
+            // Build options for contract/backup dropdowns from availableItems
+            function buildProductOptionsHTML(filterCategory) {
+                const items = Array.isArray(availableItems) ? availableItems : [];
+                const arr = items
+                    .filter(it => !filterCategory || it.category === filterCategory || !it.category)
+                    .map(it => ({
+                        id: it.id,
+                        text: `${it.code || ''} - ${it.name || ''}`.trim(),
+                        type: it.type
+                    }));
+                arr.sort((a,b)=> a.text.localeCompare(b.text,'vi',{sensitivity:'base'}));
+                return arr.map(it => `<div class="product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="${it.id}" data-type="${it.type}" data-text="${it.text}">${it.text}</div>`).join('');
+            }
+
+            function initContractProductSearch() {
+                const search = document.getElementById('contract_product_search');
+                const dropdown = document.getElementById('contract_product_dropdown');
+                const hidden = document.getElementById('contract_product_select');
+                if (!search || !dropdown || !hidden) return;
+                dropdown.innerHTML = buildProductOptionsHTML('contract');
+                bindSearchDropdown({
+                    searchEl: search,
+                    dropdownEl: dropdown,
+                    optionClass: 'product-option',
+                    onSelect: (opt) => {
+                        search.value = opt.dataset.text;
+                        hidden.value = opt.dataset.value;
+                    }
+                });
+            }
+
+            function initBackupProductSearch() {
+                const search = document.getElementById('backup_product_search');
+                const dropdown = document.getElementById('backup_product_dropdown');
+                const hidden = document.getElementById('backup_product_select');
+                if (!search || !dropdown || !hidden) return;
+                dropdown.innerHTML = buildProductOptionsHTML('backup');
+                bindSearchDropdown({
+                    searchEl: search,
+                    dropdownEl: dropdown,
+                    optionClass: 'product-option',
+                    onSelect: (opt) => {
+                        search.value = opt.dataset.text;
+                        hidden.value = opt.dataset.value;
+                    }
+                });
+            }
+
+            // Initialize project search
+            (function initProjectSearch(){
+                const search = document.getElementById('project_receiver_search');
+                const dropdown = document.getElementById('project_receiver_dropdown');
+                const hiddenText = document.getElementById('project_receiver');
+                const hiddenId = document.getElementById('project_id');
+                bindSearchDropdown({
+                    searchEl: search,
+                    dropdownEl: dropdown,
+                    optionClass: 'project-option',
+                    onSelect: (opt) => {
+                        search.value = opt.dataset.text;
+                        if (hiddenText) hiddenText.value = opt.dataset.text;
+                        if (hiddenId && opt.dataset.projectId) hiddenId.value = opt.dataset.projectId;
+                        const wp = opt.dataset.warrantyPeriod || '';
+                        const wpEl = document.getElementById('warranty_period');
+                        if (wpEl) wpEl.value = wp;
+                        activateProjectReceiver('project');
+                    }
+                });
+            })();
+
+            // Initialize employee search (company representative)
+            (function initRepSearch(){
+                const search = document.getElementById('company_representative_search');
+                const dropdown = document.getElementById('company_representative_dropdown');
+                const hidden = document.getElementById('company_representative');
+                bindSearchDropdown({
+                    searchEl: search,
+                    dropdownEl: dropdown,
+                    optionClass: 'employee-option',
+                    onSelect: (opt) => {
+                        search.value = opt.dataset.text;
+                        if (hidden) hidden.value = opt.dataset.value;
+                    }
+                });
+            })();
+
+            // Initialize warranty combined search (projects + rentals filled later)
+            (function initWarrantySearch(){
+                const search = document.getElementById('warranty_receiver_search');
+                const dropdown = document.getElementById('warranty_receiver_dropdown');
+                const hidden = document.getElementById('warranty_receiver');
+                bindSearchDropdown({
+                    searchEl: search,
+                    dropdownEl: dropdown,
+                    optionClass: 'warranty-option',
+                    onSelect: (opt) => {
+                        search.value = opt.dataset.text;
+                        if (hidden) hidden.value = opt.dataset.text;
+                        const pid = opt.dataset.projectId || opt.dataset.rentalId || '';
+                        const projectIdEl = document.getElementById('project_id');
+                        if (projectIdEl && pid) projectIdEl.value = pid;
+                        activateProjectReceiver('warranty');
+                    }
+                });
+            })();
+
+            // Initialize rental search (options populated via API)
+            (function initRentalSearch(){
+                const search = document.getElementById('rental_receiver_search');
+                const dropdown = document.getElementById('rental_receiver_dropdown');
+                const hidden = document.getElementById('rental_receiver');
+                bindSearchDropdown({
+                    searchEl: search,
+                    dropdownEl: dropdown,
+                    optionClass: 'rental-option',
+                    onSelect: (opt) => {
+                        search.value = opt.dataset.text;
+                        if (hidden) hidden.value = opt.dataset.text;
+                        const projectIdEl = document.getElementById('project_id');
+                        if (projectIdEl && opt.dataset.rentalId) projectIdEl.value = opt.dataset.rentalId;
+                        const rentalProjectReceiver = document.getElementById('rental_project_receiver');
+                        if (rentalProjectReceiver) rentalProjectReceiver.value = opt.dataset.text;
+                        activateProjectReceiver('rental');
+                        // Ensure only the active hidden is named project_receiver
+                        const pr = document.getElementById('project_receiver');
+                        const rr = document.getElementById('rental_project_receiver');
+                        const wr = document.getElementById('warranty_receiver');
+                        if (pr) pr.name = 'project_receiver_disabled';
+                        if (wr) wr.name = 'project_receiver_disabled';
+                        if (rr) rr.name = 'project_receiver';
+                    }
+                });
+            })();
+
+            // Populate rentals for rental and warranty dropdowns (searchable)
+            async function populateRentalSearchOptions() {
+                try {
+                    const response = await fetch('/api/dispatch/rentals');
+                    const data = await response.json();
+                    if (data.success) {
+                        const rentalDropdown = document.getElementById('rental_receiver_dropdown');
+                        const warrantyDropdown = document.getElementById('warranty_receiver_dropdown');
+                        if (rentalDropdown) {
+                            rentalDropdown.innerHTML = (data.rentals || []).map(r => `<div class="rental-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="${r.display_name}" data-rental-id="${r.id}" data-rental-code="${r.rental_code}" data-customer-name="${r.customer_name}">${r.display_name}</div>`).join('');
+                        }
+                        if (warrantyDropdown) {
+                            const existing = warrantyDropdown.innerHTML; // keep project options
+                            const rentalHtml = (data.rentals || []).map(r => `<div class=\"warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0\" data-text=\"${r.display_name}\" data-type=\"rental\" data-rental-id=\"${r.id}\">${r.display_name}</div>`).join('');
+                            warrantyDropdown.innerHTML = existing + rentalHtml;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading rentals for search:', e);
+                }
+            }
+
+            // Kick off rentals population
+            populateRentalSearchOptions();
+
             // Load available items from API
             async function loadAvailableItems() {
                 try {
@@ -1069,6 +1255,9 @@
                         populateProductDropdowns();
                         // Setup dropdown handlers
                         setupDropdownHandlers();
+                        // Initialize searchable pickers for contract/backup
+                        initContractProductSearch();
+                        initBackupProductSearch();
                         // Sau khi render từ API, cập nhật ngay cột tồn kho
                         if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
                             setTimeout(syncStockCellsWithSelectedWarehouses, 0);
@@ -1077,6 +1266,49 @@
                 } catch (error) {
                     console.error('Error loading available items:', error);
                 }
+            }
+
+            // Trước khi submit: đảm bảo field project_receiver đúng theo loại hình
+            const formEl = document.querySelector('form');
+            if (formEl) {
+                formEl.addEventListener('submit', function() {
+                    const type = document.getElementById('dispatch_type')?.value;
+                    const pr = document.getElementById('project_receiver');
+                    const prSearch = document.getElementById('project_receiver_search');
+                    const rr = document.getElementById('rental_project_receiver');
+                    const rrSearch = document.getElementById('rental_receiver_search');
+                    const wr = document.getElementById('warranty_receiver');
+                    const wrSearch = document.getElementById('warranty_receiver_search');
+                    const canonical = document.getElementById('project_receiver_canonical');
+
+                    // Reset names
+                    if (pr) { pr.name = 'project_receiver_disabled'; pr.disabled = true; }
+                    if (rr) { rr.name = 'project_receiver_disabled'; rr.disabled = true; }
+                    if (wr) { wr.name = 'project_receiver_disabled'; wr.disabled = true; }
+
+                    if (type === 'project') {
+                        if (pr) {
+                            pr.name = 'project_receiver';
+                            pr.disabled = false;
+                            if (prSearch && !pr.value) pr.value = prSearch.value || '';
+                        }
+                        if (canonical) canonical.value = pr?.value || prSearch?.value || '';
+                    } else if (type === 'rental') {
+                        if (rr) {
+                            rr.name = 'project_receiver';
+                            rr.disabled = false;
+                            if (rrSearch && !rr.value) rr.value = rrSearch.value || '';
+                        }
+                        if (canonical) canonical.value = rr?.value || rrSearch?.value || '';
+                    } else if (type === 'warranty') {
+                        if (wr) {
+                            wr.name = 'project_receiver';
+                            wr.disabled = false;
+                            if (wrSearch && !wr.value) wr.value = wrSearch.value || '';
+                        }
+                        if (canonical) canonical.value = wr?.value || wrSearch?.value || '';
+                    }
+                });
             }
 
             // Load existing items without API (for all statuses)
@@ -1483,9 +1715,22 @@
                         projectSection.classList.remove('hidden');
                         rentalSection.classList.add('hidden');
                         
-                        // Xóa hidden input project_receiver của rental nếu có
+                        // Clear rental input/search when switching to project
                         const rentalHidden = document.getElementById('rental_project_receiver');
-                        if (rentalHidden) rentalHidden.remove();
+                        const rentalText = document.getElementById('rental_receiver_search');
+                        const rentalHiddenVal = document.getElementById('rental_receiver');
+                        if (rentalHidden) rentalHidden.value = '';
+                        if (rentalText) rentalText.value = '';
+                        if (rentalHiddenVal) rentalHiddenVal.value = '';
+                        // Activate project receiver and canonical, and clear old rental text
+                        const canonical = document.getElementById('project_receiver_canonical');
+                        const pr = document.getElementById('project_receiver');
+                        const prSearch = document.getElementById('project_receiver_search');
+                        const projectIdInput = document.getElementById('project_id');
+                        if (pr) { pr.disabled = false; pr.name = 'project_receiver'; pr.value = ''; }
+                        if (prSearch) prSearch.value = '';
+                        if (canonical) canonical.value = '';
+                        if (projectIdInput) projectIdInput.value = '';
 
                         // Reset dispatch detail về mặc định cho project
                         if (dispatchDetailSelect) {
@@ -1788,46 +2033,18 @@
                 }
             }
 
-            // Populate product dropdowns giống trang create
-            function populateProductDropdowns() {
-                const contractProductSelect = document.getElementById('contract_product_select');
-                const backupProductSelect = document.getElementById('backup_product_select');
-
-                // Cập nhật dropdown hợp đồng
-                if (contractProductSelect) {
-                    contractProductSelect.innerHTML =
-                        '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
-                }
-
-                // Cập nhật dropdown dự phòng
-                if (backupProductSelect) {
-                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
-                }
-
-                // Thêm options từ availableItems
-                availableItems.forEach(item => {
-                    const contractOption = document.createElement('option');
-                    contractOption.value = item.id;
-                    contractOption.textContent = item.display_name;
-
-                    const backupOption = document.createElement('option');
-                    backupOption.value = item.id;
-                    backupOption.textContent = item.display_name;
-
-                    if (contractProductSelect) contractProductSelect.appendChild(contractOption);
-                    if (backupProductSelect) backupProductSelect.appendChild(backupOption);
-                });
-            }
+            // Populate product dropdowns: now handled by search dropdowns, keep as no-op for compatibility
+            function populateProductDropdowns() {}
 
             // Setup dropdown handlers giống trang create
             function setupDropdownHandlers() {
                 // Xử lý thêm sản phẩm hợp đồng
                 const addContractProductBtn = document.getElementById('add_contract_product_btn');
-                const contractProductSelect = document.getElementById('contract_product_select');
+                const contractProductHidden = document.getElementById('contract_product_select');
 
                 if (addContractProductBtn) {
                     addContractProductBtn.addEventListener('click', function() {
-                        const selectedProductId = contractProductSelect.value;
+                        const selectedProductId = contractProductHidden.value;
 
                         if (!selectedProductId) {
                             alert('Vui lòng chọn thiết bị theo hợp đồng để thêm!');
@@ -1835,17 +2052,17 @@
                         }
 
                         addContractProduct(parseInt(selectedProductId));
-                        contractProductSelect.value = '';
+                        contractProductHidden.value = '';
                     });
                 }
 
                 // Xử lý thêm thiết bị dự phòng
                 const addBackupProductBtn = document.getElementById('add_backup_product_btn');
-                const backupProductSelect = document.getElementById('backup_product_select');
+                const backupProductHidden = document.getElementById('backup_product_select');
 
                 if (addBackupProductBtn) {
                     addBackupProductBtn.addEventListener('click', function() {
-                        const selectedProductId = backupProductSelect.value;
+                        const selectedProductId = backupProductHidden.value;
 
                         if (!selectedProductId) {
                             alert('Vui lòng chọn thiết bị dự phòng để thêm!');
@@ -1853,16 +2070,14 @@
                         }
 
                         addBackupProduct(parseInt(selectedProductId));
-                        backupProductSelect.value = '';
+                        backupProductHidden.value = '';
                     });
                 }
             }
 
             // Hàm thêm sản phẩm hợp đồng
             function addContractProduct(productId) {
-                const contractProductSelect = document.getElementById('contract_product_select');
-                const selectedOption = contractProductSelect.options[contractProductSelect.selectedIndex];
-                const selectedType = selectedOption ? selectedOption.dataset.type : 'product';
+                const selectedType = 'product'; // Default type for contract products
 
                 const foundProduct = availableItems.find(p => p.id == productId);
 
@@ -1894,9 +2109,7 @@
 
             // Hàm thêm thiết bị dự phòng
             function addBackupProduct(productId) {
-                const backupProductSelect = document.getElementById('backup_product_select');
-                const selectedOption = backupProductSelect.options[backupProductSelect.selectedIndex];
-                const selectedType = selectedOption ? selectedOption.dataset.type : 'product';
+                const selectedType = 'product'; // Default type for backup products
 
                 const foundProduct = availableItems.find(p => p.id == productId);
 

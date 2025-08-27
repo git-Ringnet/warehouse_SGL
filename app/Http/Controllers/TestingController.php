@@ -62,11 +62,13 @@ class TestingController extends Controller
 
         // Filter by date range
         if ($request->has('date_from') && !empty($request->date_from)) {
-            $query->where('test_date', '>=', $request->date_from);
+            $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_from)->format('Y-m-d');
+            $query->where('test_date', '>=', $dateFrom);
         }
         
         if ($request->has('date_to') && !empty($request->date_to)) {
-            $query->where('test_date', '<=', $request->date_to);
+            $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_to)->format('Y-m-d');
+            $query->where('test_date', '<=', $dateTo);
         }
 
         $testings = $query->orderBy('created_at', 'desc')->paginate(10);

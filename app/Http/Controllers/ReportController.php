@@ -30,6 +30,14 @@ class ReportController extends Controller
         // Lấy tham số lọc
         $dateFrom = $request->get('from_date');
         $dateTo = $request->get('to_date');
+        
+        // Chuyển đổi định dạng từ dd/mm/YYYY sang Y-m-d nếu có
+        if ($dateFrom) {
+            $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $dateFrom)->format('Y-m-d');
+        }
+        if ($dateTo) {
+            $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $dateTo)->format('Y-m-d');
+        }
         $search = $request->get('search');
         $category = $request->get('category_filter');
         $timeFilter = $request->get('time_filter');
@@ -108,6 +116,14 @@ class ReportController extends Controller
             // Lấy tham số lọc
             $dateFrom = $request->get('from_date');
             $dateTo = $request->get('to_date');
+            
+            // Chuyển đổi định dạng từ dd/mm/YYYY sang Y-m-d nếu có
+            if ($dateFrom) {
+                $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $dateFrom)->format('Y-m-d');
+            }
+            if ($dateTo) {
+                $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $dateTo)->format('Y-m-d');
+            }
             $search = $request->get('search');
             $category = $request->get('category_filter');
             $timeFilter = $request->get('time_filter');

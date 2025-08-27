@@ -132,15 +132,23 @@
                             <label for="product_id" class="block text-sm font-medium text-gray-700 mb-1 required">Thành
                                 phẩm </label>
                             <div class="relative flex space-x-2">
-                                <select id="product_id"
-                                    class="flex-1 border w-full border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">-- Chọn thành phẩm --</option>
-                                    @foreach ($products as $product)
-                                        <option value="{{ $product->id }}" data-name="{{ $product->name }}"
-                                            data-code="{{ $product->code }}">
-                                            [{{ $product->code }}] {{ $product->name }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="flex-1 relative">
+                                    <input type="text" id="product_search" 
+                                           placeholder="Tìm kiếm thành phẩm..." 
+                                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <div id="product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        @foreach ($products as $product)
+                                            <div class="product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                 data-value="{{ $product->id }}" 
+                                                 data-name="{{ $product->name }}"
+                                                 data-code="{{ $product->code }}"
+                                                 data-text="[{{ $product->code }}] {{ $product->name }}">
+                                                [{{ $product->code }}] {{ $product->name }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <input type="hidden" id="product_id" name="product_id">
+                                </div>
                                 <div class="w-24">
                                     <input type="number" id="product_add_quantity" min="1" step="1"
                                         value="1"
@@ -152,7 +160,7 @@
                                     Thêm
                                 </button>
                             </div>
-                            <div class="text-xs text-gray-500 mt-1">Chọn thành phẩm, nhập số lượng và nhấn thêm.</div>
+                            <div class="text-xs text-gray-500 mt-1">Tìm kiếm thành phẩm, nhập số lượng và nhấn thêm.</div>
                         </div>
 
                         <div>
@@ -439,7 +447,8 @@
             const targetWarehouseIdSelect = document.getElementById('target_warehouse_id');
 
             // Thành phẩm UI elements
-            const productSelect = document.getElementById('product_id');
+            const productSearch = document.getElementById('product_search');
+            const productHidden = document.getElementById('product_id');
             const productAddQuantity = document.getElementById('product_add_quantity');
             const addProductBtn = document.getElementById('add_product_btn');
             const productList = document.getElementById('product_list');
@@ -717,8 +726,8 @@
 
             // Xử lý thêm thành phẩm
             addProductBtn.addEventListener('click', function() {
-                const productId = productSelect.value;
-                const productName = productSelect.options[productSelect.selectedIndex].text;
+                const productId = productHidden.value;
+                const productName = productSearch.value;
                 const quantity = parseInt(productAddQuantity.value) || 1;
 
                 if (!productId) {
@@ -764,7 +773,8 @@
                 updateAddProductButtonState();
 
                 // Reset form
-                productSelect.value = '';
+                productSearch.value = '';
+                productHidden.value = '';
                 productAddQuantity.value = '1';
 
                 // Sau khi tạo thành phẩm, tự động cuộn đến block linh kiện của nó
@@ -4951,9 +4961,6 @@
                         throw new Error(data.message || 'Lỗi khi tải serial');
                     }
 
-                    console.log(data.serials);
-                    
-
                     return data.serials || [];
                 } catch (error) {
                     console.error('Error fetching serials:', error);
@@ -5206,6 +5213,62 @@
                     }
                 });
             }
+
+            // Initialize product search functionality
+            const productDropdown = document.getElementById('product_dropdown');
+            const productOptions = document.querySelectorAll('#product_dropdown .product-option');
+
+            // Show dropdown when input is focused
+            productSearch.addEventListener('focus', function() {
+                productDropdown.classList.remove('hidden');
+                filterProducts(productOptions, productSearch.value);
+            });
+
+            // Handle product search input
+            productSearch.addEventListener('input', function() {
+                filterProducts(productOptions, this.value);
+            });
+
+            // Handle product option selection
+            productOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    const productId = this.getAttribute('data-value');
+                    const productText = this.getAttribute('data-text');
+                    productSearch.value = productText;
+                    productHidden.value = productId;
+                    productDropdown.classList.add('hidden');
+                });
+            });
+
+            // Filter products based on search input
+            function filterProducts(options, searchTerm) {
+                const searchTermLower = searchTerm.toLowerCase();
+                options.forEach(option => {
+                    const productText = option.getAttribute('data-text');
+                    const productTextLower = productText.toLowerCase();
+                    
+                    if (productTextLower.includes(searchTermLower)) {
+                        option.style.display = 'block';
+                        
+                        // Highlight search term if it exists
+                        if (searchTerm) {
+                            const regex = new RegExp(`(${searchTerm})`, 'gi');
+                            option.innerHTML = productText.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+                        } else {
+                            option.innerHTML = productText;
+                        }
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            }
+
+            // Hide product dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!productSearch.contains(e.target) && !productDropdown.contains(e.target)) {
+                    productDropdown.classList.add('hidden');
+                }
+            });
 
             // Keyboard navigation for assigned_to
             let assignedToSelectedIndex = -1;

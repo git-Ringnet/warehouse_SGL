@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 </head>
 
 <body>
@@ -104,9 +107,9 @@
                             <option value="other" {{ request('repair_type') == 'other' ? 'selected' : '' }}>Khác
                             </option>
                         </select>
-                        <input type="date" name="date_from" value="{{ request('date_from') }}"
+                        <input type="text" name="date_from" placeholder="DD/MM/YYYY" value="{{ request('date_from') }}"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <input type="date" name="date_to" value="{{ request('date_to') }}"
+                        <input type="text" name="date_to" placeholder="DD/MM/YYYY" value="{{ request('date_to') }}"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <button type="submit"
                             class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-4 py-2 rounded-lg transition-colors">
@@ -308,6 +311,21 @@
     </div>
 
     <script>
+        // Initialize flatpickr for date inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('input[name="date_from"]', dateConfig);
+            flatpickr('input[name="date_to"]', dateConfig);
+        });
+
         function confirmDelete(repairId, repairCode) {
             document.getElementById('deleteRepairCode').textContent = repairCode;
             document.getElementById('deleteForm').action = `/repairs/${repairId}`;

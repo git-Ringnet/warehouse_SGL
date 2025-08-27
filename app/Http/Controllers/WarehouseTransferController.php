@@ -103,10 +103,12 @@ class WarehouseTransferController extends Controller
 
                 case 'date':
                     if ($request->filled('start_date')) {
-                        $query->whereDate('transfer_date', '>=', $request->start_date);
+                        $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->start_date)->format('Y-m-d');
+                        $query->whereDate('transfer_date', '>=', $startDate);
                     }
                     if ($request->filled('end_date')) {
-                        $query->whereDate('transfer_date', '<=', $request->end_date);
+                        $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->end_date)->format('Y-m-d');
+                        $query->whereDate('transfer_date', '<=', $endDate);
                     }
                     break;
 

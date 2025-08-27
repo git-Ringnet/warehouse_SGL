@@ -79,10 +79,12 @@ class AssemblyController extends Controller
 
         // Apply date range filter
         if ($request->filled('date_from')) {
-            $query->whereDate('date', '>=', $request->date_from);
+            $dateFrom = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_from)->format('Y-m-d');
+            $query->whereDate('date', '>=', $dateFrom);
         }
         if ($request->filled('date_to')) {
-            $query->whereDate('date', '<=', $request->date_to);
+            $dateTo = \Carbon\Carbon::createFromFormat('d/m/Y', $request->date_to)->format('Y-m-d');
+            $query->whereDate('date', '<=', $dateTo);
         }
 
         $assemblies = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();

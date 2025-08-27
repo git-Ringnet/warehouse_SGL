@@ -129,9 +129,15 @@
                             
                             <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/hàng hóa</label>
-                                        <select name="items[0][id]" id="item_name_0" class="item-name w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required onchange="checkInventory(this, 0)">
-                                    <option value="">-- Chọn --</option>
-                                </select>
+                                        <div class="relative">
+                                            <input type="text" id="item_search_0" 
+                                                   placeholder="Chọn loại trước, sau đó tìm kiếm..." 
+                                                   class="item-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                            <div id="item_dropdown_0" class="item-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                                <!-- Options will be populated dynamically -->
+                                            </div>
+                                            <input type="hidden" name="items[0][id]" id="item_name_0" class="item-name" required>
+                                        </div>
                             </div>
                             
                             <div>
@@ -399,8 +405,25 @@
             }
         }
         
-        // Gắn event listener ban đầu
-        attachAllListeners();
+        // Global click outside handler for all dropdowns
+        document.addEventListener('click', function(e) {
+            // Hide all material dropdowns when clicking outside
+            document.querySelectorAll('.item-dropdown').forEach(dropdown => {
+                const itemSearch = dropdown.previousElementSibling;
+                if (itemSearch && !itemSearch.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                    dropdown.style.display = 'none';
+                }
+            });
+        });
+        
+        // Initialize material search for the first item
+        initializeMaterialSearch(0);
+        
+        // Attach inventory change listeners for the first item
+        document.querySelectorAll('.warehouse-select, .quantity-input').forEach((element) => {
+            element.addEventListener('change', inventoryChangeHandler);
+        });
         
         function updateItemOptions(selectElement, index) {
             const itemType = selectElement.value;
@@ -547,8 +570,10 @@
             const currentItemCounter = container.children.length;
                                     
             // Update indices
-            template.querySelectorAll('select, input').forEach(element => {
-                element.name = element.name.replace('[0]', `[${currentItemCounter}]`);
+            template.querySelectorAll('select, input, div').forEach(element => {
+                if (element.name) {
+                    element.name = element.name.replace('[0]', `[${currentItemCounter}]`);
+                }
                 if (element.id) {
                     element.id = element.id.replace('_0', `_${currentItemCounter}`);
                 }
@@ -562,6 +587,15 @@
                 input.value = 1;
             });
             
+            // Reset search inputs
+            template.querySelectorAll('.item-search').forEach(input => {
+                input.value = '';
+                input.placeholder = 'Chọn loại trước, sau đó tìm kiếm...';
+            });
+            template.querySelectorAll('.item-name').forEach(input => {
+                input.value = '';
+            });
+            
             // Reset warning elements
             template.querySelectorAll('.inventory-warning').forEach(warning => {
                 warning.classList.add('hidden');
@@ -569,8 +603,31 @@
             
             container.appendChild(template);
             
-            // Gắn event listener cho dropdown mới
-            attachAllListeners();
+            console.log('Adding new item with index:', currentItemCounter);
+            
+            // Debug: Check if elements exist after cloning
+            const debugSearch = template.querySelector(`#item_search_${currentItemCounter}`);
+            const debugDropdown = template.querySelector(`#item_dropdown_${currentItemCounter}`);
+            console.log('Debug elements after cloning:', {
+                search: !!debugSearch,
+                dropdown: !!debugDropdown,
+                searchId: debugSearch?.id,
+                dropdownId: debugDropdown?.id
+            });
+            
+            // Initialize material search for the new item
+            initializeMaterialSearch(currentItemCounter);
+            
+            // Get the actual appended element (not the template)
+            const actualNewItemRow = container.children[container.children.length - 1];
+            
+            // Attach inventory change listeners for the new item
+            actualNewItemRow.querySelectorAll('.warehouse-select, .quantity-input').forEach((element) => {
+                element.removeEventListener('change', inventoryChangeHandler);
+                element.addEventListener('change', inventoryChangeHandler);
+            });
+            
+            // Note: Item type change listener is handled by initializeMaterialSearch
             
             updateSummaryTable();
         }
@@ -602,7 +659,7 @@
             
             items.forEach((item, index) => {
                 const itemType = item.querySelector('.item-type').value;
-                const itemId = item.querySelector('.item-name').value;
+                const itemId = item.querySelector('.item-name').value; // This is now the hidden input
                 const warehouseId = item.querySelector('.warehouse-select').value;
                 const quantity = item.querySelector('input[type="number"]').value;
                 
@@ -1128,9 +1185,219 @@
                     break;
                 case 'Escape':
                     receiverIdDropdown.classList.add('hidden');
-                    break;
             }
         });
+
+        // Initialize material search functionality for the first item
+        initializeMaterialSearch(0);
+
+        // Function to initialize material search for a specific item index
+        function initializeMaterialSearch(itemIndex) {
+            console.log('Initializing material search for itemIndex:', itemIndex);
+            const itemSearch = document.getElementById(`item_search_${itemIndex}`);
+            const itemDropdown = document.getElementById(`item_dropdown_${itemIndex}`);
+            const itemHidden = document.getElementById(`item_name_${itemIndex}`);
+            
+            console.log('Elements found:', {
+                itemSearch: !!itemSearch,
+                itemDropdown: !!itemDropdown,
+                itemHidden: !!itemHidden,
+                itemSearchId: itemSearch?.id,
+                itemDropdownId: itemDropdown?.id,
+                itemHiddenId: itemHidden?.id
+            });
+            
+            if (!itemSearch || !itemDropdown || !itemHidden) {
+                console.log('Missing elements for itemIndex:', itemIndex, {
+                    itemSearch: !!itemSearch,
+                    itemDropdown: !!itemDropdown,
+                    itemHidden: !!itemHidden
+                });
+                return;
+            }
+            
+            const itemTypeSelect = itemSearch.closest('.item-row').querySelector('.item-type');
+            
+            console.log('Found all elements for itemIndex:', itemIndex);
+
+            // Show dropdown on focus
+            itemSearch.addEventListener('focus', function() {
+                console.log('Focus event triggered for itemIndex:', itemIndex);
+                populateMaterialOptions(itemIndex);
+            });
+            
+            // Also show dropdown on click (backup)
+            itemSearch.addEventListener('click', function() {
+                console.log('Click event triggered for itemIndex:', itemIndex);
+                populateMaterialOptions(itemIndex);
+            });
+
+            // Handle search input
+            itemSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = itemDropdown.querySelectorAll('.material-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.textContent.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                itemDropdown.classList.remove('hidden');
+            });
+
+            // Handle material option selection
+            itemDropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('material-option')) {
+                    const option = e.target;
+                    const materialId = option.dataset.value;
+                    const materialText = option.dataset.text;
+                    
+                    itemSearch.value = materialText;
+                    itemHidden.value = materialId;
+                    itemDropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                    
+                    // Trigger inventory check
+                    checkInventory(itemHidden, itemIndex);
+                }
+            });
+
+            // Note: Global click outside handler is now managed at document level
+
+            // Update materials when item type changes
+            const itemTypeChangeHandler = function() {
+                console.log('Item type changed for itemIndex:', itemIndex, 'New value:', this.value);
+                itemSearch.value = '';
+                itemHidden.value = '';
+                
+                // Update placeholder based on selected type
+                if (this.value === 'material') {
+                    itemSearch.placeholder = 'Tìm kiếm vật tư...';
+                } else if (this.value === 'product') {
+                    itemSearch.placeholder = 'Tìm kiếm hàng hóa...';
+                } else {
+                    itemSearch.placeholder = 'Chọn loại trước, sau đó tìm kiếm...';
+                }
+                
+                populateMaterialOptions(itemIndex);
+            };
+            
+            // Remove any existing listener and add new one
+            itemTypeSelect.removeEventListener('change', itemTypeChangeHandler);
+            itemTypeSelect.addEventListener('change', itemTypeChangeHandler);
+        }
+
+        // Function to populate material options based on item type
+        function populateMaterialOptions(itemIndex) {
+            console.log('populateMaterialOptions called for itemIndex:', itemIndex);
+            const itemSearch = document.getElementById(`item_search_${itemIndex}`);
+            if (!itemSearch) {
+                console.log('itemSearch not found for itemIndex:', itemIndex);
+                return;
+            }
+            
+            const itemRow = itemSearch.closest('.item-row');
+            const itemTypeSelect = itemRow.querySelector('.item-type');
+            const itemDropdown = document.getElementById(`item_dropdown_${itemIndex}`);
+            
+            if (!itemTypeSelect || !itemDropdown) {
+                console.log('Missing elements for itemIndex:', itemIndex, {
+                    itemTypeSelect: !!itemTypeSelect,
+                    itemDropdown: !!itemDropdown
+                });
+                return;
+            }
+
+            const itemType = itemTypeSelect.value;
+            let materials = [];
+
+            if (itemType === 'material') {
+                materials = @json($materials ?? []);
+                console.log('Loading materials:', materials.length, 'for itemIndex:', itemIndex);
+                console.log('Materials data:', materials);
+            } else if (itemType === 'product') {
+                materials = @json($goods ?? []);
+                console.log('Loading goods:', materials.length, 'for itemIndex:', itemIndex);
+                console.log('Goods data:', materials);
+            } else {
+                console.log('No item type selected for itemIndex:', itemIndex);
+                itemDropdown.innerHTML = '<div class="px-3 py-2 text-gray-500">Vui lòng chọn loại trước</div>';
+                return;
+            }
+
+            // Clear existing options
+            itemDropdown.innerHTML = '';
+
+            if (materials.length === 0) {
+                itemDropdown.innerHTML = '<div class="px-3 py-2 text-gray-500">Không có dữ liệu</div>';
+                return;
+            }
+
+            // Sort materials alphabetically
+            materials.sort((a, b) => {
+                const nameA = (a.code + ' - ' + a.name).toLowerCase();
+                const nameB = (b.code + ' - ' + b.name).toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+            // Add options
+            materials.forEach(material => {
+                const option = document.createElement('div');
+                option.className = 'material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                option.dataset.value = material.id;
+                option.dataset.text = `${material.code} - ${material.name}`;
+                option.textContent = `${material.code} - ${material.name}`;
+                
+                // Add click event listener to the option
+                option.addEventListener('click', function() {
+                    const materialId = this.dataset.value;
+                    const materialText = this.dataset.text;
+                    
+                    const itemSearch = document.getElementById(`item_search_${itemIndex}`);
+                    const itemHidden = document.getElementById(`item_name_${itemIndex}`);
+                    
+                    if (itemSearch && itemHidden) {
+                        itemSearch.value = materialText;
+                        itemHidden.value = materialId;
+                        itemDropdown.classList.add('hidden');
+                        itemDropdown.style.display = 'none';
+                        
+                        // Trigger inventory check
+                        checkInventory(itemHidden, itemIndex);
+                    }
+                });
+                
+                itemDropdown.appendChild(option);
+            });
+
+            // Show dropdown automatically when materials are loaded (with a small delay)
+            if (materials.length > 0) {
+                console.log('Showing dropdown with', materials.length, 'items for itemIndex:', itemIndex);
+                setTimeout(() => {
+                    itemDropdown.classList.remove('hidden');
+                    itemDropdown.style.display = 'block';
+                    console.log('Dropdown visibility after showing:', {
+                        classList: itemDropdown.classList.toString(),
+                        style: itemDropdown.style.display,
+                        hidden: itemDropdown.hidden
+                    });
+                }, 300); // Small delay to let user see the placeholder change
+            } else {
+                console.log('No materials to show for itemIndex:', itemIndex);
+            }
+        }
     </script>
 </body>
 </html> 

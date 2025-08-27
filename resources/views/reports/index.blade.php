@@ -13,6 +13,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 </head>
 
 <body class="bg-gray-50">
@@ -42,14 +45,14 @@
                         <!-- Từ ngày -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
-                            <input type="date" name="from_date" id="fromDate" value="{{ $dateFrom }}" 
+                            <input type="text" name="from_date" id="fromDate" placeholder="DD/MM/YYYY" value="{{ $dateFrom }}" 
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         
                         <!-- Đến ngày -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
-                            <input type="date" name="to_date" id="toDate" value="{{ $dateTo }}" 
+                            <input type="text" name="to_date" id="toDate" placeholder="DD/MM/YYYY" value="{{ $dateTo }}" 
                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         
@@ -382,11 +385,11 @@
                 <div class="flex gap-4 items-center">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày:</label>
-                        <input type="date" id="historyFromDate" class="form-input text-sm border-gray-300 rounded-md">
+                        <input type="text" id="historyFromDate" class="form-input text-sm border-gray-300 rounded-md">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày:</label>
-                        <input type="date" id="historyToDate" class="form-input text-sm border-gray-300 rounded-md">
+                        <input type="text" id="historyToDate" class="form-input text-sm border-gray-300 rounded-md">
                     </div>
                     <div class="mt-6">
                         <button onclick="filterHistory()" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
@@ -889,6 +892,23 @@
             // Re-add rows to the table
             rows.forEach(row => tbody.appendChild(row));
         }
+
+        // Initialize flatpickr for date inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('#fromDate', dateConfig);
+            flatpickr('#toDate', dateConfig);
+            flatpickr('#historyFromDate', dateConfig);
+            flatpickr('#historyToDate', dateConfig);
+        });
 
         let currentMaterialId = null;
 

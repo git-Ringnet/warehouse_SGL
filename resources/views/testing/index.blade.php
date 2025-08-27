@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 </head>
 
 <body>
@@ -65,13 +68,13 @@
                         <form action="{{ route('testing.index') }}" method="GET" class="flex gap-2 items-end">
                             <div>
                                 <label class="block text-xs text-gray-600 mb-1">Từ ngày</label>
-                                <input type="date" name="date_from" 
+                                <input type="text" name="date_from" placeholder="DD/MM/YYYY"
                                     class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     value="{{ request('date_from') }}">
                             </div>
                             <div>
                                 <label class="block text-xs text-gray-600 mb-1">Đến ngày</label>
-                                <input type="date" name="date_to" 
+                                <input type="text" name="date_to" placeholder="DD/MM/YYYY"
                                     class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     value="{{ request('date_to') }}">
                             </div>
@@ -486,9 +489,22 @@
     </div>
 
     <script>
-        // Khởi tạo modal xóa
+        // Khởi tạo modal xóa và flatpickr
         document.addEventListener('DOMContentLoaded', function() {
             initDeleteModal();
+            
+            // Initialize flatpickr for date inputs
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('input[name="date_from"]', dateConfig);
+            flatpickr('input[name="date_to"]', dateConfig);
         });
 
         // Hàm xóa phiếu kiểm thử

@@ -13,6 +13,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
     <style>
         .z-60 {
             z-index: 60;
@@ -83,13 +86,13 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Từ ngày (lắp
                                             ráp)</label>
-                                        <input type="date" id="dateFromFilter"
+                                        <input type="text" id="dateFromFilter" placeholder="DD/MM/YYYY"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Đến ngày (lắp
                                             ráp)</label>
-                                        <input type="date" id="dateToFilter"
+                                        <input type="text" id="dateToFilter" placeholder="DD/MM/YYYY"
                                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-700">
                                     </div>
                                 </div>
@@ -467,6 +470,19 @@
 
                 filterTags.innerHTML = tagsHtml;
             }
+
+            // Initialize flatpickr for date inputs
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('#dateFromFilter', dateConfig);
+            flatpickr('#dateToFilter', dateConfig);
 
             // Load current filter values from URL
             const urlParams = new URLSearchParams(window.location.search);

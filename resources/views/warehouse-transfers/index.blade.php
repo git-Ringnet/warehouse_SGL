@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 </head>
 
 <body>
@@ -114,11 +117,11 @@
 
                         <!-- Input date range -->
                         <div id="date_range" class="flex gap-2 hidden">
-                            <input type="date" name="start_date" id="start_date"
+                            <input type="text" name="start_date" id="start_date" placeholder="DD/MM/YYYY"
                                 class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
                                 value="{{ request('start_date') }}" />
                             <span class="flex items-center">đến</span>
-                            <input type="date" name="end_date" id="end_date"
+                            <input type="text" name="end_date" id="end_date" placeholder="DD/MM/YYYY"
                                 class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 text-gray-700"
                                 value="{{ request('end_date') }}" />
                         </div>
@@ -417,9 +420,22 @@
             });
         });
 
-        // Khởi tạo modal khi trang được tải
+        // Khởi tạo modal và flatpickr khi trang được tải
         document.addEventListener('DOMContentLoaded', function() {
             initDeleteModal();
+            
+            // Initialize flatpickr for date inputs
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('#start_date', dateConfig);
+            flatpickr('#end_date', dateConfig);
         });
 
         // Mở modal xác nhận xóa

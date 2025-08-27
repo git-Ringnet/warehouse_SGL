@@ -117,15 +117,17 @@ class ProjectRequestController extends Controller
         
         // Lọc theo ngày tạo phiếu
         if ($dateFrom) {
-            $projectQuery->whereDate('created_at', '>=', $dateFrom);
-            $maintenanceQuery->whereDate('created_at', '>=', $dateFrom);
-            $customerMaintenanceQuery->whereDate('created_at', '>=', $dateFrom);
+            $dateFromFormatted = \Carbon\Carbon::createFromFormat('d/m/Y', $dateFrom)->format('Y-m-d');
+            $projectQuery->whereDate('created_at', '>=', $dateFromFormatted);
+            $maintenanceQuery->whereDate('created_at', '>=', $dateFromFormatted);
+            $customerMaintenanceQuery->whereDate('created_at', '>=', $dateFromFormatted);
         }
         
         if ($dateTo) {
-            $projectQuery->whereDate('created_at', '<=', $dateTo);
-            $maintenanceQuery->whereDate('created_at', '<=', $dateTo);
-            $customerMaintenanceQuery->whereDate('created_at', '<=', $dateTo);
+            $dateToFormatted = \Carbon\Carbon::createFromFormat('d/m/Y', $dateTo)->format('Y-m-d');
+            $projectQuery->whereDate('created_at', '<=', $dateToFormatted);
+            $maintenanceQuery->whereDate('created_at', '<=', $dateToFormatted);
+            $customerMaintenanceQuery->whereDate('created_at', '<=', $dateToFormatted);
         }
         
         // Lọc theo loại phiếu nếu có

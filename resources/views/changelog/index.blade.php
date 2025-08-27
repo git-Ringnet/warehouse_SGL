@@ -9,6 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 </head>
 
 <body>
@@ -78,13 +81,13 @@
                         </div>
                         <div>
                             <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
-                            <input type="date" name="start_date" id="start_date"
+                            <input type="text" name="start_date" id="start_date" placeholder="DD/MM/YYYY"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 value="{{ request('start_date') }}">
                         </div>
                         <div>
                             <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
-                            <input type="date" name="end_date" id="end_date"
+                            <input type="text" name="end_date" id="end_date" placeholder="DD/MM/YYYY"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 value="{{ request('end_date') }}">
                         </div>
@@ -253,6 +256,21 @@
     </div>
 
     <script>
+        // Initialize flatpickr for date inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('#start_date', dateConfig);
+            flatpickr('#end_date', dateConfig);
+        });
+
         // Modal handling
         const detailModal = document.getElementById('detail-modal');
         const closeModalBtn = document.getElementById('close-modal-btn');

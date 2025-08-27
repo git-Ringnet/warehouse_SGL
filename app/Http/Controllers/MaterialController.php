@@ -1142,6 +1142,14 @@ class MaterialController extends Controller
         // Lấy bộ lọc từ request
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
+        
+        // Chuyển đổi định dạng từ dd/mm/YYYY sang Y-m-d nếu có
+        if ($fromDate) {
+            $fromDate = \Carbon\Carbon::createFromFormat('d/m/Y', $fromDate)->format('Y-m-d');
+        }
+        if ($toDate) {
+            $toDate = \Carbon\Carbon::createFromFormat('d/m/Y', $toDate)->format('Y-m-d');
+        }
 
         // Query lịch sử nhập kho
         $importsQuery = \App\Models\InventoryImportMaterial::join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')

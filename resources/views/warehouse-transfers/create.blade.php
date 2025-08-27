@@ -98,13 +98,16 @@
                             </div>
                             
                             <div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
-                                <select id="employee_id" name="employee_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                    <option value="">-- Chọn nhân viên --</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->id }}" {{ old('employee_id') == $employee->id ? 'selected' : '' }}>{{ $employee->name }}</option>
-                                    @endforeach
-                                </select>
+                                <label for="employee_id" class="block text-sm font-medium text-gray-700 mb-1">Nhân viên thực hiện</label>
+                                <div class="relative">
+                                    <input type="text" id="employee_search" placeholder="Tìm kiếm nhân viên..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <div id="employee_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        @foreach($employees as $employee)
+                                            <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="{{ $employee->id }}" data-text="{{ $employee->name }}">{{ $employee->name }}</div>
+                                        @endforeach
+                                    </div>
+                                    <input type="hidden" id="employee_id" name="employee_id" value="{{ old('employee_id') }}">
+                                </div>
                             </div>
                             
                             <!-- Xóa trường trạng thái -->
@@ -130,9 +133,11 @@
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
-                                        <select name="materials[0][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                            <option value="">-- Chọn sản phẩm --</option>
-                                        </select>
+                                        <div class="relative">
+                                            <input type="text" name="materials[0][material_search]" class="material-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Tìm kiếm sản phẩm...">
+                                            <div class="material-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                            <input type="hidden" name="materials[0][material_id]" class="material-hidden" value="">
+                                        </div>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Số lượng</label>
@@ -235,15 +240,26 @@
             
             // Khởi tạo danh sách vật tư/thành phẩm/hàng hoá
             await initializeItemLists();
+            // Sort itemsData alphabetically by name for search UX
+            ['material','product','good'].forEach(k => {
+                if (Array.isArray(itemsData[k])) {
+                    itemsData[k].sort((a,b) => (a.name||'').localeCompare(b.name||'', 'vi', { sensitivity: 'base' }));
+                }
+            });
             
             // Khởi tạo các sự kiện cho hàng vật tư đầu tiên
             setupMaterialRowEvents(document.querySelector('.material-row'));
+            // Initialize searches
+            initializeEmployeeSearch();
+            initializeRowMaterialSearch(document.querySelector('.material-row'));
             
             // Load serials cho hàng đầu tiên nếu đã có material được chọn
             const firstRow = document.querySelector('.material-row');
             const materialSelect = firstRow.querySelector('.material-select');
+            const materialHidden = firstRow.querySelector('.material-hidden');
             const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
-            if (materialSelect && materialSelect.value && sourceWarehouseId) {
+            const hasMaterial = (materialSelect && materialSelect.value) || (materialHidden && materialHidden.value);
+            if (hasMaterial && sourceWarehouseId) {
                 loadSerials(firstRow);
             }
             
@@ -253,6 +269,99 @@
             // Cập nhật hiển thị các nút xóa
             updateRemoveButtons();
         });
+
+        // Generic bind search dropdown
+        function bindSearchDropdown({ searchEl, dropdownEl, optionClass, onSelect }) {
+            if (!searchEl || !dropdownEl) return;
+            searchEl.addEventListener('focus', () => {
+                if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
+            });
+            searchEl.addEventListener('input', function() {
+                const q = this.value.toLowerCase();
+                dropdownEl.querySelectorAll('.' + optionClass).forEach(opt => {
+                    const base = opt.dataset.text || opt.textContent;
+                    const show = base.toLowerCase().includes(q);
+                    opt.style.display = show ? 'block' : 'none';
+                    if (show) opt.innerHTML = base.replace(new RegExp(q, 'gi'), m => `<mark class="bg-yellow-200">${m}</mark>`);
+                });
+                if (dropdownEl.children.length > 0) dropdownEl.classList.remove('hidden');
+            });
+            // Prevent outside mousedown from closing before selection
+            dropdownEl.addEventListener('mousedown', function(e) {
+                e.stopPropagation();
+            });
+            function handlePick(e) {
+                const el = e.target.closest('.' + optionClass);
+                if (!el) return;
+                el.innerHTML = el.dataset.text || el.textContent;
+                dropdownEl.classList.add('hidden');
+                if (onSelect) onSelect(el);
+            }
+            dropdownEl.addEventListener('click', handlePick);
+            dropdownEl.addEventListener('mousedown', function(e) {
+                // Ensure selection still applies even if input blurs before click
+                e.stopPropagation();
+                handlePick(e);
+            });
+            // Hide on blur with a slight delay to allow option clicks
+            searchEl.addEventListener('blur', () => {
+                setTimeout(() => dropdownEl.classList.add('hidden'), 150);
+            });
+        }
+
+        function initializeEmployeeSearch() {
+            const search = document.getElementById('employee_search');
+            const dropdown = document.getElementById('employee_dropdown');
+            const hidden = document.getElementById('employee_id');
+            bindSearchDropdown({
+                searchEl: search,
+                dropdownEl: dropdown,
+                optionClass: 'employee-option',
+                onSelect: (opt) => {
+                    search.value = opt.dataset.text;
+                    hidden.value = opt.dataset.value;
+                }
+            });
+        }
+
+        function buildMaterialOptionsHTML() {
+            const merged = [];
+            ['material','product','good'].forEach(k => {
+                (itemsData[k]||[]).forEach(it => {
+                    merged.push({ id: it.id, text: `${it.code || ''} - ${it.name || ''}`, type: k });
+                });
+            });
+            merged.sort((a,b) => a.text.localeCompare(b.text, 'vi', { sensitivity: 'base' }));
+            return merged.map(it => `<div class="material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="${it.id}" data-type="${it.type}" data-text="${it.text}">${it.text}</div>`).join('');
+        }
+
+        function initializeRowMaterialSearch(row) {
+            if (!row) return;
+            const search = row.querySelector('.material-search');
+            const dropdown = row.querySelector('.material-dropdown');
+            const hidden = row.querySelector('.material-hidden');
+            if (!search || !dropdown || !hidden) return;
+            // populate options
+            dropdown.innerHTML = buildMaterialOptionsHTML();
+            bindSearchDropdown({
+                searchEl: search,
+                dropdownEl: dropdown,
+                optionClass: 'material-option',
+                onSelect: (opt) => {
+                    search.value = opt.dataset.text;
+                    hidden.value = opt.dataset.value;
+                    // set type but do not rebuild options to avoid wiping selection
+                    const itemTypeSelect = row.querySelector('.item-type-select');
+                    if (itemTypeSelect) {
+                        itemTypeSelect.value = opt.dataset.type;
+                    }
+                    // load serials and update summaries
+                    if (typeof loadSerials === 'function') loadSerials(row);
+                    updateSummaryTable();
+                    updateMaterialsJson();
+                }
+            });
+        }
         
         // Dữ liệu các sản phẩm từ cả 3 bảng
         let itemsData = {
@@ -301,10 +410,19 @@
             const itemType = selectElement.value;
             const row = selectElement.closest('.material-row');
             const materialSelect = row.querySelector('.material-select');
+            const materialHidden = row.querySelector('.material-hidden');
+            const materialDropdown = row.querySelector('.material-dropdown');
+            const materialSearch = row.querySelector('.material-search');
             
-            // Xóa tất cả các option hiện tại (trừ option đầu tiên)
-            while (materialSelect.options.length > 1) {
-                materialSelect.remove(1);
+            // Xóa danh sách hiện tại
+            if (materialSelect) {
+                while (materialSelect.options.length > 1) {
+                    materialSelect.remove(1);
+                }
+            } else {
+                if (materialDropdown) materialDropdown.innerHTML = '';
+                if (materialHidden) materialHidden.value = '';
+                if (materialSearch) materialSearch.value = '';
             }
             
             // Reset serial display
@@ -324,14 +442,19 @@
             
             // Thêm các option mới dựa trên loại sản phẩm
             const items = itemsData[itemType] || [];
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.text = item.name;
-                option.dataset.type = item.type;
-                option.dataset.category = item.category;
-                materialSelect.add(option);
-            });
+            if (materialSelect) {
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.id;
+                    option.text = item.name;
+                    option.dataset.type = item.type;
+                    option.dataset.category = item.category;
+                    materialSelect.add(option);
+                });
+            } else if (materialDropdown) {
+                const sorted = [...items].sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'vi', {sensitivity:'base'}));
+                materialDropdown.innerHTML = sorted.map(it => `<div class=\"material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0\" data-value=\"${it.id}\" data-type=\"${itemType}\" data-text=\"${(it.code||'') + ' - ' + (it.name||'')}\">${(it.code||'')} - ${(it.name||'')}</div>`).join('');
+            }
             
             // Cập nhật bảng tổng hợp
             updateSummaryTable();
@@ -432,15 +555,18 @@
             // Thêm sự kiện cho việc chọn kho và vật tư
             const sourceWarehouseSelect = document.getElementById('source_warehouse_id');
             const itemTypeSelect = row.querySelector('.item-type-select');
-            const materialSelect = row.querySelector('.material-select');
+            const materialHidden = row.querySelector('.material-hidden');
             
-            [sourceWarehouseSelect, itemTypeSelect, materialSelect].forEach(select => {
-                select.addEventListener('change', function() {
-                    if (sourceWarehouseSelect.value && materialSelect.value) {
+            [sourceWarehouseSelect, itemTypeSelect, materialHidden].forEach(el => {
+                if (!el) return;
+                el.addEventListener('change', function() {
+                    if (sourceWarehouseSelect.value && materialHidden && materialHidden.value) {
                         loadSerials(row);
                     }
                 });
             });
+            // Initialize search dropdown for this row
+            initializeRowMaterialSearch(row);
         }
         
         // Cập nhật hiển thị của các nút xóa
@@ -496,15 +622,20 @@
             materialRows.forEach(row => {
                 const itemTypeSelect = row.querySelector('.item-type-select');
                 const materialSelect = row.querySelector('.material-select');
+                const materialHidden = row.querySelector('.material-hidden');
+                const hasMaterial = (materialSelect && materialSelect.value) || (materialHidden && materialHidden.value);
                 
-                if (materialSelect && materialSelect.value && itemTypeSelect && itemTypeSelect.value) {
-                    const materialId = materialSelect.value;
+                if (hasMaterial && itemTypeSelect && itemTypeSelect.value) {
+                    const materialId = materialSelect && materialSelect.value ? materialSelect.value : materialHidden.value;
                     const itemType = itemTypeSelect.value;
                     const key = `${materialId}-${itemType}`;
                     
                     let materialName = 'Không xác định';
-                    if (materialSelect.selectedIndex >= 0) {
+                    if (materialSelect && materialSelect.selectedIndex >= 0) {
                         materialName = materialSelect.options[materialSelect.selectedIndex].text;
+                    } else {
+                        const search = row.querySelector('.material-search');
+                        if (search && search.value) materialName = search.value;
                     }
                     
                     const quantity = parseInt(row.querySelector('.quantity-input').value) || 0;
@@ -676,9 +807,11 @@
             materialRows.forEach(row => {
                 const itemTypeSelect = row.querySelector('.item-type-select');
                 const materialSelect = row.querySelector('.material-select');
-                if (materialSelect.value && itemTypeSelect.value) {
-                    const materialId = materialSelect.value;
-                    const materialName = materialSelect.options[materialSelect.selectedIndex].text;
+                const materialHidden = row.querySelector('.material-hidden');
+                const hasMaterial = (materialSelect && materialSelect.value) || (materialHidden && materialHidden.value);
+                if (hasMaterial && itemTypeSelect && itemTypeSelect.value) {
+                    const materialId = materialSelect && materialSelect.value ? materialSelect.value : materialHidden.value;
+                    const materialName = materialSelect && materialSelect.selectedIndex >= 0 ? materialSelect.options[materialSelect.selectedIndex].text : (row.querySelector('.material-search')?.value || '');
                     const quantity = parseInt(row.querySelector('.quantity-input').value) || 0;
                     const serialInput = row.querySelector('.serial-input');
                     let serialNumbers = [];
@@ -727,7 +860,8 @@
         // Hàm load danh sách serial
         async function loadSerials(row) {
             const sourceWarehouseId = document.getElementById('source_warehouse_id').value;
-            const materialId = row.querySelector('.material-select').value;
+            const hiddenEl = row.querySelector('.material-hidden');
+            const materialId = hiddenEl ? hiddenEl.value : '';
             const itemType = row.querySelector('.item-type-select').value;
             
             if (!materialId || !sourceWarehouseId) {
@@ -805,7 +939,8 @@
             
             // Thu thập tất cả serials đã chọn từ mỗi hàng
             rows.forEach((row, index) => {
-                const materialId = row.querySelector('.material-select').value;
+                const hiddenEl = row.querySelector('.material-hidden');
+                const materialId = hiddenEl ? hiddenEl.value : '';
                 const selectedSerials = Array.from(row.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim()); // Trim here
                 
                 if (selectedSerials.length > 0) {
@@ -1001,19 +1136,36 @@
             document.getElementById('source_warehouse_id').addEventListener('change', async function() {
                 // Load items theo kho nguồn mới
                 await loadItemsByWarehouse(this.value);
-                // Reset tất cả items đã chọn
+                // Reset danh sách đã chọn (vì theo kho mới)
                 selectedMaterials = [];
-                // Re-render tất cả material rows
+                // Cập nhật lại tất cả các hàng vật tư dựa trên kho mới
                 const materialRows = document.querySelectorAll('.material-row');
                 materialRows.forEach(row => {
+                    // Rebuild searchable dropdown options with new itemsData
+                    initializeRowMaterialSearch(row);
+                    // Nếu đã chọn loại sản phẩm, cập nhật danh sách theo loại đó
                     const typeSelect = row.querySelector('.item-type-select');
-                    const materialSelect = row.querySelector('.material-select');
-                    if (typeSelect && materialSelect) {
-                        typeSelect.value = '';
-                        materialSelect.innerHTML = '<option value="">-- Chọn --</option>';
+                    if (typeSelect && typeSelect.value) {
+                        if (typeof updateItemOptions === 'function') updateItemOptions(typeSelect, 0);
                     }
+                    // Xoá chọn vật tư cũ vì có thể không còn thuộc kho mới
+                    const hidden = row.querySelector('.material-hidden');
+                    const search = row.querySelector('.material-search');
+                    if (hidden) hidden.value = '';
+                    if (search) search.value = '';
                 });
                 updateSummaryTable();
+            });
+
+            // Ẩn tất cả dropdown khi click ra ngoài
+            document.addEventListener('mousedown', function(e) {
+                const dropdowns = document.querySelectorAll('.material-dropdown, #employee_dropdown');
+                dropdowns.forEach(dd => {
+                    const wrapper = dd.closest('.relative') || dd.parentElement;
+                    if (!wrapper || !wrapper.contains(e.target)) {
+                        dd.classList.add('hidden');
+                    }
+                });
             });
         });
 

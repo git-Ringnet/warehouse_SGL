@@ -144,11 +144,11 @@
                         </select>
                     </div>
                     <div class="w-full md:w-auto">
-                        <input type="date" name="date_from" placeholder="Từ ngày" value="{{ request('date_from') }}"
+                        <input type="text" name="date_from" placeholder="DD/MM/YYYY" value="{{ request('date_from') }}"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="w-full md:w-auto">
-                        <input type="date" name="date_to" placeholder="Đến ngày" value="{{ request('date_to') }}"
+                        <input type="text" name="date_to" placeholder="DD/MM/YYYY" value="{{ request('date_to') }}"
                             class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="w-full md:w-auto">
@@ -562,6 +562,19 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize flatpickr for date inputs
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                disableMobile: true,
+                monthSelectorType: 'static',
+                yearSelectorType: 'static'
+            };
+
+            flatpickr('input[name="date_from"]', dateConfig);
+            flatpickr('input[name="date_to"]', dateConfig);
+
             const dropdownToggle = document.querySelector('.req-dropdown-toggle');
             const dropdownMenu = document.querySelector('.req-dropdown-menu');
 

@@ -25,7 +25,9 @@ class ChangeLogController extends Controller
 
         // Filter by date range
         if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->byDateRange($request->start_date, $request->end_date);
+            $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->start_date)->format('Y-m-d');
+            $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->end_date)->format('Y-m-d');
+            $query->byDateRange($startDate, $endDate);
         }
 
         // Search by item code/name
@@ -382,7 +384,9 @@ class ChangeLogController extends Controller
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
-            $query->byDateRange($request->start_date, $request->end_date);
+            $startDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->start_date)->format('Y-m-d');
+            $endDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->end_date)->format('Y-m-d');
+            $query->byDateRange($startDate, $endDate);
         }
 
         if ($request->filled('search')) {
