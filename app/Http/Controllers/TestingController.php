@@ -3717,6 +3717,36 @@ class TestingController extends Controller
                         'serial_numbers' => $serialNumbers, // Truyền array thuần, Laravel sẽ tự cast
                     ]);
                     
+                    // GHI NHẬT KÝ THAY ĐỔI VẬT TƯ CHO PHIẾU XUẤT KHO THÀNH PHẨM
+                    $productModel = null;
+                    if ($item->product_id) {
+                        $productModel = \App\Models\Product::find($item->product_id);
+                    } elseif ($item->good_id) {
+                        $productModel = \App\Models\Good::find($item->good_id);
+                    }
+                    
+                    if ($productModel) {
+                        \App\Helpers\ChangeLogHelper::xuatKho(
+                            $productModel->code,
+                            $productModel->name,
+                            $passQuantity,
+                            $dispatch->dispatch_code,
+                            'Xuất đi dự án: ' . $projectName,
+                            [
+                                'project_id' => $testing->assembly->project_id ?? null,
+                                'project_name' => $projectName,
+                                'project_code' => $projectCode,
+                                'testing_id' => $testing->id,
+                                'testing_code' => $testing->test_code,
+                                'warehouse_id' => null, // N/A - không có kho xuất
+                                'serial_numbers' => $serialNumbers,
+                                'dispatch_type' => 'project',
+                                'dispatch_detail' => 'contract'
+                            ],
+                            'Thành phẩm đạt từ kiểm thử (xuất đi dự án)'
+                        );
+                    }
+                    
                     Log::info('Đã tạo dispatch item với serial', [
                         'item_id' => $item->id,
                         'pass_quantity' => $passQuantity,
