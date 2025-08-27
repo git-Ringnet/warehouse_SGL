@@ -247,6 +247,9 @@
                                             Đơn vị</th>
                                         <th
                                             class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
+                                            Kho xuất</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
                                             Số lượng xuất</th>
                                         <th
                                             class="px-6 py-3 text-left text-xs font-medium text-blue-600 uppercase tracking-wider">
@@ -287,6 +290,13 @@
                                                     {{ $item->item->unit }}
                                                 @else
                                                     Cái
+                                                @endif
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                @if ($item->warehouse)
+                                                    {{ $item->warehouse->name }}
+                                                @else
+                                                    <span class="text-gray-500 font-medium">N/A</span>
                                                 @endif
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-700">
@@ -691,7 +701,7 @@
                                             @if ($item->warehouse)
                                                 {{ $item->warehouse->name }}
                                             @else
-                                                -
+                                                <span class="text-gray-500 font-medium">N/A</span>
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 whitespace-nowrap">

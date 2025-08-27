@@ -17,6 +17,8 @@ use App\Models\Notification;
 use App\Models\UserLog;
 use App\Models\InventoryImport;
 use App\Models\InventoryImportMaterial;
+use App\Models\Dispatch;
+use App\Models\DispatchItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -1836,6 +1838,7 @@ class TestingController extends Controller
 
             // Tạo phiếu nhập kho cho phiếu kiểm thử thành phẩm
             $createdImports = [];
+            $successDispatch = null; // Khai báo biến để lưu phiếu xuất kho thành phẩm
             if ($testing->test_type == 'finished_product' && $testing->assembly && $testing->assembly->purpose == 'project') {
                 // Chỉ tạo phiếu nhập kho cho vật tư không đạt (xuất đi dự án)
                 $failImport = $this->createInventoryImport(
@@ -1848,6 +1851,16 @@ class TestingController extends Controller
                     $createdImports[] = $failImport;
                     // Tự động duyệt tồn kho (đảm bảo vào kho ngay)
                     $this->approveInventoryImportAutomatically($failImport);
+                }
+                
+                // TẠO PHIẾU XUẤT KHO THÀNH PHẨM KHI XUẤT ĐI DỰ ÁN
+                $successDispatch = $this->createProjectExportDispatch($testing);
+                if ($successDispatch) {
+                    Log::info('Đã tạo phiếu xuất kho thành phẩm cho dự án', [
+                        'testing_id' => $testing->id,
+                        'dispatch_id' => $successDispatch->id,
+                        'dispatch_code' => $successDispatch->dispatch_code
+                    ]);
                 }
             } else {
                 // Trường hợp lưu kho: tạo 2 phiếu nhập riêng và duyệt ngay
@@ -1905,7 +1918,8 @@ class TestingController extends Controller
             // Tạo thông báo thành công tùy theo loại kiểm thử và mục đích lắp ráp
             if ($testing->test_type == 'finished_product' && $testing->assembly && $testing->assembly->purpose == 'project') {
                 $projectName = $testing->assembly->project_name ?? 'Dự án';
-                $successMessage = "Đã cập nhật vào kho và tự động duyệt phiếu nhập kho (Dự án cho Thành phẩm đạt: {$projectName}, Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
+                $dispatchInfo = $successDispatch ? " và tạo phiếu xuất kho #{$successDispatch->dispatch_code} (đã tự động duyệt)" : "";
+                $successMessage = "Đã cập nhật vào kho và tự động duyệt phiếu nhập kho (Dự án cho Thành phẩm đạt: {$projectName}, Kho lưu Module Vật tư lắp ráp không đạt: {$failWarehouse->name}){$dispatchInfo} {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
             } elseif ($testing->test_type == 'material') {
                 $transferInfo = count($createdTransfers) > 0 ? " và tạo " . count($createdTransfers) . " phiếu chuyển kho" : "";
                 $successMessage = "Đã cập nhật vào kho, tự động duyệt phiếu nhập kho{$transferInfo} (Kho lưu Vật tư/Hàng hóa đạt: " . ($successWarehouse->name ?? 'Chưa có') . ", Kho lưu Vật tư/Hàng hóa không đạt: {$failWarehouse->name}) {$totalPassQuantity} đạt / {$totalFailQuantity} không đạt";
@@ -3627,5 +3641,112 @@ class TestingController extends Controller
             $arr = [];
         }
         return $arr;
+    }
+
+    /**
+     * Tạo phiếu xuất kho thành phẩm cho dự án (không ảnh hưởng tồn kho)
+     */
+    private function createProjectExportDispatch(Testing $testing)
+    {
+        try {
+            // Tạo mã phiếu xuất kho tự động
+            $exportCode = 'XK' . date('ymd') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            
+            // Lấy thông tin dự án từ assembly
+            $projectName = $testing->assembly->project_name ?? 'Dự án';
+            $projectCode = $testing->assembly->project_code ?? 'N/A';
+            
+            // Tạo phiếu xuất kho
+            $dispatch = \App\Models\Dispatch::create([
+                'dispatch_code' => $exportCode,
+                'dispatch_date' => now(),
+                'dispatch_type' => 'project',
+                'dispatch_detail' => 'contract', // Xuất theo hợp đồng
+                'project_id' => $testing->assembly->project_id ?? null,
+                'project_receiver' => $projectCode . ' - ' . $projectName . ' (Xuất đi dự án)',
+                'warranty_period' => null,
+                'company_representative_id' => $testing->tester_id ?? Auth::id() ?? 1,
+                'dispatch_note' => 'Sinh từ phiếu kiểm thử: ' . $testing->test_code . ' (Xuất đi dự án)',
+                'status' => 'approved', // TỰ ĐỘNG DUYỆT - không cần duyệt thủ công
+                'created_by' => Auth::id() ?? 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Tạo dispatch items cho thành phẩm đạt
+            foreach ($testing->items->where('item_type', 'product') as $item) {
+                $passQuantity = (int)($item->pass_quantity ?? 0);
+                if ($passQuantity > 0) {
+                    // Xử lý serial numbers đúng cách để tránh double encoding
+                    $serialNumbers = [];
+                    
+                    // Lấy serial numbers từ serial_number (nếu có)
+                    if (!empty($item->serial_number)) {
+                        $serialNumbers = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+                    }
+                    
+                    // Nếu có serial_results, lọc chỉ lấy serial có kết quả 'pass'
+                    if (!empty($item->serial_results)) {
+                        $serialResults = json_decode($item->serial_results, true);
+                        if (is_array($serialResults) && !empty($serialNumbers)) {
+                            $passSerials = [];
+                            foreach ($serialResults as $label => $result) {
+                                if ($result === 'pass') {
+                                    $index = ord(strtoupper($label)) - 65; // A=0, B=1, C=2...
+                                    if (isset($serialNumbers[$index])) {
+                                        $passSerials[] = $serialNumbers[$index];
+                                    }
+                                }
+                            }
+                            // Nếu có serial pass, sử dụng serial pass
+                            if (!empty($passSerials)) {
+                                $serialNumbers = $passSerials;
+                            }
+                        }
+                    }
+                    
+                    // Tạo DispatchItem với serial_numbers là array thuần (không encode JSON)
+                    \App\Models\DispatchItem::create([
+                        'dispatch_id' => $dispatch->id,
+                        'warehouse_id' => null, // KHÔNG CÓ KHO XUẤT (N/A)
+                        'item_type' => 'product',
+                        'item_id' => $item->product_id ?? $item->good_id,
+                        'quantity' => $passQuantity,
+                        'category' => 'contract',
+                        'notes' => 'Thành phẩm đạt từ kiểm thử (xuất đi dự án)',
+                        'serial_numbers' => $serialNumbers, // Truyền array thuần, Laravel sẽ tự cast
+                    ]);
+                    
+                    Log::info('Đã tạo dispatch item với serial', [
+                        'item_id' => $item->id,
+                        'pass_quantity' => $passQuantity,
+                        'serial_numbers' => $serialNumbers,
+                        'serial_results' => $item->serial_results,
+                        'serial_number_original' => $item->serial_number,
+                        'item_type' => $item->item_type,
+                        'product_id' => $item->product_id,
+                        'good_id' => $item->good_id
+                    ]);
+                }
+            }
+
+            Log::info('Đã tạo phiếu xuất kho thành phẩm cho dự án', [
+                'testing_id' => $testing->id,
+                'dispatch_id' => $dispatch->id,
+                'dispatch_code' => $dispatch->dispatch_code,
+                'project_name' => $projectName,
+                'status' => 'approved'
+            ]);
+
+            return $dispatch;
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tạo phiếu xuất kho thành phẩm cho dự án: ' . $e->getMessage(), [
+                'testing_id' => $testing->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
     }
 }
