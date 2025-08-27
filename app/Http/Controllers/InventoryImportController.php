@@ -580,12 +580,16 @@ class InventoryImportController extends Controller
                                 foreach ($currentImportMaterials as $importMaterial) {
                                     if (!empty($importMaterial->serial_numbers)) {
                                         if (is_string($importMaterial->serial_numbers)) {
-                                            $serialsArray = json_decode($importMaterial->serial_numbers);
+                                            $serialsArray = json_decode($importMaterial->serial_numbers, true);
                                             if (is_array($serialsArray)) {
-                                                $currentImportSerials = array_merge($currentImportSerials, $serialsArray);
+                                                foreach ($serialsArray as $sn) {
+                                                    $currentImportSerials[] = $sn;
+                                                }
                                             }
                                         } else if (is_array($importMaterial->serial_numbers)) {
-                                            $currentImportSerials = array_merge($currentImportSerials, $importMaterial->serial_numbers);
+                                            foreach ($importMaterial->serial_numbers as $sn) {
+                                                $currentImportSerials[] = $sn;
+                                            }
                                         }
                                     }
                                 }
@@ -889,15 +893,24 @@ class InventoryImportController extends Controller
                 $currentQty = $warehouseMaterial->quantity ?? 0;
                 $warehouseMaterial->quantity = $currentQty + $material->quantity;
 
+                // Luôn lưu cập nhật số lượng, kể cả khi không có serial
+                $warehouseMaterial->save();
+
                 // Cập nhật serial_number vào warehouse_materials nếu có serial
                 if (!empty($material->serial_numbers)) {
-                    $serials = is_array($material->serial_numbers) ? $material->serial_numbers : json_decode($material->serial_numbers, true);
+                    $serials = is_array($material->serial_numbers)
+                        ? $material->serial_numbers
+                        : (json_decode($material->serial_numbers, true) ?: []);
                     $currentSerials = [];
                     if (!empty($warehouseMaterial->serial_number)) {
-                        $currentSerials = json_decode($warehouseMaterial->serial_number, true) ?: [];
+                        $decoded = json_decode($warehouseMaterial->serial_number, true);
+                        $currentSerials = is_array($decoded) ? $decoded : [];
                     }
-                    // Gộp serial cũ và mới, loại bỏ trùng lặp
-                    $mergedSerials = array_unique(array_merge($currentSerials, $serials));
+                    // Gộp serial cũ và mới, loại bỏ trùng lặp (tránh dùng array_merge để khỏi cảnh báo kiểu)
+                    foreach ($serials as $sn) {
+                        $currentSerials[] = $sn;
+                    }
+                    $mergedSerials = array_values(array_unique($currentSerials));
                     $warehouseMaterial->serial_number = json_encode($mergedSerials);
                     $warehouseMaterial->save(); // Save lại cho serials
                 }
