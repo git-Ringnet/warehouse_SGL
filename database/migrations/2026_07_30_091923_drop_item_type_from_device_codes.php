@@ -16,9 +16,15 @@ return new class extends Migration
             $table->dropUnique('device_codes_item_unique');
 
             // drop column
-            $table->dropColumn('item_type');
-            $table->dropColumn('item_id');
-            $table->dropColumn('old_serial');
+            if (Schema::hasColumn('device_codes', 'item_type')) {
+                $table->dropColumn('item_type');
+            }
+            if (Schema::hasColumn('device_codes', 'item_id')) {
+                $table->dropColumn('item_id');
+            }
+            if (Schema::hasColumn('device_codes', 'old_serial')) {
+                $table->dropColumn('old_serial');
+            }
         });
     }
 
