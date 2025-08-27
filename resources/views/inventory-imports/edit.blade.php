@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
     <style>
         .required::after {
@@ -124,12 +125,22 @@
                                 
                                 <div>
                                     <label for="supplier_id" class="block text-sm font-medium text-gray-700 mb-1 required">Nhà cung cấp</label>
-                                    <select id="supplier_id" name="supplier_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                        <option value="">-- Chọn nhà cung cấp --</option>
-                                        @foreach($suppliers as $supplier)
-                                            <option value="{{ $supplier->id }}" {{ old('supplier_id', $inventoryImport->supplier_id) == $supplier->id ? 'selected' : '' }}>{{ $supplier->name }}</option>
-                                        @endforeach
-                                    </select>
+                                    <div class="relative">
+                                        <input type="text" id="supplier_search" 
+                                               placeholder="Tìm kiếm nhà cung cấp..." 
+                                               value="{{ $inventoryImport->supplier->name ?? '' }}"
+                                               class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                        <div id="supplier_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                            @foreach($suppliers as $supplier)
+                                                <div class="supplier-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                     data-value="{{ $supplier->id }}" 
+                                                     data-text="{{ $supplier->name }}">
+                                                    {{ $supplier->name }}
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                        <input type="hidden" id="supplier_id" name="supplier_id" value="{{ $inventoryImport->supplier_id ?? '' }}" required>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -165,22 +176,16 @@
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ hàng hoá</label>
-                                            <select name="materials[{{ $key }}][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                                <option value="">-- Chọn sản phẩm --</option>
-                                                @if($item->item_type === 'material')
-                                                    @foreach($materials as $material)
-                                                        <option value="{{ $material['id'] }}" {{ $item->material_id == $material['id'] ? 'selected' : '' }}>
-                                                            {{ $material['code'] }} - {{ $material['name'] }}
-                                                        </option>
-                                                    @endforeach
-                                                @elseif($item->item_type === 'good')
-                                                    @foreach($goods as $good)
-                                                        <option value="{{ $good['id'] }}" {{ $item->material_id == $good['id'] ? 'selected' : '' }}>
-                                                            {{ $good['code'] }} - {{ $good['name'] }}
-                                                        </option>
-                                                    @endforeach
-                                                @endif
-                                            </select>
+                                            <div class="relative">
+                                                <input type="text" name="materials[{{ $key }}][material_search]" 
+                                                       placeholder="Tìm kiếm vật tư/hàng hóa..." 
+                                                       value="@if($item->item_type === 'material'){{ collect($materials)->firstWhere('id', $item->material_id) ? collect($materials)->firstWhere('id', $item->material_id)['code'] . ' - ' . collect($materials)->firstWhere('id', $item->material_id)['name'] : '' }}@elseif($item->item_type === 'good'){{ collect($goods)->firstWhere('id', $item->material_id) ? collect($goods)->firstWhere('id', $item->material_id)['code'] . ' - ' . collect($goods)->firstWhere('id', $item->material_id)['name'] : '' }}@endif"
+                                                       class="material-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                                <div class="material-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                                    <!-- Options sẽ được populate bằng JavaScript -->
+                                                </div>
+                                                <input type="hidden" name="materials[{{ $key }}][material_id]" class="material-select" value="{{ $item->material_id }}" required>
+                                            </div>
                                         </div>
                                         <div>
                                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập</label>
@@ -274,6 +279,9 @@
             // Khởi tạo các event listeners
             initializeEventListeners();
             
+            // Khởi tạo material search
+            initializeMaterialSearch();
+            
             // Cập nhật bảng tổng hợp ban đầu
             updateSummaryTable();
         });
@@ -290,10 +298,35 @@
             const rows = document.querySelectorAll('.material-row');
             rows.forEach(row => {
                 initializeRowEventListeners(row);
+                // Populate dropdown cho các row đã có sẵn
+                populateDropdownForExistingRow(row);
             });
 
             // Cập nhật hiển thị các nút xóa
             updateRemoveButtons();
+        }
+
+        // Populate dropdown cho row đã có sẵn
+        function populateDropdownForExistingRow(row) {
+            const itemTypeSelect = row.querySelector('.item-type-select');
+            const materialDropdown = row.querySelector('.material-dropdown');
+            
+            if (itemTypeSelect && itemTypeSelect.value && materialDropdown) {
+                const itemType = itemTypeSelect.value;
+                const items = itemsData[itemType + 's'] || [];
+                
+                // Thêm các option vào dropdown
+                items.forEach(item => {
+                    const option = document.createElement('div');
+                    option.className = 'material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                    option.dataset.value = item.id;
+                    option.dataset.text = item.code + ' - ' + item.name;
+                    option.dataset.unit = item.unit;
+                    option.dataset.type = item.type;
+                    option.textContent = item.code + ' - ' + item.name;
+                    materialDropdown.appendChild(option);
+                });
+            }
         }
 
         // Khởi tạo event listeners cho một hàng
@@ -350,6 +383,16 @@
                 }
             });
             
+            // Reset material search và hidden input
+            const materialSearch = template.querySelector('input[name*="material_search"]');
+            const materialHidden = template.querySelector('input[name*="material_id"]');
+            if (materialSearch) materialSearch.value = '';
+            if (materialHidden) materialHidden.value = '';
+            
+            // Reset material dropdown
+            const materialDropdown = template.querySelector('.material-dropdown');
+            if (materialDropdown) materialDropdown.innerHTML = '';
+            
             // Hiển thị nút xóa
             const removeButton = template.querySelector('.remove-material');
             if (removeButton) {
@@ -361,6 +404,9 @@
             
             // Khởi tạo event listeners cho hàng mới
             initializeRowEventListeners(template);
+            
+            // Khởi tạo material search cho hàng mới
+            initializeMaterialSearch();
             
             materialCount++;
             
@@ -396,9 +442,13 @@
                     '</div>' +
                     '<div>' +
                         '<label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ hàng hoá</label>' +
-                        '<select name="materials[' + materialCount + '][material_id]" class="material-select w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>' +
-                            '<option value="">-- Chọn sản phẩm --</option>' +
-                        '</select>' +
+                        '<div class="relative">' +
+                            '<input type="text" name="materials[' + materialCount + '][material_search]" placeholder="Tìm kiếm vật tư/hàng hóa..." class="material-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">' +
+                            '<div class="material-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">' +
+                                '<!-- Options sẽ được populate bằng JavaScript -->' +
+                            '</div>' +
+                            '<input type="hidden" name="materials[' + materialCount + '][material_id]" class="material-select" required>' +
+                        '</div>' +
                     '</div>' +
                     '<div>' +
                         '<label class="block text-sm font-medium text-gray-700 mb-1 required">Kho nhập</label>' +
@@ -463,12 +513,16 @@
             console.log('Updating item options...');
             const itemType = selectElement.value;
             const row = selectElement.closest('.material-row');
-            const materialSelect = row.querySelector('.material-select');
+            const materialSearch = row.querySelector('.material-search');
+            const materialDropdown = row.querySelector('.material-dropdown');
+            const materialHidden = row.querySelector('.material-select');
             
-            // Xóa tất cả các option hiện tại (trừ option đầu tiên)
-            while (materialSelect.options.length > 1) {
-                materialSelect.remove(1);
-            }
+            // Reset search input và hidden input
+            materialSearch.value = '';
+            materialHidden.value = '';
+            
+            // Xóa tất cả các option hiện tại trong dropdown
+            materialDropdown.innerHTML = '';
             
             // Nếu không có loại sản phẩm được chọn, không thêm các option
             if (!itemType) {
@@ -479,14 +533,16 @@
             const items = itemsData[itemType + 's'] || [];
             console.log('Available items:', items);
             
-            // Thêm các option mới
+            // Thêm các option mới vào dropdown
             items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = item.code + ' - ' + item.name;
+                const option = document.createElement('div');
+                option.className = 'material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                option.dataset.value = item.id;
+                option.dataset.text = item.code + ' - ' + item.name;
                 option.dataset.unit = item.unit;
                 option.dataset.type = item.type;
-                materialSelect.appendChild(option);
+                option.textContent = item.code + ' - ' + item.name;
+                materialDropdown.appendChild(option);
             });
             
             // Cập nhật bảng tổng hợp
@@ -521,6 +577,102 @@
             }
         }
 
+        // Khởi tạo material search cho tất cả các row
+        function initializeMaterialSearch() {
+            // Tìm tất cả các material search inputs
+            const materialSearches = document.querySelectorAll('.material-search');
+            
+            materialSearches.forEach(searchInput => {
+                const row = searchInput.closest('.material-row');
+                const materialDropdown = row.querySelector('.material-dropdown');
+                const materialHidden = row.querySelector('.material-select');
+                
+                // Show dropdown on focus
+                searchInput.addEventListener('focus', function() {
+                    if (materialDropdown.children.length > 0) {
+                        materialDropdown.classList.remove('hidden');
+                    }
+                });
+                
+                // Filter materials based on search input
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const options = materialDropdown.querySelectorAll('.material-option');
+                    
+                    options.forEach(option => {
+                        const text = option.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            option.style.display = 'block';
+                            // Highlight search term
+                            const highlightedText = option.dataset.text.replace(
+                                new RegExp(searchTerm, 'gi'),
+                                match => `<mark class="bg-yellow-200">${match}</mark>`
+                            );
+                            option.innerHTML = highlightedText;
+                        } else {
+                            option.style.display = 'none';
+                        }
+                    });
+                    
+                    if (materialDropdown.children.length > 0) {
+                        materialDropdown.classList.remove('hidden');
+                    }
+                });
+                
+                // Handle material option selection
+                materialDropdown.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('material-option')) {
+                        const option = e.target;
+                        const selectedId = option.dataset.value;
+                        const selectedText = option.dataset.text;
+                        
+                        searchInput.value = selectedText;
+                        materialHidden.value = selectedId;
+                        materialDropdown.classList.add('hidden');
+                        
+                        // Remove highlighting
+                        option.innerHTML = option.dataset.text;
+                        
+                        // Cập nhật bảng tổng hợp
+                        updateSummaryTable();
+                    }
+                });
+                
+                // Keyboard navigation
+                searchInput.addEventListener('keydown', function(e) {
+                    const options = Array.from(materialDropdown.querySelectorAll('.material-option:not([style*="display: none"])'));
+                    const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                    
+                    switch(e.key) {
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            if (currentIndex < options.length - 1) {
+                                options.forEach(option => option.classList.remove('highlight'));
+                                options[currentIndex + 1].classList.add('highlight');
+                            }
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            if (currentIndex > 0) {
+                                options.forEach(option => option.classList.remove('highlight'));
+                                options[currentIndex - 1].classList.add('highlight');
+                            }
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            const highlightedOption = materialDropdown.querySelector('.material-option.highlight');
+                            if (highlightedOption) {
+                                highlightedOption.click();
+                            }
+                            break;
+                        case 'Escape':
+                            materialDropdown.classList.add('hidden');
+                            break;
+                    }
+                });
+            });
+        }
+
         // Cập nhật bảng tổng hợp
         function updateSummaryTable() {
             const table = document.getElementById('summary-table');
@@ -548,19 +700,19 @@
             // Tạo các hàng mới cho bảng tổng hợp
             materialRows.forEach((row, index) => {
                 const itemTypeSelect = row.querySelector('select[name*="item_type"]');
-                const materialSelect = row.querySelector('select[name*="material_id"]');
+                const materialHidden = row.querySelector('input[name*="material_id"]');
+                const materialSearch = row.querySelector('input[name*="material_search"]');
                 const warehouseSelect = row.querySelector('select[name*="warehouse_id"]');
                 const quantityInput = row.querySelector('input[name*="quantity"]');
                 const notesTextarea = row.querySelector('textarea[name*="notes"]');
                 
                 // Kiểm tra xem đã chọn loại và sản phẩm chưa
-                if (!itemTypeSelect.value || !materialSelect.value) return;
+                if (!itemTypeSelect.value || !materialHidden.value) return;
                 
                 validRows++;
                 
                 const itemType = itemTypeSelect.value;
-                const selectedOption = materialSelect.options[materialSelect.selectedIndex];
-                const materialText = selectedOption ? selectedOption.text : 'Chưa chọn';
+                const materialText = materialSearch.value || 'Chưa chọn';
                 
                 const warehouseOption = warehouseSelect.options[warehouseSelect.selectedIndex];
                 const warehouseText = warehouseOption ? warehouseOption.text : 'Chưa chọn';
@@ -568,10 +720,14 @@
                 const quantity = quantityInput ? quantityInput.value : '0';
                 const notes = notesTextarea ? notesTextarea.value : '';
                 
-                // Lấy đơn vị từ dataset của option được chọn
+                // Lấy đơn vị từ material data (cần tìm trong itemsData)
                 let unit = '';
-                if (selectedOption && selectedOption.dataset.unit) {
-                    unit = selectedOption.dataset.unit;
+                const materialId = materialHidden.value;
+                if (materialId && itemsData[itemType + 's']) {
+                    const material = itemsData[itemType + 's'].find(item => item.id == materialId);
+                    if (material) {
+                        unit = material.unit || '';
+                    }
                 }
                 
                 // Xác định loại hiển thị
@@ -583,7 +739,7 @@
                     <td class="px-4 py-2 text-sm text-gray-900">${typeDisplay}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${materialText}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${warehouseText}</td>
-                    <td class="px-4 py-2 text-sm text-gray-900">${unit}</td>
+                    <td class="px-2 text-sm text-gray-900">${unit}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${quantity}</td>
                     <td class="px-4 py-2 text-sm text-gray-900">${notes}</td>
                 `;
@@ -597,6 +753,16 @@
                 tbody.appendChild(emptyRow);
             }
         }
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('material-search') && !e.target.classList.contains('material-dropdown')) {
+                const materialDropdowns = document.querySelectorAll('.material-dropdown');
+                materialDropdowns.forEach(dropdown => {
+                    dropdown.classList.add('hidden');
+                });
+            }
+        });
 
         // Validation khi submit form
         document.querySelector('form')?.addEventListener('submit', function(e) {
@@ -615,6 +781,208 @@
                 e.preventDefault();
                 alert('Vui lòng kiểm tra lại các số serial đã nhập');
             }
+        });
+
+        // Supplier search functionality
+        const supplierSearch = document.getElementById('supplier_search');
+        const supplierDropdown = document.getElementById('supplier_dropdown');
+        const supplierHidden = document.getElementById('supplier_id');
+        let selectedSupplierId = '';
+        let selectedSupplierName = '';
+
+        // Show dropdown on focus
+        supplierSearch.addEventListener('focus', function() {
+            supplierDropdown.classList.remove('hidden');
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!supplierSearch.contains(e.target) && !supplierDropdown.contains(e.target)) {
+                supplierDropdown.classList.add('hidden');
+            }
+        });
+
+        // Filter suppliers based on search input
+        supplierSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const options = supplierDropdown.querySelectorAll('.supplier-option');
+            
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    option.style.display = 'block';
+                    // Highlight search term
+                    const highlightedText = option.textContent.replace(
+                        new RegExp(searchTerm, 'gi'),
+                        match => `<mark class="bg-yellow-200">${match}</mark>`
+                    );
+                    option.innerHTML = highlightedText;
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+            
+            supplierDropdown.classList.remove('hidden');
+        });
+
+        // Handle supplier option selection
+        supplierDropdown.addEventListener('click', function(e) {
+            if (e.target.classList.contains('supplier-option')) {
+                const option = e.target;
+                selectedSupplierId = option.dataset.value;
+                selectedSupplierName = option.dataset.text;
+                
+                supplierSearch.value = selectedSupplierName;
+                supplierHidden.value = selectedSupplierId;
+                supplierDropdown.classList.add('hidden');
+                
+                // Remove highlighting
+                option.innerHTML = option.dataset.text;
+            }
+        });
+
+        // Keyboard navigation
+        supplierSearch.addEventListener('keydown', function(e) {
+            const options = Array.from(supplierDropdown.querySelectorAll('.supplier-option:not([style*="display: none"])'));
+            const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+            
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (currentIndex < options.length - 1) {
+                        options.forEach(option => option.classList.remove('highlight'));
+                        options[currentIndex + 1].classList.add('highlight');
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (currentIndex > 0) {
+                        options.forEach(option => option.classList.remove('highlight'));
+                        options[currentIndex - 1].classList.add('highlight');
+                    }
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    const highlightedOption = supplierDropdown.querySelector('.supplier-option.highlight');
+                    if (highlightedOption) {
+                        highlightedOption.click();
+                    }
+                    break;
+                case 'Escape':
+                    supplierDropdown.classList.add('hidden');
+                    break;
+            }
+        });
+
+        // Material search functionality
+        function initializeMaterialSearch() {
+            // Tìm tất cả các material search inputs
+            const materialSearches = document.querySelectorAll('.material-search');
+            
+            materialSearches.forEach(searchInput => {
+                const row = searchInput.closest('.material-row');
+                const materialDropdown = row.querySelector('.material-dropdown');
+                const materialHidden = row.querySelector('.material-select');
+                
+                // Show dropdown on focus
+                searchInput.addEventListener('focus', function() {
+                    if (materialDropdown.children.length > 0) {
+                        materialDropdown.classList.remove('hidden');
+                    }
+                });
+                
+                // Filter materials based on search input
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const options = materialDropdown.querySelectorAll('.material-option');
+                    
+                    options.forEach(option => {
+                        const text = option.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            option.style.display = 'block';
+                            // Highlight search term
+                            const highlightedText = option.dataset.text.replace(
+                                new RegExp(searchTerm, 'gi'),
+                                match => `<mark class="bg-yellow-200">${match}</mark>`
+                            );
+                            option.innerHTML = highlightedText;
+                        } else {
+                            option.style.display = 'none';
+                        }
+                    });
+                    
+                    if (materialDropdown.children.length > 0) {
+                        materialDropdown.classList.remove('hidden');
+                    }
+                });
+                
+                // Handle material option selection
+                materialDropdown.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('material-option')) {
+                        const option = e.target;
+                        const selectedId = option.dataset.value;
+                        const selectedText = option.dataset.text;
+                        
+                        searchInput.value = selectedText;
+                        materialHidden.value = selectedId;
+                        materialDropdown.classList.add('hidden');
+                        
+                        // Remove highlighting
+                        option.innerHTML = option.dataset.text;
+                        
+                        // Cập nhật bảng tổng hợp
+                        updateSummaryTable();
+                    }
+                });
+                
+                // Keyboard navigation
+                searchInput.addEventListener('keydown', function(e) {
+                    const options = Array.from(materialDropdown.querySelectorAll('.material-option:not([style*="display: none"])'));
+                    const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                    
+                    switch(e.key) {
+                        case 'ArrowDown':
+                            e.preventDefault();
+                            if (currentIndex < options.length - 1) {
+                                options.forEach(option => option.classList.remove('highlight'));
+                                options[currentIndex + 1].classList.add('highlight');
+                            }
+                            break;
+                        case 'ArrowUp':
+                            e.preventDefault();
+                            if (currentIndex > 0) {
+                                options.forEach(option => option.classList.remove('highlight'));
+                                options[currentIndex - 1].classList.add('highlight');
+                            }
+                            break;
+                        case 'Enter':
+                            e.preventDefault();
+                            const highlightedOption = materialDropdown.querySelector('.material-option.highlight');
+                            if (highlightedOption) {
+                                highlightedOption.click();
+                            }
+                            break;
+                        case 'Escape':
+                            materialDropdown.classList.add('hidden');
+                            break;
+                    }
+                });
+            });
+        }
+        
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('material-search') && !e.target.classList.contains('material-dropdown')) {
+                const materialDropdowns = document.querySelectorAll('.material-dropdown');
+                materialDropdowns.forEach(dropdown => {
+                    dropdown.classList.add('hidden');
+                });
+            }
+        });
+        
+        // Khởi tạo material search cho các row hiện có
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMaterialSearch();
         });
     </script>
 </body>

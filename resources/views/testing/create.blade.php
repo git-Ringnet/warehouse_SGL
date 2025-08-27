@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <style>
         .required::after {
             content: " *";
@@ -87,18 +88,27 @@
                             </div>
                         </div>
                         
-                        <div class="mt-4">
+                                                <div class="mt-4">
                                 <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người tiếp nhận kiểm thử</label>
-                                <select id="receiver_id" name="receiver_id" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required>
-                                    <option value="">-- Chọn người tiếp nhận --</option>
-                                    @foreach($employees as $employee)
-                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="relative">
+                                    <input type="text" id="receiver_id_search" 
+                                           placeholder="Tìm kiếm người tiếp nhận kiểm thử..." 
+                                           class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                    <div id="receiver_id_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        @foreach($employees as $employee)
+                                            <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                 data-value="{{ $employee->id }}" 
+                                                 data-text="{{ $employee->name }}">
+                                                {{ $employee->name }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <input type="hidden" id="receiver_id" name="receiver_id" required>
+                                </div>
                                 @error('receiver_id')
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
-                        </div>
+                            </div>
                     </div>
 
                     <!-- Thêm vật tư/hàng hóa -->
@@ -1029,6 +1039,97 @@
 
             console.log('Form validation passed');
             return true;
+        });
+
+        // Receiver ID search functionality
+        const receiverIdSearch = document.getElementById('receiver_id_search');
+        const receiverIdDropdown = document.getElementById('receiver_id_dropdown');
+        const receiverIdHidden = document.getElementById('receiver_id');
+        let selectedReceiverId = '';
+        let selectedReceiverName = '';
+
+        // Show dropdown on focus
+        receiverIdSearch.addEventListener('focus', function() {
+            receiverIdDropdown.classList.remove('hidden');
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!receiverIdSearch.contains(e.target) && !receiverIdDropdown.contains(e.target)) {
+                receiverIdDropdown.classList.add('hidden');
+            }
+        });
+
+        // Filter employees based on search input
+        receiverIdSearch.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const options = receiverIdDropdown.querySelectorAll('.employee-option');
+            
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    option.style.display = 'block';
+                    // Highlight search term
+                    const highlightedText = option.textContent.replace(
+                        new RegExp(searchTerm, 'gi'),
+                        match => `<mark class="bg-yellow-200">${match}</mark>`
+                    );
+                    option.innerHTML = highlightedText;
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+            
+            receiverIdDropdown.classList.remove('hidden');
+        });
+
+        // Handle employee option selection
+        receiverIdDropdown.addEventListener('click', function(e) {
+            if (e.target.classList.contains('employee-option')) {
+                const option = e.target;
+                selectedReceiverId = option.dataset.value;
+                selectedReceiverName = option.dataset.text;
+                
+                receiverIdSearch.value = selectedReceiverName;
+                receiverIdHidden.value = selectedReceiverId;
+                receiverIdDropdown.classList.add('hidden');
+                
+                // Remove highlighting
+                option.innerHTML = option.dataset.text;
+            }
+        });
+
+        // Keyboard navigation
+        receiverIdSearch.addEventListener('keydown', function(e) {
+            const options = Array.from(receiverIdDropdown.querySelectorAll('.employee-option:not([style*="display: none"])'));
+            const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+            
+            switch(e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (currentIndex < options.length - 1) {
+                        options.forEach(option => option.classList.remove('highlight'));
+                        options[currentIndex + 1].classList.add('highlight');
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (currentIndex > 0) {
+                        options.forEach(option => option.classList.remove('highlight'));
+                        options[currentIndex - 1].classList.add('highlight');
+                    }
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    const highlightedOption = receiverIdDropdown.querySelector('.employee-option.highlight');
+                    if (highlightedOption) {
+                        highlightedOption.click();
+                    }
+                    break;
+                case 'Escape':
+                    receiverIdDropdown.classList.add('hidden');
+                    break;
+            }
         });
     </script>
 </body>

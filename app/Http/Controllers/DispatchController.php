@@ -79,7 +79,7 @@ class DispatchController extends Controller
             ->where('is_hidden', false)
             ->get();
 
-        $employees = Employee::all();
+        $employees = Employee::orderBy('name')->get();
 
         // Lọc dự án theo quyền của nhân viên đang đăng nhập
         $projects = $this->getFilteredProjects();
@@ -465,7 +465,7 @@ class DispatchController extends Controller
             ->where('is_hidden', false)
             ->get();
 
-        $employees = Employee::all();
+        $employees = Employee::orderBy('name')->get();
 
         // Lọc dự án theo quyền của nhân viên đang đăng nhập
         $projects = $this->getFilteredProjects();

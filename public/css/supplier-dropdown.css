@@ -1,0 +1,169 @@
+/* Supplier Dropdown Styles */
+.supplier-option,
+.manager-option,
+.employee-option,
+.material-option,
+.product-option,
+.project-option,
+.rental-option,
+.warranty-option {
+    transition: all 0.2s ease;
+    position: relative;
+    user-select: none;
+}
+
+.supplier-option:hover,
+.manager-option:hover,
+.employee-option:hover,
+.material-option:hover,
+.product-option:hover,
+.project-option:hover,
+.rental-option:hover,
+.warranty-option:hover {
+    background-color: #eff6ff !important;
+    color: #1e40af;
+}
+
+.supplier-option:active,
+.manager-option:active,
+.employee-option:active,
+.material-option:active,
+.product-option:active,
+.project-option:active,
+.rental-option:active,
+.warranty-option:active {
+    background-color: #dbeafe !important;
+}
+
+/* Custom scrollbar for dropdown */
+#supplier-dropdown::-webkit-scrollbar,
+#supplier_dropdown::-webkit-scrollbar,
+#receiver_id_dropdown::-webkit-scrollbar,
+.material-dropdown::-webkit-scrollbar,
+#company_representative_dropdown::-webkit-scrollbar,
+#contract_product_dropdown::-webkit-scrollbar,
+#backup_product_dropdown::-webkit-scrollbar,
+#project_receiver_dropdown::-webkit-scrollbar,
+#rental_receiver_dropdown::-webkit-scrollbar,
+#warranty_receiver_dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+#supplier-dropdown::-webkit-scrollbar-track,
+#supplier_dropdown::-webkit-scrollbar-track,
+#receiver_id_dropdown::-webkit-scrollbar-track,
+.material-dropdown::-webkit-scrollbar-track,
+#company_representative_dropdown::-webkit-scrollbar-track,
+#contract_product_dropdown::-webkit-scrollbar-track,
+#backup_product_dropdown::-webkit-scrollbar-track,
+#project_receiver_dropdown::-webkit-scrollbar-track,
+#rental_receiver_dropdown::-webkit-scrollbar-track,
+#warranty_receiver_dropdown::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+#supplier-dropdown::-webkit-scrollbar-thumb,
+#supplier_dropdown::-webkit-scrollbar-thumb,
+#receiver_id_dropdown::-webkit-scrollbar-thumb,
+.material-dropdown::-webkit-scrollbar-thumb,
+#company_representative_dropdown::-webkit-scrollbar-thumb,
+#contract_product_dropdown::-webkit-scrollbar-thumb,
+#backup_product_dropdown::-webkit-scrollbar-thumb,
+#project_receiver_dropdown::-webkit-scrollbar-thumb,
+#rental_receiver_dropdown::-webkit-scrollbar-thumb,
+#warranty_receiver_dropdown::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+#supplier-dropdown::-webkit-scrollbar-thumb:hover,
+#supplier_dropdown::-webkit-scrollbar-thumb:hover,
+#receiver_id_dropdown::-webkit-scrollbar-thumb:hover,
+.material-dropdown::-webkit-scrollbar-thumb:hover,
+#company_representative_dropdown::-webkit-scrollbar-thumb:hover,
+#contract_product_dropdown::-webkit-scrollbar-thumb:hover,
+#backup_product_dropdown::-webkit-scrollbar-thumb:hover,
+#project_receiver_dropdown::-webkit-scrollbar-thumb:hover,
+#rental_receiver_dropdown::-webkit-scrollbar-thumb:hover,
+#warranty_receiver_dropdown::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Focus styles for search input */
+#supplier-search:focus,
+#supplier_search:focus,
+#manager_search:focus,
+#assigned_to_search:focus,
+#tester_id_search:focus,
+#receiver_id_search:focus,
+.material-search:focus,
+#company_representative_search:focus,
+#contract_product_search:focus,
+#backup_product_search:focus,
+#project_receiver_search:focus,
+#rental_receiver_search:focus,
+#warranty_receiver_search:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Animation for dropdown */
+#supplier-dropdown,
+#supplier_dropdown,
+#manager_dropdown,
+#assigned_to_dropdown,
+#tester_id_dropdown,
+#receiver_id_dropdown,
+.material-dropdown,
+#company_representative_dropdown,
+#contract_product_dropdown,
+#backup_product_dropdown,
+#project_receiver_dropdown,
+#rental_receiver_dropdown,
+#warranty_receiver_dropdown {
+    animation: fadeInDown 0.2s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Highlight search term in dropdown options */
+.supplier-option.highlight,
+.manager-option.highlight,
+.employee-option.highlight,
+.material-option.highlight,
+.product-option.highlight,
+.project-option.highlight,
+.rental-option.highlight,
+.warranty-option.highlight {
+    background-color: #fef3c7 !important;
+    color: #92400e;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #supplier-dropdown,
+    #supplier_dropdown,
+    #manager_dropdown,
+    #assigned_to_dropdown,
+    #tester_id_dropdown,
+    #receiver_id_dropdown,
+    .material-dropdown,
+    #company_representative_dropdown,
+    #contract_product_dropdown,
+    #backup_product_dropdown,
+    #project_receiver_dropdown,
+    #rental_receiver_dropdown,
+    #warranty_receiver_dropdown {
+        max-height: 200px;
+    }
+}

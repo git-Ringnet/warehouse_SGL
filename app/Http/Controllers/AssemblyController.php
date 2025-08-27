@@ -1667,15 +1667,18 @@ class AssemblyController extends Controller
                 ->where('warehouse_id', $warehouseId)
                 ->where('status', 'active');
 
-            // Include serials that are:
+            // If editing an existing assembly, include serials that are:
             // 1. Not used (notes is null)
             // 2. Used by this assembly (notes contains this assembly ID)
             // 3. Currently assigned to this material in this assembly (in existingSerials)
-            $query->where(function ($q) use ($assemblyId, $existingSerials) {
-                $q->whereNull('notes')
-                    ->orWhere('notes', 'like', '%Assembly ID: ' . $assemblyId . '%')
-                    ->orWhereIn('serial_number', $existingSerials);
-            });
+            // For new assemblies (no assemblyId), do not restrict by notes to avoid excluding valid serials
+            if ($assemblyId) {
+                $query->where(function ($q) use ($assemblyId, $existingSerials) {
+                    $q->whereNull('notes')
+                        ->orWhere('notes', 'like', '%Assembly ID: ' . $assemblyId . '%')
+                        ->orWhereIn('serial_number', $existingSerials);
+                });
+            }
 
             // Loại trừ serial đang được sử dụng trong các phiếu lắp ráp khác ở trạng thái in_progress hoặc completed
             $usedSerialsInOtherAssemblies = AssemblyMaterial::where('material_id', $materialId)

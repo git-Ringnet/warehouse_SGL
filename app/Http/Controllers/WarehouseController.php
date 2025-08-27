@@ -23,7 +23,7 @@ class WarehouseController extends Controller
     {
         // Start with base query for active warehouses that are not hidden
         $query = Warehouse::where('is_hidden', false)
-            ->where('status', 'active');
+            ->where('status', 'active')->orderBy('id','desc');
 
         // Apply search filter
         if ($request->filled('search')) {
@@ -225,7 +225,7 @@ class WarehouseController extends Controller
      */
     public function create()
     {
-        $employees = Employee::all();
+        $employees = Employee::orderBy('name')->get();
         return view('warehouses.create', compact('employees'));
     }
 
@@ -369,7 +369,7 @@ class WarehouseController extends Controller
      */
     public function edit(Warehouse $warehouse)
     {
-        $employees = Employee::all();
+        $employees = Employee::orderBy('name')->get();
         return view('warehouses.edit', compact('warehouse', 'employees'));
     }
 

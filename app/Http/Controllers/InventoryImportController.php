@@ -155,15 +155,16 @@ class InventoryImportController extends Controller
      */
     public function create()
     {
-        // Lấy tất cả nhà cung cấp vì không có cột status
-        $suppliers = Supplier::all();
+        // Lấy tất cả nhà cung cấp vì không có cột status, sắp xếp theo alphabet
+        $suppliers = Supplier::orderBy('name')->get();
         
         // Chỉ lấy các kho đang active
         $warehouses = Warehouse::where('status', 'active')->get();
         
-        // Lấy vật tư active và không bị ẩn
+        // Lấy vật tư active và không bị ẩn, sắp xếp theo alphabet
         $materials = Material::where('status', 'active')
             ->where('is_hidden', 0)
+            ->orderBy('name')
             ->get()
             ->map(function($material) {
                 return [
@@ -180,9 +181,10 @@ class InventoryImportController extends Controller
             ->values()  // Reset array keys
             ->all();    // Convert to array
             
-        // Lấy hàng hóa active và không bị ẩn    
+        // Lấy hàng hóa active và không bị ẩn, sắp xếp theo alphabet    
         $goods = Good::where('status', 'active')
             ->where('is_hidden', 0)
+            ->orderBy('name')
             ->get()
             ->map(function($good) {
                 return [
@@ -457,7 +459,7 @@ class InventoryImportController extends Controller
     public function edit(string $id)
     {
         $inventoryImport = InventoryImport::with(['supplier', 'warehouse', 'materials.material'])->findOrFail($id);
-        $suppliers = Supplier::all();
+        $suppliers = Supplier::orderBy('name')->get();
         
         // Chỉ lấy kho active (không bị ẩn/xóa) - giống như WarehouseTransferController
         $warehouses = Warehouse::where('status', 'active')
@@ -466,9 +468,10 @@ class InventoryImportController extends Controller
             ->orderBy('name')
             ->get();
             
-        // Lấy vật tư active và không bị ẩn
+        // Lấy vật tư active và không bị ẩn, sắp xếp theo alphabet
         $materials = Material::where('status', 'active')
             ->where('is_hidden', 0)
+            ->orderBy('name')
             ->get()
             ->map(function($material) {
                 return [
@@ -485,9 +488,10 @@ class InventoryImportController extends Controller
             ->values()
             ->all();
             
-        // Lấy hàng hóa active và không bị ẩn    
+        // Lấy hàng hóa active và không bị ẩn, sắp xếp theo alphabet    
         $goods = Good::where('status', 'active')
             ->where('is_hidden', 0)
+            ->orderBy('name')
             ->get()
             ->map(function($good) {
                 return [

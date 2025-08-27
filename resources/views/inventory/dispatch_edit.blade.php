@@ -1515,7 +1515,9 @@
                             contractTbody.innerHTML = ''; // Xóa khỏi giao diện
                         }
                         selectedContractProducts.length = 0; // Xóa khỏi mảng dữ liệu
-                        updateSelectedProductsHiddenInput(); // Cập nhật input ẩn
+                        if (typeof updateSelectedProductsHiddenInput === 'function') {
+                            updateSelectedProductsHiddenInput(); // Cập nhật input ẩn
+                        }
                         
                         // Hiển thị phần bảo hành, ẩn phần khác
                         if (warrantySection) warrantySection.classList.remove('hidden');

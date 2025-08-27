@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <script src="{{ asset('js/assembly-product-unit.js') }}"></script>
     <script>
         // Store assembly status for quantity validation
@@ -327,14 +328,22 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Người tiếp nhận kiểm thử</label>
                             @if ($assembly->status === 'pending')
-                                <select name="tester_id"
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    @foreach ($employees ?? [] as $emp)
-                                        <option value="{{ $emp->id }}"
-                                            {{ $assembly->tester_id == $emp->id ? 'selected' : '' }}>
-                                            {{ $emp->name }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="relative">
+                                    <input type="text" id="tester_id_search" 
+                                           placeholder="Tìm kiếm người tiếp nhận kiểm thử..." 
+                                           value="{{ $assembly->tester ? $assembly->tester->name : '' }}"
+                                           class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <div id="tester_id_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        @foreach ($employees ?? [] as $emp)
+                                            <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                 data-value="{{ $emp->id }}" 
+                                                 data-text="{{ $emp->name }}">
+                                                {{ $emp->name }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                    <input type="hidden" id="tester_id" name="tester_id" value="{{ $assembly->tester_id }}" required>
+                                </div>
                             @else
                                 <div
                                     class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-gray-700">
@@ -4212,6 +4221,115 @@
                 cell.innerHTML = '<div class="text-sm text-red-500">Lỗi tải serial</div>';
             }
         }
+
+        // Handle employee search functionality for tester_id (only when status is pending)
+        @if($assembly->status === 'pending')
+        document.addEventListener('DOMContentLoaded', function() {
+            const testerIdSearch = document.getElementById('tester_id_search');
+            const testerIdDropdown = document.getElementById('tester_id_dropdown');
+            const testerIdOptions = document.querySelectorAll('#tester_id_dropdown .employee-option');
+            const testerIdHidden = document.getElementById('tester_id');
+
+            let selectedTesterId = '';
+            let selectedTesterName = '';
+
+            // Show dropdown when input is focused
+            testerIdSearch.addEventListener('focus', function() {
+                testerIdDropdown.classList.remove('hidden');
+                filterEmployees(testerIdOptions, testerIdSearch.value);
+            });
+
+            // Handle tester_id search input
+            testerIdSearch.addEventListener('input', function() {
+                filterEmployees(testerIdOptions, this.value);
+            });
+
+            // Handle tester_id option selection
+            testerIdOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    selectedTesterId = this.getAttribute('data-value');
+                    selectedTesterName = this.getAttribute('data-text');
+                    testerIdSearch.value = selectedTesterName;
+                    testerIdHidden.value = selectedTesterId;
+                    testerIdDropdown.classList.add('hidden');
+                });
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!testerIdSearch.contains(e.target) && !testerIdDropdown.contains(e.target)) {
+                    testerIdDropdown.classList.add('hidden');
+                }
+            });
+
+            // Filter employees based on search input
+            function filterEmployees(options, searchTerm) {
+                const searchTermLower = searchTerm.toLowerCase();
+                options.forEach(option => {
+                    const employeeName = option.getAttribute('data-text');
+                    const employeeNameLower = employeeName.toLowerCase();
+                    
+                    if (employeeNameLower.includes(searchTermLower)) {
+                        option.style.display = 'block';
+                        
+                        // Highlight search term if it exists
+                        if (searchTerm) {
+                            const regex = new RegExp(`(${searchTerm})`, 'gi');
+                            option.innerHTML = employeeName.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+                        } else {
+                            option.innerHTML = employeeName;
+                        }
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            }
+
+            // Keyboard navigation for tester_id
+            let testerIdSelectedIndex = -1;
+            testerIdSearch.addEventListener('keydown', function(e) {
+                const visibleOptions = Array.from(testerIdOptions).filter(option => 
+                    option.style.display !== 'none'
+                );
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    testerIdSelectedIndex = Math.min(testerIdSelectedIndex + 1, visibleOptions.length - 1);
+                    updateEmployeeSelection(visibleOptions, testerIdSelectedIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    testerIdSelectedIndex = Math.max(testerIdSelectedIndex - 1, -1);
+                    updateEmployeeSelection(visibleOptions, testerIdSelectedIndex);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (testerIdSelectedIndex >= 0 && visibleOptions[testerIdSelectedIndex]) {
+                        const option = visibleOptions[testerIdSelectedIndex];
+                        selectedTesterId = option.getAttribute('data-value');
+                        selectedTesterName = option.getAttribute('data-text');
+                        testerIdSearch.value = selectedTesterName;
+                        testerIdHidden.value = selectedTesterId;
+                        testerIdDropdown.classList.add('hidden');
+                        testerIdSelectedIndex = -1;
+                    }
+                } else if (e.key === 'Escape') {
+                    testerIdDropdown.classList.add('hidden');
+                    testerIdSelectedIndex = -1;
+                }
+            });
+
+            function updateEmployeeSelection(visibleOptions, selectedIndex) {
+                // Remove previous selection from all employee options
+                document.querySelectorAll('.employee-option').forEach(option => {
+                    option.classList.remove('bg-blue-100', 'text-blue-900');
+                });
+
+                // Add selection to current index
+                if (selectedIndex >= 0 && visibleOptions[selectedIndex]) {
+                    visibleOptions[selectedIndex].classList.add('bg-blue-100', 'text-blue-900');
+                }
+            }
+        });
+        @endif
     </script>
 </body>
 

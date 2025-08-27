@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
 </head>
 
 <body>
@@ -103,44 +104,57 @@
                         <div id="project_section">
                             <label for="project_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
-                            <select id="project_receiver" name="project_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn dự án --</option>
+                            <div class="relative">
+                                <input type="text" id="project_receiver_search" 
+                                       placeholder="Tìm kiếm dự án..." 
+                                       class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <div id="project_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                 @if (isset($projects))
                                     @foreach ($projects as $project)
-                                        <option
-                                            value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
+                                            <div class="project-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                 data-value="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})"
                                             data-project-id="{{ $project->id }}"
-                                            data-warranty-period="{{ $project->warranty_period }}">
+                                                 data-warranty-period="{{ $project->warranty_period }}"
+                                                 data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})">
                                             {{ $project->project_code }} - {{ $project->project_name }}
                                             ({{ $project->customer->name ?? 'N/A' }})
-                                        </option>
+                                            </div>
                                     @endforeach
                                 @endif
-                            </select>
+                                </div>
+                                <input type="hidden" id="project_receiver" name="project_receiver" required>
                             <input type="hidden" id="project_id" name="project_id">
+                            </div>
                         </div>
 
                         <!-- Phần cho thuê (hiển thị khi loại hình = rental) -->
                         <div id="rental_section" class="hidden">
                             <label for="rental_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
-                            <select id="rental_receiver" name="rental_receiver"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn hợp đồng cho thuê --</option>
-                                <!-- Động load từ API -->
-                            </select>
+                            <div class="relative">
+                                <input type="text" id="rental_receiver_search" 
+                                       placeholder="Tìm kiếm hợp đồng cho thuê..." 
+                                       class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <div id="rental_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    <!-- Options sẽ được populate bằng JavaScript -->
+                                </div>
+                                <input type="hidden" id="rental_receiver" name="rental_receiver" required>
+                            </div>
                         </div>
 
                         <!-- Phần bảo hành (hiển thị khi loại hình = warranty) -->
                         <div id="warranty_section" class="hidden">
                             <label for="warranty_receiver"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
-                            <select id="warranty_receiver" name="warranty_receiver" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn dự án / hợp đồng cho thuê --</option>
-                                <!-- Động load từ API -->
-                            </select>
+                            <div class="relative">
+                                <input type="text" id="warranty_receiver_search" 
+                                       placeholder="Tìm kiếm dự án / hợp đồng cho thuê..." 
+                                       class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <div id="warranty_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    <!-- Options sẽ được populate bằng JavaScript -->
+                                </div>
+                                <input type="hidden" id="warranty_receiver" name="warranty_receiver" required>
+                            </div>
                         </div>
 
                         <div class="hidden">
@@ -153,15 +167,23 @@
                         <div>
                             <label for="company_representative"
                                 class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
-                            <select id="company_representative" name="company_representative_id"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn người đại diện --</option>
+                            <div class="relative">
+                                <input type="text" id="company_representative_search" 
+                                       placeholder="Tìm kiếm người đại diện..." 
+                                       class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                <div id="company_representative_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                 @if (isset($employees))
                                     @foreach ($employees as $employee)
-                                        <option value="{{ $employee->id }}">{{ $employee->name }}</option>
+                                            <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                 data-value="{{ $employee->id }}" 
+                                                 data-text="{{ $employee->name }}">
+                                                {{ $employee->name }}
+                                            </div>
                                     @endforeach
                                 @endif
-                            </select>
+                                </div>
+                                <input type="hidden" id="company_representative" name="company_representative_id" required>
+                            </div>
                         </div>
 
                         <div class="md:col-span-2">
@@ -186,10 +208,15 @@
                     <div class="mb-4">
                         <div class="flex gap-2">
                             <div class="flex-1">
-                                <select id="contract_product_select"
-                                    class="w-full border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
-                                    <option value="">-- Chọn thành phẩm theo hợp đồng --</option>
-                                </select>
+                                <div class="relative">
+                                    <input type="text" id="contract_product_search" 
+                                           placeholder="Tìm kiếm thành phẩm theo hợp đồng..." 
+                                           class="w-full h-10 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
+                                    <div id="contract_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-blue-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        <!-- Options sẽ được populate bằng JavaScript -->
+                                    </div>
+                                    <input type="hidden" id="contract_product_select" required>
+                                </div>
                             </div>
                             <button type="button" id="add_contract_product_btn"
                                 class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
@@ -260,10 +287,15 @@
                     <div class="mb-4">
                         <div class="flex gap-2">
                             <div class="flex-1">
-                                <select id="backup_product_select"
-                                    class="w-full border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
-                                    <option value="">-- Chọn thiết bị dự phòng --</option>
-                                </select>
+                                <div class="relative">
+                                    <input type="text" id="backup_product_search" 
+                                           placeholder="Tìm kiếm thiết bị dự phòng..." 
+                                           class="w-full h-10 border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
+                                    <div id="backup_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-orange-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                        <!-- Options sẽ được populate bằng JavaScript -->
+                                    </div>
+                                    <input type="hidden" id="backup_product_select" required>
+                                </div>
                             </div>
                             <button type="button" id="add_backup_product_btn"
                                 class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
@@ -722,21 +754,22 @@
                     const data = await response.json();
 
                     if (data.success) {
-                        const rentalSelect = document.getElementById('rental_receiver');
-                        if (rentalSelect) {
+                        const rentalDropdown = document.getElementById('rental_receiver_dropdown');
+                        if (rentalDropdown) {
                             // Clear existing options
-                            rentalSelect.innerHTML =
-                                '<option value="">-- Chọn hợp đồng cho thuê --</option>';
+                            rentalDropdown.innerHTML = '';
 
                             // Add rental options
                             data.rentals.forEach(rental => {
-                                const option = document.createElement('option');
-                                option.value = rental.display_name;
-                                option.textContent = rental.display_name;
+                                const option = document.createElement('div');
+                                option.className = 'rental-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                                option.dataset.value = rental.display_name;
+                                option.dataset.text = rental.display_name;
                                 option.dataset.rentalId = rental.id;
                                 option.dataset.rentalCode = rental.rental_code;
                                 option.dataset.customerName = rental.customer_name;
-                                rentalSelect.appendChild(option);
+                                option.textContent = rental.display_name;
+                                rentalDropdown.appendChild(option);
                             });
                         }
                     } else {
@@ -747,36 +780,65 @@
                 }
             }
 
-            // Cập nhật tất cả dropdown sản phẩm
+            // Cập nhật tất cả dropdown sản phẩm (hỗ trợ UI mới dùng search)
             function updateProductSelects() {
-                // Cập nhật dropdown hợp đồng
+                // Cập nhật dropdown hợp đồng (hidden select cũ nếu còn) và dropdown mới
                 const contractProductSelect = document.getElementById('contract_product_select');
                 if (contractProductSelect) {
-                    contractProductSelect.innerHTML =
-                        '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
+                    contractProductSelect.innerHTML = '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
+                }
+                const contractDropdown = document.getElementById('contract_product_dropdown');
+                if (contractDropdown) {
+                    contractDropdown.innerHTML = '';
                 }
 
-                // Cập nhật dropdown dự phòng
+                // Cập nhật dropdown dự phòng (hidden select cũ nếu còn) và dropdown mới
                 const backupProductSelect = document.getElementById('backup_product_select');
                 if (backupProductSelect) {
-                    backupProductSelect.innerHTML =
-                        '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                }
+                const backupDropdown = document.getElementById('backup_product_dropdown');
+                if (backupDropdown) {
+                    backupDropdown.innerHTML = '';
                 }
 
                 // Thêm options từ availableItems
                 availableItems.forEach(item => {
-                    const contractOption = document.createElement('option');
-                    contractOption.value = item.id;
-                    contractOption.textContent = item.display_name;
-                    contractOption.dataset.type = item.type; // Thêm type
+                    // Options cho select cũ (nếu còn).
+                    if (contractProductSelect) {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.display_name;
+                        opt.dataset.type = item.type;
+                        contractProductSelect.appendChild(opt);
+                    }
+                    if (backupProductSelect) {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.display_name;
+                        opt.dataset.type = item.type;
+                        backupProductSelect.appendChild(opt);
+                    }
 
-                    const backupOption = document.createElement('option');
-                    backupOption.value = item.id;
-                    backupOption.textContent = item.display_name;
-                    backupOption.dataset.type = item.type; // Thêm type
-
-                    if (contractProductSelect) contractProductSelect.appendChild(contractOption);
-                    if (backupProductSelect) backupProductSelect.appendChild(backupOption);
+                    // Options cho dropdown mới
+                    if (contractDropdown) {
+                        const div = document.createElement('div');
+                        div.className = 'product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                        div.dataset.value = item.id;
+                        div.dataset.text = item.display_name;
+                        div.dataset.type = item.type;
+                        div.textContent = item.display_name;
+                        contractDropdown.appendChild(div);
+                    }
+                    if (backupDropdown) {
+                        const div = document.createElement('div');
+                        div.className = 'product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                        div.dataset.value = item.id;
+                        div.dataset.text = item.display_name;
+                        div.dataset.type = item.type;
+                        div.textContent = item.display_name;
+                        backupDropdown.appendChild(div);
+                    }
                 });
             }
 
@@ -784,24 +846,22 @@
             function clearProductSelects() {
                 const contractProductSelect = document.getElementById('contract_product_select');
                 if (contractProductSelect) {
-                    contractProductSelect.innerHTML =
-                        '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
+                    contractProductSelect.innerHTML = '<option value="">-- Chọn thiết bị theo hợp đồng --</option>';
                 }
-
                 const backupProductSelect = document.getElementById('backup_product_select');
                 if (backupProductSelect) {
-                    backupProductSelect.innerHTML =
-                        '<option value="">-- Chọn thiết bị dự phòng --</option>';
+                    backupProductSelect.innerHTML = '<option value="">-- Chọn thiết bị dự phòng --</option>';
                 }
+                const contractDropdown = document.getElementById('contract_product_dropdown');
+                if (contractDropdown) contractDropdown.innerHTML = '';
+                const backupDropdown = document.getElementById('backup_product_dropdown');
+                if (backupDropdown) backupDropdown.innerHTML = '';
             }
 
             // Hàm thêm sản phẩm hợp đồng
             function addContractProduct(productId) {
-                const contractProductSelect = document.getElementById('contract_product_select');
-                const selectedOption = contractProductSelect.options[contractProductSelect.selectedIndex];
-                const selectedType = selectedOption ? selectedOption.dataset.type : 'product';
-
-                const foundProduct = availableItems.find(p => p.id == productId && p.type === selectedType);
+                // Determine type from availableItems by id (new UI doesn't use <select> dataset)
+                const foundProduct = availableItems.find(p => p.id == productId);
 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -831,11 +891,8 @@
 
             // Hàm thêm thiết bị dự phòng
             function addBackupProduct(productId) {
-                const backupProductSelect = document.getElementById('backup_product_select');
-                const selectedOption = backupProductSelect.options[backupProductSelect.selectedIndex];
-                const selectedType = selectedOption ? selectedOption.dataset.type : 'product';
-
-                const foundProduct = availableItems.find(p => p.id == productId && p.type === selectedType);
+                // Determine type from availableItems by id (new UI doesn't use <select> dataset)
+                const foundProduct = availableItems.find(p => p.id == productId);
 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -912,29 +969,23 @@
                         // Load danh sách hợp đồng cho thuê
                         loadRentals();
 
-                        // Set project_receiver = rental_receiver và project_id = rental_id để tương thích với backend
+                        // Set project_receiver từ hidden/search input; project_id đã được set khi click option
+                        const rentalSearchInput = document.getElementById('rental_receiver_search');
                         const syncRentalToProject = function() {
-                            projectReceiverInput.value = rentalReceiverInput.value;
-
-                            // Lấy rental_id từ selected option và gán vào project_id
-                            const selectedOption = rentalReceiverInput.options[rentalReceiverInput.selectedIndex];
-                            const projectIdInput = document.getElementById('project_id');
-                            if (selectedOption && selectedOption.dataset.rentalId) {
-                                projectIdInput.value = selectedOption.dataset.rentalId;
-                                console.log('Đã cập nhật project_id với rental_id:', selectedOption.dataset.rentalId);
-                            } else {
-                                projectIdInput.value = '';
-                                console.log('Không có rental_id để cập nhật project_id');
-                            }
+                            projectReceiverInput.value = rentalReceiverInput.value || (rentalSearchInput ? rentalSearchInput.value : '');
                         };
 
                         // Xóa event listener cũ nếu có để tránh duplicate
-                        rentalReceiverInput.removeEventListener('input', syncRentalToProject);
-                        rentalReceiverInput.removeEventListener('change', syncRentalToProject);
+                        if (rentalSearchInput) {
+                            rentalSearchInput.removeEventListener('input', syncRentalToProject);
+                            rentalSearchInput.removeEventListener('change', syncRentalToProject);
+                        }
 
                         // Thêm event listeners mới
-                        rentalReceiverInput.addEventListener('input', syncRentalToProject);
-                        rentalReceiverInput.addEventListener('change', syncRentalToProject);
+                        if (rentalSearchInput) {
+                            rentalSearchInput.addEventListener('input', syncRentalToProject);
+                            rentalSearchInput.addEventListener('change', syncRentalToProject);
+                        }
 
                         // Đồng bộ giá trị hiện tại
                         syncRentalToProject();
@@ -2388,96 +2439,41 @@
                     const rentalResponse = await fetch('/api/dispatch/rentals');
                     const rentalData = await rentalResponse.json();
 
-                    if (warrantyReceiverInput) {
+                    const warrantyDropdown = document.getElementById('warranty_receiver_dropdown');
+                    if (warrantyDropdown) {
                         // Clear existing options
-                        warrantyReceiverInput.innerHTML = '<option value="">-- Chọn dự án / hợp đồng cho thuê --</option>';
+                        warrantyDropdown.innerHTML = '';
 
                         // Add project options
                         if (projectData.success && projectData.projects) {
-                            const projectOptgroup = document.createElement('optgroup');
-                            projectOptgroup.label = 'Dự án';
-                            
                             projectData.projects.forEach(project => {
-                                const option = document.createElement('option');
-                                option.value = project.display_name;
-                                option.textContent = project.display_name;
+                                const option = document.createElement('div');
+                                option.className = 'warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                                option.dataset.value = project.display_name;
+                                option.dataset.text = project.display_name;
                                 option.dataset.projectId = project.id;
                                 option.dataset.type = 'project';
                                 option.dataset.warrantyPeriod = project.warranty_period;
-                                projectOptgroup.appendChild(option);
+                                option.textContent = project.display_name;
+                                warrantyDropdown.appendChild(option);
                             });
-                            
-                            warrantyReceiverInput.appendChild(projectOptgroup);
                         }
 
                         // Add rental options
                         if (rentalData.success && rentalData.rentals) {
-                            const rentalOptgroup = document.createElement('optgroup');
-                            rentalOptgroup.label = 'Hợp đồng cho thuê';
-                            
                             rentalData.rentals.forEach(rental => {
-                                const option = document.createElement('option');
-                                option.value = rental.display_name;
-                                option.textContent = rental.display_name;
+                                const option = document.createElement('div');
+                                option.className = 'warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                                option.dataset.value = rental.display_name;
+                                option.dataset.text = rental.display_name;
                                 option.dataset.rentalId = rental.id;
                                 option.dataset.type = 'rental';
-                                rentalOptgroup.appendChild(option);
+                                option.textContent = rental.display_name;
+                                warrantyDropdown.appendChild(option);
                             });
-                            
-                            warrantyReceiverInput.appendChild(rentalOptgroup);
                         }
 
-                        // Add change event listener
-                        warrantyReceiverInput.addEventListener('change', function() {
-                            const selectedOption = this.options[this.selectedIndex];
-                            
-                            if (selectedOption) {
-                                const selectedType = selectedOption.dataset.type; // 'project' or 'rental'
-                                const selectedValue = selectedOption.value;
-                                const selectedId = selectedType === 'project' ? selectedOption.dataset.projectId : selectedOption.dataset.rentalId;
-                                
-                                // Set project_id based on type
-                                projectIdInput.value = selectedId;
-                                
-                                // Set warranty period
-                                if (selectedType === 'project' && selectedOption.dataset.warrantyPeriod) {
-                                        warrantyPeriodInput.value = selectedOption.dataset.warrantyPeriod + ' tháng';
-                                } else {
-                                    warrantyPeriodInput.value = '12 tháng'; // Default for rental
-                                }
 
-                                // Set project_receiver
-                                try {
-                                    const fullText = selectedOption.textContent.trim();
-                                    console.log('Processing text:', fullText);
-                                    
-                                    // Extract name from format: "CODE - NAME (CUSTOMER)"
-                                    const matches = fullText.match(/^[^-]+ - ([^(]+)/);
-                                    if (matches && matches[1]) {
-                                        projectReceiverInput.value = matches[1].trim();
-                                    } else {
-                                        // Fallback: use full text if pattern doesn't match
-                                        projectReceiverInput.value = fullText;
-                                    }
-
-                                    console.log('Warranty selection updated:', {
-                                        type: selectedType,
-                                        id: selectedId,
-                                        fullText: fullText,
-                                        receiver: projectReceiverInput.value,
-                                        warrantyPeriod: warrantyPeriodInput.value
-                                    });
-                                } catch (error) {
-                                    console.error('Error processing warranty receiver:', error);
-                                    // Fallback: use raw value
-                                    projectReceiverInput.value = selectedValue;
-                                }
-                            } else {
-                                projectIdInput.value = '';
-                                warrantyPeriodInput.value = '';
-                                projectReceiverInput.value = '';
-                            }
-                        });
                     }
                 } catch (error) {
                     console.error('Error loading warranty receivers:', error);
@@ -2486,7 +2482,740 @@
 
             // Load tất cả sản phẩm từ tất cả kho ngay từ đầu
             loadAllAvailableItems();
+            
+            // Khởi tạo search functionality cho các field mới
+            initializeSearchFunctionality();
         });
+        
+        // Khởi tạo search functionality cho các field mới
+        function initializeSearchFunctionality() {
+            // Company Representative Search
+            initializeCompanyRepresentativeSearch();
+            
+            // Project Receiver Search
+            initializeProjectReceiverSearch();
+            
+            // Rental Receiver Search
+            initializeRentalReceiverSearch();
+            
+            // Warranty Receiver Search
+            initializeWarrantyReceiverSearch();
+            
+            // Contract Product Search
+            initializeContractProductSearch();
+            
+            // Backup Product Search
+            initializeBackupProductSearch();
+        }
+        
+        // Project Receiver Search
+        function initializeProjectReceiverSearch() {
+            const searchInput = document.getElementById('project_receiver_search');
+            const dropdown = document.getElementById('project_receiver_dropdown');
+            const hiddenInput = document.getElementById('project_receiver');
+            const projectIdInput = document.getElementById('project_id');
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Filter projects based on search input
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.project-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.dataset.text.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                                } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Handle project option selection
+            dropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('project-option')) {
+                    const option = e.target;
+                    const selectedValue = option.dataset.value;
+                    const selectedText = option.dataset.text;
+                    const projectId = option.dataset.projectId;
+                    const warrantyPeriod = option.dataset.warrantyPeriod;
+                    
+                    searchInput.value = selectedText;
+                    hiddenInput.value = selectedValue;
+                    projectIdInput.value = projectId;
+                    dropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                    
+                    // Update warranty period if exists
+                    const warrantyPeriodInput = document.getElementById('warranty_period');
+                    if (warrantyPeriodInput && warrantyPeriod) {
+                        warrantyPeriodInput.value = warrantyPeriod + ' tháng';
+                    }
+                    
+                    // Set project_receiver for compatibility
+                    const projectReceiverInput = document.getElementById('project_receiver');
+                    if (projectReceiverInput) {
+                        try {
+                            const fullText = selectedText.trim();
+                            // Extract name from format: "CODE - NAME (CUSTOMER)"
+                            const matches = fullText.match(/^[^-]+ - ([^(]+)/);
+                            if (matches && matches[1]) {
+                                projectReceiverInput.value = matches[1].trim();
+                            } else {
+                                // Fallback: use full text if pattern doesn't match
+                                projectReceiverInput.value = fullText;
+                            }
+                        } catch (error) {
+                            console.error('Error processing project receiver:', error);
+                            // Fallback: use raw value
+                            projectReceiverInput.value = selectedValue;
+                        }
+                    }
+                }
+            });
+            
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const options = Array.from(dropdown.querySelectorAll('.project-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = dropdown.querySelector('.project-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        dropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
+        
+        // Company Representative Search
+        function initializeCompanyRepresentativeSearch() {
+            const searchInput = document.getElementById('company_representative_search');
+            const dropdown = document.getElementById('company_representative_dropdown');
+            const hiddenInput = document.getElementById('company_representative');
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Filter employees based on search input
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.employee-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.dataset.text.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Handle employee option selection
+            dropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('employee-option')) {
+                    const option = e.target;
+                    const selectedId = option.dataset.value;
+                    const selectedText = option.dataset.text;
+                    
+                    searchInput.value = selectedText;
+                    hiddenInput.value = selectedId;
+                    dropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                }
+            });
+            
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const options = Array.from(dropdown.querySelectorAll('.employee-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = dropdown.querySelector('.employee-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        dropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
+        
+        // Rental Receiver Search
+        function initializeRentalReceiverSearch() {
+            const searchInput = document.getElementById('rental_receiver_search');
+            const dropdown = document.getElementById('rental_receiver_dropdown');
+            const hiddenInput = document.getElementById('rental_receiver');
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Filter rentals based on search input
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.rental-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.dataset.text.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Handle rental option selection
+            dropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('rental-option')) {
+                    const option = e.target;
+                    const selectedValue = option.dataset.value;
+                    const selectedText = option.dataset.text;
+                    const rentalId = option.dataset.rentalId;
+                    
+                    searchInput.value = selectedText;
+                    hiddenInput.value = selectedValue;
+                    dropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                    
+                    // Set project_id for compatibility
+                    const projectIdInput = document.getElementById('project_id');
+                    if (projectIdInput) {
+                        projectIdInput.value = rentalId;
+                    }
+                    
+                    // Set project_receiver for compatibility
+                    const projectReceiverInput = document.getElementById('project_receiver');
+                    if (projectReceiverInput) {
+                        try {
+                            const fullText = selectedText.trim();
+                                    // Extract name from format: "CODE - NAME (CUSTOMER)"
+                                    const matches = fullText.match(/^[^-]+ - ([^(]+)/);
+                                    if (matches && matches[1]) {
+                                        projectReceiverInput.value = matches[1].trim();
+                                    } else {
+                                        // Fallback: use full text if pattern doesn't match
+                                        projectReceiverInput.value = fullText;
+                                    }
+                        } catch (error) {
+                            console.error('Error processing rental receiver:', error);
+                            // Fallback: use raw value
+                            projectReceiverInput.value = selectedValue;
+                        }
+                    }
+                }
+            });
+            
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const options = Array.from(dropdown.querySelectorAll('.rental-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = dropdown.querySelector('.rental-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        dropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
+        
+        // Warranty Receiver Search
+        function initializeWarrantyReceiverSearch() {
+            const searchInput = document.getElementById('warranty_receiver_search');
+            const dropdown = document.getElementById('warranty_receiver_dropdown');
+            const hiddenInput = document.getElementById('warranty_receiver');
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Filter warranty receivers based on search input
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.warranty-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.dataset.text.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Handle warranty option selection
+            dropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('warranty-option')) {
+                    const option = e.target;
+                    const selectedValue = option.dataset.value;
+                    const selectedText = option.dataset.text;
+                    const selectedType = option.dataset.type;
+                    const selectedId = selectedType === 'project' ? option.dataset.projectId : option.dataset.rentalId;
+                    
+                    searchInput.value = selectedText;
+                    hiddenInput.value = selectedValue;
+                    dropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                    
+                    // Update project_id based on type
+                    const projectIdInput = document.getElementById('project_id');
+                    if (projectIdInput) {
+                        projectIdInput.value = selectedId;
+                    }
+                    
+                    // Set warranty period
+                    const warrantyPeriodInput = document.getElementById('warranty_period');
+                    if (warrantyPeriodInput) {
+                        if (selectedType === 'project' && option.dataset.warrantyPeriod) {
+                            warrantyPeriodInput.value = option.dataset.warrantyPeriod + ' tháng';
+                        } else {
+                            warrantyPeriodInput.value = '12 tháng'; // Default for rental
+                        }
+                    }
+                    
+                    // Set project_receiver for compatibility
+                    const projectReceiverInput = document.getElementById('project_receiver');
+                    if (projectReceiverInput) {
+                        try {
+                            const fullText = selectedText.trim();
+                            // Extract name from format: "CODE - NAME (CUSTOMER)"
+                            const matches = fullText.match(/^[^-]+ - ([^(]+)/);
+                            if (matches && matches[1]) {
+                                projectReceiverInput.value = matches[1].trim();
+                            } else {
+                                // Fallback: use full text if pattern doesn't match
+                                projectReceiverInput.value = fullText;
+                            }
+                                } catch (error) {
+                                    console.error('Error processing warranty receiver:', error);
+                                    // Fallback: use raw value
+                                    projectReceiverInput.value = selectedValue;
+                                }
+                    }
+                }
+            });
+            
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const options = Array.from(dropdown.querySelectorAll('.warranty-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = dropdown.querySelector('.warranty-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        dropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
+        
+        // Contract Product Search
+        function initializeContractProductSearch() {
+            const searchInput = document.getElementById('contract_product_search');
+            const dropdown = document.getElementById('contract_product_dropdown');
+            const hiddenInput = document.getElementById('contract_product_select');
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Filter products based on search input
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.product-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.dataset.text.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                            } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Handle product option selection
+            dropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('product-option')) {
+                    const option = e.target;
+                    const selectedId = option.dataset.value;
+                    const selectedText = option.dataset.text;
+                    
+                    searchInput.value = selectedText;
+                    hiddenInput.value = selectedId;
+                    dropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                }
+            });
+            
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const options = Array.from(dropdown.querySelectorAll('.product-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = dropdown.querySelector('.product-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        dropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
+        
+        // Backup Product Search
+        function initializeBackupProductSearch() {
+            const searchInput = document.getElementById('backup_product_search');
+            const dropdown = document.getElementById('backup_product_dropdown');
+            const hiddenInput = document.getElementById('backup_product_select');
+            
+            if (!searchInput || !dropdown || !hiddenInput) return;
+            
+            // Show dropdown on focus
+            searchInput.addEventListener('focus', function() {
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Filter products based on search input
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = dropdown.querySelectorAll('.product-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.dataset.text.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                if (dropdown.children.length > 0) {
+                    dropdown.classList.remove('hidden');
+                }
+            });
+            
+            // Handle product option selection
+            dropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('product-option')) {
+                    const option = e.target;
+                    const selectedId = option.dataset.value;
+                    const selectedText = option.dataset.text;
+                    
+                    searchInput.value = selectedText;
+                    hiddenInput.value = selectedId;
+                    dropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                }
+            });
+            
+            // Keyboard navigation
+            searchInput.addEventListener('keydown', function(e) {
+                const options = Array.from(dropdown.querySelectorAll('.product-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('hidden');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = dropdown.querySelector('.product-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        dropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
+        
+        // Hide dropdown when clicking outside with delay, using closest on IDs
+        let hideTimeout;
+        document.addEventListener('mousedown', function(e) {
+            const isInsideAny =
+                e.target.closest('#company_representative_search') ||
+                e.target.closest('#company_representative_dropdown') ||
+                e.target.closest('#project_receiver_search') ||
+                e.target.closest('#project_receiver_dropdown') ||
+                e.target.closest('#rental_receiver_search') ||
+                e.target.closest('#rental_receiver_dropdown') ||
+                e.target.closest('#warranty_receiver_search') ||
+                e.target.closest('#warranty_receiver_dropdown') ||
+                e.target.closest('#contract_product_search') ||
+                e.target.closest('#contract_product_dropdown') ||
+                e.target.closest('#backup_product_search') ||
+                e.target.closest('#backup_product_dropdown');
+
+            if (!isInsideAny) {
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    const dropdowns = document.querySelectorAll('#company_representative_dropdown, #project_receiver_dropdown, #rental_receiver_dropdown, #warranty_receiver_dropdown, #contract_product_dropdown, #backup_product_dropdown');
+                    dropdowns.forEach(dropdown => dropdown.classList.add('hidden'));
+                }, 300);
+            }
+        });
+
+        // Prevent blur closing when clicking inside dropdowns (before focusout)
+        document.addEventListener('mousedown', function(e) {
+            if (e.target.closest('#company_representative_dropdown, #project_receiver_dropdown, #rental_receiver_dropdown, #warranty_receiver_dropdown, #contract_product_dropdown, #backup_product_dropdown')) {
+                e.preventDefault();
+                clearTimeout(hideTimeout);
+            }
+        });
+
+        // Ensure rental/warranty data loads on first focus if empty
+        const rentalSearchInputEl = document.getElementById('rental_receiver_search');
+        const rentalDropdownEl = document.getElementById('rental_receiver_dropdown');
+        if (rentalSearchInputEl && rentalDropdownEl) {
+            rentalSearchInputEl.addEventListener('focus', function() {
+                if (rentalDropdownEl.children.length === 0) {
+                    if (typeof loadRentals === 'function') loadRentals();
+                }
+            });
+        }
+        const warrantySearchInputEl = document.getElementById('warranty_receiver_search');
+        const warrantyDropdownEl = document.getElementById('warranty_receiver_dropdown');
+        if (warrantySearchInputEl && warrantyDropdownEl) {
+            warrantySearchInputEl.addEventListener('focus', function() {
+                if (warrantyDropdownEl.children.length === 0) {
+                    if (typeof loadWarrantyReceivers === 'function') loadWarrantyReceivers();
+                }
+            });
+        }
+
+        // Ensure contract/backup product lists show on focus if data already loaded
+        const contractProductSearch = document.getElementById('contract_product_search');
+        const contractProductDropdown = document.getElementById('contract_product_dropdown');
+        if (contractProductSearch && contractProductDropdown) {
+            contractProductSearch.addEventListener('focus', function() {
+                if (contractProductDropdown.children.length > 0) {
+                    contractProductDropdown.classList.remove('hidden');
+                }
+            });
+        }
+        const backupProductSearch = document.getElementById('backup_product_search');
+        const backupProductDropdown = document.getElementById('backup_product_dropdown');
+        if (backupProductSearch && backupProductDropdown) {
+            backupProductSearch.addEventListener('focus', function() {
+                if (backupProductDropdown.children.length > 0) {
+                    backupProductDropdown.classList.remove('hidden');
+                }
+            });
+        }
     </script>
 </body>
 

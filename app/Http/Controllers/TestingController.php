@@ -334,7 +334,7 @@ class TestingController extends Controller
     {
         $testing->load(['tester', 'items.material', 'items.product', 'items.good', 'items.warehouse', 'items.supplier', 'details', 'assembly.materials.material', 'assembly.materials.warehouse', 'assembly.products.product']);
 
-        $employees = Employee::where('status', 'active')->get();
+        $employees = Employee::where('status', 'active')->orderBy('name')->get();
         $materials = Material::where('is_hidden', false)->get();
         $products = Product::where('is_hidden', false)->get();
         $goods = Good::where('status', 'active')->get();

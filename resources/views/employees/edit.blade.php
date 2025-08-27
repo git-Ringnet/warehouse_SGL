@@ -55,13 +55,13 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1 required">Username <span class="text-red-500">*</span></label>
+                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1 required">Username</label>
                             <input type="text" id="username" name="username" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('username', $employee->username) }}" readonly>
                             <p class="text-xs text-gray-500 mt-1">Username không thể thay đổi sau khi tạo</p>
                         </div>
                         
                         <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Họ và tên <span class="text-red-500">*</span></label>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Họ và tên</label>
                             <input type="text" id="name" name="name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('name', $employee->name) }}" required>
                         </div>
 
@@ -82,7 +82,7 @@
                         </div>
                         
                         <div>
-                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại <span class="text-red-500">*</span></label>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
                             <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('phone', $employee->phone) }}" required>
                         </div>
                         

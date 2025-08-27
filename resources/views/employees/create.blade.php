@@ -48,18 +48,18 @@
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1 required">Username <span class="text-red-500">*</span></label>
+                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1 required">Username</label>
                             <input type="text" id="username" name="username" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập tên đăng nhập" value="{{ old('username') }}" required>
                             <p class="text-xs text-gray-500 mt-1">Username dùng để đăng nhập, chỉ chứa chữ cái và số</p>
                         </div>
                         
                         <div>
-                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Họ và tên <span class="text-red-500">*</span></label>
+                            <label for="name" class="block text-sm font-medium text-gray-700 mb-1 required">Họ và tên</label>
                             <input type="text" id="name" name="name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập họ và tên đầy đủ" value="{{ old('name') }}" required>
                         </div>
 
                         <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1 required">Mật khẩu <span class="text-red-500">*</span></label>
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1 required">Mật khẩu</label>
                             <input type="password" id="password" name="password" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập mật khẩu" required>
                             <p class="text-xs text-gray-500 mt-1">Mật khẩu phải có ít nhất 8 ký tự</p>
                         </div>
@@ -70,12 +70,12 @@
                         </div>
                         
                         <div id="password_confirmation_container" style="display: none;">
-                            <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1 required">Xác nhận mật khẩu <span class="text-red-500">*</span></label>
+                            <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1 required">Xác nhận mật khẩu</label>
                             <input type="password" id="password_confirmation" name="password_confirmation" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập lại mật khẩu" required>
                         </div>
                         
                         <div>
-                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại <span class="text-red-500">*</span></label>
+                            <label for="phone" class="block text-sm font-medium text-gray-700 mb-1 required">Số điện thoại</label>
                             <input type="tel" id="phone" name="phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập số điện thoại" value="{{ old('phone') }}" required>
                         </div>
                         

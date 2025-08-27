@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
 </head>
 
 <body>
@@ -88,13 +89,20 @@
                                 </label>
                                 <div class="space-y-2">
                                     <div class="flex">
-                                        <select id="supplier_select"
-                                            class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                            <option value="">Chọn nhà cung cấp</option>
-                                            @foreach ($suppliers as $supplier)
-                                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="relative w-full">
+                                            <input type="text" id="supplier_search" 
+                                                   placeholder="Tìm kiếm nhà cung cấp..." 
+                                                   class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                            <div id="supplier_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                                @foreach ($suppliers as $supplier)
+                                                    <div class="supplier-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                                         data-value="{{ $supplier->id }}" 
+                                                         data-text="{{ $supplier->name }}">
+                                                        {{ $supplier->name }}
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
                                         <button type="button" id="addSupplierBtn"
                                             class="bg-green-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-green-600 transition-colors">
                                             <i class="fas fa-plus"></i>
@@ -275,21 +283,74 @@
             });
 
             // Handle supplier selection
-            const supplierSelect = document.getElementById('supplier_select');
+            const supplierSearch = document.getElementById('supplier_search');
+            const supplierDropdown = document.getElementById('supplier_dropdown');
+            const supplierOptions = document.querySelectorAll('.supplier-option');
             const addSupplierBtn = document.getElementById('addSupplierBtn');
             const selectedSuppliersContainer = document.getElementById('selectedSuppliers');
 
+            let selectedSupplierId = '';
+            let selectedSupplierName = '';
+
+            // Show dropdown when input is focused
+            supplierSearch.addEventListener('focus', function() {
+                supplierDropdown.classList.remove('hidden');
+                filterSuppliers();
+            });
+
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!supplierSearch.contains(e.target) && !supplierDropdown.contains(e.target)) {
+                    supplierDropdown.classList.add('hidden');
+                }
+            });
+
+            // Filter suppliers based on search input
+            function filterSuppliers() {
+                const searchTerm = supplierSearch.value.toLowerCase();
+                supplierOptions.forEach(option => {
+                    const supplierName = option.getAttribute('data-text');
+                    const supplierNameLower = supplierName.toLowerCase();
+                    
+                    if (supplierNameLower.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        
+                        // Highlight search term if it exists
+                        if (searchTerm) {
+                            const regex = new RegExp(`(${searchTerm})`, 'gi');
+                            option.innerHTML = supplierName.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+                        } else {
+                            option.innerHTML = supplierName;
+                        }
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            }
+
+            // Handle search input
+            supplierSearch.addEventListener('input', filterSuppliers);
+
+            // Handle supplier option selection
+            supplierOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    selectedSupplierId = this.getAttribute('data-value');
+                    selectedSupplierName = this.getAttribute('data-text');
+                    supplierSearch.value = selectedSupplierName;
+                    supplierDropdown.classList.add('hidden');
+                });
+            });
+
             // Add supplier button click
             addSupplierBtn.addEventListener('click', function() {
-                const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
-                if (selectedOption.value === '') {
+                if (selectedSupplierId === '') {
                     return; // No supplier selected
                 }
 
                 // Check if this supplier is already added
                 const existingSuppliers = document.querySelectorAll('input[name="supplier_ids[]"]');
                 for (const existingSupplier of existingSuppliers) {
-                    if (existingSupplier.value === selectedOption.value) {
+                    if (existingSupplier.value === selectedSupplierId) {
                         return; // Already added
                     }
                 }
@@ -299,8 +360,8 @@
                 supplierItem.className =
                     'flex items-center justify-between bg-gray-100 p-2 rounded-lg supplier-item';
                 supplierItem.innerHTML = `
-                    <span>${selectedOption.text}</span>
-                    <input type="hidden" name="supplier_ids[]" value="${selectedOption.value}">
+                    <span>${selectedSupplierName}</span>
+                    <input type="hidden" name="supplier_ids[]" value="${selectedSupplierId}">
                     <button type="button" class="text-red-500 hover:text-red-700 remove-supplier">
                         <i class="fas fa-times"></i>
                     </button>
@@ -315,8 +376,10 @@
                     supplierItem.remove();
                 });
 
-                // Reset select to default
-                supplierSelect.value = '';
+                // Reset search to default
+                supplierSearch.value = '';
+                selectedSupplierId = '';
+                selectedSupplierName = '';
             });
 
             // Handle existing remove buttons
@@ -331,9 +394,8 @@
             form.addEventListener('submit', function(e) {
                 // First, check if we have any suppliers selected
                 const existingSuppliers = document.querySelectorAll('input[name="supplier_ids[]"]');
-                const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
 
-                let hasSupplier = existingSuppliers.length > 0 || selectedOption.value !== '';
+                let hasSupplier = existingSuppliers.length > 0 || selectedSupplierId !== '';
 
                 // If no suppliers at all, prevent submission and show error
                 if (!hasSupplier) {
@@ -370,12 +432,12 @@
                 }
 
                 // Auto-add supplier from dropdown if selected
-                if (selectedOption.value !== '') {
+                if (selectedSupplierId !== '') {
                     // Check if this supplier is already added
                     let alreadyExists = false;
 
                     for (const existingSupplier of existingSuppliers) {
-                        if (existingSupplier.value === selectedOption.value) {
+                        if (existingSupplier.value === selectedSupplierId) {
                             alreadyExists = true;
                             break;
                         }
@@ -386,7 +448,7 @@
                         const hiddenInput = document.createElement('input');
                         hiddenInput.type = 'hidden';
                         hiddenInput.name = 'supplier_ids[]';
-                        hiddenInput.value = selectedOption.value;
+                        hiddenInput.value = selectedSupplierId;
                         form.appendChild(hiddenInput);
                     }
                 }

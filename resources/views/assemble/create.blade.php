@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <script src="{{ asset('js/assembly-product-unit.js') }}"></script>
     <style>
         .product-unit-row {
@@ -157,15 +158,21 @@
                         <div>
                             <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người
                                 phụ trách </label>
-                            <select id="assigned_to" name="assigned_to" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn người phụ trách --</option>
-                                @foreach ($employees as $employee)
-                                    <option value="{{ $employee->id }}">{{ $employee->name }}
-                                        ({{ $employee->username }})
-                                    </option>
-                                @endforeach
-                            </select>
+                            <div class="relative">
+                                <input type="text" id="assigned_to_search" 
+                                       placeholder="Tìm kiếm người phụ trách..." 
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <div id="assigned_to_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    @foreach ($employees as $employee)
+                                        <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                             data-value="{{ $employee->id }}" 
+                                             data-text="{{ $employee->name }} ({{ $employee->username }})">
+                                            {{ $employee->name }} ({{ $employee->username }})
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <input type="hidden" id="assigned_to" name="assigned_to" required>
+                            </div>
                         </div>
                     </div>
 
@@ -173,15 +180,21 @@
                         <div>
                             <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người
                                 tiếp nhận kiểm thử </label>
-                            <select id="tester_id" name="tester_id" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                <option value="">-- Chọn người tiếp nhận kiểm thử --</option>
-                                @foreach ($employees as $employee)
-                                    <option value="{{ $employee->id }}">{{ $employee->name }}
-                                        ({{ $employee->username }})
-                                    </option>
-                                @endforeach
-                            </select>
+                            <div class="relative">
+                                <input type="text" id="tester_id_search" 
+                                       placeholder="Tìm kiếm người tiếp nhận kiểm thử..." 
+                                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <div id="tester_id_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    @foreach ($employees as $employee)
+                                        <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                                             data-value="{{ $employee->id }}" 
+                                             data-text="{{ $employee->name }} ({{ $employee->username }})">
+                                            {{ $employee->name }} ({{ $employee->username }})
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <input type="hidden" id="tester_id" name="tester_id" required>
+                            </div>
                         </div>
                         <div>
                             <label for="purpose" class="block text-sm font-medium text-gray-700 mb-1 required">Mục
@@ -4938,6 +4951,9 @@
                         throw new Error(data.message || 'Lỗi khi tải serial');
                     }
 
+                    console.log(data.serials);
+                    
+
                     return data.serials || [];
                 } catch (error) {
                     console.error('Error fetching serials:', error);
@@ -5095,6 +5111,177 @@
                     }
                 }
             };
+
+            // Handle employee search functionality for assigned_to
+            const assignedToSearch = document.getElementById('assigned_to_search');
+            const assignedToDropdown = document.getElementById('assigned_to_dropdown');
+            const assignedToOptions = document.querySelectorAll('#assigned_to_dropdown .employee-option');
+            const assignedToHidden = document.getElementById('assigned_to');
+
+            let selectedAssignedToId = '';
+            let selectedAssignedToName = '';
+
+            // Show dropdown when input is focused
+            assignedToSearch.addEventListener('focus', function() {
+                assignedToDropdown.classList.remove('hidden');
+                filterEmployees(assignedToOptions, assignedToSearch.value);
+            });
+
+            // Handle assigned_to search input
+            assignedToSearch.addEventListener('input', function() {
+                filterEmployees(assignedToOptions, this.value);
+            });
+
+            // Handle assigned_to option selection
+            assignedToOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    selectedAssignedToId = this.getAttribute('data-value');
+                    selectedAssignedToName = this.getAttribute('data-text');
+                    assignedToSearch.value = selectedAssignedToName;
+                    assignedToHidden.value = selectedAssignedToId;
+                    assignedToDropdown.classList.add('hidden');
+                });
+            });
+
+            // Handle employee search functionality for tester_id
+            const testerIdSearch = document.getElementById('tester_id_search');
+            const testerIdDropdown = document.getElementById('tester_id_dropdown');
+            const testerIdOptions = document.querySelectorAll('#tester_id_dropdown .employee-option');
+            const testerIdHidden = document.getElementById('tester_id');
+
+            let selectedTesterId = '';
+            let selectedTesterName = '';
+
+            // Show dropdown when input is focused
+            testerIdSearch.addEventListener('focus', function() {
+                testerIdDropdown.classList.remove('hidden');
+                filterEmployees(testerIdOptions, testerIdSearch.value);
+            });
+
+            // Handle tester_id search input
+            testerIdSearch.addEventListener('input', function() {
+                filterEmployees(testerIdOptions, this.value);
+            });
+
+            // Handle tester_id option selection
+            testerIdOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    selectedTesterId = this.getAttribute('data-value');
+                    selectedTesterName = this.getAttribute('data-text');
+                    testerIdSearch.value = selectedTesterName;
+                    testerIdHidden.value = selectedTesterId;
+                    testerIdDropdown.classList.add('hidden');
+                });
+            });
+
+            // Hide dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!assignedToSearch.contains(e.target) && !assignedToDropdown.contains(e.target)) {
+                    assignedToDropdown.classList.add('hidden');
+                }
+                if (!testerIdSearch.contains(e.target) && !testerIdDropdown.contains(e.target)) {
+                    testerIdDropdown.classList.add('hidden');
+                }
+            });
+
+            // Filter employees based on search input
+            function filterEmployees(options, searchTerm) {
+                const searchTermLower = searchTerm.toLowerCase();
+                options.forEach(option => {
+                    const employeeName = option.getAttribute('data-text');
+                    const employeeNameLower = employeeName.toLowerCase();
+                    
+                    if (employeeNameLower.includes(searchTermLower)) {
+                        option.style.display = 'block';
+                        
+                        // Highlight search term if it exists
+                        if (searchTerm) {
+                            const regex = new RegExp(`(${searchTerm})`, 'gi');
+                            option.innerHTML = employeeName.replace(regex, '<mark class="bg-yellow-200">$1</mark>');
+                        } else {
+                            option.innerHTML = employeeName;
+                        }
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+            }
+
+            // Keyboard navigation for assigned_to
+            let assignedToSelectedIndex = -1;
+            assignedToSearch.addEventListener('keydown', function(e) {
+                const visibleOptions = Array.from(assignedToOptions).filter(option => 
+                    option.style.display !== 'none'
+                );
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    assignedToSelectedIndex = Math.min(assignedToSelectedIndex + 1, visibleOptions.length - 1);
+                    updateEmployeeSelection(visibleOptions, assignedToSelectedIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    assignedToSelectedIndex = Math.max(assignedToSelectedIndex - 1, -1);
+                    updateEmployeeSelection(visibleOptions, assignedToSelectedIndex);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (assignedToSelectedIndex >= 0 && visibleOptions[assignedToSelectedIndex]) {
+                        const option = visibleOptions[assignedToSelectedIndex];
+                        selectedAssignedToId = option.getAttribute('data-value');
+                        selectedAssignedToName = option.getAttribute('data-text');
+                        assignedToSearch.value = selectedAssignedToName;
+                        assignedToHidden.value = selectedAssignedToId;
+                        assignedToDropdown.classList.add('hidden');
+                        assignedToSelectedIndex = -1;
+                    }
+                } else if (e.key === 'Escape') {
+                    assignedToDropdown.classList.add('hidden');
+                    assignedToSelectedIndex = -1;
+                }
+            });
+
+            // Keyboard navigation for tester_id
+            let testerIdSelectedIndex = -1;
+            testerIdSearch.addEventListener('keydown', function(e) {
+                const visibleOptions = Array.from(testerIdOptions).filter(option => 
+                    option.style.display !== 'none'
+                );
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    testerIdSelectedIndex = Math.min(testerIdSelectedIndex + 1, visibleOptions.length - 1);
+                    updateEmployeeSelection(visibleOptions, testerIdSelectedIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    testerIdSelectedIndex = Math.max(testerIdSelectedIndex - 1, -1);
+                    updateEmployeeSelection(visibleOptions, testerIdSelectedIndex);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (testerIdSelectedIndex >= 0 && visibleOptions[testerIdSelectedIndex]) {
+                        const option = visibleOptions[testerIdSelectedIndex];
+                        selectedTesterId = option.getAttribute('data-value');
+                        selectedTesterName = option.getAttribute('data-text');
+                        testerIdSearch.value = selectedTesterName;
+                        testerIdHidden.value = selectedTesterId;
+                        testerIdDropdown.classList.add('hidden');
+                        testerIdSelectedIndex = -1;
+                    }
+                } else if (e.key === 'Escape') {
+                    testerIdDropdown.classList.add('hidden');
+                    testerIdSelectedIndex = -1;
+                }
+            });
+
+            function updateEmployeeSelection(visibleOptions, selectedIndex) {
+                // Remove previous selection from all employee options
+                document.querySelectorAll('.employee-option').forEach(option => {
+                    option.classList.remove('bg-blue-100', 'text-blue-900');
+                });
+
+                // Add selection to current index
+                if (selectedIndex >= 0 && visibleOptions[selectedIndex]) {
+                    visibleOptions[selectedIndex].classList.add('bg-blue-100', 'text-blue-900');
+                }
+            }
         });
     </script>
 </body>
