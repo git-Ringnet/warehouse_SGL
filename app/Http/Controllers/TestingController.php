@@ -2545,6 +2545,15 @@ class TestingController extends Controller
     private function createInventoryImport($testing, $warehouseId, $notes, $type)
     {
         try {
+            // SAFETY GUARD: Không tạo phiếu nhập kho cho phiếu kiểm thử Vật tư/Hàng hóa
+            if (isset($testing->test_type) && $testing->test_type === 'material') {
+                Log::warning('BỎ QUA tạo phiếu nhập kho vì test_type=material', [
+                    'testing_id' => $testing->id ?? null,
+                    'warehouse_id' => $warehouseId,
+                    'type' => $type,
+                ]);
+                return null;
+            }
             // Tạo mã phiếu nhập
             $importCode = $this->generateInventoryImportCode();
             
@@ -3012,7 +3021,24 @@ class TestingController extends Controller
                     $materialLS = \App\Models\Material::find($itemId);
                 } else if ($itemType == 'good') {
                     $materialLS = \App\Models\Good::find($itemId);
+                } else if ($itemType == 'product') {
+                    // Xử lý thành phẩm - material_id chứa ID của Product hoặc Good
+                    $materialLS = \App\Models\Product::find($itemId);
+                    if (!$materialLS) {
+                        // Nếu không tìm thấy Product, thử tìm Good
+                        $materialLS = \App\Models\Good::find($itemId);
+                    }
                 }
+
+                // Debug log để kiểm tra
+                Log::info('DEBUG: Xử lý item cho nhật ký', [
+                    'item_type' => $itemType,
+                    'material_id' => $material->material_id,
+                    'product_id' => $material->product_id ?? 'null',
+                    'good_id' => $material->good_id ?? 'null',
+                    'itemId' => $itemId,
+                    'found_model' => $materialLS ? get_class($materialLS) . ' - ' . $materialLS->name : 'null'
+                ]);
 
                 if ($materialLS) {
                     // Lấy thông tin kho nhập để đưa vào description
@@ -3256,6 +3282,17 @@ class TestingController extends Controller
     private function completeWarehouseTransferAutomatically($warehouseTransfer)
     {
         try {
+            // Idempotent guard: tránh xử lý lặp nếu đã chạy trước đó
+            $guardNote = '[AUTOPROC_DONE]';
+            if (is_string($warehouseTransfer->notes) && strpos($warehouseTransfer->notes, $guardNote) !== false) {
+                Log::warning('Bỏ qua hoàn tất chuyển kho do đã xử lý trước đó', [
+                    'transfer_code' => $warehouseTransfer->transfer_code
+                ]);
+                return;
+            }
+            // Gắn cờ đã xử lý vào notes (không ảnh hưởng nội dung cũ)
+            $warehouseTransfer->notes = trim(($warehouseTransfer->notes ?? '') . ' ' . $guardNote);
+            $warehouseTransfer->save();
             // Cập nhật số lượng tồn kho
             foreach ($warehouseTransfer->materials as $material) {
                 // Giảm số lượng từ kho nguồn
@@ -3265,11 +3302,42 @@ class TestingController extends Controller
                     'item_type' => $material->type // Sử dụng 'type' thay vì 'item_type'
                 ])->first();
 
+                // Fallback: nếu không tìm thấy do sai lệch type ('product' vs 'good')
+                if (!$sourceWarehouseMaterial && $material->type === 'product') {
+                    $sourceWarehouseMaterial = \App\Models\WarehouseMaterial::where([
+                        'warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                        'material_id' => $material->material_id,
+                        'item_type' => 'good'
+                    ])->first();
+                } elseif (!$sourceWarehouseMaterial && $material->type === 'good') {
+                    $sourceWarehouseMaterial = \App\Models\WarehouseMaterial::where([
+                        'warehouse_id' => $warehouseTransfer->source_warehouse_id,
+                        'material_id' => $material->material_id,
+                        'item_type' => 'product'
+                    ])->first();
+                }
+
                 if ($sourceWarehouseMaterial) {
                     $oldQuantity = $sourceWarehouseMaterial->quantity;
                     $sourceWarehouseMaterial->quantity = max(0, $sourceWarehouseMaterial->quantity - $material->quantity);
                     $sourceWarehouseMaterial->save();
-                    
+
+                    // Nếu có serial_numbers trong phiếu chuyển, loại bỏ khỏi kho nguồn
+                    if (!empty($material->serial_numbers) && !empty($sourceWarehouseMaterial->serial_number)) {
+                        $movedSerials = $this->normalizeSerialArray($material->serial_numbers);
+                        $currentSerials = $this->normalizeSerialArray($sourceWarehouseMaterial->serial_number);
+                        if (!empty($movedSerials) && !empty($currentSerials)) {
+                            // So sánh theo giá trị đã trim, không phân biệt khoảng trắng
+                            $remainingSerials = array_values(array_udiff(
+                                $currentSerials,
+                                $movedSerials,
+                                function ($a, $b) { return strcasecmp(trim($a), trim($b)); }
+                            ));
+                            $sourceWarehouseMaterial->serial_number = json_encode($remainingSerials);
+                            $sourceWarehouseMaterial->save();
+                        }
+                    }
+
                     Log::info('Đã trừ số lượng từ kho nguồn', [
                         'warehouse_id' => $warehouseTransfer->source_warehouse_id,
                         'material_id' => $material->material_id,
@@ -3286,15 +3354,16 @@ class TestingController extends Controller
                     ]);
                 }
 
-                // Tăng số lượng vào kho đích
-                $destinationWarehouseMaterial = \App\Models\WarehouseMaterial::firstOrNew([
-                    'warehouse_id' => $warehouseTransfer->destination_warehouse_id,
-                    'material_id' => $material->material_id,
-                    'item_type' => $material->type // Sử dụng 'type' thay vì 'item_type'
-                ]);
+                // Chỉ tăng vào kho đích khi đã trừ được từ kho nguồn (idempotent)
+                if (isset($sourceWarehouseMaterial)) {
+                    $destinationWarehouseMaterial = \App\Models\WarehouseMaterial::firstOrNew([
+                        'warehouse_id' => $warehouseTransfer->destination_warehouse_id,
+                        'material_id' => $material->material_id,
+                        'item_type' => $material->type // Sử dụng 'type' thay vì 'item_type'
+                    ]);
 
-                $currentQty = $destinationWarehouseMaterial->quantity ?? 0;
-                $destinationWarehouseMaterial->quantity = $currentQty + $material->quantity;
+                    $currentQty = $destinationWarehouseMaterial->quantity ?? 0;
+                    $destinationWarehouseMaterial->quantity = $currentQty + $material->quantity;
                 
                 Log::info('Đã tăng số lượng vào kho đích', [
                     'warehouse_id' => $warehouseTransfer->destination_warehouse_id,
@@ -3306,17 +3375,18 @@ class TestingController extends Controller
                 ]);
 
                 // Cập nhật serial_number vào warehouse_materials nếu có serial
-                if (!empty($material->serial_numbers)) {
-                    $serials = is_array($material->serial_numbers) ? $material->serial_numbers : json_decode($material->serial_numbers, true);
-                    $currentSerials = [];
-                    if (!empty($destinationWarehouseMaterial->serial_number)) {
-                        $currentSerials = json_decode($destinationWarehouseMaterial->serial_number, true) ?: [];
+                    if (!empty($material->serial_numbers)) {
+                        $serials = $this->normalizeSerialArray($material->serial_numbers);
+                        $currentSerials = [];
+                        if (!empty($destinationWarehouseMaterial->serial_number)) {
+                            $currentSerials = $this->normalizeSerialArray($destinationWarehouseMaterial->serial_number);
+                        }
+                        // Gộp serial cũ và mới, loại bỏ trùng lặp và trim
+                        $mergedSerials = array_values(array_unique(array_map(function($s){return trim($s);}, array_merge($currentSerials, $serials))));
+                        $destinationWarehouseMaterial->serial_number = json_encode($mergedSerials);
                     }
-                    // Gộp serial cũ và mới, loại bỏ trùng lặp
-                    $mergedSerials = array_unique(array_merge($currentSerials, $serials));
-                    $destinationWarehouseMaterial->serial_number = json_encode($mergedSerials);
+                    $destinationWarehouseMaterial->save();
                 }
-                $destinationWarehouseMaterial->save();
 
                 // Lưu nhật ký chuyển kho
                 $itemType = $material->type; // Sử dụng 'type' thay vì 'item_type'
@@ -3640,6 +3710,34 @@ class TestingController extends Controller
         } else {
             $arr = [];
         }
+        return $arr;
+    }
+
+    /**
+     * Chuẩn hóa input serials về mảng string thuần (trim, bỏ rỗng) từ các định dạng:
+     * - JSON string: "[\"S1\",\"S2\"]"
+     * - CSV string: "S1,S2"
+     * - Array: ['S1','S2']
+     */
+    private function normalizeSerialArray($value)
+    {
+        if (is_array($value)) {
+            $arr = $value;
+        } else if (is_string($value)) {
+            $trimmed = trim($value);
+            $decoded = json_decode($trimmed, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $arr = $decoded;
+            } else {
+                $arr = array_map('trim', explode(',', $trimmed));
+            }
+        } else {
+            $arr = [];
+        }
+        // Chuẩn hóa: trim và loại bỏ rỗng
+        $arr = array_values(array_filter(array_map(function ($s) {
+            return is_string($s) ? trim($s) : $s;
+        }, $arr)));
         return $arr;
     }
 
