@@ -12,8 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Drop unique nếu tồn tại
-        DB::statement("ALTER TABLE `device_codes` DROP INDEX IF EXISTS `device_codes_item_unique`");
+        // Kiểm tra index trước khi drop
+        $indexes = DB::select("SHOW INDEXES FROM device_codes WHERE Key_name = 'device_codes_item_unique'");
+        if (count($indexes) > 0) {
+            Schema::table('device_codes', function (Blueprint $table) {
+                $table->dropUnique('device_codes_item_unique');
+            });
+        }
         Schema::table('device_codes', function (Blueprint $table) {
             // drop column
             if (Schema::hasColumn('device_codes', 'item_type')) {
@@ -45,7 +50,10 @@ return new class extends Migration
             }
     
             // Thêm lại unique
-            $table->unique(['item_type', 'item_id', 'serial_main'], 'device_codes_item_unique');
+            $indexes = DB::select("SHOW INDEXES FROM device_codes WHERE Key_name = 'device_codes_item_unique'");
+            if (count($indexes) === 0) {
+                $table->unique(['item_type', 'item_id', 'serial_main'], 'device_codes_item_unique');
+            }
         });
     }
 };
