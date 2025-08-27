@@ -756,6 +756,9 @@ class WarehouseTransferController extends Controller
                 }
             }
 
+            // Chuẩn hóa: trim và loại trùng lặp
+            $serialArray = array_values(array_unique(array_map('trim', $serialArray)));
+
             // Giảm số lượng và xóa serial ở kho nguồn
             $sourceWarehouseMaterial = WarehouseMaterial::where('warehouse_id', $sourceWarehouseId)
                 ->where('material_id', $materialId)
@@ -763,17 +766,27 @@ class WarehouseTransferController extends Controller
                 ->first();
 
             if ($sourceWarehouseMaterial) {
-                $newQuantity = $sourceWarehouseMaterial->quantity - $quantity;
-                
                 // Xử lý serial numbers ở kho nguồn
                 $sourceSerials = [];
                 if (!empty($sourceWarehouseMaterial->serial_number)) {
                     $sourceSerials = json_decode($sourceWarehouseMaterial->serial_number, true) ?: [];
                 }
-                
-                // Loại bỏ các serial đã chuyển
-                $sourceSerials = array_diff($sourceSerials, $serialArray);
-                
+
+                // Chỉ chuyển các serial còn tồn tại ở kho nguồn
+                $validSerialsToMove = !empty($serialArray)
+                    ? array_values(array_intersect($serialArray, $sourceSerials))
+                    : [];
+
+                // Số lượng hiệu lực: nếu có danh sách serial → theo count(serial hợp lệ), nếu không → theo quantity nhập
+                $effectiveQty = !empty($serialArray) ? count($validSerialsToMove) : (int) $quantity;
+
+                // Loại bỏ các serial đã chuyển khỏi kho nguồn
+                if (!empty($validSerialsToMove)) {
+                    $sourceSerials = array_values(array_diff($sourceSerials, $validSerialsToMove));
+                }
+
+                $newQuantity = $sourceWarehouseMaterial->quantity - $effectiveQty;
+
                 if ($newQuantity <= 0) {
                     // Xóa bản ghi nếu không còn gì
                     $sourceWarehouseMaterial->delete();
@@ -783,6 +796,10 @@ class WarehouseTransferController extends Controller
                     $sourceWarehouseMaterial->serial_number = !empty($sourceSerials) ? json_encode(array_values($sourceSerials)) : null;
                     $sourceWarehouseMaterial->save();
                 }
+            } else {
+                // Không có bản ghi kho nguồn, không thể chuyển serial nào
+                $validSerialsToMove = [];
+                $effectiveQty = (int) $quantity; // Cho trường hợp chuyển không serial
             }
 
             // Tăng số lượng và thêm serial ở kho đích
@@ -793,16 +810,22 @@ class WarehouseTransferController extends Controller
 
             if ($destinationWarehouseMaterial) {
                 // Cập nhật bản ghi hiện có
-                $destinationWarehouseMaterial->quantity += $quantity;
-                
+                $destinationWarehouseMaterial->quantity += $effectiveQty;
+
                 // Thêm serial numbers mới
                 $destinationSerials = [];
                 if (!empty($destinationWarehouseMaterial->serial_number)) {
                     $destinationSerials = json_decode($destinationWarehouseMaterial->serial_number, true) ?: [];
                 }
-                $destinationSerials = array_merge($destinationSerials, $serialArray);
-                $destinationWarehouseMaterial->serial_number = json_encode(array_values(array_unique($destinationSerials)));
-                
+                if (!empty($validSerialsToMove)) {
+                    foreach ($validSerialsToMove as $sn) {
+                        $destinationSerials[] = $sn;
+                    }
+                }
+                $destinationWarehouseMaterial->serial_number = !empty($destinationSerials)
+                    ? json_encode(array_values(array_unique($destinationSerials)))
+                    : null;
+
                 $destinationWarehouseMaterial->save();
             } else {
                 // Tạo bản ghi mới
@@ -810,14 +833,14 @@ class WarehouseTransferController extends Controller
                     'warehouse_id' => $destinationWarehouseId,
                     'material_id' => $materialId,
                     'item_type' => $itemType,
-                    'quantity' => $quantity,
-                    'serial_number' => !empty($serialArray) ? json_encode($serialArray) : null,
+                    'quantity' => $effectiveQty,
+                    'serial_number' => !empty($validSerialsToMove) ? json_encode(array_values($validSerialsToMove)) : null,
                 ]);
             }
 
             // Cập nhật warehouse_id trong bảng serials
-            if (!empty($serialArray)) {
-                foreach ($serialArray as $serialNumber) {
+            if (!empty($validSerialsToMove)) {
+                foreach ($validSerialsToMove as $serialNumber) {
                     $serial = \App\Models\Serial::where('serial_number', $serialNumber)
                         ->where('product_id', $materialId)
                         ->where('type', $itemType)
@@ -835,7 +858,7 @@ class WarehouseTransferController extends Controller
                 }
             }
 
-            Log::info("Chuyển serial thành công: từ kho {$sourceWarehouseId} sang kho {$destinationWarehouseId}, materialId={$materialId}, itemType={$itemType}, quantity={$quantity}, serials=" . json_encode($serialArray) . ", ghi chú={$note}");
+            Log::info("Chuyển serial thành công: từ kho {$sourceWarehouseId} sang kho {$destinationWarehouseId}, materialId={$materialId}, itemType={$itemType}, quantity={$quantity}, serials=" . json_encode($serialArray) . ", validSerials=" . json_encode(isset($validSerialsToMove) ? $validSerialsToMove : []) . ", ghi chú={$note}");
             return true;
 
         } catch (\Exception $e) {
