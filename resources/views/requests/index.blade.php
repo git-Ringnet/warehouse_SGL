@@ -163,6 +163,15 @@
                             </option>
                         </select>
                     </div>
+                    <div class="w-full md:w-auto">
+                        <select name="type"
+                            class="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Loại phiếu --</option>
+                            <option value="project" {{ request('type') == 'project' ? 'selected' : '' }}>Đề xuất dự án</option>
+                            <option value="maintenance" {{ request('type') == 'maintenance' ? 'selected' : '' }}>Bảo trì dự án</option>
+                            <option value="customer_maintenance" {{ request('type') == 'customer_maintenance' ? 'selected' : '' }}>Khách yêu cầu bảo trì</option>
+                        </select>
+                    </div>
                     <div>
                         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
                             <i class="fas fa-search mr-2"></i> Tìm kiếm
@@ -345,7 +354,7 @@
                                                 </a>
                                             @endif
 
-                                            @if ($request->status === 'pending' && $canDelete)
+                                            @if ($request->status === 'rejected' && $canDelete)
                                                 <form action="{{ route('requests.project.destroy', $request->id) }}"
                                                     method="POST" class="inline-block">
                                                     @csrf
@@ -426,7 +435,7 @@
                                                 </a>
                                             @endif
 
-                                            @if ($request->status === 'pending' && $canDelete)
+                                            @if ($request->status === 'rejected' && $canDelete)
                                                 <form action="{{ route('requests.maintenance.destroy', $request->id) }}"
                                                     method="POST" class="inline-block">
                                                     @csrf
@@ -499,7 +508,7 @@
                                                 </a>
                                             @endif
 
-                                            @if ($request->status === 'pending' && $canDelete)
+                                            @if ($request->status === 'rejected' && $canDelete)
                                                 <form
                                                     action="{{ route('requests.customer-maintenance.destroy', $request->id) }}"
                                                     method="POST" class="inline-block">

@@ -263,7 +263,10 @@
                 option.className = statusClass;
                 option.setAttribute('data-project-name', item.project_name);
                 option.setAttribute('data-customer-id', item.customer?.id || '');
-                option.setAttribute('data-customer-name', item.customer?.company_name || '');
+                // Hiển thị tên theo định dạng: "Công ty (Người liên hệ)"
+                const contactName = item.customer?.contact_name || item.customer?.representative || item.customer?.name || '';
+                const companyName = item.customer?.company_name || item.customer?.name || '';
+                option.setAttribute('data-customer-name', companyName && contactName ? `${companyName} (${contactName})` : companyName || contactName || '');
                 option.setAttribute('data-customer-phone', item.customer?.phone || '');
                 option.setAttribute('data-customer-email', item.customer?.email || '');
                 option.setAttribute('data-customer-address', item.customer?.address || '');
@@ -287,7 +290,9 @@
                 option.className = statusClass;
                 option.setAttribute('data-project-name', item.rental_name);
                 option.setAttribute('data-customer-id', item.customer?.id || '');
-                option.setAttribute('data-customer-name', item.customer?.company_name || '');
+                const rContactName = item.customer?.contact_name || item.customer?.representative || item.customer?.name || '';
+                const rCompanyName = item.customer?.company_name || item.customer?.name || '';
+                option.setAttribute('data-customer-name', rCompanyName && rContactName ? `${rCompanyName} (${rContactName})` : rCompanyName || rContactName || '');
                 option.setAttribute('data-customer-phone', item.customer?.phone || '');
                 option.setAttribute('data-customer-email', item.customer?.email || '');
                 option.setAttribute('data-customer-address', item.customer?.address || '');

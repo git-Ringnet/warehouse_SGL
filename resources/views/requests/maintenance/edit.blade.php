@@ -319,8 +319,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (isExpired) {
                     option.disabled = true;
                 }
-                
-                if (item.id == initialProjectId) {
+                // Ưu tiên khớp theo tên dự án đã lưu; nếu không khớp được thì mới dùng id
+                const matchByName = initialProjectName && item.project_name && item.project_name.trim().toLowerCase() === initialProjectName.trim().toLowerCase();
+                const matchById = initialProjectId && String(item.id) === String(initialProjectId);
+                if (matchByName || (!matchByName && matchById)) {
                     option.selected = true;
                 }
                 projectIdSelect.appendChild(option);
@@ -357,8 +359,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (isExpired) {
                     option.disabled = true;
                 }
-                
-                if (item.id == initialProjectId) {
+                // Ưu tiên khớp theo tên phiếu cho thuê đã lưu; nếu không khớp được thì mới dùng id
+                const matchByName = initialProjectName && item.rental_name && item.rental_name.trim().toLowerCase() === initialProjectName.trim().toLowerCase();
+                const matchById = initialProjectId && String(item.id) === String(initialProjectId);
+                if (matchByName || (!matchByName && matchById)) {
                     option.selected = true;
                 }
                 projectIdSelect.appendChild(option);

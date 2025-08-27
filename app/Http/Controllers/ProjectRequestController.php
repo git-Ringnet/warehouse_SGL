@@ -34,6 +34,7 @@ class ProjectRequestController extends Controller
         $status = $request->input('status');
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
+        $type = $request->input('type');
         
         // Query cho phiếu đề xuất triển khai dự án
         $projectQuery = ProjectRequest::with(['proposer', 'customer']);
@@ -127,6 +128,20 @@ class ProjectRequestController extends Controller
             $customerMaintenanceQuery->whereDate('created_at', '<=', $dateTo);
         }
         
+        // Lọc theo loại phiếu nếu có
+        if ($type) {
+            if ($type === 'project') {
+                $maintenanceQuery->whereRaw('1=0');
+                $customerMaintenanceQuery->whereRaw('1=0');
+            } elseif ($type === 'maintenance') {
+                $projectQuery->whereRaw('1=0');
+                $customerMaintenanceQuery->whereRaw('1=0');
+            } elseif ($type === 'customer_maintenance') {
+                $projectQuery->whereRaw('1=0');
+                $maintenanceQuery->whereRaw('1=0');
+            }
+        }
+
         // Lấy dữ liệu phiếu đề xuất triển khai dự án
         $projectRequests = $projectQuery->latest()->get();
         
@@ -176,10 +191,11 @@ class ProjectRequestController extends Controller
             'filter' => $filter,
             'status' => $status,
             'date_from' => $dateFrom,
-            'date_to' => $dateTo
+            'date_to' => $dateTo,
+            'type' => $type
         ]);
         
-        return view('requests.index', compact('requests', 'search', 'filter', 'status', 'dateFrom', 'dateTo'));
+        return view('requests.index', compact('requests', 'search', 'filter', 'status', 'dateFrom', 'dateTo', 'type'));
     }
 
     /**
@@ -334,7 +350,7 @@ class ProjectRequestController extends Controller
             'customer_name' => 'required|string|max:255',
             'customer_phone' => 'required|string|max:20',
             'customer_email' => 'nullable|email|max:255',
-            'customer_address' => 'required|string|max:255',
+            'customer_address' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ];
         
@@ -475,12 +491,12 @@ class ProjectRequestController extends Controller
                 'customer_id' => $customer->id,
                 'project_id' => $projectType === 'project' ? $actualProjectId : null,
                 'rental_id' => $projectType === 'rental' ? $actualProjectId : null,
-                'project_address' => $request->project_address ?? '', // Cho phép null
+                'project_address' => $request->project_address ?? '', // Cho phép trống
                 'approval_method' => $request->approval_method,
                 'customer_name' => $customer->name,
                 'customer_phone' => $customer->phone,
                 'customer_email' => $customer->email,
-                'customer_address' => $customer->address,
+                'customer_address' => $customer->address ?? '',
                 'notes' => $request->notes,
                 'status' => 'pending',
             ]);
@@ -707,7 +723,7 @@ class ProjectRequestController extends Controller
             'customer_name.required' => 'Tên khách hàng không được để trống',
             'customer_phone.required' => 'Số điện thoại khách hàng không được để trống',
             'customer_email.email' => 'Email không đúng định dạng',
-            'customer_address.required' => 'Địa chỉ khách hàng không được để trống',
+            // Địa chỉ khách hàng không bắt buộc
         ]);
 
         if ($validator->fails()) {
@@ -849,10 +865,10 @@ class ProjectRequestController extends Controller
             $requestCode = $projectRequest->request_code;
             $requestData = $projectRequest->toArray();
             
-            // Chỉ cho phép xóa nếu trạng thái là pending
-            if ($projectRequest->status !== 'pending') {
+            // Cho phép xóa nếu trạng thái là pending hoặc rejected
+            if (!in_array($projectRequest->status, ['pending', 'rejected'])) {
                 return redirect()->route('requests.project.show', $id)
-                    ->with('error', 'Không thể xóa phiếu đề xuất đã được duyệt hoặc đang xử lý.');
+                    ->with('error', 'Chỉ có thể xóa phiếu đề xuất ở trạng thái Chờ duyệt hoặc Đã từ chối.');
             }
             
             $projectRequest->delete();
@@ -1465,21 +1481,17 @@ class ProjectRequestController extends Controller
             );
         }
 
-        // Lấy warehouse mặc định
+        // Lấy warehouse mặc định (chỉ làm fallback, ưu tiên chia theo tồn kho thực tế)
         $defaultWarehouse = Warehouse::query()
             ->where('status', 'active')
             ->where('is_hidden', false)
             ->first();
 
-        if (!$defaultWarehouse) {
-            throw new \Exception('Không tìm thấy kho mặc định để xuất hàng.');
-        }
-
         // Lấy các items từ phiếu đề xuất
         $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)->get();
 
         // Lặp qua các items trong phiếu đề xuất và tạo dispatch items tương ứng
-            foreach ($projectRequestItems as $item) {
+        foreach ($projectRequestItems as $item) {
             // Xác định loại item và thêm thông tin tương ứng
             switch ($item->item_type) {
                 case 'equipment':
@@ -1526,21 +1538,77 @@ class ProjectRequestController extends Controller
                     continue;
                 }
 
-            // Tìm kho có nhiều tồn kho nhất cho loại vật tư này
-            $bestWarehouse = $this->findBestWarehouse($itemType, $itemId);
-            $warehouseId = $bestWarehouse ? $bestWarehouse->id : $defaultWarehouse->id;
+            // Phân bổ từ nhiều kho (chỉ trong các kho dùng để tính tồn kho của item):
+            $remaining = (int) $item->quantity;
 
-            // Tạo dispatch item với đầy đủ thông tin
-            DispatchItem::create([
-                'dispatch_id' => $dispatch->id,
-                'warehouse_id' => $warehouseId,
-                'item_type' => $itemType,
-                'item_id' => $itemId,
-                'quantity' => $item->quantity,
-                'category' => 'contract', // Mặc định là contract theo yêu cầu
-                'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
-                'serial_numbers' => null
-            ]);
+            // Lấy danh sách tồn kho theo item_type chính xác
+            $stockQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+                ->where('item_type', $itemType)
+                ->whereHas('warehouse', function($q) { $q->where('status', 'active')->where('is_hidden', false); })
+                ->where('quantity', '>', 0);
+
+            // Chỉ tính trong các kho cấu hình ở item (inventory_warehouses)
+            $allowedWarehouseIds = [];
+            if ($itemType === 'product') {
+                $obj = \App\Models\Product::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($itemType === 'material') {
+                $obj = \App\Models\Material::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($itemType === 'good') {
+                $obj = \App\Models\Good::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            }
+            if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                $stockQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+            }
+
+            $stockRows = $stockQuery->orderByDesc('quantity')->get();
+
+            // Nếu không có theo item_type chính xác, lấy tất cả (fallback)
+            if ($stockRows->isEmpty()) {
+                $fallbackQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+                    ->whereHas('warehouse', function($q) { $q->where('status', 'active')->where('is_hidden', false); })
+                    ->where('quantity', '>', 0);
+                if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                    $fallbackQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+                }
+                $stockRows = $fallbackQuery->orderByDesc('quantity')->get();
+            }
+
+            foreach ($stockRows as $wm) {
+                if ($remaining <= 0) break;
+                $takeQty = min($remaining, (int) $wm->quantity);
+                if ($takeQty <= 0) continue;
+
+                DispatchItem::create([
+                    'dispatch_id' => $dispatch->id,
+                    'warehouse_id' => $wm->warehouse_id,
+                    'item_type' => $itemType,
+                    'item_id' => $itemId,
+                    'quantity' => $takeQty,
+                    'category' => 'contract',
+                    'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
+                    'serial_numbers' => null
+                ]);
+
+                $remaining -= $takeQty;
+            }
+
+            // Nếu vẫn còn thiếu (trường hợp chênh lệch nhỏ), gán vào kho mặc định để người dùng xử lý sau
+            if ($remaining > 0 && $defaultWarehouse) {
+                DispatchItem::create([
+                    'dispatch_id' => $dispatch->id,
+                    'warehouse_id' => $defaultWarehouse->id,
+                    'item_type' => $itemType,
+                    'item_id' => $itemId,
+                    'quantity' => $remaining,
+                    'category' => 'contract',
+                    'notes' => 'Phần còn thiếu cần xử lý tồn kho thủ công - tạo từ phiếu đề xuất #' . $projectRequest->id,
+                    'serial_numbers' => null
+                ]);
+                $remaining = 0;
+            }
         }
 
         return $dispatch;
@@ -1594,67 +1662,40 @@ class ProjectRequestController extends Controller
                 continue;
             }
 
-            // Lấy thông tin tồn kho của item từ WarehouseMaterial
-            // Thử tìm kiếm với điều kiện linh hoạt hơn
-            $warehouseMaterial = null;
-            $quantityInStock = 0;
-            
-            // Thử tìm với item_type chính xác
-            $warehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
-                ->where('item_type', $stockItemType)
+            // Tính tổng tồn kho chỉ trong các kho được cấu hình dùng để tính tồn kho
+            $allowedWarehouseIds = [];
+            if ($stockItemType === 'product') {
+                $obj = \App\Models\Product::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($stockItemType === 'material') {
+                $obj = \App\Models\Material::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($stockItemType === 'good') {
+                $obj = \App\Models\Good::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            }
+
+            $sumQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+                ->where(function($q) use ($stockItemType) {
+                    $q->where('item_type', $stockItemType)
+                      ->orWhereNull('item_type');
+                })
                 ->whereHas('warehouse', function($q) {
                     $q->where('status', 'active')->where('is_hidden', false);
-                })
-                ->first();
-                
-            // Nếu không tìm thấy, thử tìm không có điều kiện item_type
-            if (!$warehouseMaterial) {
-                $warehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
-                    ->whereHas('warehouse', function($q) {
-                        $q->where('status', 'active')->where('is_hidden', false);
-                    })
-                    ->first();
+                });
+            if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                $sumQuery->whereIn('warehouse_id', $allowedWarehouseIds);
             }
-            
-            // Nếu vẫn không tìm thấy, thử tìm trong bảng khác tùy theo loại item
-            if (!$warehouseMaterial) {
-                switch ($stockItemType) {
-                    case 'product':
-                        // Tìm trong bảng products
-                        $product = \App\Models\Product::find($itemId);
-                        if ($product) {
-                            $quantityInStock = $product->stock_quantity ?? 0;
-                        }
-                        break;
-                    case 'material':
-                        // Tìm trong bảng materials
-                        $material = \App\Models\Material::find($itemId);
-                        if ($material) {
-                            $quantityInStock = $material->stock_quantity ?? 0;
-                        }
-                        break;
-                    case 'good':
-                        // Tìm trong bảng goods
-                        $good = \App\Models\Good::find($itemId);
-                        if ($good) {
-                            $quantityInStock = $good->stock_quantity ?? 0;
-                        }
-                        break;
-                }
-            } else {
-                $quantityInStock = $warehouseMaterial->quantity;
-            }
+            $quantityInStock = (int) $sumQuery->sum('quantity');
 
-            // Debug log kết quả tìm kiếm
-            Log::info('Kết quả tìm kiếm tồn kho', [
+            // Debug log kết quả tìm kiếm (tổng theo tất cả kho)
+            Log::info('Kết quả kiểm tra tổng tồn kho', [
                 'item_id' => $itemId,
                 'stock_item_type' => $stockItemType,
-                'found_in_warehouse_material' => $warehouseMaterial ? true : false,
-                'quantity_in_stock' => $quantityInStock,
-                'actual_item_type' => $warehouseMaterial ? $warehouseMaterial->item_type : 'N/A'
+                'quantity_in_stock' => $quantityInStock
             ]);
 
-            if (!$warehouseMaterial && $quantityInStock == 0) {
+            if ($quantityInStock == 0) {
                 $insufficientItems[] = "{$item->name} (ID: {$itemId}) - Không tồn tại trong kho";
                 continue;
             }

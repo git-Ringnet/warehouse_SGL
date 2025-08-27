@@ -232,7 +232,7 @@ class CustomerMaintenanceRequestController extends Controller
                 $validatedData['customer_name'] = $customer->company_name ?? $customer->name;
                 $validatedData['customer_phone'] = $customer->phone;
                 $validatedData['customer_email'] = $customer->email;
-                $validatedData['customer_address'] = $customer->address;
+                $validatedData['customer_address'] = $customer->address ?? '';
 
                 // Lưu phiếu yêu cầu
                 $maintenanceRequest = CustomerMaintenanceRequest::create($validatedData);
@@ -465,10 +465,10 @@ class CustomerMaintenanceRequestController extends Controller
         $requestCode = $maintenanceRequest->request_code;
         $requestData = $maintenanceRequest->toArray();
         
-        // Chỉ cho phép xóa khi phiếu còn ở trạng thái chờ duyệt
-        if ($maintenanceRequest->status !== 'pending') {
+        // Cho phép xóa khi phiếu ở trạng thái chờ duyệt hoặc đã từ chối
+        if (!in_array($maintenanceRequest->status, ['pending', 'rejected'])) {
             return redirect()->route('requests.customer-maintenance.show', $id)
-                ->with('error', 'Không thể xóa phiếu yêu cầu đã được duyệt.');
+                ->with('error', 'Chỉ có thể xóa phiếu yêu cầu ở trạng thái Chờ duyệt hoặc Đã từ chối.');
         }
         
         // Kiểm tra quyền truy cập

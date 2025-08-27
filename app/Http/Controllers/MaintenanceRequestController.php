@@ -115,7 +115,7 @@ class MaintenanceRequestController extends Controller
                 'customer_name' => 'required|string|max:255',
                 'customer_phone' => 'required|string|max:20',
                 'customer_email' => 'nullable|email|max:255',
-                'customer_address' => 'required|string|max:255',
+                'customer_address' => 'nullable|string|max:255',
                 'notes' => 'nullable|string',
                 'selected_devices' => 'required|string', // Thêm validation cho selected_devices
             ];
@@ -141,18 +141,34 @@ class MaintenanceRequestController extends Controller
             
             DB::beginTransaction();
             
-            // Lấy thông tin dự án/phiếu cho thuê
+            // Lấy thông tin dự án/phiếu cho thuê và điền thông tin khách hàng nếu thiếu từ form
             $projectName = '';
             $customerId = null;
-            
+            $customerName = $request->customer_name;
+            $customerPhone = $request->customer_phone;
+            $customerEmail = $request->customer_email;
+            $customerAddress = $request->customer_address; // có thể rỗng
+
             if ($request->project_type === 'project') {
                 $project = \App\Models\Project::with('customer')->findOrFail($request->project_id);
                 $projectName = $project->project_name;
                 $customerId = $project->customer_id;
+                if ($project->customer) {
+                    $customerName = $customerName ?: ($project->customer->company_name ?: $project->customer->name);
+                    $customerPhone = $customerPhone ?: $project->customer->phone;
+                    $customerEmail = $customerEmail ?: $project->customer->email;
+                    $customerAddress = $customerAddress ?: ($project->customer->address ?: '');
+                }
             } else {
                 $rental = \App\Models\Rental::with('customer')->findOrFail($request->project_id);
                 $projectName = $rental->rental_name;
                 $customerId = $rental->customer_id;
+                if ($rental->customer) {
+                    $customerName = $customerName ?: ($rental->customer->company_name ?: $rental->customer->name);
+                    $customerPhone = $customerPhone ?: $rental->customer->phone;
+                    $customerEmail = $customerEmail ?: $rental->customer->email;
+                    $customerAddress = $customerAddress ?: ($rental->customer->address ?: '');
+                }
             }
             
             // Tạo phiếu bảo trì mới
@@ -163,14 +179,14 @@ class MaintenanceRequestController extends Controller
                 'project_name' => $projectName,
                 'customer_id' => $customerId,
                 'warranty_id' => null, // Không còn sử dụng warranty_id
-                'project_address' => $request->customer_address,
+                'project_address' => $request->customer_address ?? '',
                 'maintenance_date' => $request->maintenance_date,
                 'maintenance_type' => $request->maintenance_type ?? 'maintenance', // Mặc định là maintenance
                 'maintenance_reason' => $request->notes ?? '', // Sử dụng notes làm maintenance_reason
-                'customer_name' => $request->customer_name,
-                'customer_phone' => $request->customer_phone,
-                'customer_email' => $request->customer_email,
-                'customer_address' => $request->customer_address,
+                'customer_name' => $customerName,
+                'customer_phone' => $customerPhone,
+                'customer_email' => $customerEmail,
+                'customer_address' => $customerAddress ?? '',
                 'notes' => $request->notes,
                 'status' => 'pending',
             ]);
@@ -321,11 +337,9 @@ class MaintenanceRequestController extends Controller
                 ];
             });
         
-        // Tự động gán project_type và project_id nếu thiếu
-        if (!$maintenanceRequest->project_type) {
+        // Tự động gán chỉ khi cả type và id đều thiếu; nếu có tên dự án nhưng thiếu id, cố gắng map theo tên
+        if (!$maintenanceRequest->project_type && !$maintenanceRequest->project_id) {
             $maintenanceRequest->project_type = count($projects) > 0 ? 'project' : (count($rentals) > 0 ? 'rental' : null);
-        }
-        if (!$maintenanceRequest->project_id) {
             if ($maintenanceRequest->project_type === 'project' && count($projects) > 0) {
                 $maintenanceRequest->project_id = $projects[0]['id'];
             } elseif ($maintenanceRequest->project_type === 'rental' && count($rentals) > 0) {
@@ -541,10 +555,10 @@ class MaintenanceRequestController extends Controller
         $requestCode = $maintenanceRequest->request_code;
         $requestData = $maintenanceRequest->toArray();
         
-        // Chỉ cho phép xóa nếu phiếu đang ở trạng thái chờ duyệt
-        if ($maintenanceRequest->status !== 'pending') {
+        // Cho phép xóa nếu phiếu ở trạng thái chờ duyệt hoặc đã từ chối
+        if (!in_array($maintenanceRequest->status, ['pending', 'rejected'])) {
             return redirect()->back()
-                ->with('error', 'Chỉ có thể xóa phiếu bảo trì ở trạng thái chờ duyệt.');
+                ->with('error', 'Chỉ có thể xóa phiếu bảo trì ở trạng thái Chờ duyệt hoặc Đã từ chối.');
         }
         
         try {
@@ -990,9 +1004,10 @@ class MaintenanceRequestController extends Controller
                 $project = \App\Models\Project::with(['customer'])->findOrFail($request->project_id);
                 Log::info('Project found:', ['id' => $project->id, 'name' => $project->project_name]);
                 
-                // Lấy thiết bị từ dispatches có dispatch_type = 'project' và project_id = project->id
+                // Lấy thiết bị từ dispatches (chỉ phiếu hợp lệ): đúng loại, đúng project, trạng thái đã duyệt/hoàn thành
                 $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
                     ->where('project_id', $project->id)
+                    ->whereIn('status', ['approved', 'completed'])
                     ->with(['items.product', 'items.good'])
                     ->get();
                 
@@ -1005,45 +1020,71 @@ class MaintenanceRequestController extends Controller
                     foreach ($dispatch->items as $item) {
                         Log::info('Processing item:', ['id' => $item->id, 'type' => $item->item_type, 'item_id' => $item->item_id, 'quantity' => $item->quantity]);
                         
+                        // Lấy danh sách serial đã trả về (nếu có) cho từng dispatch item
+                        $returnedSerials = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                            ->pluck('serial_number')
+                            ->filter()
+                            ->toArray();
+                        $returnedCount = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->count();
+
                         if ($item->item_type === 'product' && $item->product) {
-                            // Tạo từng record riêng biệt cho mỗi quantity
-                            for ($i = 0; $i < $item->quantity; $i++) {
-                                // Lấy serial number từ array nếu có
-                                $serialNumber = 'N/A';
-                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                            // Tạo bản ghi theo serial (nếu có), loại bỏ những serial đã trả
+                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                foreach ($item->serial_numbers as $idx => $sn) {
+                                    if (!empty($sn) && in_array($sn, $returnedSerials)) {
+                                        continue; // bỏ serial đã trả về kho
+                                    }
+                                    $device = [
+                                        'id' => $item->id . '_' . $idx,
+                                        'code' => $item->product->code,
+                                        'name' => $item->product->name,
+                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
+                                        'type' => 'Thành phẩm',
+                                        'quantity' => 1,
+                                    ];
+                                    $devices[] = $device;
                                 }
-                                
-                                $device = [
-                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
-                                    'code' => $item->product->code,
-                                    'name' => $item->product->name,
-                                    'serial_number' => $serialNumber,
-                                    'type' => 'Thành phẩm',
-                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
-                                ];
-                                $devices[] = $device;
-                                Log::info('Added product device:', $device);
+                            } else {
+                                // Không có serial: chỉ thêm (quantity - returnedCount) thiết bị
+                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
+                                for ($i = 0; $i < $availableQty; $i++) {
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $i,
+                                        'code' => $item->product->code,
+                                        'name' => $item->product->name,
+                                        'serial_number' => 'N/A',
+                                        'type' => 'Thành phẩm',
+                                        'quantity' => 1,
+                                    ];
+                                }
                             }
                         } elseif ($item->item_type === 'good' && $item->good) {
-                            // Tạo từng record riêng biệt cho mỗi quantity
-                            for ($i = 0; $i < $item->quantity; $i++) {
-                                // Lấy serial number từ array nếu có
-                                $serialNumber = 'N/A';
-                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                foreach ($item->serial_numbers as $idx => $sn) {
+                                    if (!empty($sn) && in_array($sn, $returnedSerials)) {
+                                        continue;
+                                    }
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $idx,
+                                        'code' => $item->good->code,
+                                        'name' => $item->good->name,
+                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
+                                        'type' => 'Hàng hoá',
+                                        'quantity' => 1,
+                                    ];
                                 }
-                                
-                                $device = [
-                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
-                                    'code' => $item->good->code,
-                                    'name' => $item->good->name,
-                                    'serial_number' => $serialNumber,
-                                    'type' => 'Hàng hoá',
-                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
-                                ];
-                                $devices[] = $device;
-                                Log::info('Added good device:', $device);
+                            } else {
+                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
+                                for ($i = 0; $i < $availableQty; $i++) {
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $i,
+                                        'code' => $item->good->code,
+                                        'name' => $item->good->name,
+                                        'serial_number' => 'N/A',
+                                        'type' => 'Hàng hoá',
+                                        'quantity' => 1,
+                                    ];
+                                }
                             }
                         }
                     }
@@ -1053,9 +1094,10 @@ class MaintenanceRequestController extends Controller
                 $rental = \App\Models\Rental::with(['customer'])->findOrFail($request->project_id);
                 Log::info('Rental found:', ['id' => $rental->id, 'name' => $rental->rental_name]);
                 
-                // Lấy thiết bị từ dispatches có dispatch_type = 'rental' và project_id = rental->id
+                // Lấy thiết bị từ dispatches RENTAL (đã duyệt/hoàn thành)
                 $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
                     ->where('project_id', $rental->id)
+                    ->whereIn('status', ['approved', 'completed'])
                     ->with(['items.product', 'items.good'])
                     ->get();
                 
@@ -1068,45 +1110,63 @@ class MaintenanceRequestController extends Controller
                     foreach ($dispatch->items as $item) {
                         Log::info('Processing item:', ['id' => $item->id, 'type' => $item->item_type, 'item_id' => $item->item_id, 'quantity' => $item->quantity]);
                         
+                        $returnedSerials = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                            ->pluck('serial_number')
+                            ->filter()
+                            ->toArray();
+                        $returnedCount = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)->count();
+
                         if ($item->item_type === 'product' && $item->product) {
-                            // Tạo từng record riêng biệt cho mỗi quantity
-                            for ($i = 0; $i < $item->quantity; $i++) {
-                                // Lấy serial number từ array nếu có
-                                $serialNumber = 'N/A';
-                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                foreach ($item->serial_numbers as $idx => $sn) {
+                                    if (!empty($sn) && in_array($sn, $returnedSerials)) { continue; }
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $idx,
+                                        'code' => $item->product->code,
+                                        'name' => $item->product->name,
+                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
+                                        'type' => 'Thành phẩm',
+                                        'quantity' => 1,
+                                    ];
                                 }
-                                
-                                $device = [
-                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
-                                    'code' => $item->product->code,
-                                    'name' => $item->product->name,
-                                    'serial_number' => $serialNumber,
-                                    'type' => 'Thành phẩm',
-                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
-                                ];
-                                $devices[] = $device;
-                                Log::info('Added product device:', $device);
+                            } else {
+                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
+                                for ($i = 0; $i < $availableQty; $i++) {
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $i,
+                                        'code' => $item->product->code,
+                                        'name' => $item->product->name,
+                                        'serial_number' => 'N/A',
+                                        'type' => 'Thành phẩm',
+                                        'quantity' => 1,
+                                    ];
+                                }
                             }
                         } elseif ($item->item_type === 'good' && $item->good) {
-                            // Tạo từng record riêng biệt cho mỗi quantity
-                            for ($i = 0; $i < $item->quantity; $i++) {
-                                // Lấy serial number từ array nếu có
-                                $serialNumber = 'N/A';
-                                if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
-                                    $serialNumber = $item->serial_numbers[$i] ?? 'N/A';
+                            if (!empty($item->serial_numbers) && is_array($item->serial_numbers)) {
+                                foreach ($item->serial_numbers as $idx => $sn) {
+                                    if (!empty($sn) && in_array($sn, $returnedSerials)) { continue; }
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $idx,
+                                        'code' => $item->good->code,
+                                        'name' => $item->good->name,
+                                        'serial_number' => !empty($sn) ? $sn : 'N/A',
+                                        'type' => 'Hàng hoá',
+                                        'quantity' => 1,
+                                    ];
                                 }
-                                
-                                $device = [
-                                    'id' => $item->id . '_' . $i, // Tạo ID duy nhất cho từng item
-                                    'code' => $item->good->code,
-                                    'name' => $item->good->name,
-                                    'serial_number' => $serialNumber,
-                                    'type' => 'Hàng hoá',
-                                    'quantity' => 1, // Mỗi record chỉ có quantity = 1
-                                ];
-                                $devices[] = $device;
-                                Log::info('Added good device:', $device);
+                            } else {
+                                $availableQty = max(0, (int) $item->quantity - (int) $returnedCount);
+                                for ($i = 0; $i < $availableQty; $i++) {
+                                    $devices[] = [
+                                        'id' => $item->id . '_' . $i,
+                                        'code' => $item->good->code,
+                                        'name' => $item->good->name,
+                                        'serial_number' => 'N/A',
+                                        'type' => 'Hàng hoá',
+                                        'quantity' => 1,
+                                    ];
+                                }
                             }
                         }
                     }

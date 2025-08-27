@@ -41,11 +41,7 @@
                 <i class="fas fa-eye mr-2"></i> Xem trước
             </a>
             
-            @if($projectRequest->status === 'pending' && $projectRequest->approval_method === 'warehouse')
-                <a href="{{ route('requests.project.test-stock', $projectRequest->id) }}" target="_blank" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
-                    <i class="fas fa-vial mr-2"></i> Test Tồn kho
-                </a>
-            @endif
+
             
             <a href="#" onclick="window.print(); return false;" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors">
                 <i class="fas fa-print mr-2"></i> In PDF
