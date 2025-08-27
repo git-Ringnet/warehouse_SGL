@@ -141,7 +141,7 @@ class ProjectRequestController extends Controller
                 $maintenanceQuery->whereRaw('1=0');
             }
         }
-
+        
         // Lấy dữ liệu phiếu đề xuất triển khai dự án
         $projectRequests = $projectQuery->latest()->get();
         
@@ -988,8 +988,8 @@ class ProjectRequestController extends Controller
                 if ($dispatch) {
                     $successMessage .= ' Phiếu xuất kho ' . $dispatch->dispatch_code . ' đã được tạo tự động.';
                     
-                    // Cập nhật dự án với thiết bị
-                    $this->updateProjectWithItems($projectRequest);
+                    // Cập nhật phiếu dự án/cho thuê với các thiết bị đã được xuất
+                    $this->updateProjectOrRentalWithItems($projectRequest, $dispatch);
                 }
             }
             
@@ -1491,7 +1491,7 @@ class ProjectRequestController extends Controller
         $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)->get();
 
         // Lặp qua các items trong phiếu đề xuất và tạo dispatch items tương ứng
-        foreach ($projectRequestItems as $item) {
+            foreach ($projectRequestItems as $item) {
             // Xác định loại item và thêm thông tin tương ứng
             switch ($item->item_type) {
                 case 'equipment':
@@ -1547,21 +1547,22 @@ class ProjectRequestController extends Controller
                 ->whereHas('warehouse', function($q) { $q->where('status', 'active')->where('is_hidden', false); })
                 ->where('quantity', '>', 0);
 
-            // Chỉ tính trong các kho cấu hình ở item (inventory_warehouses)
-            $allowedWarehouseIds = [];
-            if ($itemType === 'product') {
-                $obj = \App\Models\Product::find($itemId);
-                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            } elseif ($itemType === 'material') {
-                $obj = \App\Models\Material::find($itemId);
-                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            } elseif ($itemType === 'good') {
-                $obj = \App\Models\Good::find($itemId);
-                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            }
-            if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
-                $stockQuery->whereIn('warehouse_id', $allowedWarehouseIds);
-            }
+            // KHÔNG giới hạn theo inventory_warehouses nữa - lấy tồn kho từ TẤT CẢ các kho
+            // Đây là thay đổi chính: bỏ giới hạn kho để có thể tạo phiếu xuất từ nhiều kho
+            // $allowedWarehouseIds = [];
+            // if ($itemType === 'product') {
+            //     $obj = \App\Models\Product::find($itemId);
+            //     $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            // } elseif ($itemType === 'material') {
+            //     $obj = \App\Models\Material::find($itemId);
+            //     $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            // } elseif ($itemType === 'good') {
+            //     $obj = \App\Models\Good::find($itemId);
+            //     $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            // }
+            // if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+            //     $stockQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+            // }
 
             $stockRows = $stockQuery->orderByDesc('quantity')->get();
 
@@ -1570,33 +1571,94 @@ class ProjectRequestController extends Controller
                 $fallbackQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
                     ->whereHas('warehouse', function($q) { $q->where('status', 'active')->where('is_hidden', false); })
                     ->where('quantity', '>', 0);
-                if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
-                    $fallbackQuery->whereIn('warehouse_id', $allowedWarehouseIds);
-                }
+                // KHÔNG giới hạn theo inventory_warehouses nữa
+                // if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                //     $fallbackQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+                // }
                 $stockRows = $fallbackQuery->orderByDesc('quantity')->get();
             }
 
+            // Log để debug phân bổ từ nhiều kho
+            Log::info('Phân bổ item từ nhiều kho (từ TẤT CẢ các kho):', [
+                'item_id' => $itemId,
+                'item_type' => $itemType,
+                'quantity_requested' => $remaining,
+                'stock_rows_count' => $stockRows->count(),
+                'note' => 'Đã bỏ giới hạn inventory_warehouses - lấy từ tất cả kho',
+                'stock_details' => $stockRows->map(function($wm) {
+                    return [
+                        'warehouse_id' => $wm->warehouse_id,
+                        'warehouse_name' => $wm->warehouse->name ?? 'N/A',
+                        'quantity' => $wm->quantity,
+                        'item_type' => $wm->item_type
+                    ];
+                })->toArray()
+            ]);
+
+            // Đảm bảo $remaining không vượt quá số lượng yêu cầu
+            $originalQuantity = $item->quantity;
+            $remaining = min($remaining, $originalQuantity);
+            
+            Log::info('Bắt đầu phân bổ với số lượng đã điều chỉnh:', [
+                'item_id' => $itemId,
+                'original_quantity' => $originalQuantity,
+                'remaining_adjusted' => $remaining
+            ]);
+
             foreach ($stockRows as $wm) {
-                if ($remaining <= 0) break;
+                if ($remaining <= 0) {
+                    Log::info('Đã đủ số lượng, dừng phân bổ:', [
+                        'item_id' => $itemId,
+                        'remaining' => $remaining
+                    ]);
+                    break;
+                }
+                
                 $takeQty = min($remaining, (int) $wm->quantity);
                 if ($takeQty <= 0) continue;
 
-                DispatchItem::create([
-                    'dispatch_id' => $dispatch->id,
+                // Log trước khi tạo DispatchItem
+                Log::info('Tạo DispatchItem:', [
                     'warehouse_id' => $wm->warehouse_id,
-                    'item_type' => $itemType,
+                    'warehouse_name' => $wm->warehouse->name ?? 'N/A',
+                    'take_qty' => $takeQty,
+                    'remaining_before' => $remaining,
                     'item_id' => $itemId,
+                    'item_type' => $itemType,
+                    'warehouse_stock' => $wm->quantity
+                ]);
+
+            DispatchItem::create([
+                'dispatch_id' => $dispatch->id,
+                    'warehouse_id' => $wm->warehouse_id,
+                'item_type' => $itemType,
+                'item_id' => $itemId,
                     'quantity' => $takeQty,
                     'category' => 'contract',
-                    'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
-                    'serial_numbers' => null
+                'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id,
+                'serial_numbers' => null
                 ]);
 
                 $remaining -= $takeQty;
+                
+                // Log sau khi tạo DispatchItem
+                Log::info('Đã tạo DispatchItem, còn lại:', [
+                    'warehouse_id' => $wm->warehouse_id,
+                    'take_qty' => $takeQty,
+                    'remaining_after' => $remaining,
+                    'dispatch_item_created' => true
+                ]);
             }
 
             // Nếu vẫn còn thiếu (trường hợp chênh lệch nhỏ), gán vào kho mặc định để người dùng xử lý sau
             if ($remaining > 0 && $defaultWarehouse) {
+                Log::warning('Vẫn còn thiếu số lượng, gán vào kho mặc định:', [
+                    'item_id' => $itemId,
+                    'remaining_quantity' => $remaining,
+                    'default_warehouse_id' => $defaultWarehouse->id,
+                    'default_warehouse_name' => $defaultWarehouse->name
+                ]);
+                
                 DispatchItem::create([
                     'dispatch_id' => $dispatch->id,
                     'warehouse_id' => $defaultWarehouse->id,
@@ -1609,6 +1671,15 @@ class ProjectRequestController extends Controller
                 ]);
                 $remaining = 0;
             }
+            
+            // Log kết quả cuối cùng cho item này
+            Log::info('Hoàn thành phân bổ item:', [
+                'item_id' => $itemId,
+                'item_type' => $itemType,
+                'original_quantity' => $originalQuantity,
+                'remaining_after_allocation' => $remaining,
+                'total_allocated' => $originalQuantity - $remaining
+            ]);
         }
 
         return $dispatch;
@@ -1662,30 +1733,21 @@ class ProjectRequestController extends Controller
                 continue;
             }
 
-            // Tính tổng tồn kho chỉ trong các kho được cấu hình dùng để tính tồn kho
-            $allowedWarehouseIds = [];
-            if ($stockItemType === 'product') {
-                $obj = \App\Models\Product::find($itemId);
-                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            } elseif ($stockItemType === 'material') {
-                $obj = \App\Models\Material::find($itemId);
-                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            } elseif ($stockItemType === 'good') {
-                $obj = \App\Models\Good::find($itemId);
-                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            }
-
+            // Tính tổng tồn kho từ TẤT CẢ các kho (không chỉ giới hạn trong inventory_warehouses)
+            // Đây là thay đổi chính: bỏ giới hạn kho để tính tổng tồn kho
             $sumQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
                 ->where(function($q) use ($stockItemType) {
                     $q->where('item_type', $stockItemType)
                       ->orWhereNull('item_type');
                 })
-                ->whereHas('warehouse', function($q) {
-                    $q->where('status', 'active')->where('is_hidden', false);
+                    ->whereHas('warehouse', function($q) {
+                        $q->where('status', 'active')->where('is_hidden', false);
                 });
-            if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
-                $sumQuery->whereIn('warehouse_id', $allowedWarehouseIds);
-            }
+            
+            // KHÔNG giới hạn theo inventory_warehouses nữa - tính từ tất cả kho
+            // if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+            //     $sumQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+            // }
             $quantityInStock = (int) $sumQuery->sum('quantity');
 
             // Debug log kết quả tìm kiếm (tổng theo tất cả kho)
@@ -1765,82 +1827,7 @@ class ProjectRequestController extends Controller
         return $defaultWarehouse;
     }
 
-    /**
-     * Cập nhật dự án với thiết bị từ phiếu đề xuất
-     */
-    private function updateProjectWithItems($projectRequest)
-    {
-        try {
-            // Lấy project_id thực tế
-            $actualId = $this->getProjectIdFromRequest($projectRequest);
-            
-            if (!$actualId) {
-                Log::warning('Không thể cập nhật dự án: ID không tìm thấy', [
-                    'project_request_id' => $projectRequest->id,
-                    'project_name' => $projectRequest->project_name
-                ]);
-                return;
-            }
-            
-            // Lấy phiếu xuất kho mới nhất
-            $latestDispatch = Dispatch::where('project_id', $actualId)
-                ->where('dispatch_type', 'project')
-                ->latest()
-                ->first();
-            
-            if (!$latestDispatch) {
-                Log::warning('Không tìm thấy phiếu xuất kho', [
-                    'actual_id' => $actualId,
-                    'dispatch_type' => 'project',
-                    'project_request_id' => $projectRequest->id
-                ]);
-                return;
-            }
-            
-            // Lấy các items từ phiếu đề xuất
-            $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)
-                ->where('item_type', 'equipment')
-                ->get();
-            
-            foreach ($projectRequestItems as $item) {
-                // Lấy thông tin sản phẩm (chỉ lấy active và không bị ẩn)
-                $product = \App\Models\Product::where('status', 'active')
-                    ->where('is_hidden', false)
-                    ->find($item->item_id);
-                
-                if ($product) {
-                    // Tìm dispatch item tương ứng
-                    $dispatchItem = \App\Models\DispatchItem::where('dispatch_id', $latestDispatch->id)
-                        ->where('item_type', 'product')
-                        ->where('item_id', $product->id)
-                        ->first();
-                    
-                    if ($dispatchItem) {
-                        // Cập nhật số lượng trong dispatch item
-                        $dispatchItem->update([
-                            'quantity' => $item->quantity,
-                            'notes' => 'Cập nhật từ phiếu đề xuất #' . $projectRequest->id
-                        ]);
-                        
-                        Log::info('Đã cập nhật thiết bị', [
-                            'type' => 'project',
-                            'actual_id' => $actualId,
-                            'dispatch_id' => $latestDispatch->id,
-                            'product_id' => $product->id,
-                            'product_name' => $product->name,
-                            'quantity' => $item->quantity
-                        ]);
-                    }
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error('Lỗi khi cập nhật dự án với thiết bị: ' . $e->getMessage(), [
-                'project_request_id' => $projectRequest->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-        }
-    }
+    // Method cũ đã được thay thế bằng updateProjectOrRentalWithItems
 
     /**
      * Lấy project_id từ phiếu đề xuất
@@ -1878,6 +1865,152 @@ class ProjectRequestController extends Controller
         ]);
         
         return null;
+    }
+
+    /**
+     * Cập nhật phiếu dự án hoặc phiếu cho thuê với các thiết bị đã được xuất
+     */
+    private function updateProjectOrRentalWithItems($projectRequest, $dispatch)
+    {
+        try {
+            // Xác định loại (project hoặc rental) dựa trên dữ liệu của phiếu đề xuất
+            $isRental = !empty($projectRequest->rental_id);
+            
+            Log::info('Bắt đầu cập nhật phiếu dự án/cho thuê với thiết bị:', [
+                'project_request_id' => $projectRequest->id,
+                'is_rental' => $isRental,
+                'dispatch_id' => $dispatch->id,
+                'dispatch_code' => $dispatch->dispatch_code
+            ]);
+
+            if ($isRental) {
+                // Cập nhật phiếu cho thuê
+                $this->updateRentalWithItems($projectRequest, $dispatch);
+            } else {
+                // Cập nhật phiếu dự án
+                $this->updateProjectWithItems($projectRequest, $dispatch);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi cập nhật phiếu dự án/cho thuê với thiết bị: ' . $e->getMessage(), [
+                'project_request_id' => $projectRequest->id,
+                'dispatch_id' => $dispatch->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Cập nhật phiếu cho thuê với các thiết bị đã được xuất
+     */
+    private function updateRentalWithItems($projectRequest, $dispatch)
+    {
+        try {
+            $rentalId = $projectRequest->rental_id;
+            
+            if (!$rentalId) {
+                Log::warning('Không tìm thấy rental_id trong phiếu đề xuất', [
+                    'project_request_id' => $projectRequest->id
+                ]);
+                return;
+            }
+
+            // Lấy các items từ phiếu đề xuất (chỉ lấy equipment)
+            $projectRequestItems = \App\Models\ProjectRequestItem::where('project_request_id', $projectRequest->id)
+                ->where('item_type', 'equipment')
+                ->get();
+
+            Log::info('Cập nhật phiếu cho thuê với thiết bị:', [
+                'rental_id' => $rentalId,
+                'items_count' => $projectRequestItems->count()
+            ]);
+
+            foreach ($projectRequestItems as $item) {
+                // Lấy thông tin sản phẩm
+                $product = \App\Models\Product::where('status', 'active')
+                    ->where('is_hidden', false)
+                    ->find($item->item_id);
+                
+                if ($product) {
+                    // Tìm dispatch item tương ứng để lấy thông tin xuất kho
+                    $dispatchItems = \App\Models\DispatchItem::where('dispatch_id', $dispatch->id)
+                        ->where('item_type', 'product')
+                        ->where('item_id', $product->id)
+                        ->get();
+
+                    foreach ($dispatchItems as $dispatchItem) {
+                        // Tạo rental item cho từng kho xuất
+                        \App\Models\RentalItem::create([
+                            'rental_id' => $rentalId,
+                            'item_type' => 'product',
+                            'item_id' => $product->id,
+                            'quantity' => $dispatchItem->quantity,
+                            'warehouse_id' => $dispatchItem->warehouse_id,
+                            'dispatch_id' => $dispatch->id,
+                            'dispatch_item_id' => $dispatchItem->id,
+                            'status' => 'active',
+                            'notes' => 'Tự động tạo từ phiếu đề xuất dự án #' . $projectRequest->id
+                        ]);
+
+                        Log::info('Đã tạo rental item:', [
+                            'rental_id' => $rentalId,
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'quantity' => $dispatchItem->quantity,
+                            'warehouse_id' => $dispatchItem->warehouse_id,
+                            'dispatch_item_id' => $dispatchItem->id
+                        ]);
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi cập nhật phiếu cho thuê với thiết bị: ' . $e->getMessage(), [
+                'project_request_id' => $projectRequest->id,
+                'rental_id' => $rentalId ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
+    /**
+     * Cập nhật phiếu dự án với các thiết bị đã được xuất
+     * Lưu ý: Thiết bị của dự án được lưu trực tiếp trong dispatch_items với project_id
+     * Không cần tạo ProjectItem riêng biệt
+     */
+    private function updateProjectWithItems($projectRequest, $dispatch)
+    {
+        try {
+            // Lấy project_id thực tế
+            $actualId = $this->getProjectIdFromRequest($projectRequest);
+            
+            if (!$actualId) {
+                Log::warning('Không thể cập nhật dự án: ID không tìm thấy', [
+                    'project_request_id' => $projectRequest->id,
+                    'project_name' => $projectRequest->project_name
+                ]);
+                return;
+            }
+
+            Log::info('Cập nhật phiếu dự án với thiết bị:', [
+                'project_id' => $actualId,
+                'dispatch_id' => $dispatch->id,
+                'note' => 'Thiết bị đã được lưu trong dispatch_items với project_id'
+            ]);
+            
+            // Thiết bị của dự án đã được lưu trong dispatch_items với project_id
+            // Không cần tạo ProjectItem riêng biệt
+            // Có thể xem thiết bị trong phiếu dự án thông qua dispatch_items
+            
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi cập nhật phiếu dự án với thiết bị: ' . $e->getMessage(), [
+                'project_request_id' => $projectRequest->id,
+                'project_id' => $actualId ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
 
     /**
