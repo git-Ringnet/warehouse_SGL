@@ -1044,6 +1044,10 @@
                 // Initial validation and option availability update
                 setTimeout(function() {
                     updateSerialOptionsAvailability();
+                    // Đồng bộ cột tồn kho theo kho đang chọn ngay sau khi render lần đầu
+                    if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
+                        syncStockCellsWithSelectedWarehouses();
+                    }
                 }, 500);
             }, 100);
 
@@ -1065,6 +1069,10 @@
                         populateProductDropdowns();
                         // Setup dropdown handlers
                         setupDropdownHandlers();
+                        // Sau khi render từ API, cập nhật ngay cột tồn kho
+                        if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
+                            setTimeout(syncStockCellsWithSelectedWarehouses, 0);
+                        }
                     }
                 } catch (error) {
                     console.error('Error loading available items:', error);
@@ -1083,13 +1091,13 @@
                             unit: '{{ $item->item_unit }}',
                             quantity: {{ $item->quantity }},
                             selected_warehouse_id: {{ $item->warehouse_id }},
-                            current_stock: 0, // No API data for non-pending
+                            current_stock: 0, // Will be updated from API call
                             category: '{{ $item->category }}',
                             serial_numbers: @json($item->serial_numbers ?? []),
                             warehouses: [{
                                 warehouse_id: {{ $item->warehouse_id }},
                                 warehouse_name: '{{ $item->warehouse->name ?? 'N/A' }}',
-                                quantity: 0 // No stock info for non-pending
+                                quantity: 0 // Will be updated from API call
                             }],
                             existing_item_id: {{ $item->id }}, // Track original dispatch item ID
                             is_existing: true // Mark as existing item
@@ -1103,9 +1111,63 @@
                     }
                 @endforeach
 
+                // Load stock information for existing items
+                loadStockInfoForExistingItems();
+
                 // Render selected product tables với items hiện tại
                 renderContractProductTable();
                 renderBackupProductTable();
+            }
+
+            // Load stock information for existing items
+            async function loadStockInfoForExistingItems() {
+                try {
+                    const response = await fetch('/api/dispatch/items/all');
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const availableItems = data.items;
+                        
+                        // Update stock information for existing items
+                        selectedContractProducts.forEach(item => {
+                            const foundItem = availableItems.find(availableItem => 
+                                availableItem.id == item.id && availableItem.type == item.type
+                            );
+                            
+                            if (foundItem) {
+                                item.warehouses = foundItem.warehouses;
+                                const warehouse = foundItem.warehouses.find(w => w.warehouse_id == item.selected_warehouse_id);
+                                if (warehouse) {
+                                    item.current_stock = warehouse.quantity;
+                                }
+                            }
+                        });
+
+                        selectedBackupProducts.forEach(item => {
+                            const foundItem = availableItems.find(availableItem => 
+                                availableItem.id == item.id && availableItem.type == item.type
+                            );
+                            
+                            if (foundItem) {
+                                item.warehouses = foundItem.warehouses;
+                                const warehouse = foundItem.warehouses.find(w => w.warehouse_id == item.selected_warehouse_id);
+                                if (warehouse) {
+                                    item.current_stock = warehouse.quantity;
+                                }
+                            }
+                        });
+
+                        // Re-render tables with updated stock information
+                        renderContractProductTable();
+                        renderBackupProductTable();
+                        // Đồng bộ tồn kho ngay sau khi re-render
+                        if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
+                            setTimeout(syncStockCellsWithSelectedWarehouses, 0);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading stock info for existing items:', error);
+                }
             }
 
             // Load existing dispatch items into selected arrays (for pending with API data)
@@ -1156,6 +1218,95 @@
                 // Render selected product tables với items hiện tại
                 renderContractProductTable();
                 renderBackupProductTable();
+            }
+
+            // Lấy thông tin chi tiết về stock (có serial và không có serial)
+            async function getDetailedStockInfo(itemType, itemId, warehouseId, fallbackStock = 0) {
+                try {
+                    // Kiểm tra trong availableItems trước
+                    if (typeof availableItems !== 'undefined' && availableItems.length > 0) {
+                        const foundItem = availableItems.find(item => 
+                            item.id == itemId && item.type == itemType
+                        );
+                        if (foundItem) {
+                            const warehouse = foundItem.warehouses.find(w => w.warehouse_id == warehouseId);
+                            if (warehouse) {
+                                // Lấy thông tin serial từ API
+                                const response = await fetch(`/api/dispatch/item-serials?item_type=${itemType}&item_id=${itemId}&warehouse_id=${warehouseId}&current_dispatch_id={{ $dispatch->id }}`);
+                                const data = await response.json();
+                                
+                                if (data.success) {
+                                    const serialStock = data.total_serials;
+                                    const nonSerialStock = Math.max(0, warehouse.quantity - serialStock);
+                                    
+                                    return {
+                                        hasSerial: serialStock > 0,
+                                        serialStock: serialStock,
+                                        nonSerialStock: nonSerialStock,
+                                        totalStock: warehouse.quantity
+                                    };
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fallback: chỉ trả về thông tin cơ bản
+                    return {
+                        hasSerial: false,
+                        serialStock: 0,
+                        nonSerialStock: fallbackStock,
+                        totalStock: fallbackStock
+                    };
+                } catch (error) {
+                    console.warn('Error getting detailed stock info:', error);
+                    return {
+                        hasSerial: false,
+                        serialStock: 0,
+                        nonSerialStock: fallbackStock,
+                        totalStock: fallbackStock
+                    };
+                }
+            }
+
+            // Đồng bộ ô "TỒN KHO" theo option kho đang chọn cho cả contract và backup
+            function syncStockCellsWithSelectedWarehouses() {
+                try {
+                    // Contract rows
+                    document.querySelectorAll('.contract-warehouse-select').forEach(select => {
+                        const index = parseInt(select.dataset.index);
+                        const selectedOption = select.options[select.selectedIndex];
+                        const qty = parseInt(selectedOption?.dataset?.quantity || '0') || 0;
+
+                        const stockCell = document.getElementById(`contract-stock-${index}`);
+                        if (stockCell) stockCell.textContent = qty;
+
+                        const quantityInput = document.getElementById(`contract-quantity-${index}`);
+                        if (quantityInput) quantityInput.max = qty;
+
+                        if (Array.isArray(selectedContractProducts) && selectedContractProducts[index]) {
+                            selectedContractProducts[index].current_stock = qty;
+                        }
+                    });
+
+                    // Backup rows
+                    document.querySelectorAll('.backup-warehouse-select').forEach(select => {
+                        const index = parseInt(select.dataset.index);
+                        const selectedOption = select.options[select.selectedIndex];
+                        const qty = parseInt(selectedOption?.dataset?.quantity || '0') || 0;
+
+                        const stockCell = document.getElementById(`backup-stock-${index}`);
+                        if (stockCell) stockCell.textContent = qty;
+
+                        const quantityInput = document.getElementById(`backup-quantity-${index}`);
+                        if (quantityInput) quantityInput.max = qty;
+
+                        if (Array.isArray(selectedBackupProducts) && selectedBackupProducts[index]) {
+                            selectedBackupProducts[index].current_stock = qty;
+                        }
+                    });
+                } catch (e) {
+                    console.warn('syncStockCellsWithSelectedWarehouses error:', e);
+                }
             }
 
             // Hàm load danh sách hợp đồng cho thuê
@@ -1266,25 +1417,15 @@
                     if (selectedType === 'rental') {
                         if (contractProductsSection) contractProductsSection.classList.remove('hidden');
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
-                        // Ensure hidden input project_receiver exists
-                        let hiddenProj = document.getElementById('hidden_project_receiver');
-                        if (!hiddenProj) {
-                            hiddenProj = document.createElement('input');
-                            hiddenProj.type = 'hidden';
-                            hiddenProj.id = 'hidden_project_receiver';
-                            hiddenProj.name = 'project_receiver';
-                            document.querySelector('form').appendChild(hiddenProj);
-                        }
-                        // Sync value later
-                        hiddenProj.value = rentalReceiverInput.value || '';
                         
-                        // disable others
-                        // disable other receiver selects
+                        // Disable other receiver selects
                         if (projectReceiverInput) projectReceiverInput.disabled = true;
                         if (warrantyReceiverInput) warrantyReceiverInput.disabled = true;
+                        
                         // Hiển thị phần cho thuê, ẩn phần dự án
                         rentalSection.classList.remove('hidden');
                         rentalReceiverInput.setAttribute('required', 'required');
+                        
                         // Đảm bảo rental receiver bị disable nếu phiếu đã approved
                         if ('{{ $dispatch->status }}' !== 'pending') {
                             rentalReceiverInput.disabled = true;
@@ -1295,14 +1436,13 @@
 
                         // Xử lý sự kiện change cho rental_receiver
                         rentalReceiverInput.addEventListener('change', function() {
-                            const hiddenProj = document.getElementById('hidden_project_receiver');
-                            if (hiddenProj) hiddenProj.value = this.value;
                             const selectedOption = this.options[this.selectedIndex];
                             const projectIdInput = document.getElementById('project_id');
                             
-                            // Cập nhật project_receiver
-                            if (projectReceiverInput) {
-                                projectReceiverInput.value = this.value;
+                            // Cập nhật project_receiver trong hidden input của rental section
+                            const rentalProjectReceiver = document.getElementById('rental_project_receiver');
+                            if (rentalProjectReceiver) {
+                                rentalProjectReceiver.value = this.value;
                             }
                             
                             // Cập nhật project_id từ rental_id
@@ -1331,21 +1471,21 @@
                     } else if (selectedType === 'project') {
                         if (contractProductsSection) contractProductsSection.classList.remove('hidden');
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
+                        
+                        // Enable project receiver and disable others
                         if (projectReceiverInput) {
-                            // Chỉ enable nếu phiếu đang pending
                             projectReceiverInput.disabled = '{{ $dispatch->status }}' !== 'pending';
                             projectReceiverInput.setAttribute('required','required');
                         }
-                        // Remove hidden_project_receiver if exists
-                        const hiddenProjRemove = document.getElementById('hidden_project_receiver');
-                        if (hiddenProjRemove) hiddenProjRemove.remove();
                         if (warrantyReceiverInput) warrantyReceiverInput.disabled = true;
+                        
                         // Hiển thị phần dự án, ẩn phần cho thuê
+                        projectSection.classList.remove('hidden');
+                        rentalSection.classList.add('hidden');
+                        
                         // Xóa hidden input project_receiver của rental nếu có
                         const rentalHidden = document.getElementById('rental_project_receiver');
                         if (rentalHidden) rentalHidden.remove();
-                        projectSection.classList.remove('hidden');
-                        projectReceiverInput.setAttribute('required', 'required');
 
                         // Reset dispatch detail về mặc định cho project
                         if (dispatchDetailSelect) {
@@ -1361,10 +1501,12 @@
                     } else if (selectedType === 'warranty') {
                         if (contractProductsSection) contractProductsSection.classList.add('hidden');
                         if (backupProductsSection) backupProductsSection.classList.remove('hidden');
+                        
+                        // Disable other receiver selects
                         if (projectReceiverInput) projectReceiverInput.disabled = true;
                         if (warrantyReceiverInput) {
-                            // Chỉ enable nếu phiếu đang pending
                             warrantyReceiverInput.disabled = '{{ $dispatch->status }}' !== 'pending';
+                            warrantyReceiverInput.setAttribute('required','required');
                         }
 
                         // Xóa các sản phẩm hợp đồng đã chọn khi chuyển sang bảo hành
@@ -1374,16 +1516,15 @@
                         }
                         selectedContractProducts.length = 0; // Xóa khỏi mảng dữ liệu
                         updateSelectedProductsHiddenInput(); // Cập nhật input ẩn
-                        // Hiển thị phần bảo hành
+                        
+                        // Hiển thị phần bảo hành, ẩn phần khác
+                        if (warrantySection) warrantySection.classList.remove('hidden');
+                        projectSection.classList.add('hidden');
+                        rentalSection.classList.add('hidden');
+                        
                         // Xóa hidden input project_receiver của rental nếu có
                         const rentalHidden2 = document.getElementById('rental_project_receiver');
                         if (rentalHidden2) rentalHidden2.remove();
-                        if (warrantySection) warrantySection.classList.remove('hidden');
-                        // Remove hidden_project_receiver if exists (switching away from rental)
-                        const hiddenProjRemove2 = document.getElementById('hidden_project_receiver');
-                        if (hiddenProjRemove2) hiddenProjRemove2.remove();
-                        if (warrantyReceiverInput) {
-                            warrantyReceiverInput.setAttribute('required','required');
 
                             // Load rentals cho dropdown bảo hành
                             loadRentals();
@@ -1400,7 +1541,7 @@
                                     if (projectIdInput) projectIdInput.value = '';
                                 }
                             });
-                        }
+                        
 
                         // Tự động chọn "backup" và disable dropdown cho warranty
                         if (dispatchDetailSelect) {
@@ -1425,6 +1566,32 @@
                 if ('{{ $dispatch->status }}' === 'pending') {
                     const event = new Event('change');
                     dispatchTypeSelect.dispatchEvent(event);
+                } else {
+                    // For non-pending dispatches, still need to setup the correct sections
+                    const currentType = dispatchTypeSelect.value;
+                    if (currentType === 'rental') {
+                        const rentalSection = document.getElementById('rental_section');
+                        const projectSection = document.getElementById('project_section');
+                        const warrantySection = document.getElementById('warranty_section');
+                        
+                        if (rentalSection) rentalSection.classList.remove('hidden');
+                        if (projectSection) projectSection.classList.add('hidden');
+                        if (warrantySection) warrantySection.classList.add('hidden');
+                        
+                        // Load rentals for display
+                        loadRentals();
+                    } else if (currentType === 'warranty') {
+                        const warrantySection = document.getElementById('warranty_section');
+                        const projectSection = document.getElementById('project_section');
+                        const rentalSection = document.getElementById('rental_section');
+                        
+                        if (warrantySection) warrantySection.classList.remove('hidden');
+                        if (projectSection) projectSection.classList.add('hidden');
+                        if (rentalSection) rentalSection.classList.add('hidden');
+                        
+                        // Load rentals for warranty dropdown
+                        loadRentals();
+                    }
                 }
             }
 
@@ -2540,7 +2707,7 @@
                     updateSerialInputs(this, 'contract');
                     // Chỉ validate cho dispatch pending
                     @if ($dispatch->status === 'pending')
-                        showEditStockWarnings();
+                        showStockWarningsWrapper();
                     @endif
                 });
             });
@@ -2552,7 +2719,7 @@
                     updateSerialInputs(this, 'backup');
                     // Chỉ validate cho dispatch pending
                     @if ($dispatch->status === 'pending')
-                        showEditStockWarnings();
+                        showStockWarningsWrapper();
                     @endif
                 });
             });
@@ -2564,7 +2731,7 @@
                     updateSerialInputs(this, 'general');
                     // Chỉ validate cho dispatch pending
                     @if ($dispatch->status === 'pending')
-                        showEditStockWarnings();
+                        showStockWarningsWrapper();
                     @endif
                 });
             });
@@ -2586,7 +2753,7 @@
 
                         // Kiểm tra lại tồn kho sau khi xóa
                         @if ($dispatch->status === 'pending')
-                            showEditStockWarnings();
+                            showStockWarningsWrapper();
                         @endif
                     }
                 });
@@ -2608,7 +2775,7 @@
 
                         // Kiểm tra lại tồn kho sau khi xóa
                         @if ($dispatch->status === 'pending')
-                            showEditStockWarnings();
+                            showStockWarningsWrapper();
                         @endif
                     }
                 });
@@ -2629,7 +2796,7 @@
 
                         // Kiểm tra lại tồn kho sau khi xóa
                         @if ($dispatch->status === 'pending')
-                            showEditStockWarnings();
+                            showStockWarningsWrapper();
                         @endif
                     }
                 });
@@ -2697,7 +2864,7 @@
             }
 
             // Hàm kiểm tra tồn kho tổng hợp cho trang edit
-            function validateEditStock() {
+            async function validateEditStock() {
                 const stockErrors = [];
                 const groupedItems = {};
 
@@ -2782,7 +2949,7 @@
                 });
 
                 // Kiểm tra tồn kho cho từng nhóm
-                Object.keys(groupedItems).forEach(key => {
+                for (const key of Object.keys(groupedItems)) {
                     const group = groupedItems[key];
                     // Tìm thông tin sản phẩm từ availableItems hoặc từ existing data
                     let currentStock = 0;
@@ -2790,17 +2957,71 @@
                     let productCode = 'N/A';
 
                     // Tìm trong availableItems nếu có
-                    if (typeof availableItems !== 'undefined') {
+                    if (typeof availableItems !== 'undefined' && availableItems.length > 0) {
                         const foundItem = availableItems.find(item =>
                             item.id == group.item.item_id && item.type == group.item.item_type
                         );
                         if (foundItem) {
-                            const warehouse = foundItem.warehouses.find(w => w.warehouse_id == group.item
-                                .warehouse_id);
+                            const warehouse = foundItem.warehouses.find(w => w.warehouse_id == group.item.warehouse_id);
                             if (warehouse) {
                                 currentStock = warehouse.quantity;
                                 productName = foundItem.name;
                                 productCode = foundItem.code;
+                            }
+                        }
+                    }
+
+                    // Nếu không tìm thấy trong availableItems, thử tìm trong selectedContractProducts và selectedBackupProducts
+                    if (productName === 'Không xác định') {
+                        // Tìm trong contract products
+                        const contractItem = selectedContractProducts.find(item => 
+                            item.id == group.item.item_id && item.type == group.item.item_type
+                        );
+                        if (contractItem) {
+                            productName = contractItem.name;
+                            productCode = contractItem.code;
+                            // Tìm stock từ warehouses array
+                            const warehouse = contractItem.warehouses.find(w => w.warehouse_id == group.item.warehouse_id);
+                            if (warehouse) {
+                                currentStock = warehouse.quantity;
+                            }
+                        } else {
+                            // Tìm trong backup products
+                            const backupItem = selectedBackupProducts.find(item => 
+                                item.id == group.item.item_id && item.type == group.item.item_type
+                            );
+                            if (backupItem) {
+                                productName = backupItem.name;
+                                productCode = backupItem.code;
+                                // Tìm stock từ warehouses array
+                                const warehouse = backupItem.warehouses.find(w => w.warehouse_id == group.item.warehouse_id);
+                                if (warehouse) {
+                                    currentStock = warehouse.quantity;
+                                }
+                            }
+                        }
+                    }
+
+                    // Nếu vẫn không tìm thấy, thử lấy từ DOM elements
+                    if (productName === 'Không xác định') {
+                        // Tìm row trong DOM để lấy thông tin sản phẩm
+                        const allRows = document.querySelectorAll('#contract-product-table tbody tr, #backup-product-table tbody tr');
+                        for (let row of allRows) {
+                            // Kiểm tra xem row có chứa item_id và item_type trong hidden inputs không
+                            const hiddenItemIdInput = row.querySelector('input[name*="[item_id]"]');
+                            const hiddenItemTypeInput = row.querySelector('input[name*="[item_type]"]');
+                            
+                            if (hiddenItemIdInput && hiddenItemTypeInput) {
+                                const rowItemId = parseInt(hiddenItemIdInput.value);
+                                const rowItemType = hiddenItemTypeInput.value;
+                                
+                                if (rowItemId == group.item.item_id && rowItemType == group.item.item_type) {
+                                    const nameCell = row.querySelector('td:nth-child(2)'); // Cột tên sản phẩm
+                                    const codeCell = row.querySelector('td:nth-child(1)'); // Cột mã sản phẩm
+                                    if (nameCell) productName = nameCell.textContent.trim();
+                                    if (codeCell) productCode = codeCell.textContent.trim();
+                                    break;
+                                }
                             }
                         }
                     }
@@ -2817,20 +3038,32 @@
                             }
                         }).join(', ');
 
+                        // Tạo thông báo chi tiết hơn về loại tồn kho
+                        let stockDetailMessage = '';
+                        
+                        // Lấy thông tin chi tiết về stock (có serial và không có serial)
+                        const stockDetails = await getDetailedStockInfo(group.item.item_type, group.item.item_id, group.item.warehouse_id, currentStock);
+                        
+                        if (stockDetails.hasSerial) {
+                            stockDetailMessage = `Tồn kho có serial: ${stockDetails.serialStock}, không có serial: ${stockDetails.nonSerialStock}, yêu cầu ${group.totalQuantity}`;
+                        } else {
+                            stockDetailMessage = `Tồn kho không có serial: ${currentStock}, yêu cầu ${group.totalQuantity}`;
+                        }
+
                         stockErrors.push(
                             `${productCode} - ${productName}: ` +
-                            `Tồn kho ${currentStock}, yêu cầu ${group.totalQuantity} ` +
+                            `${stockDetailMessage} ` +
                             `(Tổng từ: ${categoriesText})`
                         );
                     }
-                });
+                }
 
                 return stockErrors;
             }
 
             // Hàm hiển thị cảnh báo tồn kho cho trang edit
-            function showEditStockWarnings() {
-                const stockErrors = validateEditStock();
+            async function showEditStockWarnings() {
+                const stockErrors = await validateEditStock();
 
                 // Xóa cảnh báo cũ
                 const oldWarnings = document.querySelectorAll('.stock-warning');
@@ -2855,10 +3088,17 @@
                 }
             }
 
+            // Wrapper function để gọi showEditStockWarnings từ event listeners
+            function showStockWarningsWrapper() {
+                showEditStockWarnings().catch(error => {
+                    console.warn('Error showing stock warnings:', error);
+                });
+            }
+
             // Xử lý form submit
             const form = document.querySelector('form');
             if (form) {
-                form.addEventListener('submit', function(e) {
+                form.addEventListener('submit', async function(e) {
                     // Debug: Log tất cả warehouse_id trước khi submit
                     console.log('=== FORM SUBMIT DEBUG ===');
                     
@@ -2990,7 +3230,7 @@
 
                     // Kiểm tra tồn kho trước khi submit (chỉ cho dispatch pending)
                     @if ($dispatch->status === 'pending')
-                        const stockErrors = validateEditStock();
+                        const stockErrors = await validateEditStock();
                         if (stockErrors.length > 0) {
                             e.preventDefault();
                             alert('Không đủ tồn kho:\n\n' + stockErrors.join('\n'));

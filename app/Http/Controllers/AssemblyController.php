@@ -942,6 +942,14 @@ class AssemblyController extends Controller
 
             // 6. Update or create component materials
             if ($request->components) {
+                // Debug: Log the incoming components data
+                Log::info('Incoming components data for assembly update:', [
+                    'assembly_id' => $assembly->id,
+                    'assembly_status' => $assembly->status,
+                    'components_count' => count($request->components),
+                    'components_data' => $request->components
+                ]);
+
                 foreach ($request->components as $componentIndex => $component) {
                     // Support both 'material_id' (edit form existing) and 'id' (newly added like create form)
                     $materialId = $component['material_id'] ?? $component['id'] ?? null;
@@ -1014,25 +1022,53 @@ class AssemblyController extends Controller
                             $newQuantity = (int)($component['quantity'] ?? $assemblyMaterial->quantity);
                             $oldQuantity = $assemblyMaterial->quantity;
 
+                            // Debug: Log the component update details
+                            Log::info('Processing in_progress component update:', [
+                                'component_index' => $componentIndex,
+                                'material_id' => $materialId,
+                                'old_quantity' => $oldQuantity,
+                                'new_quantity' => $newQuantity,
+                                'component_serials' => $component['serials'] ?? 'not_set',
+                                'component_serial' => $component['serial'] ?? 'not_set',
+                                'assembly_material_id' => $assemblyMaterial->id
+                            ]);
+
                             if ($newQuantity < $oldQuantity) {
                                 throw new \Exception("Không thể giảm số lượng linh kiện từ {$oldQuantity} xuống {$newQuantity}. Chỉ có thể tăng số lượng.");
                             }
 
-                            // Process serials if present
-                            $serial = null;
+                            // Process serials: start with current serials as baseline
+                            $existingSerials = [];
+                            if (!empty($assemblyMaterial->serial)) {
+                                $existingSerials = array_filter(array_map('trim', explode(',', (string)$assemblyMaterial->serial)));
+                            }
+
+                            $serial = $assemblyMaterial->serial; // default: keep existing if client omitted
                             if (isset($component['serials']) && is_array($component['serials'])) {
                                 // Filter out empty serials
                                 $filteredSerials = array_filter($component['serials']);
-
                                 // Only use unique values to prevent duplicates
-                                $uniqueSerials = array_unique($filteredSerials);
-
+                                $uniqueSerials = array_unique(array_map('trim', $filteredSerials));
+                                // Merge existing (read-only originals) with new selections, preserve order (existing first)
+                                $merged = array_values(array_unique(array_merge($existingSerials, $uniqueSerials)));
+                                // Limit to new quantity
+                                $merged = array_slice($merged, 0, max(0, $newQuantity));
                                 // Convert to comma-separated string
-                                $serial = implode(',', $uniqueSerials);
+                                $serial = !empty($merged) ? implode(',', $merged) : null;
+
+                                // Debug: Log serial processing
+                                Log::info('Serial processing for in_progress (merged):', [
+                                    'existing_serials' => $existingSerials,
+                                    'incoming_serials' => $component['serials'],
+                                    'merged_serials' => $merged,
+                                    'final_serial_string' => $serial
+                                ]);
                             } elseif (isset($component['serial'])) {
+                                // Single serial provided (edge cases) – override appropriately
                                 $serial = $component['serial'];
                             } else {
-                                $serial = $component['serial'] ?? null;
+                                // No serial payload – keep existing serials unchanged
+                                $serial = $assemblyMaterial->serial;
                             }
 
                             $updateData = [
@@ -1042,6 +1078,12 @@ class AssemblyController extends Controller
                                 'serial_id' => null, // Reset first
                                 'product_unit' => $assemblyMaterial->product_unit,
                             ];
+
+                            // Debug: Log the final update data
+                            Log::info('Final update data for in_progress:', [
+                                'update_data' => $updateData,
+                                'assembly_material_id' => $assemblyMaterial->id
+                            ]);
 
                             // Set new serial_id if provided
                             if (isset($component['serial_id']) && !empty($component['serial_id'])) {
@@ -1126,6 +1168,13 @@ class AssemblyController extends Controller
                         }
 
                         $assemblyMaterial->update($updateData);
+                        
+                        // Debug: Log the update result
+                        Log::info('Assembly material updated:', [
+                            'assembly_material_id' => $assemblyMaterial->id,
+                            'updated_quantity' => $assemblyMaterial->fresh()->quantity,
+                            'updated_serial' => $assemblyMaterial->fresh()->serial
+                        ]);
                     } else if ($assembly->status === 'pending') {
                         // Create new component when pending
                         $quantity = (int)($component['quantity'] ?? 1);
@@ -1930,7 +1979,7 @@ class AssemblyController extends Controller
         // - Nếu xuất đi dự án: hiển thị mã phiếu xuất
         // - Nếu lưu kho: hiển thị mã phiếu lắp ráp
         $projectReceiver = $assembly->purpose === 'project'
-            ? ('Lắp ráp xuất đi dự án: ' . $exportCode)
+            ? ('Lắp ráp xuất đi dự án: ' . $assembly->code)
             : ('Lắp ráp lưu kho: ' . $assembly->code);
 
         // Tạo trường dispatch_note theo định dạng yêu cầu

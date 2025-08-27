@@ -221,7 +221,7 @@ class EquipmentServiceController extends Controller
                 ChangeLogHelper::thuHoi(
                     $item->code,
                     $item->name,
-                    $dispatchItem->quantity,
+                    1, // Số lượng thực tế được thu hồi (1 serial)
                     $dispatchReturn->return_code,
                     $description,
                     $detailedInfo,
@@ -434,63 +434,7 @@ class EquipmentServiceController extends Controller
                 $warranty->save();
             }
 
-            // Lưu nhật ký thay đổi cho việc thu hồi vật tư khi thay thế
-            try {
-                // Lấy thông tin vật tư gốc
-                $originalItemInfo = $this->getItemInfo($originalItem);
-                $replacementItemInfo = $this->getItemInfo($replacementItem);
-                
-                // Xác định loại item để hiển thị chính xác
-                $itemTypeLabel = '';
-                switch ($originalItem->item_type) {
-                    case 'material':
-                        $itemTypeLabel = 'vật tư';
-                        break;
-                    case 'product':
-                        $itemTypeLabel = 'thành phẩm';
-                        break;
-                    case 'good':
-                        $itemTypeLabel = 'hàng hóa';
-                        break;
-                    default:
-                        $itemTypeLabel = 'vật tư';
-                        break;
-                }
-                
-                // Xác định loại dự án/phiếu cho thuê
-                $projectType = '';
-                $projectName = '';
-                $detailedInfo = [
-                    'replacement_code' => $replacement->replacement_code,
-                    'reason' => $validatedData['reason'],
-                    'original_item_code' => $originalItemInfo['code'],
-                    'original_item_name' => $originalItemInfo['name'],
-                    'replacement_item_code' => $replacementItemInfo['code'],
-                    'replacement_item_name' => $replacementItemInfo['name'],
-                    'original_serial' => $validatedData['equipment_serial'],
-                    'replacement_serial' => $validatedData['replacement_serial'],
-                ];
-                
-                if ($originalItem->dispatch->dispatch_type === 'rental') {
-                    $projectType = 'phiếu cho thuê';
-                    $projectName = $originalItem->dispatch->dispatch_note ?? 'Không xác định';
-                } else {
-                    $projectType = 'dự án';
-                    $projectName = $originalItem->dispatch->project_name ?? 'Không xác định';
-                }
-
-                ChangeLogHelper::thuHoi(
-                    $originalItemInfo['code'],
-                    $originalItemInfo['name'],
-                    $originalItem->quantity,
-                    $replacement->replacement_code,
-                    "Thay thế {$itemTypeLabel} trong {$projectType}",
-                    $detailedInfo,
-                    "Thay thế {$itemTypeLabel} {$originalItemInfo['code']} - {$originalItemInfo['name']} (Serial: {$validatedData['equipment_serial']}) bằng {$itemTypeLabel} {$replacementItemInfo['code']} - {$replacementItemInfo['name']} (Serial: {$validatedData['replacement_serial']}) trong {$projectType} {$projectName}"
-                );
-            } catch (\Exception $e) {
-                Log::error('Error logging equipment replacement: ' . $e->getMessage());
-            }
+            // Đã loại bỏ việc lưu nhật ký thay đổi khi thực hiện Bảo hành/Thay thế theo yêu cầu
 
             DB::commit();
 
