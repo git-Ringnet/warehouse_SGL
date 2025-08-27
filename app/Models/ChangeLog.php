@@ -64,6 +64,7 @@ class ChangeLog extends Model
         return $query->where(function($q) use ($search) {
             $q->where('item_code', 'like', "%{$search}%")
               ->orWhere('item_name', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%")
               ->orWhere('notes', 'like', "%{$search}%");
         });
     }

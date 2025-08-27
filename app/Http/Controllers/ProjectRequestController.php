@@ -1681,16 +1681,39 @@ class ProjectRequestController extends Controller
      */
     private function findBestWarehouse($itemType, $itemId)
     {
-        // Tìm kho có nhiều tồn kho nhất cho vật tư này
+        // Tìm kho có nhiều tồn kho nhất cho vật tư này với item_type chính xác
         $bestWarehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+            ->where('item_type', $itemType)
             ->whereHas('warehouse', function($q) {
                 $q->where('status', 'active')->where('is_hidden', false);
             })
+            ->where('quantity', '>', 0) // Chỉ lấy kho có tồn kho > 0
             ->orderBy('quantity', 'desc')
             ->first();
             
         if ($bestWarehouseMaterial) {
             return $bestWarehouseMaterial->warehouse;
+        }
+        
+        // Nếu không tìm thấy với item_type chính xác, thử tìm không có điều kiện item_type
+        $fallbackWarehouseMaterial = \App\Models\WarehouseMaterial::where('material_id', $itemId)
+            ->whereHas('warehouse', function($q) {
+                $q->where('status', 'active')->where('is_hidden', false);
+            })
+            ->where('quantity', '>', 0) // Chỉ lấy kho có tồn kho > 0
+            ->orderBy('quantity', 'desc')
+            ->first();
+            
+        if ($fallbackWarehouseMaterial) {
+            Log::info('Found fallback warehouse for item (without item_type filter)', [
+                'item_type' => $itemType,
+                'item_id' => $itemId,
+                'warehouse_id' => $fallbackWarehouseMaterial->warehouse->id,
+                'warehouse_name' => $fallbackWarehouseMaterial->warehouse->name,
+                'quantity' => $fallbackWarehouseMaterial->quantity,
+                'actual_item_type' => $fallbackWarehouseMaterial->item_type
+            ]);
+            return $fallbackWarehouseMaterial->warehouse;
         }
         
         // Nếu không tìm thấy trong WarehouseMaterial, trả về kho mặc định

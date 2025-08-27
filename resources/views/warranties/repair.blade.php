@@ -65,31 +65,31 @@
 
                     <!-- Warranty search section -->
                     <div id="warranty-search-section" class="search-section">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                                <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1">Mã bảo hành
-                                    hoặc thiết bị
-                                    <span class="text-red-500">*</span>
-                                </label>
-                                <div class="relative">
-                                    <input type="text" id="warranty_code" name="warranty_code"
-                                        value="{{ old('warranty_code') }}"
-                                        class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                        placeholder="Nhập mã bảo hành (nếu có)">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <i class="fas fa-hashtag text-gray-500"></i>
-                                    </div>
-                                    <button type="button" id="search_warranty"
-                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-blue-500 hover:text-blue-700">
-                                        <i class="fas fa-search"></i>
-                                    </button>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="warranty_code" class="block text-sm font-medium text-gray-700 mb-1">Mã bảo hành
+                                hoặc thiết bị
+                                <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="text" id="warranty_code" name="warranty_code"
+                                    value="{{ old('warranty_code') }}"
+                                    class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    placeholder="Nhập mã bảo hành (nếu có)">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-hashtag text-gray-500"></i>
                                 </div>
+                                <button type="button" id="search_warranty"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-blue-500 hover:text-blue-700">
+                                    <i class="fas fa-search"></i>
+                                </button>
                             </div>
-                            <div>
-                                <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1">Khách
-                                    hàng</label>
-                                <input type="text" id="customer_name" name="customer_name" readonly
-                                    class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label for="customer_name" class="block text-sm font-medium text-gray-700 mb-1">Khách
+                                hàng</label>
+                            <input type="text" id="customer_name" name="customer_name" readonly
+                                class="w-full border border-gray-300 bg-gray-50 rounded-lg px-3 py-2">
                             </div>
                         </div>
                     </div>
@@ -995,10 +995,10 @@
                         // Fetch vật tư cho cả thiết bị từ bảo hành và từ kho
                         if (device.source !== 'warehouse' && currentWarrantyCode) {
                             // Thiết bị từ bảo hành
-                            fetchDeviceMaterials(device.id, device.code);
+                        fetchDeviceMaterials(device.id, device.code);
                         } else if (device.source === 'warehouse') {
-                            // Thiết bị từ kho
-                            fetchDeviceMaterialsFromWarehouse(device.code, device.type);
+                            // Thiết bị từ kho – truyền đúng device.id để đồng bộ remove
+                            fetchDeviceMaterialsFromWarehouse(device.id, device.code, device.type, device.serial || '');
                         }
 
                         // Selected UI
@@ -1104,14 +1104,20 @@
             }
 
             // Hàm lấy vật tư của thiết bị từ kho
-            function fetchDeviceMaterialsFromWarehouse(deviceCode, deviceType) {
+            function fetchDeviceMaterialsFromWarehouse(deviceIdFull, deviceCode, deviceType, deviceSerial = '') {
                 console.log('🔍 Fetching materials for warehouse device:', {
+                    deviceIdFull: deviceIdFull,
                     deviceCode: deviceCode,
-                    deviceType: deviceType
+                    deviceType: deviceType,
+                    deviceSerial: deviceSerial
                 });
 
+                // Sử dụng đúng deviceId từ danh sách thiết bị đã chọn
+                const deviceId = deviceIdFull;
+                console.log('🔑 Using deviceId:', deviceId);
+
                 // Gọi API lấy vật tư của thiết bị từ kho
-                const url = `/api/repairs/device-materials?device_code=${encodeURIComponent(deviceCode)}&device_type=${deviceType}`;
+                const url = `/api/repairs/device-materials?deviceId=${encodeURIComponent(deviceId)}`;
                 console.log('🌐 API URL:', url);
 
                 fetch(url, {
@@ -1135,15 +1141,15 @@
                                     material);
 
                                 addMaterialToList({
-                                    deviceId: 'warehouse_' + deviceCode + '_' + Date.now() + '_' + Math.random(),
+                                    deviceId: deviceId,
                                     deviceCode: deviceCode,
-                                    materialId: material.material_code, // Sử dụng material_code thay vì id
-                                    materialCode: material.material_code,
-                                    materialName: material.material_name,
-                                    materialSerial: '',
+                                    materialId: material.id,
+                                    materialCode: material.code,
+                                    materialName: material.name,
+                                    materialSerial: material.serial || '',
                                     quantity: material.quantity || 1,
-                                    currentSerials: [],
-                                    status: 'available',
+                                    currentSerials: material.current_serials || [],
+                                    status: material.status || 'available',
                                     unit: material.unit || 'cái',
                                     notes: material.notes || ''
                                 });
@@ -1452,7 +1458,7 @@
                 }
 
                 // Khôi phục kho lấy vật tư mới và danh sách serial (nếu có)
-                setTimeout(() => {
+                    setTimeout(() => {
                     if (material.lastReplacementSelection && material.lastReplacementSelection.targetWarehouse) {
                         const targetSelect = document.getElementById('target-warehouse');
                         if (targetSelect) {
@@ -1583,7 +1589,10 @@
                 if (index !== -1) {
                     // Gỡ vật tư liên quan
                     const removed = selectedDevices[index];
-                    deviceMaterialsList = deviceMaterialsList.filter(m => m.deviceId != removed.id);
+                    // Xóa vật tư dựa trên cả deviceId và deviceCode để đảm bảo xóa đúng
+                    deviceMaterialsList = deviceMaterialsList.filter(m => 
+                        m.deviceId !== removed.id && m.deviceCode !== removed.code
+                    );
                     // Cập nhật lại bảng vật tư ngay sau khi lọc
                     if (typeof updateMaterialsDisplay === 'function') {
                         updateMaterialsDisplay();
@@ -1637,7 +1646,7 @@
                         <input type="hidden" name="device_name[${device.id}]" value="${device.name}">
                         <input type="hidden" name="device_serial[${device.id}]" value="${device.serial || ''}">
                         <input type="hidden" name="device_quantity[${device.id}]" value="${device.quantity || 1}">
-                        <input type="hidden" name="device_notes[${device.id}]" value="${device.notes || ''}">
+                        <input type="hidden" class="hidden-note" data-device-id="${device.id}" name="device_notes[${device.id}]" value="${device.notes || ''}">
                         <input type="hidden" name="device_type[${device.id}]" value="${device.type || 'product'}">
                         <input type="hidden" name="device_source[${device.id}]" value="${device.source || 'contract'}">
                         <div class="flex-1">
@@ -1648,9 +1657,11 @@
                                 ${device.serial && device.serial.trim() ? 'Serial: ' + device.serial : 'Serial: N/A'}
                                 ${device.quantity ? ' • Số lượng: ' + device.quantity : ''}
                                 • Loại: ${typeLabel}
-                                • Nguồn: ${sourceDisplay}
                             </div>
-                            ${device.notes ? '<div class="text-xs text-gray-600 mt-1">💬 ' + device.notes + '</div>' : ''}
+                            <div class="mt-2 flex items-start gap-3">
+                                <textarea class="device-note border rounded px-2 py-1 text-sm flex-1" data-index="${index}" placeholder="Nhập ghi chú cho thiết bị này...">${device.notes || ''}</textarea>
+                                <input type="file" class="device-images text-sm" data-index="${index}" multiple accept="image/*">
+                            </div>
                             ${imagesDisplay}
                         </div>
                         <button type="button" class="text-red-500 hover:text-red-700 ml-2" onclick="removeDevice(${index})">
@@ -1659,7 +1670,33 @@
                     `;
                     selectedDevicesContainer.appendChild(deviceDiv);
 
-                    // Không cần tạo hidden file inputs nữa vì dùng FormData trong submit
+                    // Cập nhật ghi chú khi người dùng nhập sau khi đã chọn thiết bị
+                    const noteEl = deviceDiv.querySelector('.device-note');
+                    const hiddenNote = deviceDiv.querySelector('.hidden-note');
+                    if (noteEl) {
+                        noteEl.addEventListener('input', (ev) => {
+                            const val = (ev.target.value || '').trim();
+                            selectedDevices[index].notes = val;
+                            if (hiddenNote) hiddenNote.value = val;
+                        });
+                    }
+
+                    // Gắn sự kiện chọn ảnh cho từng thiết bị
+                    const fileEl = deviceDiv.querySelector('.device-images');
+                    if (fileEl) {
+                        fileEl.addEventListener('change', (ev) => {
+                            const files = Array.from(ev.target.files || []);
+                            selectedDevices[index].images = files;
+                            const container = deviceDiv.querySelector('.flex-1');
+                            let info = container.querySelector('.device-image-info');
+                            if (!info) {
+                                info = document.createElement('div');
+                                info.className = 'device-image-info text-xs text-blue-600 mt-1';
+                                container.appendChild(info);
+                            }
+                            info.textContent = files.length > 0 ? `📸 ${files.length} hình ảnh đã chọn` : '';
+                        });
+                    }
                 });
             }
 
@@ -1672,8 +1709,8 @@
                 // Xóa vật tư liên quan đến thiết bị này
                 const materialsBefore = deviceMaterialsList.length;
                 deviceMaterialsList = deviceMaterialsList.filter(material => {
-                    // So sánh deviceId với id của thiết bị bị xóa
-                    const shouldKeep = material.deviceId != removedDevice.id;
+                    // So sánh theo cả deviceId và deviceCode phòng khi deviceId khác nhau giữa FE/BE
+                    const shouldKeep = !(material.deviceId === removedDevice.id || material.deviceCode === removedDevice.code);
                     console.log(
                         `Material ${material.materialCode} from device ${material.deviceCode} (deviceId: ${material.deviceId}): ${shouldKeep ? 'keeping' : 'removing'}`
                     );
@@ -1875,9 +1912,9 @@
                     if (material && material.serialAnalysis && material.serialAnalysis.mixedType) {
                         oldSerialList.innerHTML = '<p class="text-sm text-gray-500">Vật tư này có cả serial và không serial. Bạn có thể chọn serial hoặc để trống.</p>';
                         document.getElementById('old-serial-selection').classList.remove('hidden');
-                    } else {
-                        oldSerialList.innerHTML = '<p class="text-sm text-gray-500">Không có thông tin serial</p>';
-                        document.getElementById('old-serial-selection').classList.remove('hidden');
+                } else {
+                    oldSerialList.innerHTML = '<p class="text-sm text-gray-500">Không có thông tin serial</p>';
+                    document.getElementById('old-serial-selection').classList.remove('hidden');
                     }
                 }
             }
@@ -1955,15 +1992,15 @@
                                 }
                             } else {
                                 // Số lượng > 1: bắt buộc chọn đủ
-                                if (checkedCount >= maxCount) {
-                                    newOldCheckboxes.forEach(cb => {
-                                        if (!cb.checked) cb.disabled = true;
-                                    });
-                                } else {
-                                    newOldCheckboxes.forEach(cb => {
-                                        cb.disabled = false;
-                                    });
-                                }
+                        if (checkedCount >= maxCount) {
+                            newOldCheckboxes.forEach(cb => {
+                                if (!cb.checked) cb.disabled = true;
+                            });
+                        } else {
+                            newOldCheckboxes.forEach(cb => {
+                                cb.disabled = false;
+                            });
+                        }
                             }
                         } else {
                             // Vật tư chỉ có serial: bắt buộc chọn đủ
@@ -2033,7 +2070,7 @@
                                 // Vật tư hỗn hợp, số lượng = 1: không bắt buộc
                                 if (newStarEl) newStarEl.classList.add('hidden');
                             } else {
-                                // Bắt buộc chọn serial mới khi có danh sách
+                            // Bắt buộc chọn serial mới khi có danh sách
                                 if (newStarEl) newStarEl.classList.remove('hidden');
                             }
 
@@ -2123,7 +2160,7 @@
                 // Logic validation theo loại vật tư
                 const material = currentReplacingMaterial;
                 const analysis = material.serialAnalysis;
-                
+
                 if (analysis.hasAnySerial && !analysis.mixedType) {
                     // Vật tư chỉ có serial: bắt buộc chọn đủ số lượng
                     if (selectedOldSerials.length !== quantity) {
@@ -2347,6 +2384,8 @@
                 // Cập nhật cả hai nguồn dữ liệu
                 material.currentSerials = [...currentSerialList];
                 material.materialSerial = currentSerialList.join(', ');
+                // Giữ trạng thái Hư hỏng sau khi thay thế để người dùng không phải đánh dấu lại
+                material.isDamaged = true;
 
                 console.log('🔧 AFTER replacement:');
                 console.log('- currentSerials:', material.currentSerials);
@@ -2375,6 +2414,7 @@
                     currentSerials: [...currentSerialList],
                     materialSerial: currentSerialList.join(', '),
                     replacementHistory: [...material.replacementHistory],
+                    isDamaged: true,
                     lastReplacementSelection: existingSelection // Giữ nguyên trạng thái đã lưu
                 };
 

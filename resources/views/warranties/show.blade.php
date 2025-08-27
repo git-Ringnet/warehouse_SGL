@@ -55,11 +55,30 @@
                                         <p class="text-gray-600">Số lượng thiết bị: <span
                                                 class="font-medium">{{ collect($warranty->project_items)->sum('quantity') }}</span></p>
                                     @endif
-                                    @if ($warranty->serial_number)
+
+                                    @php
+                                        // Tính danh sách serial hiển thị dựa theo phiếu xuất gốc (loại trừ backup)
+                                        $headerSerials = [];
+                                        if ($warranty->item_type === 'project') {
+                                            $dispatch = $warranty->dispatch;
+                                            if ($dispatch) {
+                                                $itemsQ = $dispatch->relationLoaded('items') ? $dispatch->items : $dispatch->items()->get();
+                                                $itemsQ = $itemsQ->filter(function ($it) { return $it->category !== 'backup' && in_array($it->item_type, ['product','good']); });
+                                                foreach ($itemsQ as $it) {
+                                                    $sns = is_array($it->serial_numbers) ? $it->serial_numbers : (array) $it->serial_numbers;
+                                                    foreach ($sns as $s) { if (!empty($s)) { $headerSerials[] = (string) $s; } }
+                                                }
+                                                $headerSerials = array_values(array_unique(array_filter($headerSerials)));
+                                            }
+                                        } else {
+                                            // Với bảo hành 1 thiết bị, dùng trực tiếp serial_number
+                                            if (!empty($warranty->serial_number)) { $headerSerials = [ (string) $warranty->serial_number ]; }
+                                        }
+                                    @endphp
+
+                                    @if (!empty($headerSerials))
                                         <span class="mx-2 text-gray-300">|</span>
-                                        <p class="text-gray-600">Serial: <span
-                                                class="font-medium">{{ Str::limit($warranty->serial_number, 50) }}</span>
-                                        </p>
+                                        <p class="text-gray-600">Serial: <span class="font-medium">{{ implode(', ', $headerSerials) }}</span></p>
                                     @endif
                                 </div>
                             </div>

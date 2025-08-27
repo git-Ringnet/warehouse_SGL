@@ -2233,6 +2233,17 @@
                             }
                         }
                     });
+                    
+                    // Đảm bảo rằng tất cả serial cũ đều được giữ lại
+                    // Nếu có serial cũ nhưng không có trong existingSerials, thêm vào
+                    const allHiddenInputs = container.querySelectorAll('input[name*="[serials]"]');
+                    allHiddenInputs.forEach(input => {
+                        const value = input.value.trim();
+                        if (value && !existingSerials.includes(value)) {
+                            existingSerials.push(value);
+                            console.log('Added missing serial from hidden input:', value);
+                        }
+                    });
                 } else {
                     console.log('Warehouse changed - clearing existing serials');
                     // Clear the flag after processing
@@ -2314,10 +2325,20 @@
                     let existingValue = '';
                     let isOriginalSerial = false;
                     
+                    // Ưu tiên giữ lại serial đã có theo thứ tự
                     if (i < existingSerials.length) {
                         existingValue = existingSerials[i];
                         // Kiểm tra xem có phải serial gốc không
                         isOriginalSerial = i < originalSerials.length && originalSerials[i] === existingValue;
+                    } else {
+                        // Nếu không có serial cho vị trí này, kiểm tra xem có serial gốc nào chưa được sử dụng không
+                        const unusedOriginalSerials = originalSerials.filter(serial => 
+                            !existingSerials.slice(0, i).includes(serial)
+                        );
+                        if (unusedOriginalSerials.length > 0) {
+                            existingValue = unusedOriginalSerials[0];
+                            isOriginalSerial = true;
+                        }
                     }
                     
                     console.log(`Index ${i}: existingValue="${existingValue}", isOriginalSerial=${isOriginalSerial}`);
@@ -2330,18 +2351,13 @@
                         serialDiv.className = 'mb-2';
                         // Tạo name cho hidden input
                         let hiddenName = '';
-                        if (template.name && template.name.includes('[serials]')) {
-                            hiddenName = template.name.replace(/\[serials\]\[\d+\]/, `[serials][${i}]`);
-                        } else {
-                            // Tạo name mặc định
-                            const row = container.closest('tr');
-                            if (row) {
-                                const quantityInput = row.querySelector('input[name*="[quantity]"]');
-                                if (quantityInput) {
-                                    const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
-                                    if (componentMatch) {
-                                        hiddenName = `components[${componentMatch[1]}][serials][${i}]`;
-                                    }
+                        const row = container.closest('tr');
+                        if (row) {
+                            const quantityInput = row.querySelector('input[name*="[quantity]"]');
+                            if (quantityInput) {
+                                const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
+                                if (componentMatch) {
+                                    hiddenName = `components[${componentMatch[1]}][serials][${i}]`;
                                 }
                             }
                         }
@@ -2483,6 +2499,33 @@
                 
                 console.log('Finished creating serial elements. Total created:', container.children.length);
                 
+                // Đảm bảo rằng tất cả serial cũ đều có hidden input
+                const row = container.closest('tr');
+                if (row && originalSerials.length > 0) {
+                    const quantityInput = row.querySelector('input[name*="[quantity]"]');
+                    if (quantityInput) {
+                        const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
+                        if (componentMatch) {
+                            const componentIndex = componentMatch[1];
+                            
+                            // Tạo hidden input cho tất cả serial gốc chưa được sử dụng
+                            originalSerials.forEach((serial, index) => {
+                                const hiddenName = `components[${componentIndex}][serials][${index}]`;
+                                let existingHidden = container.querySelector(`input[name="${hiddenName}"]`);
+                                
+                                if (!existingHidden) {
+                                    existingHidden = document.createElement('input');
+                                    existingHidden.type = 'hidden';
+                                    existingHidden.name = hiddenName;
+                                    existingHidden.value = serial;
+                                    container.appendChild(existingHidden);
+                                    console.log(`Created hidden input for original serial ${index}: ${serial}`);
+                                }
+                            });
+                        }
+                    }
+                }
+                
                 // Update form data after serial selects are updated
                 setTimeout(() => {
                     if (typeof updateFormData === 'function') {
@@ -2556,9 +2599,16 @@
                             const actualQuantity = serialSelects.length;
                             const currentQuantity = parseInt(quantityInput.value) || 0;
                             
-                            if (actualQuantity !== currentQuantity) {
-                                console.log(`Fixing quantity input: ${currentQuantity} -> ${actualQuantity} for ${quantityInput.name}`);
-                                quantityInput.value = actualQuantity;
+                            // Only sync when there is at least one serial select rendered.
+                            // Never decrease quantity here; allow only increases to match
+                            // newly added serial selects (important for in_progress flows).
+                            if (actualQuantity > 0 && actualQuantity > currentQuantity) {
+                                const minAttr = parseInt(quantityInput.getAttribute('min')) || 0;
+                                const originalQty = parseInt(quantityInput.dataset.originalQuantity || '0');
+                                // Respect minimum/original quantity, especially for in_progress
+                                const newQty = Math.max(actualQuantity, minAttr, originalQty);
+                                console.log(`Fixing quantity input: ${currentQuantity} -> ${newQty} (serials: ${actualQuantity}) for ${quantityInput.name}`);
+                                quantityInput.value = newQty;
                             }
                         }
                     }
@@ -4046,32 +4096,29 @@
             if (form) {
                 form.addEventListener('submit', function(e) {
                     console.log('=== FORM SUBMIT TRIGGERED ===');
-                    
-                    // Fix serial select names and update form data before submit
-                    if (typeof fixSerialSelectNames === 'function') {
-                        fixSerialSelectNames();
-                    }
-                    if (typeof fixQuantityInputs === 'function') {
-                        fixQuantityInputs();
-                    }
-                    if (typeof updateFormData === 'function') {
-                        updateFormData();
-                    }
-                    
-                    // Force update form data one more time to ensure consistency
-                    setTimeout(() => {
-                        if (typeof updateFormData === 'function') {
-                            updateFormData();
+                    // Synchronously normalize names/quantities and refresh hidden inputs
+                    if (typeof fixSerialSelectNames === 'function') fixSerialSelectNames();
+                    if (typeof fixQuantityInputs === 'function') fixQuantityInputs();
+                    if (typeof updateFormData === 'function') updateFormData();
+                    // Run a second pass immediately to catch changes made during first pass
+                    if (typeof fixSerialSelectNames === 'function') fixSerialSelectNames();
+                    if (typeof fixQuantityInputs === 'function') fixQuantityInputs();
+                    if (typeof updateFormData === 'function') updateFormData();
+
+                    // Debug: Log the final form data before submit
+                    console.log('=== FINAL FORM DATA DEBUG ===');
+                    const formData = new FormData(form);
+                    for (let [key, value] of formData.entries()) {
+                        if (key.includes('components') && (key.includes('quantity') || key.includes('serials'))) {
+                            console.log(`Form field: ${key} = ${value}`);
                         }
-                    }, 100);
+                    }
                     
-                    // Also force update form data one more time before validation
-                    setTimeout(() => {
-                        if (typeof updateFormData === 'function') {
-                            updateFormData();
-                        }
-                    }, 300);
-                    
+                    // Also log all serial selects and their values
+                    document.querySelectorAll('.material-serial-select').forEach((select, index) => {
+                        console.log(`Serial select ${index}: name="${select.name}", value="${select.value}"`);
+                    });
+
                     // Serial validation is now optional - no validation required
                     console.log('Serial validation skipped - serials are optional');
                     
