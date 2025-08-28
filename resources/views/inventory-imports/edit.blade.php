@@ -102,7 +102,11 @@
                         
                         @if ($errors->any())
                         <div class="mb-4 bg-red-50 p-3 rounded border border-red-200">
-                            <ul class="list-disc list-inside text-red-500">
+                            <div class="flex items-center">
+                                <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
+                                <span class="text-red-700 font-medium">Vui lòng kiểm tra và sửa các lỗi sau:</span>
+                            </div>
+                            <ul class="list-disc list-inside text-red-500 mt-2">
                                 @foreach ($errors->all() as $error)
                                     <li>{{ $error }}</li>
                                 @endforeach
@@ -241,7 +245,7 @@
                             <a href="{{ route('inventory-imports.show', $inventoryImport->id) }}" class="h-10 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center transition-colors">
                                 Hủy
                             </a>
-                            <button type="submit" class="h-10 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center justify-center transition-colors">
+                            <button type="submit" id="submit-btn" class="h-10 bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg flex items-center justify-center transition-colors">
                                 <i class="fas fa-save mr-2"></i> Lưu phiếu nhập
                             </button>
                         </div>
@@ -284,6 +288,9 @@
             
             // Cập nhật bảng tổng hợp ban đầu
             updateSummaryTable();
+            
+            // Thêm form validation
+            initializeFormValidation();
         });
 
         // Khởi tạo các event listeners
@@ -984,6 +991,122 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeMaterialSearch();
         });
+        
+        // Khởi tạo form validation
+        function initializeFormValidation() {
+            const form = document.querySelector('form');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            if (form && submitBtn) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    // Xóa tất cả thông báo lỗi cũ
+                    clearAllErrorMessages();
+                    
+                    // Kiểm tra validation
+                    if (validateForm()) {
+                        // Nếu validation pass thì submit form
+                        form.submit();
+                    }
+                });
+            }
+        }
+
+        // Xóa tất cả thông báo lỗi
+        function clearAllErrorMessages() {
+            // Xóa error messages cũ
+            const oldErrors = document.querySelectorAll('.validation-error');
+            oldErrors.forEach(error => error.remove());
+            
+            // Xóa border đỏ
+            const errorInputs = document.querySelectorAll('.border-red-500');
+            errorInputs.forEach(input => {
+                input.classList.remove('border-red-500');
+                input.classList.add('border-gray-300');
+            });
+        }
+
+        // Hiển thị thông báo lỗi cho một field
+        function showFieldError(fieldName, message) {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                // Thêm border đỏ
+                field.classList.remove('border-gray-300');
+                field.classList.add('border-red-500');
+                
+                // Tạo thông báo lỗi
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'validation-error text-red-500 text-sm mt-1';
+                errorDiv.textContent = message;
+                
+                // Chèn thông báo lỗi sau field
+                const parent = field.parentElement;
+                parent.appendChild(errorDiv);
+            }
+        }
+
+        // Validation form
+        function validateForm() {
+            let isValid = true;
+            
+            // Kiểm tra các trường cơ bản
+            const requiredFields = [
+                { name: 'import_code', label: 'Mã phiếu nhập' },
+                { name: 'import_date', label: 'Ngày nhập kho' },
+                { name: 'supplier_id', label: 'Nhà cung cấp' }
+            ];
+            
+            requiredFields.forEach(field => {
+                const value = document.querySelector(`[name="${field.name}"]`).value;
+                if (!value || value.trim() === '') {
+                    showFieldError(field.name, `${field.label} không được để trống`);
+                    isValid = false;
+                }
+            });
+            
+            // Kiểm tra danh sách vật tư
+            const materialRows = document.querySelectorAll('.material-row');
+            if (materialRows.length === 0) {
+                // Hiển thị lỗi cho container vật tư
+                const container = document.getElementById('materials-container');
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'validation-error text-red-500 text-sm mt-1';
+                errorDiv.textContent = 'Vui lòng thêm ít nhất một vật tư';
+                container.appendChild(errorDiv);
+                isValid = false;
+            } else {
+                // Kiểm tra từng hàng vật tư
+                materialRows.forEach((row, index) => {
+                    const itemType = row.querySelector('select[name*="item_type"]');
+                    const materialId = row.querySelector('input[name*="material_id"]');
+                    const warehouseId = row.querySelector('select[name*="warehouse_id"]');
+                    const quantity = row.querySelector('input[name*="quantity"]');
+                    
+                    if (!itemType || !itemType.value) {
+                        showFieldError(`materials[${index}][item_type]`, 'Loại sản phẩm không được để trống');
+                        isValid = false;
+                    }
+                    
+                    if (!materialId || !materialId.value) {
+                        showFieldError(`materials[${index}][material_id]`, 'Vật tư không được để trống');
+                        isValid = false;
+                    }
+                    
+                    if (!warehouseId || !warehouseId.value) {
+                        showFieldError(`materials[${index}][warehouse_id]`, 'Kho nhập không được để trống');
+                        isValid = false;
+                    }
+                    
+                    if (!quantity || !quantity.value || parseInt(quantity.value) < 1) {
+                        showFieldError(`materials[${index}][quantity]`, 'Số lượng phải lớn hơn hoặc bằng 1');
+                        isValid = false;
+                    }
+                });
+            }
+            
+            return isValid;
+        }
     </script>
 </body>
 </html> 
