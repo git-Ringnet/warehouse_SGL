@@ -273,11 +273,16 @@
                     
                     // Xóa tất cả thông báo lỗi cũ
                     clearAllErrorMessages();
+                    removeGlobalError();
                     
                     // Kiểm tra validation
                     if (validateForm()) {
                         // Nếu validation pass thì submit form
                         form.submit();
+                    } else {
+                        // Hiển thị banner lỗi và focus vào field lỗi đầu tiên
+                        showGlobalError('Vui lòng kiểm tra và điền các trường bắt buộc trước khi lưu.');
+                        scrollToFirstError();
                     }
                 });
             }
@@ -294,6 +299,7 @@
             errorInputs.forEach(input => {
                 input.classList.remove('border-red-500');
                 input.classList.add('border-gray-300');
+                input.removeAttribute('aria-invalid');
             });
         }
 
@@ -304,6 +310,7 @@
                 // Thêm border đỏ
                 field.classList.remove('border-gray-300');
                 field.classList.add('border-red-500');
+                field.setAttribute('aria-invalid', 'true');
                 
                 // Tạo thông báo lỗi
                 const errorDiv = document.createElement('div');
@@ -313,6 +320,40 @@
                 // Chèn thông báo lỗi sau field
                 const parent = field.parentElement;
                 parent.appendChild(errorDiv);
+            }
+        }
+
+        // Banner lỗi cố định phía trên form
+        function showGlobalError(message) {
+            const existing = document.getElementById('form-error-banner');
+            if (existing) {
+                existing.querySelector('span').textContent = message;
+                existing.classList.remove('hidden');
+                return;
+            }
+            const banner = document.createElement('div');
+            banner.id = 'form-error-banner';
+            banner.className = 'sticky top-0 z-50 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded flex items-center shadow';
+            banner.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i><span>' + message + '</span>';
+            const container = document.querySelector('main .bg-white');
+            if (container && container.parentElement) {
+                container.parentElement.insertBefore(banner, container);
+            } else {
+                document.body.prepend(banner);
+            }
+        }
+
+        function removeGlobalError() {
+            const existing = document.getElementById('form-error-banner');
+            if (existing) existing.classList.add('hidden');
+        }
+
+        // Cuộn tới field lỗi đầu tiên và focus
+        function scrollToFirstError() {
+            const firstError = document.querySelector('.border-red-500');
+            if (firstError) {
+                try { firstError.focus({ preventScroll: true }); } catch (e) {}
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
 
