@@ -77,13 +77,33 @@ class NotificationManager {
         
         listElement.innerHTML = html;
 
-        // Add click handlers for notifications
-        document.querySelectorAll('.notification-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                const notificationId = this.dataset.id;
-                this.markNotificationAsRead(notificationId);
-            }.bind(this));
-        });
+                // Add click handlers for notifications
+                document.querySelectorAll('.notification-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault(); // Ngăn chặn hành vi mặc định
+                        
+                        const notificationId = item.dataset.id;
+                        const link = item.getAttribute('href');
+                        
+                        // Đóng dropdown menu
+                        const dropdownMenu = document.querySelector('.dropdown-menu');
+                        if (dropdownMenu) {
+                            dropdownMenu.classList.add('hidden');
+                        }
+                        
+                        // Nếu có link và không phải là link trống
+                        if (link && link !== '#' && !link.includes('javascript:')) {
+                            // Đánh dấu thông báo đã đọc trước khi chuyển hướng
+                            this.markNotificationAsRead(notificationId, () => {
+                                // Callback khi đánh dấu đã đọc thành công
+                                window.location.href = link;
+                            });
+                        } else {
+                            // Nếu không có link, chỉ đánh dấu đã đọc
+                            this.markNotificationAsRead(notificationId);
+                        }
+                    });
+                });
     }
 
     // Get notification color based on type
@@ -122,7 +142,7 @@ class NotificationManager {
     }
 
     // Mark notification as read
-    markNotificationAsRead(notificationId) {
+    markNotificationAsRead(notificationId, callback = null) {
         const csrfToken = this.getCsrfToken();
         
         if (!csrfToken) {
@@ -130,6 +150,20 @@ class NotificationManager {
             return;
         }
         
+        // Cập nhật giao diện ngay lập tức
+        const notificationElement = document.querySelector(`[data-id="${notificationId}"]`);
+        if (notificationElement) {
+            // Xóa dấu chấm xanh (unread indicator)
+            const unreadDot = notificationElement.querySelector('.bg-blue-500.rounded-full');
+            if (unreadDot) {
+                unreadDot.remove();
+            }
+            
+            // Xóa class unread nếu có
+            notificationElement.classList.remove('unread', 'bg-blue-50', 'dark:bg-blue-900/20');
+        }
+        
+        // Gửi request đến server
         fetch(`/notifications/${notificationId}/mark-read`, {
             method: 'POST',
             headers: {
@@ -147,12 +181,24 @@ class NotificationManager {
         })
         .then(data => {
             if (data.success) {
-                // Reload notifications to update count
-                this.loadNotifications();
+                // Cập nhật số lượng thông báo chưa đọc
+                this.updateNotificationCountFromCurrentList();
+                
+                // Gọi callback nếu có
+                if (callback && typeof callback === 'function') {
+                    callback();
+                }
             }
         })
         .catch(error => {
             console.error('Error marking notification as read:', error);
+            // Nếu có lỗi, khôi phục lại trạng thái unread
+            if (notificationElement) {
+                const unreadDot = document.createElement('span');
+                unreadDot.className = 'h-2 w-2 bg-blue-500 rounded-full';
+                notificationElement.appendChild(unreadDot);
+                notificationElement.classList.add('unread', 'bg-blue-50', 'dark:bg-blue-900/20');
+            }
         });
     }
 
@@ -220,8 +266,16 @@ class NotificationManager {
                     });
                 }
                 
-                // Reload notifications
-                this.loadNotifications();
+                // Cập nhật giao diện ngay lập tức
+                document.querySelectorAll('.notification-item .bg-blue-500.rounded-full').forEach(dot => {
+                    dot.remove();
+                });
+                document.querySelectorAll('.notification-item').forEach(item => {
+                    item.classList.remove('unread', 'bg-blue-50', 'dark:bg-blue-900/20');
+                });
+                
+                // Cập nhật số lượng thông báo chưa đọc
+                this.updateNotificationCount(0);
             }
         })
         .catch(error => {
@@ -277,6 +331,13 @@ class NotificationManager {
         });
         
         this.eventListenersInitialized = true;
+    }
+
+    // Cập nhật số lượng thông báo chưa đọc dựa trên danh sách hiện tại
+    updateNotificationCountFromCurrentList() {
+        const unreadNotifications = document.querySelectorAll('.notification-item .bg-blue-500.rounded-full');
+        const count = unreadNotifications.length;
+        this.updateNotificationCount(count);
     }
 }
 
