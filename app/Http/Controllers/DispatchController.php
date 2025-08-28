@@ -469,10 +469,13 @@ class DispatchController extends Controller
 
         // Lọc dự án theo quyền của nhân viên đang đăng nhập
         $projects = $this->getFilteredProjects();
+        
+        // Lọc hợp đồng cho thuê theo quyền của nhân viên đang đăng nhập
+        $rentals = $this->getFilteredRentals();
 
-        $dispatch->load(['items.material', 'items.product', 'items.good', 'items.warehouse', 'project', 'companyRepresentative']);
+        $dispatch->load(['items.material', 'items.product', 'items.good', 'items.warehouse', 'project', 'rental', 'companyRepresentative']);
 
-        return view('inventory.dispatch_edit', compact('dispatch', 'warehouses', 'employees', 'projects'));
+        return view('inventory.dispatch_edit', compact('dispatch', 'warehouses', 'employees', 'projects', 'rentals'));
     }
 
     /**

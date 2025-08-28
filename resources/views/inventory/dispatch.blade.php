@@ -2021,6 +2021,33 @@
                     console.log('Warranty receiver:', warrantyReceiver);
                     console.log('Project ID:', projectId);
 
+                    // Kiểm tra các trường bắt buộc theo loại hình
+                    let hasRequiredFields = true;
+                    let requiredFieldMessage = '';
+
+                    if (dispatchType === 'project') {
+                        if (!projectReceiver?.trim()) {
+                            hasRequiredFields = false;
+                            requiredFieldMessage = 'Vui lòng chọn Dự án';
+                        }
+                    } else if (dispatchType === 'rental') {
+                        if (!rentalReceiver?.trim()) {
+                            hasRequiredFields = false;
+                            requiredFieldMessage = 'Vui lòng chọn Hợp đồng cho thuê';
+                        }
+                    } else if (dispatchType === 'warranty') {
+                        if (!projectId) {
+                            hasRequiredFields = false;
+                            requiredFieldMessage = 'Vui lòng chọn Dự án / Hợp đồng cho thuê';
+                        }
+                    }
+
+                    if (!hasRequiredFields) {
+                        e.preventDefault();
+                        alert(requiredFieldMessage);
+                        return;
+                    }
+
                     // Kiểm tra project_id khi là loại hình bảo hành
                     if (dispatchType === 'warranty' && !projectId) {
                         e.preventDefault();

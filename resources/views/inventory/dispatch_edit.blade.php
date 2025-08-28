@@ -151,7 +151,7 @@
                         <div id="project_section">
                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án</label>
                             <div class="relative">
-                                <input type="text" id="project_receiver_search" placeholder="Tìm kiếm dự án..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->project_receiver }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <input type="text" id="project_receiver_search" placeholder="Tìm kiếm dự án..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type === 'project' && $dispatch->project ? $dispatch->project->project_code . ' - ' . $dispatch->project->project_name . ' (' . ($dispatch->project->customer->name ?? 'N/A') . ')' : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
                                 <div id="project_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @if (isset($projects))
                                         @foreach ($projects as $project)
@@ -170,10 +170,18 @@
                         <div id="rental_section" class="hidden">
                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Hợp đồng cho thuê</label>
                             <div class="relative">
-                                <input type="text" id="rental_receiver_search" placeholder="Tìm kiếm hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
-                                <div id="rental_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                                <input type="text" id="rental_receiver_search" placeholder="Tìm kiếm hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type==='rental' && $dispatch->rental ? $dispatch->rental->rental_code . ' - ' . $dispatch->rental->rental_name . ' (' . ($dispatch->rental->customer->name ?? 'N/A') . ')' : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <div id="rental_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                                    @if (isset($rentals))
+                                        @foreach ($rentals as $rental)
+                                            <div class="rental-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})" data-rental-id="{{ $rental->id }}">
+                                                {{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})
+                                            </div>
+                                        @endforeach
+                                    @endif
+                                </div>
                                 <input type="hidden" id="rental_receiver" name="rental_receiver" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}">
-                                <input type="hidden" name="project_receiver" id="rental_project_receiver" value="{{ $dispatch->project_receiver }}">
+                                <input type="hidden" name="project_receiver" id="rental_project_receiver" value="{{ $dispatch->dispatch_type==='rental' ? $dispatch->project_receiver : '' }}">
                             </div>
                         </div>
 
@@ -181,15 +189,20 @@
                         <div id="warranty_section" class="hidden">
                             <label class="block text-sm font-medium text-gray-700 mb-1 required">Dự án / Hợp đồng cho thuê</label>
                             <div class="relative">
-                                <input type="text" id="warranty_receiver_search" placeholder="Tìm kiếm dự án / hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
+                                <input type="text" id="warranty_receiver_search" placeholder="Tìm kiếm dự án / hợp đồng cho thuê..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $dispatch->dispatch_type==='warranty' && $dispatch->project ? $dispatch->project->project_code . ' - ' . $dispatch->project->project_name . ' (' . ($dispatch->project->customer->name ?? 'N/A') . ')' : '' }}" {{ $dispatch->status !== 'pending' ? 'readonly' : '' }}>
                                 <div id="warranty_receiver_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                     @if (isset($projects))
                                         @foreach ($projects as $project)
                                             <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})" data-type="project" data-project-id="{{ $project->id }}">{{ $project->project_code }} - {{ $project->project_name }} ({{ $project->customer->name ?? 'N/A' }})</div>
                                         @endforeach
                                     @endif
+                                    @if (isset($rentals))
+                                        @foreach ($rentals as $rental)
+                                            <div class="warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-text="{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})" data-type="rental" data-rental-id="{{ $rental->id }}">{{ $rental->rental_code }} - {{ $rental->rental_name }} ({{ $rental->customer->name ?? 'N/A' }})</div>
+                                        @endforeach
+                                    @endif
                                 </div>
-                                <input type="hidden" id="warranty_receiver" name="project_receiver" value="{{ $dispatch->dispatch_type==='warranty' ? $dispatch->project_receiver : '' }}">
+                                <input type="hidden" id="warranty_receiver" name="project_receiver" value="{{ $dispatch->project_receiver }}">
                             </div>
                         </div>
 
@@ -1136,11 +1149,18 @@
                 const dropdown = document.getElementById('project_receiver_dropdown');
                 const hiddenText = document.getElementById('project_receiver');
                 const hiddenId = document.getElementById('project_id');
+                
+                console.log('Initializing project search with value:', search.value);
+                
+                // Store initial value
+                const initialValue = search.value;
+                
                 bindSearchDropdown({
                     searchEl: search,
                     dropdownEl: dropdown,
                     optionClass: 'project-option',
                     onSelect: (opt) => {
+                        console.log('Project selected:', opt.dataset.text);
                         search.value = opt.dataset.text;
                         if (hiddenText) hiddenText.value = opt.dataset.text;
                         if (hiddenId && opt.dataset.projectId) hiddenId.value = opt.dataset.projectId;
@@ -1150,6 +1170,20 @@
                         activateProjectReceiver('project');
                     }
                 });
+                
+                // Preserve initial value if it exists
+                if (initialValue && initialValue.trim()) {
+                    console.log('Preserving initial project value:', initialValue);
+                    if (hiddenText) hiddenText.value = initialValue;
+                    
+                    // Restore search value if it gets cleared
+                    setTimeout(() => {
+                        if (search.value !== initialValue) {
+                            console.log('Restoring project search value:', initialValue);
+                            search.value = initialValue;
+                        }
+                    }, 100);
+                }
             })();
 
             // Initialize employee search (company representative)
@@ -1271,7 +1305,7 @@
             // Trước khi submit: đảm bảo field project_receiver đúng theo loại hình
             const formEl = document.querySelector('form');
             if (formEl) {
-                formEl.addEventListener('submit', function() {
+                formEl.addEventListener('submit', function(e) {
                     const type = document.getElementById('dispatch_type')?.value;
                     const pr = document.getElementById('project_receiver');
                     const prSearch = document.getElementById('project_receiver_search');
@@ -1280,6 +1314,33 @@
                     const wr = document.getElementById('warranty_receiver');
                     const wrSearch = document.getElementById('warranty_receiver_search');
                     const canonical = document.getElementById('project_receiver_canonical');
+
+                    // Validation bắt buộc
+                    let hasError = false;
+                    let errorMessage = '';
+
+                    if (type === 'project') {
+                        if (!prSearch?.value?.trim()) {
+                            hasError = true;
+                            errorMessage = 'Vui lòng chọn Dự án';
+                        }
+                    } else if (type === 'rental') {
+                        if (!rrSearch?.value?.trim()) {
+                            hasError = true;
+                            errorMessage = 'Vui lòng chọn Hợp đồng cho thuê';
+                        }
+                    } else if (type === 'warranty') {
+                        if (!wrSearch?.value?.trim()) {
+                            hasError = true;
+                            errorMessage = 'Vui lòng chọn Dự án / Hợp đồng cho thuê';
+                        }
+                    }
+
+                    if (hasError) {
+                        e.preventDefault();
+                        alert(errorMessage);
+                        return false;
+                    }
 
                     // Reset names
                     if (pr) { pr.name = 'project_receiver_disabled'; pr.disabled = true; }
@@ -1544,73 +1605,72 @@
             // Hàm load danh sách hợp đồng cho thuê
             async function loadRentals() {
                 try {
+                    console.log('loadRentals called');
                     const response = await fetch('/api/dispatch/rentals');
                     const data = await response.json();
 
                     if (data.success) {
-                        const rentalSelect = document.getElementById('rental_receiver');
-                        const projectReceiverInput = document.getElementById('rental_project_receiver');
-                        const warrantyReceiverSelect = document.getElementById('warranty_rental_group');
+                        console.log('Rentals loaded successfully:', data.rentals?.length || 0, 'rentals');
                         
-                        if (rentalSelect) {
+                        // Cập nhật dropdown cho thuê (nếu cần)
+                        const rentalDropdown = document.getElementById('rental_receiver_dropdown');
+                        if (rentalDropdown && data.rentals) {
                             // Clear existing options
-                            rentalSelect.innerHTML = '<option value="">-- Chọn hợp đồng cho thuê --</option>';
-
+                            rentalDropdown.innerHTML = '';
+                            
                             // Add rental options
                             data.rentals.forEach(rental => {
-                                const option1 = document.createElement('option');
-                                option1.value = rental.display_name;
-                                option1.textContent = rental.display_name;
-                                option1.dataset.rentalId = rental.id;
-                                option1.dataset.rentalCode = rental.rental_code;
-                                option1.dataset.customerName = rental.customer_name;
-                                rentalSelect.appendChild(option1);
-
-                                // Thêm vào nhóm trong dropdown bảo hành nếu tồn tại
-                                if (warrantyReceiverSelect) {
-                                    // Xóa option cũ để tránh lặp
-                                    warrantyReceiverSelect.innerHTML = '';
-                                    const option2 = document.createElement('option');
-                                    option2.value = rental.display_name;
-                                    option2.textContent = rental.display_name;
-                                    option2.dataset.rentalId = rental.id;
-                                    option2.dataset.type = 'rental';
-                                    warrantyReceiverSelect.appendChild(option2);
-                                }
-                            }); // kết thúc forEach
-
-                            // Nếu dispatch hiện tại là rental thì chọn giá trị mặc định
-                            @if ($dispatch->dispatch_type === 'rental')
-                                const currentProjectReceiver = '{{ $dispatch->project_receiver }}';
-                                if (currentProjectReceiver) {
-                                    rentalSelect.value = currentProjectReceiver;
-                                    if (projectReceiverInput) {
-                                        projectReceiverInput.value = currentProjectReceiver;
-                                    }
-                                }
-                            @endif
-
-                            // Thêm event listener cho rental_receiver
-                            rentalSelect.addEventListener('change', function() {
-                                const selectedOption = this.options[this.selectedIndex];
-                                const projectIdInput = document.getElementById('project_id');
-                                
-                                // Cập nhật project_receiver hidden input
-                                if (projectReceiverInput) {
-                                    projectReceiverInput.value = this.value;
-                                }
-                                
-                                // Cập nhật project_id từ rental_id
-                                if (selectedOption && selectedOption.dataset.rentalId) {
-                                    if (projectIdInput) {
-                                        projectIdInput.value = selectedOption.dataset.rentalId;
-                                    }
-                                } else {
-                                    if (projectIdInput) {
-                                        projectIdInput.value = '';
-                                    }
-                                }
+                                const option = document.createElement('div');
+                                option.className = 'rental-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                                option.dataset.text = rental.display_name;
+                                option.dataset.rentalId = rental.id;
+                                option.textContent = rental.display_name;
+                                rentalDropdown.appendChild(option);
                             });
+                            
+                            console.log('Rental dropdown updated with', data.rentals.length, 'options');
+                            // Auto-fill current rental on edit if applicable
+                            const rentalSearch = document.getElementById('rental_receiver_search');
+                            const rentalHidden = document.getElementById('rental_receiver');
+                            const rentalHiddenProjectReceiver = document.getElementById('rental_project_receiver');
+                            const projectIdEl = document.getElementById('project_id');
+                            const currentReceiver = '{{ $dispatch->dispatch_type === 'rental' ? addslashes($dispatch->project_receiver) : '' }}';
+                            if (currentReceiver && rentalSearch && rentalHidden) {
+                                rentalSearch.value = currentReceiver;
+                                rentalHidden.value = currentReceiver;
+                                if (rentalHiddenProjectReceiver) rentalHiddenProjectReceiver.value = currentReceiver;
+                                // Find matching option to set project_id
+                                const match = Array.from(rentalDropdown.querySelectorAll('.rental-option')).find(o => (o.dataset.text || '').trim() === currentReceiver.trim());
+                                if (match && projectIdEl && match.dataset.rentalId) {
+                                    projectIdEl.value = match.dataset.rentalId;
+                                }
+                            }
+                        }
+                        
+                        // Cập nhật dropdown bảo hành
+                        const warrantyDropdown = document.getElementById('warranty_receiver_dropdown');
+                        if (warrantyDropdown && data.rentals) {
+                            // Giữ lại project options hiện có
+                            const existingProjectOptions = warrantyDropdown.querySelectorAll('.warranty-option[data-type="project"]');
+                            warrantyDropdown.innerHTML = '';
+                            
+                            // Thêm lại project options
+                            existingProjectOptions.forEach(option => {
+                                warrantyDropdown.appendChild(option.cloneNode(true));
+                            });
+                            
+                            // Thêm rental options
+                            data.rentals.forEach(rental => {
+                                const option = document.createElement('div');
+                                option.className = 'warranty-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
+                                option.dataset.text = rental.display_name;
+                                option.dataset.type = 'rental';
+                                option.dataset.rentalId = rental.id;
+                                option.textContent = rental.display_name;
+                                warrantyDropdown.appendChild(option);
+                            });
+                            
+                            console.log('Warranty dropdown updated with', data.rentals.length, 'rental options');
                         }
                     } else {
                         console.error('Error loading rentals:', data.message);
@@ -1647,6 +1707,8 @@
                     if (warrantyReceiverInput) warrantyReceiverInput.removeAttribute('required');
 
                     if (selectedType === 'rental') {
+                        console.log('Switching to rental type');
+                        
                         if (contractProductsSection) contractProductsSection.classList.remove('hidden');
                         if (backupProductsSection) backupProductsSection.classList.add('hidden');
                         
@@ -1656,7 +1718,20 @@
                         
                         // Hiển thị phần cho thuê, ẩn phần dự án
                         rentalSection.classList.remove('hidden');
-                        rentalReceiverInput.setAttribute('required', 'required');
+                        projectSection.classList.add('hidden');
+                        warrantySection.classList.add('hidden');
+                        
+                        console.log('Sections updated - rental visible, project/warranty hidden');
+                        
+                        // Clear project input/search when switching to rental
+                        const projectText = document.getElementById('project_receiver_search');
+                        const projectHidden = document.getElementById('project_receiver');
+                        const projectIdInput = document.getElementById('project_id');
+                        if (projectText) projectText.value = '';
+                        if (projectHidden) projectHidden.value = '';
+                        if (projectIdInput) projectIdInput.value = '';
+                        
+                        console.log('Project fields cleared');
                         
                         // Đảm bảo rental receiver bị disable nếu phiếu đã approved
                         if ('{{ $dispatch->status }}' !== 'pending') {
@@ -1664,30 +1739,8 @@
                         }
 
                         // Load danh sách hợp đồng cho thuê
+                        console.log('Loading rentals...');
                         loadRentals();
-
-                        // Xử lý sự kiện change cho rental_receiver
-                        rentalReceiverInput.addEventListener('change', function() {
-                            const selectedOption = this.options[this.selectedIndex];
-                            const projectIdInput = document.getElementById('project_id');
-                            
-                            // Cập nhật project_receiver trong hidden input của rental section
-                            const rentalProjectReceiver = document.getElementById('rental_project_receiver');
-                            if (rentalProjectReceiver) {
-                                rentalProjectReceiver.value = this.value;
-                            }
-                            
-                            // Cập nhật project_id từ rental_id
-                            if (selectedOption && selectedOption.dataset.rentalId) {
-                                if (projectIdInput) {
-                                    projectIdInput.value = selectedOption.dataset.rentalId;
-                                }
-                            } else {
-                                if (projectIdInput) {
-                                    projectIdInput.value = '';
-                                }
-                            }
-                        });
 
                         // Reset dispatch detail về mặc định cho rental
                         if (dispatchDetailSelect) {
@@ -1727,10 +1780,15 @@
                         const pr = document.getElementById('project_receiver');
                         const prSearch = document.getElementById('project_receiver_search');
                         const projectIdInput = document.getElementById('project_id');
-                        if (pr) { pr.disabled = false; pr.name = 'project_receiver'; pr.value = ''; }
-                        if (prSearch) prSearch.value = '';
+                        
+                        console.log('Switching to project type, current project search value:', prSearch?.value);
+                        
+                        if (pr) { pr.disabled = false; pr.name = 'project_receiver'; }
+                        // Không xóa giá trị của prSearch nếu đang ở loại hình project
                         if (canonical) canonical.value = '';
-                        if (projectIdInput) projectIdInput.value = '';
+                        // Giữ lại project_id hiện có nếu đã được set từ server hoặc người dùng đã chọn dự án
+                        
+                        console.log('After switching to project type, project search value:', prSearch?.value);
 
                         // Reset dispatch detail về mặc định cho project
                         if (dispatchDetailSelect) {
@@ -1811,9 +1869,11 @@
 
                 // Trigger change event khi load page để setup initial state (chỉ khi phiếu pending)
                 if ('{{ $dispatch->status }}' === 'pending') {
+                    console.log('Triggering change event for pending dispatch');
                     const event = new Event('change');
                     dispatchTypeSelect.dispatchEvent(event);
                 } else {
+                    console.log('Setting up sections for non-pending dispatch');
                     // For non-pending dispatches, still need to setup the correct sections
                     const currentType = dispatchTypeSelect.value;
                     if (currentType === 'rental') {
@@ -2885,6 +2945,9 @@
                         hiddenDispatchDetail.value = selectedDetail;
                     }
 
+                    // Disable inputs của nhóm KHÔNG được chọn để tránh submit nhầm
+                    toggleCategoryInputsByDispatchDetail(selectedDetail);
+
                     // For pending status, dropdown remains visible but category logic changes
                 });
 
@@ -2911,6 +2974,31 @@
                     if (contractTable) contractTable.classList.remove('hidden');
                 } else if (selectedDetail === 'backup') {
                     if (backupTable) backupTable.classList.remove('hidden');
+                }
+            }
+
+            // Bật/tắt input theo dispatch_detail để tránh submit nhầm nhóm
+            function toggleCategoryInputsByDispatchDetail(selectedDetail) {
+                const formEl = document.querySelector('form');
+                if (!formEl) return;
+
+                // Helper: enable/disable inputs by name prefix
+                const setDisabledByPrefix = (prefix, disabled) => {
+                    formEl.querySelectorAll(`input[name^="${prefix}"]`).forEach(inp => {
+                        inp.disabled = !!disabled;
+                    });
+                };
+
+                if (selectedDetail === 'all') {
+                    // Cả hai nhóm đều bật
+                    setDisabledByPrefix('contract_items', false);
+                    setDisabledByPrefix('backup_items', false);
+                } else if (selectedDetail === 'contract') {
+                    setDisabledByPrefix('contract_items', false);
+                    setDisabledByPrefix('backup_items', true);
+                } else if (selectedDetail === 'backup') {
+                    setDisabledByPrefix('contract_items', true);
+                    setDisabledByPrefix('backup_items', false);
                 }
             }
 
@@ -3408,9 +3496,23 @@
                             errorMessage =
                                 'Phiếu xuất theo hợp đồng phải có ít nhất một thành phẩm theo hợp đồng!';
                         } else if (totalBackupItems > 0) {
-                            hasRequiredProducts = false;
-                            errorMessage =
-                                'Phiếu xuất theo hợp đồng không được chứa thiết bị dự phòng! Vui lòng chọn "Tất cả" nếu muốn xuất cả hai loại.';
+                            // Tự động clear nhóm dự phòng và thông báo ngắn gọn
+                            const backupTable = document.getElementById('selected-backup-products');
+                            if (backupTable) {
+                                const rows = backupTable.querySelectorAll('tr');
+                                rows.forEach(row => {
+                                    const inputs = row.querySelectorAll('input, textarea');
+                                    inputs.forEach(inp => inp.disabled = true);
+                                });
+                            }
+                            // Clear mảng tạm nếu đang ở trạng thái pending (sản phẩm mới thêm)
+                            try {
+                                selectedBackupProducts.length = 0;
+                                if (typeof renderBackupProductTable === 'function') {
+                                    renderBackupProductTable();
+                                }
+                            } catch (_) {}
+                            hasRequiredProducts = true; // tiếp tục submit sau khi đã clear
                         } else {
                             hasRequiredProducts = true;
                         }
@@ -3441,6 +3543,15 @@
                         e.preventDefault();
                         alert(errorMessage);
                         return;
+                    }
+
+                    // Cuối cùng, trước khi submit: khóa nhóm không được chọn theo dispatch_detail
+                    try {
+                        const selectedDetailFinal = (document.getElementById('dispatch_detail') || {}).value || '{{ $dispatch->dispatch_detail }}';
+                        // Gọi lại toggle để đảm bảo trạng thái disabled đúng tại thời điểm submit
+                        toggleCategoryInputsByDispatchDetail(selectedDetailFinal);
+                    } catch (err) {
+                        console.warn('toggleCategoryInputsByDispatchDetail error:', err);
                     }
 
                     // Kiểm tra tồn kho trước khi submit (chỉ cho dispatch pending)

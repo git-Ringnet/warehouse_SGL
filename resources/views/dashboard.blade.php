@@ -124,6 +124,7 @@
                             <option value="goods">Hàng hóa</option>
                             <option value="projects">Dự án</option>
                             <option value="customers">Khách hàng</option>
+                            <option value="rentals">Phiếu cho thuê</option>
                         </select>
                     </div>
                     <!-- <div>
@@ -181,14 +182,14 @@
                         </div>
                     </div>
 
-                    <!-- Include Out of Stock Checkbox -->
+                    <!-- Exclude Out of Stock Checkbox -->
                     <div class="mt-4">
                         <div class="flex items-center">
-                            <input type="checkbox" id="includeOutOfStock"
+                            <input type="checkbox" id="excludeOutOfStock"
                                 class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
-                            <label for="includeOutOfStock"
+                            <label for="excludeOutOfStock"
                                 class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                                Bao gồm cả sản phẩm ngoài kho (số lượng = 0)
+                                Chỉ hiển thị sản phẩm có tồn kho > 0
                             </label>
                         </div>
                     </div>
@@ -237,6 +238,20 @@
                                 <option value="completed">Hoàn thành</option>
                                 <option value="on_hold">Tạm dừng</option>
                                 <option value="cancelled">Đã hủy</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="rentalFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                        <div>
+                            <label for="filterRentalStatus"
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái phiếu thuê</label>
+                            <select id="filterRentalStatus"
+                                class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Tất cả trạng thái</option>
+                                <option value="active">Đang hoạt động</option>
+                                <option value="overdue">Quá hạn</option>
+                                <option value="completed">Đã hoàn thành</option>
                             </select>
                         </div>
                     </div>
@@ -2603,6 +2618,7 @@
                     document.getElementById('materialFilters').classList.add('hidden');
                     document.getElementById('productFilters').classList.add('hidden');
                     document.getElementById('projectFilters').classList.add('hidden');
+                    document.getElementById('rentalFilters').classList.add('hidden');
 
                     // Hiển thị bộ lọc tương ứng
                     switch (category) {
@@ -2614,6 +2630,9 @@
                             break;
                         case 'projects':
                             document.getElementById('projectFilters').classList.remove('hidden');
+                            break;
+                        case 'rentals':
+                            document.getElementById('rentalFilters').classList.remove('hidden');
                             break;
                     }
                 });
@@ -2637,7 +2656,7 @@
                         warehouse_id: document.getElementById('filterWarehouse').value,
                         status: document.getElementById('filterStatus').value,
                         date_range: document.getElementById('filterDateRange').value,
-                        include_out_of_stock: document.getElementById('includeOutOfStock').checked ?
+                        exclude_out_of_stock: document.getElementById('excludeOutOfStock').checked ?
                             'true' : 'false'
                     };
 
@@ -2652,6 +2671,9 @@
                             break;
                         case 'projects':
                             filters.project_status = document.getElementById('filterProjectStatus')?.value;
+                            break;
+                        case 'rentals':
+                            filters.rental_status = document.getElementById('filterRentalStatus')?.value;
                             break;
                     }
 
