@@ -704,19 +704,14 @@ class ProjectRequestController extends Controller
             $rules['item_type'] = 'required|in:equipment,good';
         }
         
-        switch ($itemType) {
-            case 'equipment':
-                $rules['equipment'] = 'required|array|min:1';
-                $rules['equipment.*.id'] = 'required|exists:products,id';
-                $rules['equipment.*.quantity'] = 'required|integer|min:1';
-                break;
-                
-            case 'good':
-                $rules['good'] = 'required|array|min:1';
-                $rules['good.*.id'] = 'required|exists:goods,id';
-                $rules['good.*.quantity'] = 'required|integer|min:1';
-                break;
-        }
+        // Thêm rules cho cả equipment và good để đảm bảo validation đầy đủ
+        $rules['equipment'] = 'nullable|array';
+        $rules['equipment.*.id'] = 'nullable|exists:products,id';
+        $rules['equipment.*.quantity'] = 'nullable|integer|min:1';
+        
+        $rules['good'] = 'nullable|array';
+        $rules['good.*.id'] = 'nullable|exists:goods,id';
+        $rules['good.*.quantity'] = 'nullable|integer|min:1';
         
         $validator = Validator::make($request->all(), $rules, [
             'request_date.required' => 'Ngày đề xuất không được để trống',
@@ -789,16 +784,12 @@ class ProjectRequestController extends Controller
             // Xóa tất cả items cũ
             $projectRequest->items()->delete();
             
-            // Lưu danh sách thiết bị/vật tư/hàng hóa đề xuất dựa vào loại item được chọn
+            // Lấy items theo loại được chọn
             $items = [];
-            
-            switch ($itemType) {
-                case 'equipment':
-                    $items = $request->input('equipment') ?? [];
-                    break;
-                case 'good':
-                    $items = $request->input('good') ?? [];
-                    break;
+            if ($itemType === 'equipment') {
+                $items = $request->input('equipment') ?? [];
+            } elseif ($itemType === 'good') {
+                $items = $request->input('good') ?? [];
             }
             
             foreach ($items as $item) {
@@ -829,9 +820,10 @@ class ProjectRequestController extends Controller
                     $itemData['code'] = $itemModel->code;
                     $itemData['unit'] = $itemModel->unit ?? 'N/A';
                     $itemData['description'] = $itemModel->description;
+                    
+                    // Tạo item
+                    ProjectRequestItem::create($itemData);
                 }
-                
-                ProjectRequestItem::create($itemData);
             }
             
             DB::commit();

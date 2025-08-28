@@ -135,6 +135,28 @@ function getItemTypeFromSelect(selectElement) {
     return 'product';
 }
 
+// Hàm populate dropdown với dữ liệu từ server
+function populateDropdown(selectElement, itemType) {
+    // Lấy dữ liệu từ các select có sẵn để copy options
+    let sourceSelect = null;
+    
+    if (itemType === 'equipment') {
+        sourceSelect = document.querySelector('select[name="equipment[0][id]"]');
+    } else if (itemType === 'material') {
+        sourceSelect = document.querySelector('select[name="material[0][id]"]');
+    } else if (itemType === 'good') {
+        sourceSelect = document.querySelector('select[name="good[0][id]"]');
+    }
+    
+    if (sourceSelect) {
+        // Copy tất cả options từ source select
+        Array.from(sourceSelect.options).forEach(option => {
+            const newOption = option.cloneNode(true);
+            selectElement.appendChild(newOption);
+        });
+    }
+}
+
 // Xử lý thêm/xóa rows cho equipment
 let equipmentIndex = 1;
 
@@ -165,6 +187,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             container.appendChild(newRow);
+            
+            // Populate dropdown với dữ liệu
+            const newSelect = newRow.querySelector('select');
+            populateDropdown(newSelect, 'equipment');
+            
             equipmentIndex++;
             
             // Hiển thị nút xóa cho tất cả rows
@@ -200,6 +227,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             container.appendChild(newRow);
+            
+            // Populate dropdown với dữ liệu
+            const newSelect = newRow.querySelector('select');
+            populateDropdown(newSelect, 'material');
+            
             materialIndex++;
             
             // Hiển thị nút xóa cho tất cả rows
@@ -235,6 +267,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             container.appendChild(newRow);
+            
+            // Populate dropdown với dữ liệu
+            const newSelect = newRow.querySelector('select');
+            populateDropdown(newSelect, 'good');
+            
             goodIndex++;
             
             // Hiển thị nút xóa cho tất cả rows
@@ -337,4 +374,143 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
-}); 
+    
+    // Thêm form validation
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Xóa tất cả thông báo lỗi cũ
+            clearAllErrorMessages();
+            
+            // Kiểm tra validation
+            if (validateForm()) {
+                // Nếu validation pass thì submit form
+                form.submit();
+            }
+        });
+    }
+});
+
+// Xóa tất cả thông báo lỗi
+function clearAllErrorMessages() {
+    // Xóa error messages cũ
+    const oldErrors = document.querySelectorAll('.validation-error');
+    oldErrors.forEach(error => error.remove());
+    
+    // Xóa border đỏ
+    const errorInputs = document.querySelectorAll('.border-red-500');
+    errorInputs.forEach(input => {
+        input.classList.remove('border-red-500');
+        input.classList.add('border-gray-300');
+    });
+}
+
+// Hiển thị thông báo lỗi cho một field
+function showFieldError(fieldName, message) {
+    const field = document.querySelector(`[name="${fieldName}"]`);
+    if (field) {
+        // Thêm border đỏ
+        field.classList.remove('border-gray-300');
+        field.classList.add('border-red-500');
+        
+        // Tạo thông báo lỗi
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'validation-error text-red-500 text-sm mt-1';
+        errorDiv.textContent = message;
+        
+        // Chèn thông báo lỗi sau field
+        const parent = field.parentElement;
+        parent.appendChild(errorDiv);
+    }
+}
+
+// Validation form
+function validateForm() {
+    let isValid = true;
+    
+    // Kiểm tra các trường cơ bản
+    const requiredFields = [
+        { name: 'request_date', label: 'Ngày đề xuất' },
+        { name: 'project_id', label: 'Dự án / Phiếu cho thuê' }
+    ];
+    
+    requiredFields.forEach(field => {
+        const value = document.querySelector(`[name="${field.name}"]`).value;
+        if (!value || value.trim() === '') {
+            showFieldError(field.name, `${field.label} không được để trống`);
+            isValid = false;
+        }
+    });
+    
+    // Kiểm tra approval method
+    const approvalMethod = document.querySelector('input[name="approval_method"]:checked');
+    if (!approvalMethod) {
+        showFieldError('approval_method', 'Phương thức xử lý không được để trống');
+        isValid = false;
+    }
+    
+    // Kiểm tra item type
+    const itemType = document.querySelector('input[name="item_type"]:checked');
+    if (!itemType) {
+        showFieldError('item_type', 'Loại sản phẩm không được để trống');
+        isValid = false;
+    }
+    
+    // Kiểm tra danh sách items theo loại được chọn
+    const selectedItemType = itemType ? itemType.value : '';
+    let hasItems = false;
+    
+    if (selectedItemType === 'equipment') {
+        const equipmentRows = document.querySelectorAll('.equipment-row');
+        equipmentRows.forEach((row, index) => {
+            const itemId = row.querySelector('select[name*="[id]"]');
+            const quantity = row.querySelector('input[name*="[quantity]"]');
+            
+            if (!itemId || !itemId.value) {
+                showFieldError(`equipment[${index}][id]`, 'Thiết bị không được để trống');
+                isValid = false;
+            } else {
+                hasItems = true;
+            }
+            
+            if (!quantity || !quantity.value || parseInt(quantity.value) < 1) {
+                showFieldError(`equipment[${index}][quantity]`, 'Số lượng phải lớn hơn hoặc bằng 1');
+                isValid = false;
+            }
+        });
+    } else if (selectedItemType === 'good') {
+        const goodRows = document.querySelectorAll('.good-row');
+        goodRows.forEach((row, index) => {
+            const itemId = row.querySelector('select[name*="[id]"]');
+            const quantity = row.querySelector('input[name*="[quantity]"]');
+            
+            if (!itemId || !itemId.value) {
+                showFieldError(`good[${index}][id]`, 'Hàng hóa không được để trống');
+                isValid = false;
+            } else {
+                hasItems = true;
+            }
+            
+            if (!quantity || !quantity.value || parseInt(quantity.value) < 1) {
+                showFieldError(`good[${index}][quantity]`, 'Số lượng phải lớn hơn hoặc bằng 1');
+                isValid = false;
+            }
+        });
+    }
+    
+    if (!hasItems) {
+        // Hiển thị lỗi cho container
+        const container = document.getElementById(selectedItemType + '_container');
+        if (container) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'validation-error text-red-500 text-sm mt-1';
+            errorDiv.textContent = `Vui lòng thêm ít nhất một ${selectedItemType === 'equipment' ? 'thiết bị' : 'hàng hóa'}`;
+            container.appendChild(errorDiv);
+        }
+        isValid = false;
+    }
+    
+    return isValid;
+} 
