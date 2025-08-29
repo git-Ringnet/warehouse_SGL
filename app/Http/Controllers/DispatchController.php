@@ -860,6 +860,26 @@ class DispatchController extends Controller
                         $stockErrors[] = $stockCheck['message'] . " (Tổng từ: $categoriesText)";
                     }
 
+                    // Nếu mặt hàng có quản lý serial trong kho này, bắt buộc chọn đủ serial = số lượng xuất
+                    // Xác định có serial khả dụng trong kho cho item này không
+                    $hasAnySerialInWarehouse = \App\Models\Serial::where('warehouse_id', $groupedItem['warehouse_id'])
+                        ->where('type', $groupedItem['item_type'])
+                        ->where('product_id', $groupedItem['item_id'])
+                        ->exists();
+
+                    if ($hasAnySerialInWarehouse) {
+                        if ((int)$groupedItem['serial_selected'] !== (int)$groupedItem['total_quantity']) {
+                            $stockErrors[] = sprintf(
+                                'Mục %s (ID %d) tại kho %d yêu cầu chọn đủ số serial (%d/%d).',
+                                $groupedItem['item_type'],
+                                $groupedItem['item_id'],
+                                $groupedItem['warehouse_id'],
+                                (int)$groupedItem['serial_selected'],
+                                (int)$groupedItem['total_quantity']
+                            );
+                        }
+                    }
+
                     // Kiểm tra tồn kho không-serial nếu có yêu cầu
                     $noSerialRequired = $groupedItem['total_quantity'] - $groupedItem['serial_selected'];
                     if ($noSerialRequired > 0) {
