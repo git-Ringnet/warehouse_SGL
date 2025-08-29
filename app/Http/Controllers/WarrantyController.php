@@ -14,7 +14,7 @@ class WarrantyController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Warranty::with(['dispatch', 'dispatchItem', 'creator']);
+        $query = Warranty::with(['dispatch.project.customer', 'dispatchItem', 'creator']);
 
         // Apply search filter
         if ($request->filled('search')) {
@@ -52,7 +52,7 @@ class WarrantyController extends Controller
      */
     public function show(Warranty $warranty)
     {
-        $warranty->load(['dispatch', 'dispatchItem', 'creator']);
+        $warranty->load(['dispatch.project.customer', 'dispatchItem', 'creator']);
 
         // Ghi nhật ký xem chi tiết bảo hành
         if (Auth::check()) {
@@ -75,7 +75,7 @@ class WarrantyController extends Controller
     public function check($warrantyCode)
     {
         $warranty = Warranty::where('warranty_code', $warrantyCode)
-            ->with(['dispatch', 'dispatchItem', 'creator'])
+            ->with(['dispatch.project.customer', 'dispatchItem', 'creator'])
             ->first();
 
         if (!$warranty) {
@@ -168,7 +168,7 @@ class WarrantyController extends Controller
     public function getWarrantyItems($warrantyId)
     {
         try {
-            $warranty = Warranty::with(['dispatch.items' => function($query) {
+            $warranty = Warranty::with(['dispatch.project.customer', 'dispatch.items' => function($query) {
                 $query->where('category', 'contract');
             }, 'dispatch.items.product', 'dispatch.items.material', 'dispatch.items.good'])
             ->findOrFail($warrantyId);

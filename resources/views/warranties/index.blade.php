@@ -81,24 +81,22 @@
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
                                         <div>
-                                            @php
-                                                $projectName = $warranty->project_name;
-                                                $customerName = $warranty->customer_name ?: 'N/A';
-                                                $projectDisplay = $projectName;
-                                                
-                                                // Tách tên khách hàng từ trong ngoặc đơn nếu có
-                                                if (preg_match('/\((.*?)\)$/', $projectName, $matches)) {
-                                                    $customerName = trim($matches[1]);
-                                                    $projectDisplay = trim(str_replace('(' . $matches[1] . ')', '', $projectName));
-                                                }
-                                            @endphp
-                                            {{ $customerName }}
+                                            @if($warranty->dispatch && $warranty->dispatch->project && $warranty->dispatch->project->customer)
+                                                @php
+                                                    $customer = $warranty->dispatch->project->customer;
+                                                    $companyName = $customer->company_name;
+                                                    $representativeName = $customer->name;
+                                                @endphp
+                                                {{ $companyName }} ({{ $representativeName }})
+                                            @else
+                                                {{ $warranty->customer_name ?: 'N/A' }}
+                                            @endif
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-700">
                                     <div>
-                                        <div>{{ $projectDisplay }}</div>
+                                        <div>{{ $warranty->project_name }}</div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">

@@ -107,7 +107,18 @@
                                         </div>
                                         <div>
                                             <p class="text-sm text-gray-500">Tên khách hàng</p>
-                                            <p class="text-gray-900">{{ $warranty->customer_name ?: 'N/A' }}</p>
+                                            <p class="text-gray-900">
+                                                @if($warranty->dispatch && $warranty->dispatch->project && $warranty->dispatch->project->customer)
+                                                    @php
+                                                        $customer = $warranty->dispatch->project->customer;
+                                                        $companyName = $customer->company_name;
+                                                        $representativeName = $customer->name;
+                                                    @endphp
+                                                    {{ $companyName }} ({{ $representativeName }})
+                                                @else
+                                                    {{ $warranty->customer_name ?: 'N/A' }}
+                                                @endif
+                                            </p>
                                         </div>
                                         <div>
                                             <p class="text-sm text-gray-500">Dự án</p>
