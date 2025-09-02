@@ -985,6 +985,46 @@ class DispatchController extends Controller
                 }
             }
 
+            // Loại bỏ serial đã xuất khỏi warehouse_materials.serial_number
+            try {
+                $dispatch->load('items');
+                foreach ($dispatch->items as $dispatchItem) {
+                    if (empty($dispatchItem->serial_numbers)) {
+                        continue;
+                    }
+
+                    $selectedSerials = $this->normalizeSerialArray($dispatchItem->serial_numbers);
+                    if (empty($selectedSerials)) {
+                        continue;
+                    }
+
+                    $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $dispatchItem->item_type)
+                        ->where('material_id', $dispatchItem->item_id)
+                        ->where('warehouse_id', $dispatchItem->warehouse_id)
+                        ->first();
+
+                    if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
+                        $currentSerials = $this->normalizeSerialArray($warehouseMaterial->serial_number);
+                        if (!empty($currentSerials)) {
+                            $remainingSerials = array_values(array_udiff(
+                                $currentSerials,
+                                $selectedSerials,
+                                function ($a, $b) { return strcasecmp(trim($a), trim($b)); }
+                            ));
+                            $warehouseMaterial->serial_number = json_encode($remainingSerials);
+                            $warehouseMaterial->save();
+                        }
+                    }
+                }
+                Log::info('Removed dispatched serials from warehouse_materials.serial_number');
+            } catch (\Exception $serialUpdateEx) {
+                Log::error('Error updating warehouse_materials serial_number on approval', [
+                    'dispatch_id' => $dispatch->id,
+                    'error' => $serialUpdateEx->getMessage()
+                ]);
+                // Không chặn duyệt phiếu nếu lỗi cập nhật serial JSON, chỉ ghi log
+            }
+
             // Ghi nhật ký thay đổi cho từng sản phẩm khi duyệt phiếu xuất
             Log::info('Creating change logs for dispatch approval...');
             foreach ($groupedItems as $key => $groupedItem) {
@@ -1856,6 +1896,49 @@ class DispatchController extends Controller
         }
 
         return implode("\n", $terms);
+    }
+
+    /**
+     * Chuẩn hóa mảng serial từ nhiều kiểu đầu vào (array | json | csv)
+     */
+    private function normalizeSerialArray($input)
+    {
+        $serials = [];
+        if (is_array($input)) {
+            $serials = $input;
+        } elseif (is_string($input)) {
+            $trimmed = trim($input);
+            if ($trimmed === '') {
+                $serials = [];
+            } elseif (str_starts_with($trimmed, '[')) {
+                $decoded = json_decode($trimmed, true);
+                $serials = is_array($decoded) ? $decoded : [];
+            } else {
+                $serials = array_map('trim', explode(',', $trimmed));
+            }
+        }
+
+        // Chuẩn hóa: trim, loại bỏ rỗng, unique theo giá trị (không phân biệt hoa thường)
+        $serials = array_values(array_filter(array_map(function ($s) {
+            return is_string($s) ? trim($s) : $s;
+        }, $serials), function ($s) {
+            return !empty($s);
+        }));
+
+        if (!empty($serials)) {
+            $lowerMap = [];
+            $unique = [];
+            foreach ($serials as $s) {
+                $key = mb_strtolower($s);
+                if (!isset($lowerMap[$key])) {
+                    $lowerMap[$key] = true;
+                    $unique[] = $s;
+                }
+            }
+            return $unique;
+        }
+
+        return $serials;
     }
 
     /**

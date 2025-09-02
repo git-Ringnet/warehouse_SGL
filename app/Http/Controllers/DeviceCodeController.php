@@ -251,8 +251,9 @@ class DeviceCodeController extends Controller
                 ]);
             }
             
-            // Đồng bộ serial numbers từ device_codes sang dispatch_items
-            $this->syncSerialNumbersToDispatchItems($dispatch_id, $type);
+            // KHÔNG đồng bộ đè serial_numbers của dispatch_items nữa để giữ nguyên serial gốc đã xuất
+            // Trước đây việc sync này khiến mất serial gốc nên UI không thể hiển thị đúng.
+            // Nếu cần đồng bộ, hãy gọi endpoint sync riêng với chủ ý rõ ràng.
             
             DB::commit();
             

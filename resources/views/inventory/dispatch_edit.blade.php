@@ -1955,9 +1955,45 @@
                 });
             }
 
-            // Nếu phiếu đã duyệt, load available serials cho các input serial
+            // Nếu phiếu đã duyệt, load available serials và device codes để hiển thị serial (đổi tên / gốc)
             @if ($dispatch->status === 'approved')
+                // 1) Load options
                 loadAvailableSerials();
+                // 2) Load device codes (serial đã đổi tên) rồi áp vào giao diện chính
+                setTimeout(() => {
+                    if (typeof loadDeviceCodesOnPageLoad === 'function') {
+                        loadDeviceCodesOnPageLoad().then(() => {
+                            // Áp lại mapping serial (đổi tên / gốc) theo từng index
+                            if (typeof updateMainInterfaceSerials === 'function') {
+                                updateMainInterfaceSerials('contract');
+                                updateMainInterfaceSerials('backup');
+                            }
+                            // 3) Sau khi áp serial, reload options lần nữa để đảm bảo option tồn tại và được chọn
+                            setTimeout(() => {
+                                if (typeof loadAvailableSerials === 'function') {
+                                    loadAvailableSerials();
+                                }
+                                if (typeof updateSerialOptionsAvailability === 'function') {
+                                    updateSerialOptionsAvailability();
+                                }
+                                // 4) Ép các select hiển thị đúng giá trị đã chọn nếu vẫn bị mất
+                                setTimeout(() => {
+                                    if (typeof enforceSelectedSerials === 'function') {
+                                        enforceSelectedSerials();
+                                    }
+                                }, 120);
+                            }, 150);
+                        }).catch(() => {
+                            // Dù lỗi, vẫn cố gắng sync để giữ giá trị cũ nếu có
+                            if (typeof updateSerialOptionsAvailability === 'function') {
+                                updateSerialOptionsAvailability();
+                            }
+                            if (typeof enforceSelectedSerials === 'function') {
+                                enforceSelectedSerials();
+                            }
+                        });
+                    }
+                }, 100);
             @endif
 
             // Hàm load available serial numbers cho tất cả serial selects
@@ -1967,12 +2003,42 @@
                 console.log(`Found ${serialSelects.length} serial selects`);
 
                 for (const select of serialSelects) {
-                    if (select.disabled) continue; // Skip disabled selects
+                    // Vẫn load options cho select dù disabled (để hiển thị serial đã xuất)
 
                     const itemType = select.dataset.itemType;
                     const itemId = select.dataset.itemId;
                     const warehouseId = select.dataset.warehouseId;
-                    const selectedSerial = select.dataset.selectedSerial;
+                    let selectedSerial = select.dataset.selectedSerial;
+                    const category = select.dataset.type; // 'contract' | 'backup'
+                    const serialIndex = parseInt(select.dataset.serialIndex || '0');
+                    const originalSerial = (select.getAttribute('data-original-serial') || '').trim();
+                    // Tính trước serial mong muốn theo mapping (ưu tiên đổi tên, nếu không có dùng serial gốc)
+                    let mappedDesired = '';
+                    try {
+                        const productIdNum = parseInt(itemId);
+                        const productsArr = category === 'backup' ? selectedBackupProducts : selectedContractProducts;
+                        const prod = Array.isArray(productsArr) ? productsArr.find(p => parseInt(p.id) === productIdNum) : null;
+                        const dcArr = (window.deviceCodesData && window.deviceCodesData[category]) ? window.deviceCodesData[category] : [];
+                        const dcForProduct = dcArr.filter(dc => parseInt(dc.product_id) === productIdNum);
+                        const renamed = dcForProduct[serialIndex] && dcForProduct[serialIndex].serial_main ? dcForProduct[serialIndex].serial_main : '';
+                        if (renamed && String(renamed).trim() !== '') {
+                            mappedDesired = String(renamed).trim();
+                        } else if (prod && Array.isArray(prod.serial_numbers)) {
+                            const original = prod.serial_numbers[serialIndex] || '';
+                            if (original && String(original).trim() !== '') {
+                                mappedDesired = String(original).trim();
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('mappedDesired error:', e);
+                    }
+
+                    // Cập nhật lại data-selected-serial theo mappedDesired/original để loại bỏ giá trị cũ (a111/a222...)
+                    const desiredForThisSelect = mappedDesired || originalSerial || '';
+                    if (desiredForThisSelect) {
+                        select.setAttribute('data-selected-serial', desiredForThisSelect);
+                        selectedSerial = desiredForThisSelect;
+                    }
 
                     // Also check if select already has a value selected
                     const currentValue = select.value;
@@ -2009,7 +2075,12 @@
 
                             if (data.serials.length > 0) {
                                 // Save currently selected value if any
-                                const valueToPreserve = currentValue || selectedSerial;
+                                // Luôn dùng mappedDesired nếu có; chỉ dùng current/selected khi trùng với mappedDesired
+                                let valueToPreserve = mappedDesired || originalSerial || '';
+                                if (!valueToPreserve) {
+                                    const candidate = currentValue || selectedSerial || '';
+                                    if (candidate && candidate === selectedSerial) valueToPreserve = candidate;
+                                }
                                 console.log(`Value to preserve for ${itemType} ${itemId}: currentValue="${currentValue}", selectedSerial="${selectedSerial}", final="${valueToPreserve}"`);
 
                                 // Clear ALL existing options except default
@@ -2021,21 +2092,26 @@
 
                                 // Add serial options from API
                                 data.serials.forEach(serial => {
-                                    console.log(`Adding serial "${serial}" to options for ${itemType} ${itemId}`);
                                     const option = document.createElement('option');
                                     option.value = serial;
                                     option.textContent = serial;
                                     select.appendChild(option);
                                 });
 
-                                // Set the correct selected value ONLY if it's available from API
-                                if (valueToPreserve && data.serials.includes(valueToPreserve)) {
-                                    console.log(`Setting preserved value "${valueToPreserve}" for ${itemType} ${itemId} (available from API)`);
-                                    select.value = valueToPreserve;
-                                } else if (valueToPreserve && !data.serials.includes(valueToPreserve)) {
-                                    console.log(`WARNING: Serial "${valueToPreserve}" not available from API for ${itemType} ${itemId}, clearing selection`);
-                                    select.value = '';
-                                    select.setAttribute('data-selected-serial', '');
+                                // Set or append preserved value
+                                if (valueToPreserve) {
+                                    if (data.serials.includes(valueToPreserve)) {
+                                        console.log(`Setting preserved value "${valueToPreserve}" for ${itemType} ${itemId} (available from API)`);
+                                        select.value = valueToPreserve;
+                                    } else {
+                                        // Append preserved value as a custom option (renamed/legacy), then select it
+                                        console.log(`Appending preserved value "${valueToPreserve}" not in API for ${itemType} ${itemId}`);
+                                        const opt = document.createElement('option');
+                                        opt.value = valueToPreserve;
+                                        opt.textContent = valueToPreserve;
+                                        select.appendChild(opt);
+                                        select.value = valueToPreserve;
+                                    }
                                 }
                             } else {
                                 // If no serials available from API, clear all options and selections
@@ -2049,10 +2125,17 @@
                                 }
                                 optionsToRemove.forEach(option => option.remove());
                                 
-                                // Clear selection since no serials are available
-                                const valueToPreserve = currentValue || selectedSerial;
+                                // Preserve value by appending it as option even when API returns none
+                                let valueToPreserve = mappedDesired || originalSerial || '';
                                 if (valueToPreserve) {
-                                    console.log(`WARNING: Serial "${valueToPreserve}" not available from API for ${itemType} ${itemId}, clearing selection`);
+                                    console.log(`Preserving value "${valueToPreserve}" for ${itemType} ${itemId} despite empty API list`);
+                                    const opt = document.createElement('option');
+                                    opt.value = valueToPreserve;
+                                    opt.textContent = valueToPreserve;
+                                    select.appendChild(opt);
+                                    select.value = valueToPreserve;
+                                } else {
+                                    // Ensure no selection when nothing to preserve
                                     select.value = '';
                                     select.setAttribute('data-selected-serial', '');
                                 }
@@ -2355,6 +2438,7 @@
                                 data-warehouse-id="${product?.selected_warehouse_id || ''}"
                                 data-serial-index="${i}"
                                 data-selected-serial="${serialValue}"
+                                data-original-serial="${serialValue}"
                                 data-type="${category}">
                             ${selectOptions}
                         </select>`;
@@ -2513,6 +2597,28 @@
                         }
                     });
                 });
+            }
+
+            // Bảo đảm mỗi select hiển thị đúng serial đã chọn (kể cả khi API chưa trả option)
+            function enforceSelectedSerials() {
+                try {
+                    const selects = document.querySelectorAll('select[name*="serial_numbers"]');
+                    selects.forEach(select => {
+                        const desired = (select.getAttribute('data-selected-serial') || '').trim();
+                        if (!desired) return;
+                        if (select.value && select.value.trim() === desired) return;
+                        let option = Array.from(select.options).find(o => o.value === desired);
+                        if (!option) {
+                            option = document.createElement('option');
+                            option.value = desired;
+                            option.textContent = desired;
+                            select.appendChild(option);
+                        }
+                        select.value = desired;
+                    });
+                } catch (e) {
+                    console.warn('enforceSelectedSerials error:', e);
+                }
             }
 
             // Hàm hiển thị bảng sản phẩm hợp đồng giống trang create
@@ -3835,57 +3941,54 @@
                 
                 if (type === 'contract') {
                     // Cập nhật serial cho contract products
-                    selectedContractProducts.forEach((product, productIndex) => {
+                    selectedContractProducts.forEach((product) => {
                         const productDeviceCodes = deviceCodes.filter(dc => dc.product_id == product.id);
-                        
-                        productDeviceCodes.forEach((deviceCode, serialIndex) => {
-                            if (deviceCode.serial_main) {
-                                // Tìm select tương ứng trong giao diện chính
-                                const serialSelect = document.querySelector(`select[name*="contract_items"][name*="serial_numbers"][data-item-id="${product.id}"][data-serial-index="${serialIndex}"]`);
-                                if (serialSelect) {
-                                    // Chỉ set value nếu option đã tồn tại (serial available)
-                                    let option = Array.from(serialSelect.options).find(opt => opt.value === deviceCode.serial_main);
-                                    if (option) {
-                                        console.log(`Setting serial ${deviceCode.serial_main} for product ${product.id} (available)`);
-                                        serialSelect.value = deviceCode.serial_main;
-                                        serialSelect.setAttribute('data-selected-serial', deviceCode.serial_main);
-                                    } else {
-                                        // Nếu serial không available (đã được approved ở dispatch khác), clear value
-                                        console.log(`Serial ${deviceCode.serial_main} not available for product ${product.id}, clearing selection`);
-                                        console.log(`Available options:`, Array.from(serialSelect.options).map(opt => opt.value));
-                                        serialSelect.value = '';
-                                        serialSelect.setAttribute('data-selected-serial', '');
-                                    }
+                        const quantity = product.quantity || 0;
+                        for (let i = 0; i < quantity; i++) {
+                            const deviceCode = productDeviceCodes[i];
+                            const desiredSerial = deviceCode && deviceCode.serial_main
+                                ? deviceCode.serial_main
+                                : (Array.isArray(product.serial_numbers) ? (product.serial_numbers[i] || '') : '');
+                            const serialSelect = document.querySelector(`select[name*="contract_items"][name*="serial_numbers"][data-item-id="${product.id}"][data-serial-index="${i}"]`);
+                            if (!serialSelect) continue;
+                            if (desiredSerial) {
+                                let option = Array.from(serialSelect.options).find(opt => opt.value === desiredSerial);
+                                if (!option) {
+                                    // Chủ động thêm option nếu API chưa trả về (trường hợp serial gốc hoặc vừa đổi tên)
+                                    option = document.createElement('option');
+                                    option.value = desiredSerial;
+                                    option.textContent = desiredSerial;
+                                    serialSelect.appendChild(option);
                                 }
+                                serialSelect.value = desiredSerial;
+                                serialSelect.setAttribute('data-selected-serial', desiredSerial);
                             }
-                        });
+                        }
                     });
                 } else if (type === 'backup') {
                     // Cập nhật serial cho backup products
-                    selectedBackupProducts.forEach((product, productIndex) => {
+                    selectedBackupProducts.forEach((product) => {
                         const productDeviceCodes = deviceCodes.filter(dc => dc.product_id == product.id);
-                        
-                        productDeviceCodes.forEach((deviceCode, serialIndex) => {
-                            if (deviceCode.serial_main) {
-                                // Tìm select tương ứng trong giao diện chính
-                                const serialSelect = document.querySelector(`select[name*="backup_items"][name*="serial_numbers"][data-item-id="${product.id}"][data-serial-index="${serialIndex}"]`);
-                                if (serialSelect) {
-                                    // Chỉ set value nếu option đã tồn tại (serial available)
-                                    let option = Array.from(serialSelect.options).find(opt => opt.value === deviceCode.serial_main);
-                                    if (option) {
-                                        console.log(`Setting serial ${deviceCode.serial_main} for product ${product.id} (available)`);
-                                        serialSelect.value = deviceCode.serial_main;
-                                        serialSelect.setAttribute('data-selected-serial', deviceCode.serial_main);
-                                    } else {
-                                        // Nếu serial không available (đã được approved ở dispatch khác), clear value
-                                        console.log(`Serial ${deviceCode.serial_main} not available for product ${product.id}, clearing selection`);
-                                        console.log(`Available options:`, Array.from(serialSelect.options).map(opt => opt.value));
-                                        serialSelect.value = '';
-                                        serialSelect.setAttribute('data-selected-serial', '');
-                                    }
+                        const quantity = product.quantity || 0;
+                        for (let i = 0; i < quantity; i++) {
+                            const deviceCode = productDeviceCodes[i];
+                            const desiredSerial = deviceCode && deviceCode.serial_main
+                                ? deviceCode.serial_main
+                                : (Array.isArray(product.serial_numbers) ? (product.serial_numbers[i] || '') : '');
+                            const serialSelect = document.querySelector(`select[name*="backup_items"][name*="serial_numbers"][data-item-id="${product.id}"][data-serial-index="${i}"]`);
+                            if (!serialSelect) continue;
+                            if (desiredSerial) {
+                                let option = Array.from(serialSelect.options).find(opt => opt.value === desiredSerial);
+                                if (!option) {
+                                    option = document.createElement('option');
+                                    option.value = desiredSerial;
+                                    option.textContent = desiredSerial;
+                                    serialSelect.appendChild(option);
                                 }
+                                serialSelect.value = desiredSerial;
+                                serialSelect.setAttribute('data-selected-serial', desiredSerial);
                             }
-                        });
+                        }
                     });
                 }
             }
@@ -4392,21 +4495,29 @@
                         
                         console.log('Serials to sync after save:', modalSerials);
                         
-                        // Kích hoạt sync sau khi lưu
+                        // Làm mới dữ liệu ngay sau khi lưu để hiển thị tên mới tức thì
+                        try {
+                            const type = getCurrentModalType();
+                            // Tải lại device codes từ DB để có serial vừa đổi tên
+                            await loadDeviceCodesFromDatabase(type);
+                            // Áp lại serial về giao diện chính theo mapping (ưu tiên tên mới)
+                            updateMainInterfaceSerials(type);
+                        } catch (e) {
+                            console.warn('Post-save refresh error:', e);
+                        }
+
+                        // Kích hoạt sync ngắn để đồng bộ lựa chọn vào dropdown chính
                         enableSync();
-                        
-                        // Đồng bộ serial numbers sau khi lưu thành công
-                        syncSerialNumbers();
-                        
-                        // Đồng bộ lại sau khi đóng modal để đảm bảo giao diện chính được cập nhật
-                        setTimeout(() => {
-                            syncFromModalToMain();
-                        }, 100);
-                        
-                        // Refresh giao diện chính để hiển thị serial mới
-                        setTimeout(() => {
-                            refreshMainInterface();
-                        }, 200);
+                        syncFromModalToMain();
+                        disableAllSync();
+
+                        // Làm mới options và ép display đúng giá trị
+                        if (typeof loadAvailableSerials === 'function') {
+                            await loadAvailableSerials();
+                        }
+                        if (typeof enforceSelectedSerials === 'function') {
+                            enforceSelectedSerials();
+                        }
                         
                         // Load lại device codes từ database để đảm bảo dữ liệu mới nhất
                         setTimeout(async () => {
