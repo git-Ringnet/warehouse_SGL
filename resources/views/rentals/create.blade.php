@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -113,7 +114,10 @@
                     <!-- Ngày cho thuê -->
                     <div>
                         <label for="rental_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày cho thuê</label>
-                        <input type="date" name="rental_date" id="rental_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('rental_date', date('Y-m-d')) }}">
+                        <input type="text" name="rental_date" id="rental_date" required 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 date-input" 
+                               value="{{ old('rental_date', date('d/m/Y')) }}"
+                               placeholder="dd/mm/yyyy">
                         @error('rental_date')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
@@ -122,7 +126,10 @@
                     <!-- Ngày hẹn trả -->
                     <div>
                         <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày hẹn trả</label>
-                        <input type="date" name="due_date" id="due_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('due_date', date('Y-m-d', strtotime('+30 days'))) }}">
+                        <input type="text" name="due_date" id="due_date" required 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 date-input" 
+                               value="{{ old('due_date', date('d/m/Y', strtotime('+30 days'))) }}"
+                               placeholder="dd/mm/yyyy">
                         @error('due_date')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
@@ -157,8 +164,24 @@
             const nextMonth = new Date();
             nextMonth.setMonth(today.getMonth() + 1);
 
-            document.getElementById('rental_date').value = today.toISOString().split('T')[0];
-            document.getElementById('due_date').value = nextMonth.toISOString().split('T')[0];
+            // Format dates to dd/mm/yyyy
+            const formatDate = (date) => {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+
+            // Chỉ set giá trị mặc định nếu trường rỗng
+            const rentalDateInput = document.getElementById('rental_date');
+            const dueDateInput = document.getElementById('due_date');
+            
+            if (!rentalDateInput.value) {
+                rentalDateInput.value = formatDate(today);
+            }
+            if (!dueDateInput.value) {
+                dueDateInput.value = formatDate(nextMonth);
+            }
         });
 
         // Lấy thông tin khách hàng

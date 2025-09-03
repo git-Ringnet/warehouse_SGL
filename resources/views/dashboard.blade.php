@@ -12,6 +12,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
 </head>
 
@@ -40,9 +41,9 @@
                     <div class="relative">
                         <select id="timeRangeSelect"
                             class="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 pl-3 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="day">Theo ngày</option>
+                            <option value="day" selected>Theo ngày</option>
                             <option value="week">Theo tuần</option>
-                            <option value="month" selected>Theo tháng</option>
+                            <option value="month">Theo tháng</option>
                             <option value="year">Theo năm</option>
                         </select>
                         <div
@@ -56,10 +57,10 @@
                         <!-- Single day picker - for "Theo ngày" -->
                         <div id="dayInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="dayStartDate"
+                                <input type="text" id="dayStartDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="dayEndDate"
+                                <input type="text" id="dayEndDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
@@ -67,10 +68,10 @@
                         <!-- Week picker - for "Theo tuần" -->
                         <div id="weekInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="weekStartDate"
+                                <input type="text" id="weekStartDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="weekEndDate"
+                                <input type="text" id="weekEndDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
@@ -78,10 +79,10 @@
                         <!-- Month picker - for "Theo tháng" -->
                         <div id="monthInput" class="flex space-x-2">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="monthStartDate"
+                                <input type="text" id="monthStartDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="monthEndDate"
+                                <input type="text" id="monthEndDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
@@ -89,10 +90,10 @@
                         <!-- Year picker - for "Theo năm" -->
                         <div id="yearInput" class="hidden">
                             <div class="flex items-center space-x-2">
-                                <input type="date" id="yearStartDate"
+                                <input type="text" id="yearStartDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                 <span class="text-gray-500 dark:text-gray-400">đến</span>
-                                <input type="date" id="yearEndDate"
+                                <input type="text" id="yearEndDate" placeholder="DD/MM/YYYY"
                                     class="bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
@@ -310,7 +311,7 @@
                                             class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                             Tên</th>
                                         <th
-                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300 w-[15%]">
                                             Loại</th>
                                         <th
                                             class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -772,12 +773,16 @@
                 window.chartInstances = initCharts();
             }
 
-            // Thêm event listener cho các trường ngày để tự động cập nhật biểu đồ
-            const dateInputs = document.querySelectorAll('input[type="date"]');
+            // Thêm event listener cho các trường ngày để tự động cập nhật biểu đồ và thống kê
+            const dateInputs = document.querySelectorAll('#dayStartDate, #dayEndDate, #weekStartDate, #weekEndDate, #monthStartDate, #monthEndDate, #yearStartDate, #yearEndDate');
             dateInputs.forEach(input => {
                 input.addEventListener('change', function() {
-                    // Tự động cập nhật biểu đồ khi thay đổi ngày
+                    // Tự động cập nhật thống kê và biểu đồ khi thay đổi ngày
                     setTimeout(() => {
+                        // Cập nhật thống kê trước
+                        updateStatistics();
+                        
+                        // Sau đó cập nhật biểu đồ
                         if (window.chartInstances && window.chartInstances
                             .inventoryOverviewChart) {
                             updateInventoryOverviewChart('materials', window
@@ -1069,6 +1074,7 @@
             const inventoryCategoriesCtx = document
                 .getElementById("inventoryCategoriesChart")
                 .getContext("2d");
+
             const inventoryCategoriesChart = new Chart(inventoryCategoriesCtx, {
                 type: "polarArea",
                 data: {
@@ -1139,6 +1145,7 @@
                 inventoryCategoriesChart,
                 projectGrowthChart
             };
+            console.log('Chart instances saved:', window.chartInstances);
 
             return {
                 inventoryOverviewChart,
@@ -1262,15 +1269,27 @@
                     break;
             }
 
-            // Simulate data loading
+            // Update statistics and charts based on new time range
             setTimeout(() => {
+                // Update statistics first
+                updateStatistics();
+                
+                // Update all charts if available
+                if (window.chartInstances) {
+                    const timeParams = getTimeRangeParams();
+                    updateInventoryOverviewChart('materials', window.chartInstances, timeParams);
+                    updateInventoryCategoriesChart(window.chartInstances, timeParams);
+                    updateWarehouseDistributionChart(window.chartInstances, timeParams);
+                    updateProjectGrowthChart(window.chartInstances, timeParams);
+                }
+                
                 toast.innerHTML =
                     '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu thành công!</span></div>';
 
                 setTimeout(() => {
                     toast.classList.add("hidden");
                 }, 2000);
-            }, 1500);
+            }, 500);
         });
 
         // Dropdown Menus
@@ -1701,15 +1720,15 @@
 
             // Set default values to current date
             const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
-            const formattedMonth = currentMonth < 10 ? `0${currentMonth}` : currentMonth;
-            const currentDay = now.getDate();
-            const formattedDay = currentDay < 10 ? `0${currentDay}` : currentDay;
-            const today = `${currentYear}-${formattedMonth}-${formattedDay}`;
+            const today = now.toISOString().split('T')[0]; // YYYY-MM-DD format for calculations
 
             // Set default values for all date inputs
             setDefaultDateRanges(today);
+            
+            // Update statistics with initial date range
+            setTimeout(() => {
+                updateStatistics();
+            }, 100);
 
             // Add event listener for time range selection change
             timeRangeSelect.addEventListener('change', function() {
@@ -1740,52 +1759,97 @@
                 // Update date ranges based on selection
                 setDefaultDateRanges(today);
 
-                // Tự động cập nhật biểu đồ khi thay đổi loại thời gian
+                // Tự động cập nhật tất cả biểu đồ khi thay đổi loại thời gian
                 setTimeout(() => {
-                    if (window.chartInstances && window.chartInstances.inventoryOverviewChart) {
-                        updateInventoryOverviewChart('materials', window.chartInstances);
+                    if (window.chartInstances) {
+                        const timeParams = getTimeRangeParams();
+                        updateInventoryOverviewChart('materials', window.chartInstances, timeParams);
+                        updateInventoryCategoriesChart(window.chartInstances, timeParams);
+                        updateWarehouseDistributionChart(window.chartInstances, timeParams);
+                        updateProjectGrowthChart(window.chartInstances, timeParams);
                     }
                 }, 100);
             });
         });
+
+        // Function to get time range parameters from form
+        function getTimeRangeParams() {
+            const timeRangeSelect = document.getElementById("timeRangeSelect");
+            const timeRangeType = timeRangeSelect.value;
+            
+            let startDate = '';
+            let endDate = '';
+            
+            switch (timeRangeType) {
+                case 'day':
+                    startDate = document.getElementById('dayStartDate').value;
+                    endDate = document.getElementById('dayEndDate').value;
+                    break;
+                case 'week':
+                    startDate = document.getElementById('weekStartDate').value;
+                    endDate = document.getElementById('weekEndDate').value;
+                    break;
+                case 'month':
+                    startDate = document.getElementById('monthStartDate').value;
+                    endDate = document.getElementById('monthEndDate').value;
+                    break;
+                case 'year':
+                    startDate = document.getElementById('yearStartDate').value;
+                    endDate = document.getElementById('yearEndDate').value;
+                    break;
+            }
+            
+            return {
+                time_range_type: timeRangeType,
+                start_date: startDate,
+                end_date: endDate
+            };
+        }
 
         // Function to set default date ranges based on time range type
         function setDefaultDateRanges(today) {
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const selectedValue = timeRangeSelect.value;
 
+            // Helper function to format date as dd/mm/yyyy
+            const formatDateForDisplay = (dateString) => {
+                const date = new Date(dateString);
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            };
+
             switch (selectedValue) {
                 case 'day':
                     // For day range, set both start and end to today
-                    document.getElementById('dayStartDate').value = today;
-                    document.getElementById('dayEndDate').value = today;
+                    document.getElementById('dayStartDate').value = formatDateForDisplay(today);
+                    document.getElementById('dayEndDate').value = formatDateForDisplay(today);
                     break;
 
                 case 'week':
                     // For week range, set to current week
                     const weekStart = getWeekStart(today);
                     const weekEnd = getWeekEnd(today);
-                    document.getElementById('weekStartDate').value = weekStart;
-                    document.getElementById('weekEndDate').value = weekEnd;
+                    document.getElementById('weekStartDate').value = formatDateForDisplay(weekStart);
+                    document.getElementById('weekEndDate').value = formatDateForDisplay(weekEnd);
                     break;
 
                 case 'month':
                     // For month range, set to current month
                     const monthStart = getMonthStart(today);
                     const monthEnd = getMonthEnd(today);
-                    document.getElementById('monthStartDate').value = monthStart;
-                    document.getElementById('monthEndDate').value = monthEnd;
+                    document.getElementById('monthStartDate').value = formatDateForDisplay(monthStart);
+                    document.getElementById('monthEndDate').value = formatDateForDisplay(monthEnd);
                     break;
 
                 case 'year':
                     // For year range, set to current year
                     const yearStart = getYearStart(today);
                     const yearEnd = getYearEnd(today);
-                    document.getElementById('yearStartDate').value = yearStart;
-                    document.getElementById('yearEndDate').value = yearEnd;
+                    document.getElementById('yearStartDate').value = formatDateForDisplay(yearStart);
+                    document.getElementById('yearEndDate').value = formatDateForDisplay(yearEnd);
                     break;
-
-
             }
         }
 
@@ -1831,39 +1895,100 @@
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const selectedValue = timeRangeSelect.value;
 
+            // Helper function to convert dd/mm/yyyy to YYYY-MM-DD for API calls
+            const convertToApiFormat = (dateString) => {
+                if (!dateString) return '';
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parts[0];
+                    const month = parts[1];
+                    const year = parts[2];
+                    return `${year}-${month}-${day}`;
+                }
+                return dateString; // Return as is if not in expected format
+            };
+
             switch (selectedValue) {
                 case 'day':
                     return {
-                        start: document.getElementById('dayStartDate').value,
-                            end: document.getElementById('dayEndDate').value
+                        start: convertToApiFormat(document.getElementById('dayStartDate').value),
+                        end: convertToApiFormat(document.getElementById('dayEndDate').value)
                     };
                 case 'week':
                     return {
-                        start: document.getElementById('weekStartDate').value,
-                            end: document.getElementById('weekEndDate').value
+                        start: convertToApiFormat(document.getElementById('weekStartDate').value),
+                        end: convertToApiFormat(document.getElementById('weekEndDate').value)
                     };
                 case 'month':
                     return {
-                        start: document.getElementById('monthStartDate').value,
-                            end: document.getElementById('monthEndDate').value
+                        start: convertToApiFormat(document.getElementById('monthStartDate').value),
+                        end: convertToApiFormat(document.getElementById('monthEndDate').value)
                     };
                 case 'year':
                     return {
-                        start: document.getElementById('yearStartDate').value,
-                            end: document.getElementById('yearEndDate').value
+                        start: convertToApiFormat(document.getElementById('yearStartDate').value),
+                        end: convertToApiFormat(document.getElementById('yearEndDate').value)
                     };
 
                 default:
                     return {
-                        start: document.getElementById('monthStartDate').value,
-                            end: document.getElementById('monthEndDate').value
+                        start: convertToApiFormat(document.getElementById('monthStartDate').value),
+                        end: convertToApiFormat(document.getElementById('monthEndDate').value)
                     };
             }
         }
 
         // Add this function to update statistics
         function updateStatistics() {
-            fetch('/dashboard/statistics')
+            // Lấy thông tin thời gian từ bộ tìm kiếm
+            const timeRangeSelect = document.getElementById("timeRangeSelect");
+            const timeRangeType = timeRangeSelect ? timeRangeSelect.value : 'month';
+
+            let startDate = '';
+            let endDate = '';
+
+            // Helper function to convert dd/mm/yyyy to YYYY-MM-DD for API calls
+            const convertToApiFormat = (dateString) => {
+                if (!dateString) return '';
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parts[0];
+                    const month = parts[1];
+                    const year = parts[2];
+                    return `${year}-${month}-${day}`;
+                }
+                return dateString; // Return as is if not in expected format
+            };
+
+            // Lấy ngày bắt đầu và kết thúc dựa trên loại tìm kiếm
+            switch (timeRangeType) {
+                case 'day':
+                    startDate = convertToApiFormat(document.getElementById('dayStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('dayEndDate')?.value || '');
+                    break;
+                case 'week':
+                    startDate = convertToApiFormat(document.getElementById('weekStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('weekEndDate')?.value || '');
+                    break;
+                case 'month':
+                    startDate = convertToApiFormat(document.getElementById('monthStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('monthEndDate')?.value || '');
+                    break;
+                case 'year':
+                    startDate = convertToApiFormat(document.getElementById('yearStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('yearEndDate')?.value || '');
+                    break;
+            }
+
+            // Tạo URL với tham số
+            const params = new URLSearchParams({
+                time_range_type: timeRangeType
+            });
+            
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+
+            fetch(`/dashboard/statistics?${params.toString()}`)
                 .then(response => response.json())
                 .then(data => {
                     // Update materials stats
@@ -1952,23 +2077,36 @@
             let startDate = '';
             let endDate = '';
 
+            // Helper function to convert dd/mm/yyyy to YYYY-MM-DD for API calls
+            const convertToApiFormat = (dateString) => {
+                if (!dateString) return '';
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const day = parts[0];
+                    const month = parts[1];
+                    const year = parts[2];
+                    return `${year}-${month}-${day}`;
+                }
+                return dateString; // Return as is if not in expected format
+            };
+
             // Lấy ngày bắt đầu và kết thúc dựa trên loại tìm kiếm
             switch (timeRangeType) {
                 case 'day':
-                    startDate = document.getElementById('dayStartDate')?.value || '';
-                    endDate = document.getElementById('dayEndDate')?.value || '';
+                    startDate = convertToApiFormat(document.getElementById('dayStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('dayEndDate')?.value || '');
                     break;
                 case 'week':
-                    startDate = document.getElementById('weekStartDate')?.value || '';
-                    endDate = document.getElementById('weekEndDate')?.value || '';
+                    startDate = convertToApiFormat(document.getElementById('weekStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('weekEndDate')?.value || '');
                     break;
                 case 'month':
-                    startDate = document.getElementById('monthStartDate')?.value || '';
-                    endDate = document.getElementById('monthEndDate')?.value || '';
+                    startDate = convertToApiFormat(document.getElementById('monthStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('monthEndDate')?.value || '');
                     break;
                 case 'year':
-                    startDate = document.getElementById('yearStartDate')?.value || '';
-                    endDate = document.getElementById('yearEndDate')?.value || '';
+                    startDate = convertToApiFormat(document.getElementById('yearStartDate')?.value || '');
+                    endDate = convertToApiFormat(document.getElementById('yearEndDate')?.value || '');
                     break;
             }
 
@@ -2092,40 +2230,64 @@
         }
 
                 // Thêm hàm cập nhật biểu đồ phân loại kho
-        function updateInventoryCategoriesChart(charts) {
+        function updateInventoryCategoriesChart(charts, timeParams = {}) {
+            console.log('updateInventoryCategoriesChart called');
+            
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
                 charts = window.chartInstances;
+                console.log('Using window.chartInstances for inventory categories chart');
             }
             
             // Nếu không có charts, không làm gì cả
             if (!charts) {
-                console.error('Charts not initialized');
+                console.error('Charts not initialized for inventory categories');
                 return;
             }
             
-            // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
-            const testNoData = false; // Set thành false để gọi API thực
-            
-            if (testNoData) {
-                // Hiển thị thông báo không có dữ liệu
-                const chartContainer = document.querySelector('.chart-container');
-                if (chartContainer) {
-                    showNoDataMessage(chartContainer, 'Không có dữ liệu phân loại');
-                }
+            // Kiểm tra xem chart có tồn tại không
+            if (!charts.inventoryCategoriesChart) {
+                console.error('inventoryCategoriesChart not found in charts object');
                 return;
             }
             
-            // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
-            fetch('/dashboard/inventory-categories-chart')
-                .then(response => response.json())
+            console.log('Making API call for inventory categories chart...');
+            
+            // Tạo URL với tham số thời gian
+            const url = new URL('/dashboard/inventory-categories-chart', window.location.origin);
+            if (timeParams.start_date) url.searchParams.append('start_date', timeParams.start_date);
+            if (timeParams.end_date) url.searchParams.append('end_date', timeParams.end_date);
+            if (timeParams.time_range_type) url.searchParams.append('time_range_type', timeParams.time_range_type);
+            
+            // Gọi API để lấy dữ liệu
+            fetch(url.toString(), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                credentials: 'same-origin'
+            })
+                .then(response => {
+                    console.log('Inventory categories API response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Inventory categories API data received:', data);
+                    
                     // Kiểm tra xem có dữ liệu không
                     const hasData = data.labels && data.labels.length > 0 &&
                         data.data && data.data.length > 0 &&
                         data.data.some(value => value > 0);
                     
+                    console.log('Inventory categories has data:', hasData);
+                    
                     if (!hasData) {
+                        console.log('No inventory categories data, showing no data message');
                         // Hiển thị thông báo không có dữ liệu
                         const chartContainer = document.querySelector('.chart-container');
                         if (chartContainer) {
@@ -2140,15 +2302,27 @@
                         removeNoDataMessage(chartContainer);
                     }
                     
+                    console.log('Updating inventory categories chart with data:', data);
+                    
                     // Cập nhật biểu đồ
                     charts.inventoryCategoriesChart.data.labels = data.labels;
                     charts.inventoryCategoriesChart.data.datasets[0].data = data.data;
                     charts.inventoryCategoriesChart.update();
+                    
+                    console.log('Inventory categories chart updated successfully');
                 })
                 .catch(error => {
                     console.error('Error fetching inventory categories data:', error);
+                    
+                    // Hiển thị thông báo lỗi
+                    const chartContainer = document.querySelector('.chart-container');
+                    if (chartContainer) {
+                        showNoDataMessage(chartContainer, 'Lỗi khi tải dữ liệu biểu đồ');
+                    }
                 });
         }
+
+
 
                 // Thêm hàm cập nhật biểu đồ phân bố theo kho
         function updateWarehouseDistributionChart(charts, filters = {}) {
@@ -2496,6 +2670,8 @@
             // Cập nhật tất cả biểu đồ khi trang tải xong
             updateStatistics();
             updateInventoryOverviewChart('materials', charts);
+            
+            console.log('About to call updateInventoryCategoriesChart...');
             updateInventoryCategoriesChart(charts);
             updateWarehouseDistributionChart(charts);
             updateProjectGrowthChart(charts);
@@ -3062,7 +3238,50 @@
                 });
             }
         });
+
+        // Initialize flatpickr for date inputs with Vietnamese locale and dd/mm/yyyy format
+        document.addEventListener('DOMContentLoaded', function() {
+            // Flatpickr configuration for Vietnamese locale with dd/mm/yyyy format
+            const dateConfig = {
+                locale: 'vn',
+                dateFormat: 'd/m/Y',
+                allowInput: true,
+                clickOpens: true,
+                time_24hr: true,
+                placeholder: 'DD/MM/YYYY',
+                // Set default date to today
+                defaultDate: new Date(),
+                // Enable date range selection
+                mode: 'single',
+                // Vietnamese month and day names
+                monthNames: [
+                    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+                    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
+                ],
+                dayNames: [
+                    'Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'
+                ],
+                dayNamesShort: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
+            };
+
+            // Initialize flatpickr for all date inputs
+            flatpickr('#dayStartDate', dateConfig);
+            flatpickr('#dayEndDate', dateConfig);
+            flatpickr('#weekStartDate', dateConfig);
+            flatpickr('#weekEndDate', dateConfig);
+            flatpickr('#monthStartDate', dateConfig);
+            flatpickr('#monthEndDate', dateConfig);
+            flatpickr('#yearStartDate', dateConfig);
+            flatpickr('#yearEndDate', dateConfig);
+
+            // Note: Default date values are set by setDefaultDateRanges function
+            // which is called after flatpickr initialization
+        });
     </script>
+
+    <!-- Flatpickr Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 </body>
 
 </html>

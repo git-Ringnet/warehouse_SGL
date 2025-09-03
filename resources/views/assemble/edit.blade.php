@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <script src="{{ asset('js/assembly-product-unit.js') }}"></script>
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <script>
         // Store assembly status for quantity validation
         const ASSEMBLY_STATUS = '{{ $assembly->status }}';
@@ -299,10 +300,10 @@
                         <div>
                             <label for="assembly_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp</label>
-                            <input type="date" id="assembly_date" name="assembly_date" value="{{ $assembly->date }}"
+                            <input type="text" id="assembly_date" name="assembly_date" value="{{ \Carbon\Carbon::parse($assembly->date)->format('d/m/Y') }}"
                                 required
                                 {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'disabled' : '' }}
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'bg-gray-100 cursor-not-allowed' : '' }}">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 date-input {{ $assembly->status === 'completed' || $assembly->status === 'cancelled' ? 'bg-gray-100 cursor-not-allowed' : '' }}">
                         </div>
                     </div>
 

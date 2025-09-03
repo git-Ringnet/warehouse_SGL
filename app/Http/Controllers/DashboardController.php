@@ -22,16 +22,31 @@ class DashboardController extends Controller
     /**
      * Get statistics for dashboard
      */
-    public function getStatistics()
+    public function getStatistics(Request $request)
     {
+        // Lấy tham số ngày từ request
+        $startDate = $request->get('start_date');
+        $endDate = $request->get('end_date');
+        $timeRangeType = $request->get('time_range_type', 'month');
+        
+        // Nếu không có ngày, sử dụng tháng hiện tại
+        if (!$startDate || !$endDate) {
+            $startDate = now()->startOfMonth()->format('Y-m-d');
+            $endDate = now()->endOfMonth()->format('Y-m-d');
+        }
+        
+        // Chuyển đổi string thành Carbon instance để đảm bảo tương thích
+        $startDateCarbon = \Carbon\Carbon::parse($startDate);
+        $endDateCarbon = \Carbon\Carbon::parse($endDate);
+        
         // 1. Thống kê vật tư
-        $materialStats = $this->getMaterialStats();
+        $materialStats = $this->getMaterialStats($startDateCarbon, $endDateCarbon);
         
         // 2. Thống kê thành phẩm  
-        $productStats = $this->getProductStats();
+        $productStats = $this->getProductStats($startDateCarbon, $endDateCarbon);
         
         // 3. Thống kê hàng hóa
-        $goodStats = $this->getGoodStats();
+        $goodStats = $this->getGoodStats($startDateCarbon, $endDateCarbon);
 
         return response()->json([
             'materials' => $materialStats,
@@ -43,18 +58,15 @@ class DashboardController extends Controller
     /**
      * Get material statistics
      */
-    private function getMaterialStats()
+    private function getMaterialStats($startDate, $endDate)
     {
-        // Tổng nhập kho vật tư - lấy từ lịch sử nhập kho thực tế trong kỳ hiện tại (tháng hiện tại)
-        $currentMonthStart = now()->startOfMonth();
-        $currentMonthEnd = now()->endOfMonth();
-        
+        // Tổng nhập kho vật tư - lấy từ lịch sử nhập kho thực tế trong khoảng thời gian được chỉ định
         $totalImport = DB::table('inventory_import_materials')
             ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
             ->where('inventory_import_materials.item_type', 'material')
             ->where('inventory_import_materials.material_id', '>', 0) // Đảm bảo có material_id
-            ->whereDate('inventory_imports.import_date', '>=', $currentMonthStart)
-            ->whereDate('inventory_imports.import_date', '<=', $currentMonthEnd)
+            ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
             ->whereExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('materials')
@@ -64,17 +76,14 @@ class DashboardController extends Controller
             })
             ->sum('inventory_import_materials.quantity');
 
-        // Tổng xuất kho vật tư - lấy từ lịch sử xuất kho thực tế trong kỳ hiện tại (tháng hiện tại)
-        $currentMonthStart = now()->startOfMonth();
-        $currentMonthEnd = now()->endOfMonth();
-        
+        // Tổng xuất kho vật tư - lấy từ lịch sử xuất kho thực tế trong khoảng thời gian được chỉ định
         $totalExport = DB::table('dispatch_items')
             ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
             ->where('dispatch_items.item_type', 'material')
             ->whereIn('dispatches.status', ['approved', 'completed'])
             ->where('dispatch_items.item_id', '>', 0) // Đảm bảo có item_id
-            ->whereDate('dispatches.dispatch_date', '>=', $currentMonthStart)
-            ->whereDate('dispatches.dispatch_date', '<=', $currentMonthEnd)
+            ->whereDate('dispatches.dispatch_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('dispatches.dispatch_date', '<=', $endDate->format('Y-m-d'))
             ->whereExists(function ($query) {
                 $query->select(DB::raw(1))
                     ->from('materials')
@@ -85,80 +94,104 @@ class DashboardController extends Controller
             ->sum('dispatch_items.quantity');
 
         // Tổng hư hỏng - tính dựa trên việc nhập/xuất khỏi các kho không dùng để tính tồn kho
-        $totalDamaged = $this->calculateDamagedMaterials($currentMonthStart, $currentMonthEnd);
+        $totalDamaged = $this->calculateDamagedMaterials($startDate, $endDate);
 
         return [
-            'total_import' => $totalImport,
-            'total_export' => $totalExport,
-            'total_damaged' => $totalDamaged
+            'total_import' => $totalImport ?: 0,
+            'total_export' => $totalExport ?: 0,
+            'total_damaged' => $totalDamaged ?: 0
         ];
     }
 
     /**
      * Get product statistics
      */
-    private function getProductStats() 
+    private function getProductStats($startDate, $endDate) 
     {
-        // Lấy thời gian hiện tại (tháng hiện tại)
-        $currentMonthStart = now()->startOfMonth();
-        $currentMonthEnd = now()->endOfMonth();
-        
-        // Tổng nhập kho thành phẩm - chỉ tính từ các kho active và thành phẩm active
-        $totalImport = WarehouseMaterial::where('item_type', 'product')
-            ->whereHas('warehouse', function($query) {
-                $query->where('status', 'active');
+        // Tổng nhập kho thành phẩm - lấy từ lịch sử nhập kho thực tế trong khoảng thời gian được chỉ định
+        $totalImport = DB::table('inventory_import_materials')
+            ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->where('inventory_import_materials.item_type', 'product')
+            ->where('inventory_import_materials.material_id', '>', 0) // Sử dụng material_id để lưu trữ product_id
+            ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('products')
+                    ->whereColumn('products.id', 'inventory_import_materials.material_id')
+                    ->where('products.status', '!=', 'deleted');
             })
-            ->whereHas('product', function($query) {
-                $query->where('status', '!=', 'deleted');
-            })
-            ->sum('quantity');
+            ->sum('inventory_import_materials.quantity');
 
-        // Tổng xuất kho thành phẩm
+        // Tổng xuất kho thành phẩm - lấy từ lịch sử xuất kho thực tế trong khoảng thời gian được chỉ định
         $totalExport = DB::table('dispatch_items')
-            ->where('item_type', 'product')
-            ->sum('quantity');
+            ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatch_items.item_type', 'product')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->where('dispatch_items.item_id', '>', 0) // Đảm bảo có item_id
+            ->whereDate('dispatches.dispatch_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('dispatches.dispatch_date', '<=', $endDate->format('Y-m-d'))
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('products')
+                    ->whereColumn('products.id', 'dispatch_items.item_id')
+                    ->where('products.status', '!=', 'deleted');
+            })
+            ->sum('dispatch_items.quantity');
 
         // Tổng hư hỏng - tính dựa trên việc nhập/xuất khỏi các kho không dùng để tính tồn kho
-        $totalDamaged = $this->calculateDamagedProducts($currentMonthStart, $currentMonthEnd);
+        $totalDamaged = $this->calculateDamagedProducts($startDate, $endDate);
 
         return [
-            'total_import' => $totalImport,
-            'total_export' => $totalExport,
-            'total_damaged' => $totalDamaged
+            'total_import' => $totalImport ?: 0,
+            'total_export' => $totalExport ?: 0,
+            'total_damaged' => $totalDamaged ?: 0
         ];
     }
 
     /**
      * Get good statistics
      */
-    private function getGoodStats()
+    private function getGoodStats($startDate, $endDate)
     {
-        // Lấy thời gian hiện tại (tháng hiện tại)
-        $currentMonthStart = now()->startOfMonth();
-        $currentMonthEnd = now()->endOfMonth();
-        
-        // Tổng nhập kho hàng hóa - chỉ tính từ các kho active và hàng hóa active
-        $totalImport = WarehouseMaterial::where('item_type', 'good')
-            ->whereHas('warehouse', function($query) {
-                $query->where('status', 'active');
+        // Tổng nhập kho hàng hóa - lấy từ lịch sử nhập kho thực tế trong khoảng thời gian được chỉ định
+        $totalImport = DB::table('inventory_import_materials')
+            ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
+            ->where('inventory_import_materials.item_type', 'good')
+            ->where('inventory_import_materials.material_id', '>', 0) // Sử dụng material_id để lưu trữ good_id
+            ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('goods')
+                    ->whereColumn('goods.id', 'inventory_import_materials.material_id')
+                    ->where('goods.status', '!=', 'deleted');
             })
-            ->whereHas('good', function($query) {
-                $query->where('status', '!=', 'deleted');
-            })
-            ->sum('quantity');
+            ->sum('inventory_import_materials.quantity');
 
-        // Tổng xuất kho hàng hóa  
+        // Tổng xuất kho hàng hóa - lấy từ lịch sử xuất kho thực tế trong khoảng thời gian được chỉ định
         $totalExport = DB::table('dispatch_items')
-            ->where('item_type', 'good')
-            ->sum('quantity');
+            ->join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
+            ->where('dispatch_items.item_type', 'good')
+            ->whereIn('dispatches.status', ['approved', 'completed'])
+            ->where('dispatch_items.item_id', '>', 0) // Đảm bảo có item_id
+            ->whereDate('dispatches.dispatch_date', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('dispatches.dispatch_date', '<=', $endDate->format('Y-m-d'))
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('goods')
+                    ->whereColumn('goods.id', 'dispatch_items.item_id')
+                    ->where('goods.status', '!=', 'deleted');
+            })
+            ->sum('dispatch_items.quantity');
 
         // Tổng hư hỏng - tính dựa trên việc nhập/xuất khỏi các kho không dùng để tính tồn kho
-        $totalDamaged = $this->calculateDamagedGoods($currentMonthStart, $currentMonthEnd);
+        $totalDamaged = $this->calculateDamagedGoods($startDate, $endDate);
 
         return [
-            'total_import' => $totalImport,
-            'total_export' => $totalExport,
-            'total_damaged' => $totalDamaged
+            'total_import' => $totalImport ?: 0,
+            'total_export' => $totalExport ?: 0,
+            'total_damaged' => $totalDamaged ?: 0
         ];
     }
 
@@ -294,27 +327,43 @@ class DashboardController extends Controller
     /**
      * Lấy dữ liệu biểu đồ phân loại kho
      */
-    public function getInventoryCategoriesChart()
+    public function getInventoryCategoriesChart(Request $request)
     {
         try {
             Log::info('Getting inventory categories chart data');
             
-            // Lấy tổng số lượng theo loại từ cùng nguồn với hàm getStatistics
+            // Lấy tham số ngày từ request
+            $startDate = $request->get('start_date');
+            $endDate = $request->get('end_date');
+            $timeRangeType = $request->get('time_range_type', 'month');
+            
+            // Nếu không có ngày, sử dụng tháng hiện tại
+            if (!$startDate || !$endDate) {
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+            } else {
+                $startDate = \Carbon\Carbon::parse($startDate);
+                $endDate = \Carbon\Carbon::parse($endDate);
+            }
+            
             // 1. Thống kê vật tư
-            $materialStats = $this->getMaterialStats();
+            $materialStats = $this->getMaterialStats($startDate, $endDate);
             
             // 2. Thống kê thành phẩm  
-            $productStats = $this->getProductStats();
+            $productStats = $this->getProductStats($startDate, $endDate);
             
             // 3. Thống kê hàng hóa
-            $goodStats = $this->getGoodStats();
+            $goodStats = $this->getGoodStats($startDate, $endDate);
             
-            // Sử dụng số lượng nhập kho tương ứng với số liệu thống kê trên đầu trang
+            // Sử dụng số lượng nhập kho trong khoảng thời gian được chọn
             $materialCount = $materialStats['total_import'];
             $productCount = $productStats['total_import'];
             $goodCount = $goodStats['total_import'];
             
-            Log::info('Inventory counts from stats functions', [
+            Log::info('Inventory counts from import data', [
+                'start_date' => $startDate->format('Y-m-d'),
+                'end_date' => $endDate->format('Y-m-d'),
+                'time_range_type' => $timeRangeType,
                 'material_count' => $materialCount,
                 'product_count' => $productCount,
                 'good_count' => $goodCount
@@ -2022,8 +2071,8 @@ class DashboardController extends Controller
             }
             
             Log::info('Calculated damaged materials', [
-                'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d'),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'total_damaged' => $totalDamaged
             ]);
             
@@ -2056,8 +2105,8 @@ class DashboardController extends Controller
             }
             
             Log::info('Calculated damaged products', [
-                'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d'),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'total_damaged' => $totalDamaged
             ]);
             
@@ -2090,8 +2139,8 @@ class DashboardController extends Controller
             }
             
             Log::info('Calculated damaged goods', [
-                'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d'),
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'total_damaged' => $totalDamaged
             ]);
             
@@ -2163,7 +2212,7 @@ class DashboardController extends Controller
                 ->join('warehouses', 'warehouses.id', '=', 'dispatches.warehouse_id')
                 ->where('dispatch_items.item_type', $itemType)
                 ->where('dispatch_items.item_id', $itemId)
-                ->where('dispatches.status', 'in', ['approved', 'completed'])
+                ->whereIn('dispatches.status', ['approved', 'completed'])
                 ->where('warehouses.status', 'active')
                 ->whereNotIn('warehouses.id', $inventoryWarehouses)
                 ->whereBetween('dispatches.dispatch_date', [$startDate, $endDate])

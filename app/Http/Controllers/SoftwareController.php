@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Software;
+use App\Helpers\DateHelper;
 use App\Models\UserLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,13 @@ class SoftwareController extends Controller
         ini_set('max_input_time', 300);
         ini_set('memory_limit', '512M');
         
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd trước khi validate
+        if ($request->filled('release_date')) {
+            $request->merge([
+                'release_date' => DateHelper::convertToDatabaseFormat($request->release_date)
+            ]);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',
@@ -233,6 +241,13 @@ class SoftwareController extends Controller
         ini_set('max_input_time', 300);
         ini_set('memory_limit', '512M');
         
+        // Chuyển đổi định dạng ngày trong update nếu có
+        if ($request->filled('release_date')) {
+            $request->merge([
+                'release_date' => DateHelper::convertToDatabaseFormat($request->release_date)
+            ]);
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',

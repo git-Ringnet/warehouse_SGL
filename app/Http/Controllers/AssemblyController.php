@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Helpers\ChangeLogHelper;
+use App\Helpers\DateHelper;
 use App\Models\UserLog;
 
 class AssemblyController extends Controller
@@ -171,6 +172,11 @@ class AssemblyController extends Controller
             }));
             $request->merge(['components' => $filteredComponents]);
         }
+        // Convert date format before validation
+        $request->merge([
+            'assembly_date' => DateHelper::convertToDatabaseFormat($request->assembly_date)
+        ]);
+
         $request->validate([
             'assembly_code' => 'required|unique:assemblies,code',
             'assembly_date' => 'required|date',
@@ -674,6 +680,11 @@ class AssemblyController extends Controller
      */
     public function update(Request $request, Assembly $assembly)
     {
+        // Convert date format before validation
+        $request->merge([
+            'assembly_date' => DateHelper::convertToDatabaseFormat($request->assembly_date)
+        ]);
+
         // Validation rules based on assembly status
         $validationRules = [
             'assembly_date' => 'required|date',

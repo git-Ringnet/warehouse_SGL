@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\ChangeLogHelper;
+use App\Helpers\DateHelper;
 use App\Models\Employee;
 use App\Models\Material;
 use App\Models\Product;
@@ -218,6 +219,11 @@ class WarehouseTransferController extends Controller
      */
     public function store(Request $request)
     {
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
+        $request->merge([
+            'transfer_date' => DateHelper::convertToDatabaseFormat($request->transfer_date)
+        ]);
+
         // dd($request->all());
         $request->validate([
             'transfer_code' => 'required|string|max:50|unique:warehouse_transfers',
@@ -548,6 +554,11 @@ class WarehouseTransferController extends Controller
      */
     public function update(Request $request, WarehouseTransfer $warehouseTransfer)
     {
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
+        $request->merge([
+            'transfer_date' => DateHelper::convertToDatabaseFormat($request->transfer_date)
+        ]);
+
         $request->validate([
             'transfer_code' => 'required|string|max:50|unique:warehouse_transfers,transfer_code,' . $warehouseTransfer->id,
             'source_warehouse_id' => 'required|exists:warehouses,id',

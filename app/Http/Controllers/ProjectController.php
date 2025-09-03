@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\UserLog;
+use App\Helpers\DateHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -96,6 +97,12 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
+        $request->merge([
+            'start_date' => DateHelper::convertToDatabaseFormat($request->start_date),
+            'end_date' => DateHelper::convertToDatabaseFormat($request->end_date)
+        ]);
+
         // Validation
         $validator = Validator::make($request->all(), [
             'project_code' => 'required|string|max:255|unique:projects',
@@ -260,6 +267,12 @@ class ProjectController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
+        $request->merge([
+            'start_date' => DateHelper::convertToDatabaseFormat($request->start_date),
+            'end_date' => DateHelper::convertToDatabaseFormat($request->end_date)
+        ]);
+
         // Validation
         $validator = Validator::make($request->all(), [
             'project_code' => 'required|string|max:255|unique:projects,project_code,' . $id,

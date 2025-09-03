@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Employee;
 use App\Models\UserLog;
 use App\Models\Notification;
+use App\Helpers\DateHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -96,6 +97,12 @@ class RentalController extends Controller
      */
     public function store(Request $request)
     {
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
+        $request->merge([
+            'rental_date' => DateHelper::convertToDatabaseFormat($request->rental_date),
+            'due_date' => DateHelper::convertToDatabaseFormat($request->due_date)
+        ]);
+
         // Validation
         $validator = Validator::make($request->all(), [
             'rental_code' => 'required|string|max:255|unique:rentals',
@@ -239,6 +246,12 @@ class RentalController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Chuyển đổi định dạng ngày từ dd/mm/yyyy sang yyyy-mm-dd
+        $request->merge([
+            'rental_date' => DateHelper::convertToDatabaseFormat($request->rental_date),
+            'due_date' => DateHelper::convertToDatabaseFormat($request->due_date)
+        ]);
+
         // Validation
         $validator = Validator::make($request->all(), [
             'rental_code' => 'required|string|max:255|unique:rentals,rental_code,'.$id,

@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\DateHelper;
 
 class TestingController extends Controller
 {
@@ -132,6 +133,11 @@ class TestingController extends Controller
      */
     public function store(Request $request)
     {
+        // Convert date format before validation
+        $request->merge([
+            'test_date' => DateHelper::convertToDatabaseFormat($request->test_date)
+        ]);
+
         $validator = Validator::make($request->all(), [
             'test_code' => 'required|string|unique:testings,test_code',
             'test_type' => 'required|in:material',
@@ -350,6 +356,13 @@ class TestingController extends Controller
      */
     public function update(Request $request, Testing $testing)
     {
+        // Convert date format before validation
+        if ($request->has('test_date')) {
+            $request->merge([
+                'test_date' => DateHelper::convertToDatabaseFormat($request->test_date)
+            ]);
+        }
+
         // Debug: Log request data
         Log::info('Testing update request', [
             'request_data' => $request->all(),

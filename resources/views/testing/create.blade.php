@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <style>
         .required::after {
             content: " *";
@@ -81,7 +82,7 @@
                             <!-- Ngày kiểm thử -->
                             <div>
                                 <label for="test_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày kiểm thử</label>
-                                <input type="date" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ date('Y-m-d') }}" required>
+                                <input type="text" id="test_date" name="test_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white date-input" value="{{ date('d/m/Y') }}" required>
                                 @error('test_date')
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror

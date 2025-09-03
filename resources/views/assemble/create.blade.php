@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <script src="{{ asset('js/assembly-product-unit.js') }}"></script>
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <style>
         .product-unit-row {
             background-color: #f0f8ff !important;
@@ -121,9 +122,9 @@
                         <div>
                             <label for="assembly_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày lắp ráp </label>
-                            <input type="date" id="assembly_date" name="assembly_date" value="{{ date('Y-m-d') }}"
+                            <input type="text" id="assembly_date" name="assembly_date" value="{{ date('d/m/Y') }}"
                                 required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 date-input">
                         </div>
                     </div>
 
@@ -133,7 +134,7 @@
                                 phẩm </label>
                             <div class="relative flex space-x-2">
                                 <div class="flex-1 relative">
-                                    <input type="text" id="product_search" 
+                                    <input type="text" id="product_search" autocomplete="off"
                                            placeholder="Tìm kiếm thành phẩm..." 
                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                     <div id="product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
@@ -167,7 +168,7 @@
                             <label for="assigned_to" class="block text-sm font-medium text-gray-700 mb-1 required">Người
                                 phụ trách </label>
                             <div class="relative">
-                                <input type="text" id="assigned_to_search" 
+                                <input type="text" id="assigned_to_search" autocomplete="off"
                                        placeholder="Tìm kiếm người phụ trách..." 
                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <div id="assigned_to_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
@@ -189,7 +190,7 @@
                             <label for="tester_id" class="block text-sm font-medium text-gray-700 mb-1 required">Người
                                 tiếp nhận kiểm thử </label>
                             <div class="relative">
-                                <input type="text" id="tester_id_search" 
+                                <input type="text" id="tester_id_search" autocomplete="off"
                                        placeholder="Tìm kiếm người tiếp nhận kiểm thử..." 
                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <div id="tester_id_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
@@ -386,6 +387,39 @@
     <script>
         // Prevent double-submit lock
         window._assemblySubmitting = false;
+
+        // Function hiển thị thông báo validation
+        function showValidationError(message, focusElementId = null) {
+            // Tạo thông báo đẹp hơn
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 max-w-md';
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-3"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Tự động ẩn sau 5 giây
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+            
+            // Focus vào element nếu có
+            if (focusElementId) {
+                const element = document.getElementById(focusElementId);
+                if (element) {
+                    element.focus();
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+            
+            return notification;
+        }
 
         // Global function for handling product unit changes
         function handleProductUnitChange(element) {
@@ -3761,6 +3795,46 @@
             document.querySelector('form').addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent default submission
 
+                // Validation các trường bắt buộc
+                const assignedTo = document.getElementById('assigned_to').value;
+                const testerId = document.getElementById('tester_id').value;
+                const selectedProductsCount = selectedProducts.length;
+
+                // Kiểm tra người phụ trách
+                if (!assignedTo) {
+                    showValidationError('Vui lòng chọn người phụ trách!', 'assigned_to_search');
+                    return;
+                }
+
+                // Kiểm tra người tiếp nhận kiểm thử
+                if (!testerId) {
+                    showValidationError('Vui lòng chọn người tiếp nhận kiểm thử!', 'tester_id_search');
+                    return;
+                }
+
+                // Kiểm tra thành phẩm
+                if (selectedProductsCount === 0) {
+                    showValidationError('Vui lòng thêm ít nhất một thành phẩm!', 'product_search');
+                    return;
+                }
+
+                // Kiểm tra mục đích và dự án
+                const purpose = document.getElementById('purpose').value;
+                if (purpose === 'project') {
+                    const projectId = document.getElementById('project_id').value;
+                    if (!projectId) {
+                        showValidationError('Vui lòng chọn dự án khi mục đích là "Xuất đi dự án"!', 'project_id');
+                        return;
+                    }
+                }
+
+                // Kiểm tra ngày lắp ráp
+                const assemblyDate = document.getElementById('assembly_date').value;
+                if (!assemblyDate) {
+                    showValidationError('Vui lòng nhập ngày lắp ráp!', 'assembly_date');
+                    return;
+                }
+
                 // Check if default warehouse is selected and apply it to all components if needed
                 const defaultWarehouseId = document.getElementById('default_warehouse_id').value;
                 if (defaultWarehouseId) {
@@ -3829,44 +3903,34 @@
                 updateHiddenComponentList();
                 updateHiddenProductList();
 
-                // Gửi form ngay và ngăn các submit handler khác chạy tiếp
-                e.stopImmediatePropagation();
-                this.submit();
-                return;
-
                 // Kiểm tra mã phiếu có hợp lệ không
                 const assemblyCode = document.getElementById('assembly_code').value.trim();
                 if (!assemblyCode) {
-                    alert('Vui lòng nhập mã phiếu lắp ráp!');
+                    showValidationError('❌ Vui lòng nhập mã phiếu lắp ráp!', 'assembly_code');
                     return;
                 }
 
                 // Kiểm tra xem có đang hiển thị lỗi trùng mã không
                 const hasCodeError = document.querySelector('.assembly-code-error');
                 if (hasCodeError) {
-                    alert('Mã phiếu đã tồn tại! Vui lòng thay đổi mã phiếu trước khi lưu.');
+                    showValidationError('❌ Mã phiếu đã tồn tại! Vui lòng thay đổi mã phiếu trước khi lưu.', 'assembly_code');
                     return;
                 }
-
-                // Kiểm tra có đúng 1 thành phẩm
-                if (selectedProducts.length === 0) {
-                    alert('Vui lòng thêm 1 thành phẩm vào phiếu lắp ráp!');
-                    return;
-                }
-                
-                // if (selectedProducts.length > 1) {
-                //     alert('Chỉ có thể thêm 1 thành phẩm cho mỗi phiếu lắp ráp!');
-                //     return;
-                // }
 
                 // Kiểm tra số lượng thành phẩm phải hợp lệ
                 for (let i = 0; i < selectedProducts.length; i++) {
                     const product = selectedProducts[i];
                     const quantity = parseInt(product.quantity);
                     if (!quantity || quantity < 1) {
-                        alert(`Số lượng thành phẩm "${product.name}" phải là số nguyên dương!`);
+                        showValidationError(`Số lượng thành phẩm "${product.name}" phải là số nguyên dương!`);
                         return;
                     }
+                }
+
+                // Kiểm tra xem có vật tư nào được chọn không
+                if (selectedComponents.length === 0) {
+                    showValidationError('Vui lòng thêm ít nhất một vật tư cho thành phẩm!');
+                    return;
                 }
 
                 // Validate serials for each product (only check for duplicates if serials provided)
@@ -3887,7 +3951,7 @@
                 });
 
                 if (hasSerialError) {
-                    alert('Phát hiện trùng lặp serial thành phẩm. Vui lòng kiểm tra lại!' + serialErrorDetails);
+                    showValidationError('Phát hiện trùng lặp serial thành phẩm. Vui lòng kiểm tra lại!' + serialErrorDetails);
                     // Ngăn mọi listener khác tiếp tục xử lý submit
                     e.stopImmediatePropagation();
                     return;
@@ -3929,27 +3993,45 @@
                     if (hasServerSerialError) break;
                 }
                 if (hasServerSerialError) {
-                    alert(serverSerialErrorMsg || 'Serial thành phẩm đã tồn tại trong hệ thống');
+                    showValidationError('❌ ' + (serverSerialErrorMsg || 'Serial thành phẩm đã tồn tại trong hệ thống'));
                     e.stopImmediatePropagation();
                     return;
                 }
 
-                if (selectedComponents.length === 0) {
-                    alert('Vui lòng thêm ít nhất một vật tư vào phiếu lắp ráp!');
-                    return;
-                }
+                // Kiểm tra xem có vật tư nào được chọn không (đã kiểm tra ở trên)
 
-                // Kiểm tra số lượng - REMOVED STOCK CHECKING
+                // Kiểm tra số lượng vật tư phải hợp lệ
                 for (const component of selectedComponents) {
                     // Kiểm tra số lượng phải lớn hơn 0
                     const quantity = parseInt(component.quantity);
                     if (!quantity || quantity < 1 || isNaN(quantity)) {
-                        alert(`Số lượng linh kiện "${component.name}" phải là số nguyên dương!`);
+                        showValidationError(`Số lượng vật tư "${component.name}" phải là số nguyên dương!`);
                         return;
                     }
                 }
 
-                // Nếu tất cả validation đều pass, chuẩn bị hidden inputs cho serial vật tư rồi submit (chống double submit)
+                // Nếu tất cả validation đều pass, hiển thị thông báo và submit
+                console.log('✅ Tất cả validation đều pass, chuẩn bị submit form...');
+                
+                // Hiển thị thông báo thành công
+                const successNotification = document.createElement('div');
+                successNotification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 max-w-md';
+                successNotification.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle mr-3"></i>
+                        <span>✅ Tất cả thông tin đã hợp lệ! Đang lưu phiếu lắp ráp...</span>
+                    </div>
+                `;
+                document.body.appendChild(successNotification);
+                
+                // Tự động ẩn sau 3 giây
+                setTimeout(() => {
+                    if (successNotification.parentNode) {
+                        successNotification.parentNode.removeChild(successNotification);
+                    }
+                }, 3000);
+                
+                // Chuẩn bị hidden inputs cho serial vật tư rồi submit (chống double submit)
                 if (window._assemblySubmitting) {
                     return;
                 }

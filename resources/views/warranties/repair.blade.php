@@ -9,6 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 
@@ -271,9 +272,9 @@
                             <label for="repair_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày
                                 sửa chữa</label>
-                            <input type="date" id="repair_date" name="repair_date"
-                                value="{{ old('repair_date', date('Y-m-d')) }}" required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <input type="text" id="repair_date" name="repair_date"
+                                value="{{ old('repair_date', date('d/m/Y')) }}" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 date-input">
                         </div>
                         <div>
                             <label for="technician_id"

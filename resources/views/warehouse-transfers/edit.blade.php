@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <style>
         .required::after {
             content: " *";
@@ -102,7 +103,11 @@
                             
                             <div>
                                 <label for="transfer_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày chuyển kho</label>
-                                <input type="date" id="transfer_date" name="transfer_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ old('transfer_date', $warehouseTransfer->transfer_date->format('Y-m-d')) }}" required>
+                                <input type="text" id="transfer_date" name="transfer_date" 
+                                       class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white date-input" 
+                                       value="{{ old('transfer_date', $warehouseTransfer->transfer_date->format('d/m/Y')) }}" 
+                                       placeholder="dd/mm/yyyy"
+                                       required>
                             </div>
                             
                             <div>

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
+    <script src="{{ asset('js/date-format.js') }}"></script>
 </head>
 
 <body>
@@ -71,9 +72,9 @@
                         <div>
                             <label for="dispatch_date"
                                 class="block text-sm font-medium text-gray-700 mb-1 required">Ngày xuất</label>
-                            <input type="date" id="dispatch_date" name="dispatch_date" value="{{ date('Y-m-d') }}"
+                            <input type="text" id="dispatch_date" name="dispatch_date" value="{{ date('d/m/Y') }}"
                                 required
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 date-input">
                         </div>
                         <div>
                             <label for="dispatch_type"

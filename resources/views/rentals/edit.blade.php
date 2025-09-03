@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -116,7 +117,10 @@
                     <!-- Ngày cho thuê -->
                     <div>
                         <label for="rental_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày cho thuê</label>
-                        <input type="date" name="rental_date" id="rental_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('rental_date', $rental->rental_date) }}">
+                        <input type="text" name="rental_date" id="rental_date" required 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 date-input" 
+                               value="{{ old('rental_date', \Carbon\Carbon::parse($rental->rental_date)->format('d/m/Y')) }}"
+                               placeholder="dd/mm/yyyy">
                         @error('rental_date')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
@@ -125,7 +129,10 @@
                     <!-- Ngày hẹn trả -->
                     <div>
                         <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày hẹn trả</label>
-                        <input type="date" name="due_date" id="due_date" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="{{ old('due_date', $rental->due_date) }}">
+                        <input type="text" name="due_date" id="due_date" required 
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 date-input" 
+                               value="{{ old('due_date', \Carbon\Carbon::parse($rental->due_date)->format('d/m/Y')) }}"
+                               placeholder="dd/mm/yyyy">
                         @error('due_date')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror

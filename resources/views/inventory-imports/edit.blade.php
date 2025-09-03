@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/supplier-dropdown.css') }}">
     <script src="{{ asset('js/delete-modal.js') }}"></script>
+    <script src="{{ asset('js/date-format.js') }}"></script>
     <style>
         .required::after {
             content: " *";
@@ -124,7 +125,7 @@
                                 
                                 <div>
                                     <label for="import_date" class="block text-sm font-medium text-gray-700 mb-1 required">Ngày nhập kho</label>
-                                    <input type="date" id="import_date" name="import_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" required value="{{ old('import_date', $inventoryImport->import_date->format('Y-m-d')) }}">
+                                    <input type="text" id="import_date" name="import_date" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white date-input" required value="{{ old('import_date', $inventoryImport->import_date->format('d/m/Y')) }}">
                                 </div>
                                 
                                 <div>
