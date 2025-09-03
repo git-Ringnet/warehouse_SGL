@@ -32,50 +32,50 @@ class RoleSeeder extends Seeder
                 'is_system' => true,
             ],
 
-            // Kho sản xuất
-            [
-                'name' => 'Kho Sản Xuất',
-                'description' => 'Nhóm quản lý thiết bị thuộc kho sản xuất',
-                'scope' => 'warehouse',
-                'is_active' => true,
-                'is_system' => false,
-            ],
+            // // Kho sản xuất
+            // [
+            //     'name' => 'Kho Sản Xuất',
+            //     'description' => 'Nhóm quản lý thiết bị thuộc kho sản xuất',
+            //     'scope' => 'warehouse',
+            //     'is_active' => true,
+            //     'is_system' => false,
+            // ],
 
-            // Kho thành phẩm
-            [
-                'name' => 'Kho Thành Phẩm',
-                'description' => 'Nhóm quản lý thiết bị thành phẩm',
-                'scope' => 'warehouse',
-                'is_active' => true,
-                'is_system' => false,
-            ],
+            // // Kho thành phẩm
+            // [
+            //     'name' => 'Kho Thành Phẩm',
+            //     'description' => 'Nhóm quản lý thiết bị thành phẩm',
+            //     'scope' => 'warehouse',
+            //     'is_active' => true,
+            //     'is_system' => false,
+            // ],
 
-            // Kho bảo hành
-            [
-                'name' => 'Kho Bảo Hành',
-                'description' => 'Nhóm quản lý bảo hành thiết bị',
-                'scope' => 'warehouse',
-                'is_active' => true,
-                'is_system' => false,
-            ],
+            // // Kho bảo hành
+            // [
+            //     'name' => 'Kho Bảo Hành',
+            //     'description' => 'Nhóm quản lý bảo hành thiết bị',
+            //     'scope' => 'warehouse',
+            //     'is_active' => true,
+            //     'is_system' => false,
+            // ],
 
-            // Kho phần mềm
-            [
-                'name' => 'Kho Phần Mềm',
-                'description' => 'Nhóm quản lý license, phần mềm, mã kích hoạt',
-                'scope' => 'warehouse',
-                'is_active' => true,
-                'is_system' => false,
-            ],
+            // // Kho phần mềm
+            // [
+            //     'name' => 'Kho Phần Mềm',
+            //     'description' => 'Nhóm quản lý license, phần mềm, mã kích hoạt',
+            //     'scope' => 'warehouse',
+            //     'is_active' => true,
+            //     'is_system' => false,
+            // ],
 
-            // Quản lý dự án
-            [
-                'name' => 'Quản Lý Dự Án',
-                'description' => 'Nhóm quản lý thiết bị theo địa bàn dự án',
-                'scope' => 'project',
-                'is_active' => true,
-                'is_system' => false,
-            ],
+            // // Quản lý dự án
+            // [
+            //     'name' => 'Quản Lý Dự Án',
+            //     'description' => 'Nhóm quản lý thiết bị theo địa bàn dự án',
+            //     'scope' => 'project',
+            //     'is_active' => true,
+            //     'is_system' => false,
+            // ],
         ];
 
         foreach ($roles as $roleData) {

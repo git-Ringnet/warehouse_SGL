@@ -1156,7 +1156,12 @@ class DashboardController extends Controller
                 case 'projects':
                     $projectResults = $this->searchProjects($query, $filters);
                     $rentalResults = $this->searchRentals($query, $filters);
-                    $results = array_merge($projectResults, $rentalResults);
+                    // Lấy danh sách thiết bị thuộc các dự án và phiếu cho thuê khớp từ khóa
+                    $projectIds = collect($projectResults)->pluck('id')->all();
+                    $rentalIds = collect($rentalResults)->pluck('id')->all();
+                    $itemsFromProjects = !empty($projectIds) ? $this->searchItemsByProjectIds($projectIds) : [];
+                    $itemsFromRentals = !empty($rentalIds) ? $this->searchItemsByRentalIds($rentalIds) : [];
+                    $results = array_merge($projectResults, $rentalResults, $itemsFromProjects, $itemsFromRentals);
                     
                     Log::info('Projects category search results', [
                         'projects_count' => count($projectResults),
@@ -1180,6 +1185,14 @@ class DashboardController extends Controller
                     $projectResults = $this->searchProjects($query, $filters);
                     $customerResults = $this->searchCustomers($query, $filters);
                     $rentalResults = $this->searchRentals($query, $filters);
+                    // Tìm dự án/cho thuê theo hàng hóa/thành phẩm khớp từ khóa
+                    $projectsByItems = $this->searchProjectsByItemQuery($query);
+                    $rentalsByItems = $this->searchRentalsByItemQuery($query);
+                    // Lấy thiết bị thuộc các dự án và phiếu cho thuê tìm thấy
+                    $projectIds = collect($projectResults)->pluck('id')->all();
+                    $rentalIds = collect($rentalResults)->pluck('id')->all();
+                    $itemsFromProjects = !empty($projectIds) ? $this->searchItemsByProjectIds($projectIds) : [];
+                    $itemsFromRentals = !empty($rentalIds) ? $this->searchItemsByRentalIds($rentalIds) : [];
                     
                     $results = array_merge(
                         $materialResults,
@@ -1187,7 +1200,11 @@ class DashboardController extends Controller
                         $goodResults,
                         $projectResults,
                         $customerResults,
-                        $rentalResults
+                        $rentalResults,
+                        $projectsByItems,
+                        $rentalsByItems,
+                        $itemsFromProjects,
+                        $itemsFromRentals
                     );
                     
                     Log::info('Combined search results', [
@@ -1304,6 +1321,8 @@ class DashboardController extends Controller
                 if ($warehouseInfo && $warehouseInfo->warehouse) {
                     $warehouseName = $warehouseInfo->warehouse->name;
                 }
+                // Ưu tiên hiển thị vị trí theo dự án/phiếu cho thuê nếu có
+                $location = $this->resolveItemLocation('material', $material->id, $warehouseName);
                 
                 $status = property_exists($material, 'status') ? $material->status : 'active';
                 
@@ -1315,7 +1334,7 @@ class DashboardController extends Controller
                     'categoryName' => 'Vật tư',
                     'serial' => $material->code, // Sử dụng code làm serial
                     'date' => $material->created_at->format('d/m/Y'),
-                    'location' => $warehouseName,
+                    'location' => $location,
                     'status' => $status,
                     'detailUrl' => route('materials.show', $material->id),
                     'additionalInfo' => [
@@ -1409,6 +1428,8 @@ class DashboardController extends Controller
                 if ($warehouseInfo && $warehouseInfo->warehouse) {
                     $warehouseName = $warehouseInfo->warehouse->name;
                 }
+                // Ưu tiên hiển thị vị trí theo dự án/phiếu cho thuê nếu có
+                $location = $this->resolveItemLocation('product', $product->id, $warehouseName);
                 
                 $status = property_exists($product, 'status') ? $product->status : 'active';
                 
@@ -1420,7 +1441,7 @@ class DashboardController extends Controller
                     'categoryName' => 'Thành phẩm',
                     'serial' => $product->code, // Sử dụng code làm serial
                     'date' => $product->created_at->format('d/m/Y'),
-                    'location' => $warehouseName,
+                    'location' => $location,
                     'status' => $status,
                     'detailUrl' => route('products.show', $product->id),
                     'additionalInfo' => [
@@ -1514,6 +1535,8 @@ class DashboardController extends Controller
                 if ($warehouseInfo && $warehouseInfo->warehouse) {
                     $warehouseName = $warehouseInfo->warehouse->name;
                 }
+                // Ưu tiên hiển thị vị trí theo dự án/phiếu cho thuê nếu có
+                $location = $this->resolveItemLocation('good', $good->id, $warehouseName);
                 
                 $status = property_exists($good, 'status') ? $good->status : 'active';
                 
@@ -1525,7 +1548,7 @@ class DashboardController extends Controller
                     'categoryName' => 'Hàng hóa',
                     'serial' => $good->serial ?: $good->code,
                     'date' => $good->created_at->format('d/m/Y'),
-                    'location' => $warehouseName,
+                    'location' => $location,
                     'status' => $status,
                     'detailUrl' => route('goods.show', $good->id),
                     'additionalInfo' => [
@@ -1591,7 +1614,7 @@ class DashboardController extends Controller
                     'categoryName' => 'Dự án',
                     'serial' => 'PRJ-' . str_pad($project->id, 4, '0', STR_PAD_LEFT),
                     'date' => $project->created_at->format('d/m/Y'),
-                    'location' => $project->description ?? 'N/A',
+                    'location' => $project->description ? ($project->project_name . ' - ' . $project->description) : $project->project_name,
                     'status' => $project->status ?? 'active',
                     'detailUrl' => route('projects.show', $project->id),
                     'additionalInfo' => [
@@ -1734,7 +1757,7 @@ class DashboardController extends Controller
                     'categoryName' => 'Phiếu cho thuê',
                     'serial' => $rental->rental_code,
                     'date' => $rental->rental_date ? date('d/m/Y', strtotime($rental->rental_date)) : 'N/A',
-                    'location' => 'N/A', // Phiếu cho thuê không có vị trí cụ thể
+                    'location' => $rental->rental_name, // Hiển thị Tên phiếu cho thuê trong cột Vị trí
                     'status' => $rental->isOverdue() ? 'Quá hạn' : 'Đang hoạt động',
                     'detailUrl' => route('rentals.show', $rental->id),
                     'additionalInfo' => [
@@ -1752,6 +1775,292 @@ class DashboardController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+            return [];
+        }
+    }
+
+    /**
+     * Lấy thiết bị thuộc danh sách dự án
+     */
+    private function searchItemsByProjectIds(array $projectIds): array
+    {
+        try {
+            // Lấy các item đã xuất kho cho dự án
+            $items = DB::table('dispatch_items')
+                ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
+                ->leftJoin('products', function ($join) {
+                    $join->on('products.id', '=', 'dispatch_items.item_id')
+                        ->where('dispatch_items.item_type', 'product');
+                })
+                ->leftJoin('materials', function ($join) {
+                    $join->on('materials.id', '=', 'dispatch_items.item_id')
+                        ->where('dispatch_items.item_type', 'material');
+                })
+                ->leftJoin('goods', function ($join) {
+                    $join->on('goods.id', '=', 'dispatch_items.item_id')
+                        ->where('dispatch_items.item_type', 'good');
+                })
+                ->whereIn('dispatches.project_id', $projectIds)
+                ->select(
+                    'dispatch_items.*',
+                    'dispatches.project_id',
+                    DB::raw("COALESCE(products.code, materials.code, goods.code) as item_code"),
+                    DB::raw("COALESCE(products.name, materials.name, goods.name) as item_name")
+                )
+                ->limit(50)
+                ->get();
+
+            // Lấy tên dự án để hiển thị trong cột vị trí
+            $projects = Project::whereIn('id', $projectIds)->pluck('project_name', 'id');
+
+            return $items->map(function ($row) use ($projects) {
+                $category = match($row->item_type) {
+                    'material' => 'materials',
+                    'product' => 'finished',
+                    'good' => 'goods',
+                    default => 'materials'
+                };
+
+                $categoryName = match($row->item_type) {
+                    'material' => 'Vật tư',
+                    'product' => 'Thành phẩm',
+                    'good' => 'Hàng hóa',
+                    default => 'Vật tư'
+                };
+
+                $detailUrl = '#';
+                if ($row->item_type === 'material') {
+                    $detailUrl = route('materials.show', $row->item_id);
+                } elseif ($row->item_type === 'product') {
+                    $detailUrl = route('products.show', $row->item_id);
+                } elseif ($row->item_type === 'good') {
+                    $detailUrl = route('goods.show', $row->item_id);
+                }
+
+                return [
+                    'id' => $row->item_id,
+                    'code' => $row->item_code,
+                    'name' => $row->item_name,
+                    'category' => $category,
+                    'categoryName' => $categoryName,
+                    'serial' => $row->item_code,
+                    'date' => optional($row->created_at)->format('d/m/Y'),
+                    'location' => ($projects[$row->project_id] ?? 'Dự án') ,
+                    'status' => 'Đang tại dự án',
+                    'detailUrl' => $detailUrl,
+                    'additionalInfo' => [
+                        'project' => $projects[$row->project_id] ?? 'N/A',
+                        'quantity' => $row->quantity
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error searchItemsByProjectIds', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Lấy thiết bị thuộc danh sách phiếu cho thuê
+     */
+    private function searchItemsByRentalIds(array $rentalIds): array
+    {
+        try {
+            $items = DB::table('rental_items')
+                ->join('rentals', 'rentals.id', '=', 'rental_items.rental_id')
+                ->leftJoin('products', function ($join) {
+                    $join->on('products.id', '=', 'rental_items.item_id')
+                        ->where('rental_items.item_type', 'product');
+                })
+                ->leftJoin('materials', function ($join) {
+                    $join->on('materials.id', '=', 'rental_items.item_id')
+                        ->where('rental_items.item_type', 'material');
+                })
+                ->leftJoin('goods', function ($join) {
+                    $join->on('goods.id', '=', 'rental_items.item_id')
+                        ->where('rental_items.item_type', 'good');
+                })
+                ->whereIn('rental_items.rental_id', $rentalIds)
+                ->select(
+                    'rental_items.*',
+                    'rentals.rental_name',
+                    DB::raw("COALESCE(products.code, materials.code, goods.code) as item_code"),
+                    DB::raw("COALESCE(products.name, materials.name, goods.name) as item_name")
+                )
+                ->limit(50)
+                ->get();
+
+            return $items->map(function ($row) {
+                $category = match($row->item_type) {
+                    'product' => 'finished',
+                    'material' => 'materials',
+                    'good' => 'goods',
+                    default => 'materials'
+                };
+                $categoryName = match($row->item_type) {
+                    'product' => 'Thành phẩm',
+                    'material' => 'Vật tư',
+                    'good' => 'Hàng hóa',
+                    default => 'Vật tư'
+                };
+                $detailUrl = match($row->item_type) {
+                    'product' => route('products.show', $row->item_id),
+                    'material' => route('materials.show', $row->item_id),
+                    'good' => route('goods.show', $row->item_id),
+                    default => '#'
+                };
+
+                return [
+                    'id' => $row->item_id,
+                    'code' => $row->item_code,
+                    'name' => $row->item_name,
+                    'category' => $category,
+                    'categoryName' => $categoryName,
+                    'serial' => $row->item_code,
+                    'date' => optional($row->created_at)->format('d/m/Y'),
+                    'location' => $row->rental_name,
+                    'status' => 'Đang cho thuê',
+                    'detailUrl' => $detailUrl,
+                    'additionalInfo' => [
+                        'rental' => $row->rental_name,
+                        'quantity' => $row->quantity
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error searchItemsByRentalIds', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Tìm dự án có chứa thiết bị khớp theo từ khóa hàng hóa/thành phẩm
+     */
+    private function searchProjectsByItemQuery(string $query): array
+    {
+        try {
+            // Tìm item id theo từ khóa
+            $productIds = Product::where('name', 'like', "%{$query}%")
+                ->orWhere('code', 'like', "%{$query}%")
+                ->pluck('id');
+            $materialIds = Material::where('name', 'like', "%{$query}%")
+                ->orWhere('code', 'like', "%{$query}%")
+                ->pluck('id');
+
+            if ($productIds->isEmpty() && $materialIds->isEmpty()) {
+                return [];
+            }
+
+            $projectIds = DB::table('dispatch_items')
+                ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
+                ->where(function($q) use ($productIds, $materialIds) {
+                    if ($productIds->isNotEmpty()) {
+                        $q->orWhere(function($qq) use ($productIds) {
+                            $qq->where('dispatch_items.item_type', 'product')
+                               ->whereIn('dispatch_items.item_id', $productIds);
+                        });
+                    }
+                    if ($materialIds->isNotEmpty()) {
+                        $q->orWhere(function($qq) use ($materialIds) {
+                            $qq->where('dispatch_items.item_type', 'material')
+                               ->whereIn('dispatch_items.item_id', $materialIds);
+                        });
+                    }
+                })
+                ->pluck('dispatches.project_id')
+                ->unique()
+                ->filter();
+
+            if ($projectIds->isEmpty()) {
+                return [];
+            }
+
+            $projects = Project::whereIn('id', $projectIds->all())->limit(20)->get();
+
+            return $projects->map(function($project) {
+                return [
+                    'id' => $project->id,
+                    'code' => $project->project_code,
+                    'name' => $project->project_name,
+                    'category' => 'projects',
+                    'categoryName' => 'Dự án',
+                    'serial' => 'PRJ-' . str_pad($project->id, 4, '0', STR_PAD_LEFT),
+                    'date' => $project->created_at->format('d/m/Y'),
+                    'location' => $project->project_name,
+                    'status' => $project->status ?? 'active',
+                    'detailUrl' => route('projects.show', $project->id),
+                    'additionalInfo' => [
+                        'foundBy' => 'item_query'
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error searchProjectsByItemQuery', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
+
+    /**
+     * Tìm phiếu cho thuê có chứa thiết bị khớp theo từ khóa hàng hóa/thành phẩm
+     */
+    private function searchRentalsByItemQuery(string $query): array
+    {
+        try {
+            $productIds = Product::where('name', 'like', "%{$query}%")
+                ->orWhere('code', 'like', "%{$query}%")
+                ->pluck('id');
+            $materialIds = Material::where('name', 'like', "%{$query}%")
+                ->orWhere('code', 'like', "%{$query}%")
+                ->pluck('id');
+
+            if ($productIds->isEmpty() && $materialIds->isEmpty()) {
+                return [];
+            }
+
+            $rentalIds = DB::table('rental_items')
+                ->where(function($q) use ($productIds, $materialIds) {
+                    if ($productIds->isNotEmpty()) {
+                        $q->orWhere(function($qq) use ($productIds) {
+                            $qq->where('rental_items.item_type', 'product')
+                               ->whereIn('rental_items.item_id', $productIds);
+                        });
+                    }
+                    if ($materialIds->isNotEmpty()) {
+                        $q->orWhere(function($qq) use ($materialIds) {
+                            $qq->where('rental_items.item_type', 'material')
+                               ->whereIn('rental_items.item_id', $materialIds);
+                        });
+                    }
+                })
+                ->pluck('rental_items.rental_id')
+                ->unique()
+                ->filter();
+
+            if ($rentalIds->isEmpty()) {
+                return [];
+            }
+
+            $rentals = Rental::whereIn('id', $rentalIds->all())->limit(20)->get();
+
+            return $rentals->map(function($rental) {
+                return [
+                    'id' => $rental->id,
+                    'code' => $rental->rental_code,
+                    'name' => $rental->rental_name,
+                    'category' => 'rentals',
+                    'categoryName' => 'Phiếu cho thuê',
+                    'serial' => $rental->rental_code,
+                    'date' => $rental->rental_date ? date('d/m/Y', strtotime($rental->rental_date)) : 'N/A',
+                    'location' => $rental->rental_name,
+                    'status' => $rental->isOverdue() ? 'Quá hạn' : 'Đang hoạt động',
+                    'detailUrl' => route('rentals.show', $rental->id),
+                    'additionalInfo' => [
+                        'foundBy' => 'item_query'
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Error searchRentalsByItemQuery', ['error' => $e->getMessage()]);
             return [];
         }
     }
@@ -1948,6 +2257,44 @@ class DashboardController extends Controller
                 ->where('item_type', $itemType)
                 ->whereDate('created_at', $date)
                 ->sum('quantity');
+        }
+    }
+
+    /**
+     * Xác định vị trí ưu tiên của item theo dự án/phiếu cho thuê nếu đang gắn
+     */
+    private function resolveItemLocation(string $itemType, int $itemId, string $fallbackWarehouseName = ''): string
+    {
+        try {
+            // Kiểm tra trong phiếu cho thuê trước
+            $rentalRow = DB::table('rental_items')
+                ->join('rentals', 'rentals.id', '=', 'rental_items.rental_id')
+                ->where('rental_items.item_type', $itemType)
+                ->where('rental_items.item_id', $itemId)
+                ->orderByDesc('rental_items.id')
+                ->select('rentals.rental_name')
+                ->first();
+            if ($rentalRow && !empty($rentalRow->rental_name)) {
+                return $rentalRow->rental_name;
+            }
+
+            // Kiểm tra trong xuất kho dự án
+            $dispatchRow = DB::table('dispatch_items')
+                ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
+                ->join('projects', 'projects.id', '=', 'dispatches.project_id')
+                ->where('dispatch_items.item_type', $itemType)
+                ->where('dispatch_items.item_id', $itemId)
+                ->orderByDesc('dispatch_items.id')
+                ->select('projects.project_name')
+                ->first();
+            if ($dispatchRow && !empty($dispatchRow->project_name)) {
+                return $dispatchRow->project_name;
+            }
+
+            return $fallbackWarehouseName ?: 'N/A';
+        } catch (\Exception $e) {
+            Log::warning('resolveItemLocation failed', ['error' => $e->getMessage()]);
+            return $fallbackWarehouseName ?: 'N/A';
         }
     }
 
