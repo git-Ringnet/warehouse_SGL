@@ -1758,7 +1758,13 @@
                 });
             }
 
-            // Function to check for duplicate serials in real-time (now optional - no error display)
+            // Helper: parse component index from name like components[<anyIndex>][...]
+            function getComponentIndexFromName(inputName) {
+                const m = (inputName || '').match(/components\[(.*?)\]/);
+                return m ? m[1] : null;
+            }
+
+            // Function to check for duplicate serials in real-time
             function checkDuplicateSerialsRealTime() {
                 // Clear previous error indicators and red borders
                 document.querySelectorAll('.serial-error-indicator').forEach(el => el.remove());
@@ -1768,35 +1774,71 @@
                     }
                 });
 
-                // Debug logging only - no validation errors
-                console.log('Checking for duplicate serials in real-time (optional validation)...');
+                console.log('Checking for duplicate serials in real-time...');
+                
+                // Debug: Log all serial elements found
+                console.log('=== DEBUG: All serial elements ===');
+                const allSerialElements = document.querySelectorAll('input[name*="serials"], select[name*="serials"]');
+                console.log('Total serial elements found:', allSerialElements.length);
+                allSerialElements.forEach((el, index) => {
+                    console.log(`Serial element ${index}:`, {
+                        name: el.name,
+                        value: el.value,
+                        type: el.tagName,
+                        dataProductUnit: el.getAttribute('data-product-unit'),
+                        parentRow: el.closest('tr') ? 'found' : 'not found'
+                    });
+                });
 
-                // Check product serials (for logging only)
+                // Check product serials for duplicates
                 const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
                 const productSerials = {};
 
                 productSerialInputs.forEach(input => {
-                    const productId = input.name.match(/products\[(\d+)\]/)[1];
+                    const m = (input.name||'').match(/products\[(.*?)\]/);
+                    if (!m) {
+                        console.warn('Could not parse product ID from input name:', input.name);
+                        return;
+                    }
+                    const productId = m[1];
                     if (!productSerials[productId]) {
                         productSerials[productId] = [];
                     }
                     if (input.value && input.value.trim() !== '') {
-                        productSerials[productId].push(input.value.trim());
+                        productSerials[productId].push({
+                            serial: input.value.trim(),
+                            element: input
+                        });
                     }
                 });
 
-                // Check for duplicates within each product (for logging only)
+                // Check for duplicates within each product
                 Object.keys(productSerials).forEach(productId => {
                     const serials = productSerials[productId];
-                    const duplicates = serials.filter((item, index) => serials.indexOf(item) !== index);
+                    const serialGroups = {};
 
-                    if (duplicates.length > 0) {
-                        console.log(`Product ${productId} has duplicate serials:`, duplicates);
-                        // No error display - serials are optional
-                    }
+                    // Group by serial value
+                    serials.forEach(item => {
+                        if (!serialGroups[item.serial]) {
+                            serialGroups[item.serial] = [];
+                        }
+                        serialGroups[item.serial].push(item);
+                    });
+
+                    // Check for duplicates
+                    Object.keys(serialGroups).forEach(serial => {
+                        const items = serialGroups[serial];
+                        if (items.length > 1) {
+                            console.log(`Product ${productId} has duplicate serials:`, serial);
+                            // Show error for all instances of this serial
+                            items.forEach(item => {
+                                showSerialError(item.element, `Serial thành phẩm trùng lặp: ${serial}`);
+                            });
+                        }
+                    });
                 });
 
-                // Check component serials (for logging only)
+                // Check component serials for duplicates
                 const componentSerialSelects = document.querySelectorAll(
                     'select[name*="components"][name*="serials"]');
                 const componentSerialInputs = document.querySelectorAll(
@@ -1807,37 +1849,64 @@
 
                 // Process select elements (editable serials)
                 componentSerialSelects.forEach(select => {
-                    const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                    const componentIndex = getComponentIndexFromName(select.name);
+                    if (!componentIndex) {
+                        console.warn('Could not parse component index from select name:', select.name);
+                        return;
+                    }
                     if (!componentSerials[componentIndex]) {
                         componentSerials[componentIndex] = [];
                     }
                     if (select.value && select.value.trim() !== '') {
-                        componentSerials[componentIndex].push(select.value.trim());
+                        componentSerials[componentIndex].push({
+                            serial: select.value.trim(),
+                            element: select
+                        });
                     }
                 });
 
                 // Process input elements (read-only serials)
                 componentSerialInputs.forEach(input => {
-                    const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
+                    const componentIndex = getComponentIndexFromName(input.name);
+                    if (!componentIndex) {
+                        console.warn('Could not parse component index from input name:', input.name);
+                        return;
+                    }
                     if (!componentSerials[componentIndex]) {
                         componentSerials[componentIndex] = [];
                     }
                     if (input.value && input.value.trim() !== '') {
-                        componentSerials[componentIndex].push(input.value.trim());
+                        componentSerials[componentIndex].push({
+                            serial: input.value.trim(),
+                            element: input
+                        });
                     }
                 });
 
-                // Check for duplicates within each component (for logging only)
+                // Check for duplicates within each component
                 Object.keys(componentSerials).forEach(componentIndex => {
                     const serials = componentSerials[componentIndex];
-                    const duplicates = serials.filter((item, index) => serials.indexOf(item) !== index);
+                    const serialGroups = {};
 
-                    console.log(`Component ${componentIndex} serials:`, serials, 'Duplicates:', duplicates);
+                    // Group by serial value
+                    serials.forEach(item => {
+                        if (!serialGroups[item.serial]) {
+                            serialGroups[item.serial] = [];
+                        }
+                        serialGroups[item.serial].push(item);
+                    });
 
-                    if (duplicates.length > 0) {
-                        console.log(`Component ${componentIndex} has duplicate serials:`, duplicates);
-                        // No error display - serials are optional
-                    }
+                    // Check for duplicates
+                    Object.keys(serialGroups).forEach(serial => {
+                        const items = serialGroups[serial];
+                        if (items.length > 1) {
+                            console.log(`Component ${componentIndex} has duplicate serials:`, serial);
+                            // Show error for all instances of this serial
+                            items.forEach(item => {
+                                showSerialError(item.element, `Serial linh kiện trùng lặp: ${serial}`);
+                            });
+                        }
+                    });
                 });
 
                 // Check for duplicate serials across different product units
@@ -1846,7 +1915,11 @@
                 // Process select elements (editable serials)
                 componentSerialSelects.forEach(select => {
                     if (select.value && select.value.trim() !== '') {
-                        const componentIndex = select.name.match(/components\[(\d+)\]/)[1];
+                        const componentIndex = getComponentIndexFromName(select.name);
+                        if (!componentIndex) {
+                            console.warn('Could not parse component index from select name:', select.name);
+                            return;
+                        }
                         const productUnit = select.getAttribute('data-product-unit') || '0';
                         
                         console.log('Serial select found:', {
@@ -1869,7 +1942,11 @@
                 // Process input elements (read-only serials)
                 componentSerialInputs.forEach(input => {
                     if (input.value && input.value.trim() !== '') {
-                        const componentIndex = input.name.match(/components\[(\d+)\]/)[1];
+                        const componentIndex = getComponentIndexFromName(input.name);
+                        if (!componentIndex) {
+                            console.warn('Could not parse component index from input name:', input.name);
+                            return;
+                        }
                         // For input elements, we need to find the product unit from the hidden input
                         const row = input.closest('tr');
                         const productUnitInput = row ? row.querySelector('input[name*="product_unit"]') : null;
@@ -2370,9 +2447,9 @@
                         if (row) {
                             const quantityInput = row.querySelector('input[name*="[quantity]"]');
                             if (quantityInput) {
-                                const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
-                                if (componentMatch) {
-                                    hiddenName = `components[${componentMatch[1]}][serials][${i}]`;
+                                const idx = getComponentIndexFromName(quantityInput.name);
+                                if (idx) {
+                                    hiddenName = `components[${idx}][serials][${i}]`;
                                 }
                             }
                         }
@@ -2396,21 +2473,22 @@
                                 // Ưu tiên lấy từ quantity input
                                 const quantityInput = row.querySelector('input[name*="[quantity]"]');
                                 if (quantityInput) {
-                                    const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
-                                    if (componentMatch) {
-                                        newName = `components[${componentMatch[1]}][serials][${i}]`;
+                                    const idx = getComponentIndexFromName(quantityInput.name);
+                                    if (idx) {
+                                        newName = `components[${idx}][serials][${i}]`;
                                     }
                                 } else {
                                     // Fallback: lấy từ material_id input
                                     const materialIdInput = row.querySelector('input[name*="[material_id]"]');
                                     if (materialIdInput) {
-                                        const componentMatch = materialIdInput.name.match(/components\[(\d+)\]/);
-                                        if (componentMatch) {
-                                            newName = `components[${componentMatch[1]}][serials][${i}]`;
+                                        const idx = getComponentIndexFromName(materialIdInput.name);
+                                        if (idx) {
+                                            newName = `components[${idx}][serials][${i}]`;
+                                        }
                                     }
                                 }
                             }
-                        }
+                        
                         
                         // Debug: log name creation
                         console.log(`Creating serial select name for index ${i}: ${newName}`);
@@ -2519,9 +2597,9 @@
                 if (row && originalSerials.length > 0) {
                     const quantityInput = row.querySelector('input[name*="[quantity]"]');
                     if (quantityInput) {
-                        const componentMatch = quantityInput.name.match(/components\[(\d+)\]/);
-                        if (componentMatch) {
-                            const componentIndex = componentMatch[1];
+                        const idx = getComponentIndexFromName(quantityInput.name);
+                        if (idx) {
+                            const componentIndex = idx;
                             
                             // Tạo hidden input cho tất cả serial gốc chưa được sử dụng
                             originalSerials.forEach((serial, index) => {
@@ -2796,19 +2874,74 @@
                 return newSelect;
             }
 
-                        // Function to validate duplicate serials (now optional - always returns true)
+            // Submit-time duplicate validation: block submit if duplicates detected
             function validateDuplicateSerials() {
-                console.log('Serial validation is optional - skipping duplicate checks');
-                return true; // Always return true since serials are optional
+                // clear previous indicators
+                document.querySelectorAll('.serial-error-indicator').forEach(el => el.remove());
+                document.querySelectorAll('.border-red-500').forEach(el => el.classList.remove('border-red-500'));
+
+                let valid = true;
+
+                // Product serials
+                const prodInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
+                const prodMap = {};
+                prodInputs.forEach(i => {
+                    const m = (i.name||'').match(/products\[(.*?)\]/);
+                    if (!m) return;
+                    const pid = m[1];
+                    const v = (i.value||'').trim();
+                    if (!v) return;
+                    (prodMap[pid] ||= {})[v] ? prodMap[pid][v].push(i) : (prodMap[pid][v] = [i]);
+                });
+                Object.values(prodMap).forEach(group => {
+                    Object.entries(group).forEach(([serial, els]) => {
+                        if (els.length > 1) {
+                            valid = false;
+                            els.forEach(el => showSerialError(el, `Serial thành phẩm trùng lặp: ${serial}`));
+                        }
+                    });
+                });
+
+                // Component serials across product units
+                const compEls = [
+                    ...document.querySelectorAll('select[name*="components"][name*="serials"]'),
+                    ...document.querySelectorAll('input[name*="components"][name*="serials"]')
+                ];
+                const all = [];
+                compEls.forEach(el => {
+                    const idx = getComponentIndexFromName(el.name);
+                    if (!idx) return;
+                    const row = el.closest('tr');
+                    const unitInput = row ? row.querySelector('input[name*="[product_unit]"]') : null;
+                    const unit = unitInput ? String(unitInput.value ?? '0') : (el.getAttribute('data-product-unit') || '0');
+                    const v = (el.value||'').trim();
+                    if (v) all.push({serial: v, unit, el});
+                });
+                const serialGroups = {};
+                all.forEach(it => (serialGroups[it.serial] ||= []).push(it));
+                Object.values(serialGroups).forEach(items => {
+                    const units = [...new Set(items.map(i => i.unit))];
+                    if (items.length > 1 && units.length > 1) {
+                        valid = false;
+                        items.forEach(i => showSerialError(i.el, `Serial trùng lặp (Đơn vị ${parseInt(i.unit,10)+1})`));
+                    }
+                });
+
+                return valid;
             }
 
-            // Serial validation is now optional - no validation required
-            // document.getElementById('assembly-form').addEventListener('submit', function(e) {
-            //     if (!validateDuplicateSerials()) {
-            //         e.preventDefault();
-            //         return false;
-            //     }
-            // });
+            const assemblyForm = document.getElementById('assembly-form');
+            if (assemblyForm) {
+                assemblyForm.addEventListener('submit', function(e) {
+                    if (!validateDuplicateSerials()) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const firstErr = document.querySelector('.serial-error-indicator');
+                        if (firstErr) firstErr.scrollIntoView({behavior: 'smooth', block: 'center'});
+                        return false;
+                    }
+                });
+            }
 
             // Initialize quantity change handlers
             handleQuantityChange();
@@ -2856,6 +2989,10 @@
                         if (productId) {
                             setTimeout(() => {
                                 updateCreateNewProductButton(productId);
+                                // Check for duplicate serials after quantity change
+                                if (typeof checkDuplicateSerialsRealTime === 'function') {
+                                    checkDuplicateSerialsRealTime();
+                                }
                             }, 100);
                         }
                     }
@@ -2873,6 +3010,10 @@
                             if (productId) {
                                 setTimeout(() => {
                                     updateCreateNewProductButton(productId);
+                                    // Check for duplicate serials after quantity change
+                                    if (typeof checkDuplicateSerialsRealTime === 'function') {
+                                        checkDuplicateSerialsRealTime();
+                                    }
                                 }, 100);
                             }
                         }
@@ -3245,6 +3386,12 @@
                                         '.space-y-2 input[type="text"]')).map(i => i.value);
                                     generateProductSerialInputs(row, productIndex, productId,
                                         newQty, existingValues);
+                                    // Check for duplicate serials after generating new serial inputs
+                                    setTimeout(() => {
+                                        if (typeof checkDuplicateSerialsRealTime === 'function') {
+                                            checkDuplicateSerialsRealTime();
+                                        }
+                                    }, 50);
                                     // if there is a dynamic block for this product, reload default materials for all units count
                                     const titleEl = document.querySelector(
                                         `.component-block[data-product-id="${productId}"] .bg-blue-50 span`
@@ -3340,6 +3487,10 @@
                                                 setTimeout(() => {
                                                         updateCreateNewProductButton
                                                             (productId);
+                                                        // Check for duplicate serials after quantity change
+                                                        if (typeof checkDuplicateSerialsRealTime === 'function') {
+                                                            checkDuplicateSerialsRealTime();
+                                                        }
                                                 }, 100);
                                             });
                                         } catch (e) {}

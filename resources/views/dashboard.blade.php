@@ -246,7 +246,8 @@
                     <div id="rentalFilters" class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
                         <div>
                             <label for="filterRentalStatus"
-                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái phiếu thuê</label>
+                                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái
+                                phiếu thuê</label>
                             <select id="filterRentalStatus"
                                 class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Tất cả trạng thái</option>
@@ -315,7 +316,7 @@
                                             Loại</th>
                                         <th
                                             class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Serial</th>
+                                            Số lượng</th>
                                         <th
                                             class="py-2 px-4 border-b text-left text-sm font-medium text-gray-700 dark:text-gray-300">
                                             Vị trí</th>
@@ -486,7 +487,8 @@
                         </h3>
                         <div class="flex items-center space-x-2">
                             <select id="warehouseChartItemType"
-                                class="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-blue-500">
+                                class="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                onchange="window.handleWarehouseItemTypeChange && window.handleWarehouseItemTypeChange(this.value)">
                                 <option value="">Tất cả loại</option>
                                 <option value="material">Vật tư</option>
                                 <option value="product">Thành phẩm</option>
@@ -655,11 +657,6 @@
                                         id="itemDate"></td>
                                 </tr>
                                 <tr>
-                                    <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Giá nhập</td>
-                                    <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
-                                        id="goodsPrice"></td>
-                                </tr>
-                                <tr>
                                     <td class="py-2 px-4 border-b text-gray-600 dark:text-gray-400">Số lượng</td>
                                     <td class="py-2 px-4 border-b text-gray-800 dark:text-white font-medium"
                                         id="goodsQuantity"></td>
@@ -774,14 +771,16 @@
             }
 
             // Thêm event listener cho các trường ngày để tự động cập nhật biểu đồ và thống kê
-            const dateInputs = document.querySelectorAll('#dayStartDate, #dayEndDate, #weekStartDate, #weekEndDate, #monthStartDate, #monthEndDate, #yearStartDate, #yearEndDate');
+            const dateInputs = document.querySelectorAll(
+                '#dayStartDate, #dayEndDate, #weekStartDate, #weekEndDate, #monthStartDate, #monthEndDate, #yearStartDate, #yearEndDate'
+                );
             dateInputs.forEach(input => {
                 input.addEventListener('change', function() {
                     // Tự động cập nhật thống kê và biểu đồ khi thay đổi ngày
                     setTimeout(() => {
                         // Cập nhật thống kê trước
                         updateStatistics();
-                        
+
                         // Sau đó cập nhật biểu đồ
                         if (window.chartInstances && window.chartInstances
                             .inventoryOverviewChart) {
@@ -829,10 +828,6 @@
                 chartTabs.forEach((t) => t.classList.remove("active"));
                 // Add active class to clicked tab
                 tab.classList.add("active");
-
-                // Here you would update the chart based on the selected tab
-                // For demo purposes, we're just logging the tab data
-                console.log(`Switched to ${tab.dataset.tab} view`);
             });
         });
 
@@ -1145,7 +1140,6 @@
                 inventoryCategoriesChart,
                 projectGrowthChart
             };
-            console.log('Chart instances saved:', window.chartInstances);
 
             return {
                 inventoryOverviewChart,
@@ -1234,10 +1228,6 @@
         // Time range selector
         const timeRangeSelect = document.getElementById("timeRangeSelect");
         timeRangeSelect.addEventListener("change", function() {
-            // Here you would update the charts based on the selected time range
-            // For demo purposes, we're just logging the selected value
-            console.log(`Time range changed to: ${this.value}`);
-
             // Show loading state
             const toast = document.getElementById("toast");
             toast.innerHTML =
@@ -1273,7 +1263,7 @@
             setTimeout(() => {
                 // Update statistics first
                 updateStatistics();
-                
+
                 // Update all charts if available
                 if (window.chartInstances) {
                     const timeParams = getTimeRangeParams();
@@ -1282,7 +1272,7 @@
                     updateWarehouseDistributionChart(window.chartInstances, timeParams);
                     updateProjectGrowthChart(window.chartInstances, timeParams);
                 }
-                
+
                 toast.innerHTML =
                     '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu thành công!</span></div>';
 
@@ -1327,8 +1317,6 @@
         // Category filter for Inventory Overview Chart
         document.querySelectorAll('.category-filter').forEach(button => {
             button.addEventListener('click', function() {
-                console.log('Category filter clicked:', this.dataset.category);
-
                 // Remove active class from all buttons
                 document.querySelectorAll('.category-filter').forEach(btn => {
                     btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
@@ -1422,7 +1410,6 @@
                     const goodsInfo = document.getElementById('goodsInfo');
                     goodsInfo.classList.remove('hidden');
                     document.getElementById('goodsDistributor').textContent = result.additionalInfo.distributor;
-                    document.getElementById('goodsPrice').textContent = result.additionalInfo.price;
                     document.getElementById('goodsQuantity').textContent = result.additionalInfo.quantity;
                     break;
 
@@ -1535,8 +1522,6 @@
             window.toastTimeout = setTimeout(() => {
                 toast.classList.add('hidden');
             }, 3000);
-
-            console.log(`Toast notification: [${type}] ${message}`);
         }
 
         // Simulate search results (in a real app, this would be an API call)
@@ -1724,7 +1709,7 @@
 
             // Set default values for all date inputs
             setDefaultDateRanges(today);
-            
+
             // Update statistics with initial date range
             setTimeout(() => {
                 updateStatistics();
@@ -1763,7 +1748,8 @@
                 setTimeout(() => {
                     if (window.chartInstances) {
                         const timeParams = getTimeRangeParams();
-                        updateInventoryOverviewChart('materials', window.chartInstances, timeParams);
+                        updateInventoryOverviewChart('materials', window.chartInstances,
+                        timeParams);
                         updateInventoryCategoriesChart(window.chartInstances, timeParams);
                         updateWarehouseDistributionChart(window.chartInstances, timeParams);
                         updateProjectGrowthChart(window.chartInstances, timeParams);
@@ -1776,10 +1762,10 @@
         function getTimeRangeParams() {
             const timeRangeSelect = document.getElementById("timeRangeSelect");
             const timeRangeType = timeRangeSelect.value;
-            
+
             let startDate = '';
             let endDate = '';
-            
+
             switch (timeRangeType) {
                 case 'day':
                     startDate = document.getElementById('dayStartDate').value;
@@ -1798,7 +1784,7 @@
                     endDate = document.getElementById('yearEndDate').value;
                     break;
             }
-            
+
             return {
                 time_range_type: timeRangeType,
                 start_date: startDate,
@@ -1912,28 +1898,28 @@
                 case 'day':
                     return {
                         start: convertToApiFormat(document.getElementById('dayStartDate').value),
-                        end: convertToApiFormat(document.getElementById('dayEndDate').value)
+                            end: convertToApiFormat(document.getElementById('dayEndDate').value)
                     };
                 case 'week':
                     return {
                         start: convertToApiFormat(document.getElementById('weekStartDate').value),
-                        end: convertToApiFormat(document.getElementById('weekEndDate').value)
+                            end: convertToApiFormat(document.getElementById('weekEndDate').value)
                     };
                 case 'month':
                     return {
                         start: convertToApiFormat(document.getElementById('monthStartDate').value),
-                        end: convertToApiFormat(document.getElementById('monthEndDate').value)
+                            end: convertToApiFormat(document.getElementById('monthEndDate').value)
                     };
                 case 'year':
                     return {
                         start: convertToApiFormat(document.getElementById('yearStartDate').value),
-                        end: convertToApiFormat(document.getElementById('yearEndDate').value)
+                            end: convertToApiFormat(document.getElementById('yearEndDate').value)
                     };
 
                 default:
                     return {
                         start: convertToApiFormat(document.getElementById('monthStartDate').value),
-                        end: convertToApiFormat(document.getElementById('monthEndDate').value)
+                            end: convertToApiFormat(document.getElementById('monthEndDate').value)
                     };
             }
         }
@@ -1984,7 +1970,7 @@
             const params = new URLSearchParams({
                 time_range_type: timeRangeType
             });
-            
+
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
 
@@ -2051,8 +2037,6 @@
 
         // Thêm hàm cập nhật biểu đồ tổng quan
         function updateInventoryOverviewChart(category = 'materials', charts) {
-            console.log('updateInventoryOverviewChart called with category:', category);
-
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
                 charts = window.chartInstances;
@@ -2119,10 +2103,10 @@
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
 
-                        // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
+            // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
             // Để test hiển thị "không có dữ liệu", comment dòng dưới và uncomment phần API call
             const testNoData = false; // Set thành false để gọi API thực
-            
+
             if (testNoData) {
                 // Hiển thị thông báo không có dữ liệu
                 const chartContainer = document.querySelector('.chart-container-lg');
@@ -2136,28 +2120,18 @@
                 }, 3000);
                 return;
             }
-            
+
             // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             fetch(`/dashboard/inventory-overview-chart?${params.toString()}`)
                 .then(response => {
-                    console.log('API response received:', response.status);
                     return response.json();
                 })
                 .then(data => {
-                    console.log('API data received:', data);
-                    
                     // Kiểm tra xem có dữ liệu không
                     const hasData = data.labels && data.labels.length > 0 &&
                         data.datasets && data.datasets.length > 0 &&
                         data.datasets.some(dataset => dataset.data && dataset.data.length > 0 &&
                             dataset.data.some(value => value > 0));
-                    
-                    // Debug: Log dữ liệu để kiểm tra
-                    console.log('Chart data check:', {
-                        labels: data.labels,
-                        datasets: data.datasets,
-                        hasData: hasData
-                    });
 
                     if (!hasData) {
                         // Hiển thị thông báo không có dữ liệu
@@ -2172,7 +2146,7 @@
                         }, 3000);
                         return;
                     }
-                    
+
                     // Xóa thông báo không có dữ liệu nếu có
                     const chartContainer = document.querySelector('.chart-container-lg');
                     if (chartContainer) {
@@ -2182,7 +2156,7 @@
                     // Cập nhật biểu đồ
                     charts.inventoryOverviewChart.data.labels = data.labels;
                     charts.inventoryOverviewChart.data.datasets = data.datasets;
-                    
+
                     // Cập nhật tiêu đề
                     let title = '';
                     switch (category) {
@@ -2196,7 +2170,7 @@
                             title = 'Hàng Hóa';
                             break;
                     }
-                    
+
                     // Thêm thông tin thời gian vào tiêu đề
                     const timeRangeLabels = {
                         'day': 'Theo ngày',
@@ -2205,15 +2179,14 @@
                         'year': 'Theo năm'
                     };
                     title += ` - ${timeRangeLabels[timeRangeType] || 'Theo tháng'}`;
-                    
+
                     charts.inventoryOverviewChart.options.plugins.title.text = title;
                     charts.inventoryOverviewChart.update();
-                    console.log('Chart updated successfully');
-                    
+
                     // Hiển thị thông báo thành công
                     toast.innerHTML =
                         '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ!</span></div>';
-                    
+
                     setTimeout(() => {
                         toast.classList.add("hidden");
                     }, 2000);
@@ -2222,72 +2195,64 @@
                     console.error('Error fetching chart data:', error);
                     toast.innerHTML =
                         '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ!</span></div>';
-                    
+
                     setTimeout(() => {
                         toast.classList.add("hidden");
                     }, 2000);
                 });
         }
 
-                // Thêm hàm cập nhật biểu đồ phân loại kho
+        // Thêm hàm cập nhật biểu đồ phân loại kho
         function updateInventoryCategoriesChart(charts, timeParams = {}) {
-            console.log('updateInventoryCategoriesChart called');
-            
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
                 charts = window.chartInstances;
-                console.log('Using window.chartInstances for inventory categories chart');
             }
-            
+
             // Nếu không có charts, không làm gì cả
             if (!charts) {
                 console.error('Charts not initialized for inventory categories');
                 return;
             }
-            
+
             // Kiểm tra xem chart có tồn tại không
             if (!charts.inventoryCategoriesChart) {
                 console.error('inventoryCategoriesChart not found in charts object');
                 return;
             }
-            
-            console.log('Making API call for inventory categories chart...');
-            
+
+
             // Tạo URL với tham số thời gian
             const url = new URL('/dashboard/inventory-categories-chart', window.location.origin);
             if (timeParams.start_date) url.searchParams.append('start_date', timeParams.start_date);
             if (timeParams.end_date) url.searchParams.append('end_date', timeParams.end_date);
             if (timeParams.time_range_type) url.searchParams.append('time_range_type', timeParams.time_range_type);
-            
+
             // Gọi API để lấy dữ liệu
             fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                credentials: 'same-origin'
-            })
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    credentials: 'same-origin'
+                })
                 .then(response => {
-                    console.log('Inventory categories API response status:', response.status);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Inventory categories API data received:', data);
-                    
+
                     // Kiểm tra xem có dữ liệu không
                     const hasData = data.labels && data.labels.length > 0 &&
                         data.data && data.data.length > 0 &&
                         data.data.some(value => value > 0);
-                    
-                    console.log('Inventory categories has data:', hasData);
-                    
+
+
                     if (!hasData) {
-                        console.log('No inventory categories data, showing no data message');
                         // Hiển thị thông báo không có dữ liệu
                         const chartContainer = document.querySelector('.chart-container');
                         if (chartContainer) {
@@ -2295,25 +2260,23 @@
                         }
                         return;
                     }
-                    
+
                     // Xóa thông báo không có dữ liệu nếu có
                     const chartContainer = document.querySelector('.chart-container');
                     if (chartContainer) {
                         removeNoDataMessage(chartContainer);
                     }
-                    
-                    console.log('Updating inventory categories chart with data:', data);
-                    
+
+
                     // Cập nhật biểu đồ
                     charts.inventoryCategoriesChart.data.labels = data.labels;
                     charts.inventoryCategoriesChart.data.datasets[0].data = data.data;
                     charts.inventoryCategoriesChart.update();
-                    
-                    console.log('Inventory categories chart updated successfully');
+
                 })
                 .catch(error => {
                     console.error('Error fetching inventory categories data:', error);
-                    
+
                     // Hiển thị thông báo lỗi
                     const chartContainer = document.querySelector('.chart-container');
                     if (chartContainer) {
@@ -2324,37 +2287,37 @@
 
 
 
-                // Thêm hàm cập nhật biểu đồ phân bố theo kho
+        // Thêm hàm cập nhật biểu đồ phân bố theo kho
         function updateWarehouseDistributionChart(charts, filters = {}) {
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
                 charts = window.chartInstances;
             }
-            
+
             // Nếu không có charts, không làm gì cả
             if (!charts) {
                 console.error('Charts not initialized');
                 return;
             }
-            
+
             // Xử lý các tham số lọc
             const itemType = filters.itemType || document.getElementById('warehouseChartItemType')?.value || '';
-            
+
             // Hiển thị trạng thái loading
             const toast = document.getElementById("toast");
             toast.innerHTML =
                 '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu phân bố kho...</span></div>';
             toast.classList.remove("hidden");
-            
+
             // Xây dựng query string từ các tham số lọc
             let queryParams = new URLSearchParams();
             if (itemType) {
                 queryParams.append('item_type', itemType);
             }
-            
+
             // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
             const testNoData = false; // Set thành false để gọi API thực
-            
+
             if (testNoData) {
                 // Hiển thị thông báo không có dữ liệu
                 const chartContainer = document.querySelector('.chart-container');
@@ -2368,21 +2331,19 @@
                 }, 3000);
                 return;
             }
-            
+
             // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             const url = `/dashboard/warehouse-distribution-chart?${queryParams.toString()}`;
-            console.log('Fetching warehouse distribution data from:', url);
-            
+
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    console.log('Warehouse distribution data received:', data);
-                    
+
                     // Kiểm tra xem có dữ liệu không
                     const hasData = data.labels && data.labels.length > 0 &&
                         data.data && data.data.length > 0 &&
                         data.data.some(value => value > 0);
-                    
+
                     if (!hasData) {
                         // Hiển thị thông báo không có dữ liệu
                         const chartContainer = document.querySelector('.chart-container');
@@ -2396,7 +2357,7 @@
                         }, 3000);
                         return;
                     }
-                    
+
                     // Xóa thông báo không có dữ liệu nếu có
                     const chartContainer = document.querySelector('.chart-container');
                     if (chartContainer) {
@@ -2450,17 +2411,29 @@
                                     'flex items-center justify-between mb-2 p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded';
 
                                 let detailsHtml = '';
-                                if (detail.material_count > 0) {
+                                if (itemType === 'material' && detail.material_count > 0) {
                                     detailsHtml +=
                                         `<span class="text-xs text-blue-500">Vật tư: ${detail.material_count}</span> `;
-                                }
-                                if (detail.product_count > 0) {
+                                } else if (itemType === 'product' && detail.product_count > 0) {
                                     detailsHtml +=
                                         `<span class="text-xs text-green-500">Thành phẩm: ${detail.product_count}</span> `;
-                                }
-                                if (detail.good_count > 0) {
+                                } else if (itemType === 'good' && detail.good_count > 0) {
                                     detailsHtml +=
                                         `<span class="text-xs text-orange-500">Hàng hóa: ${detail.good_count}</span>`;
+                                } else if (!itemType) {
+                                    // Khi không có filter, hiển thị tất cả
+                                    if (detail.material_count > 0) {
+                                        detailsHtml +=
+                                            `<span class="text-xs text-blue-500">Vật tư: ${detail.material_count}</span> `;
+                                    }
+                                    if (detail.product_count > 0) {
+                                        detailsHtml +=
+                                            `<span class="text-xs text-green-500">Thành phẩm: ${detail.product_count}</span> `;
+                                    }
+                                    if (detail.good_count > 0) {
+                                        detailsHtml +=
+                                            `<span class="text-xs text-orange-500">Hàng hóa: ${detail.good_count}</span>`;
+                                    }
                                 }
 
                                 legendItem.innerHTML = `
@@ -2500,10 +2473,10 @@
                         }
                     }
 
-                                        // Hiển thị thông báo thành công
+                    // Hiển thị thông báo thành công
                     toast.innerHTML =
                         '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu phân bố kho!</span></div>';
-                    
+
                     setTimeout(() => {
                         toast.classList.add("hidden");
                     }, 2000);
@@ -2512,35 +2485,35 @@
                     console.error('Error fetching warehouse distribution data:', error);
                     toast.innerHTML =
                         '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu phân bố kho!</span></div>';
-                    
+
                     setTimeout(() => {
                         toast.classList.add("hidden");
                     }, 2000);
                 });
         }
 
-                // Thêm hàm cập nhật biểu đồ mức độ gia tăng dự án
+        // Thêm hàm cập nhật biểu đồ mức độ gia tăng dự án
         function updateProjectGrowthChart(charts) {
             // Nếu charts không được truyền vào, sử dụng window.chartInstances
             if (!charts && window.chartInstances) {
                 charts = window.chartInstances;
             }
-            
+
             // Nếu không có charts, không làm gì cả
             if (!charts) {
                 console.error('Charts not initialized');
                 return;
             }
-            
+
             // Hiển thị trạng thái loading
             const toast = document.getElementById("toast");
             toast.innerHTML =
                 '<div class="toast bg-blue-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-spinner fa-spin mr-2"></i><span>Đang tải dữ liệu biểu đồ dự án...</span></div>';
             toast.classList.remove("hidden");
-            
+
             // Test: Hiển thị trạng thái "không có dữ liệu" thay vì gọi API
             const testNoData = false; // Set thành false để gọi API thực
-            
+
             if (testNoData) {
                 // Hiển thị thông báo không có dữ liệu
                 const chartContainer = document.querySelector('.chart-container');
@@ -2554,21 +2527,18 @@
                 }, 3000);
                 return;
             }
-            
+
             // Gọi API để lấy dữ liệu (uncomment để sử dụng API thực)
             fetch('/dashboard/project-growth-chart')
                 .then(response => {
-                    console.log('Project growth API response received:', response.status);
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Project growth data received:', data);
-                    
                     // Kiểm tra xem có dữ liệu không
                     const hasData = data.labels && data.labels.length > 0 &&
                         data.data && data.data.length > 0 &&
                         data.data.some(value => value > 0);
-                    
+
                     if (!hasData) {
                         // Hiển thị thông báo không có dữ liệu
                         const chartContainer = document.querySelector('.chart-container');
@@ -2582,7 +2552,7 @@
                         }, 3000);
                         return;
                     }
-                    
+
                     // Xóa thông báo không có dữ liệu nếu có
                     const chartContainer = document.querySelector('.chart-container');
                     if (chartContainer) {
@@ -2593,12 +2563,11 @@
                     charts.projectGrowthChart.data.labels = data.labels;
                     charts.projectGrowthChart.data.datasets[0].data = data.data;
                     charts.projectGrowthChart.update();
-                    console.log('Project growth chart updated successfully');
 
-                                        // Hiển thị thông báo thành công
+                    // Hiển thị thông báo thành công
                     toast.innerHTML =
                         '<div class="toast bg-green-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-check-circle mr-2"></i><span>Đã cập nhật dữ liệu biểu đồ dự án!</span></div>';
-                    
+
                     setTimeout(() => {
                         toast.classList.add("hidden");
                     }, 2000);
@@ -2607,7 +2576,7 @@
                     console.error('Error fetching project growth data:', error);
                     toast.innerHTML =
                         '<div class="toast bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center"><i class="fas fa-exclamation-circle mr-2"></i><span>Lỗi khi tải dữ liệu biểu đồ dự án!</span></div>';
-                    
+
                     setTimeout(() => {
                         toast.classList.add("hidden");
                     }, 2000);
@@ -2624,7 +2593,7 @@
             }
 
             // Chỉ khởi tạo biểu đồ một lần khi trang tải xong
-            let charts = window.chartInstances;
+            let charts = window.chartInstances;    
 
             if (!charts) {
                 charts = initCharts();
@@ -2637,8 +2606,6 @@
                 // Đăng ký event listener cho các nút category filter
                 document.querySelectorAll('.category-filter').forEach(button => {
                     button.addEventListener('click', function() {
-                        console.log('Category filter clicked:', this.dataset.category);
-
                         // Remove active class from all buttons
                         document.querySelectorAll('.category-filter').forEach(btn => {
                             btn.classList.remove('active', 'bg-blue-100', 'text-blue-800');
@@ -2656,22 +2623,49 @@
 
                 // Đăng ký event listener cho bộ lọc biểu đồ phân bố kho
                 const warehouseChartItemType = document.getElementById('warehouseChartItemType');
+
                 if (warehouseChartItemType) {
                     warehouseChartItemType.addEventListener('change', function() {
                         const itemType = this.value;
-                        console.log('Warehouse chart filter changed:', itemType);
                         updateWarehouseDistributionChart(charts, {
                             itemType
                         });
                     });
+                } else {
+                    console.error('warehouseChartItemType element not found!');
                 }
+
+                // Thêm event delegation như backup
+                document.addEventListener('change', function(e) {
+                    if (e.target && e.target.id === 'warehouseChartItemType') {
+                        const itemType = e.target.value;
+                        updateWarehouseDistributionChart(charts, {
+                            itemType
+                        });
+                    }
+                });
+
+                // Global fallback handler wired from the select's onchange attribute
+                window.handleWarehouseItemTypeChange = function(itemType) {
+                    try {
+                        const chartsRef = window.chartInstances;
+                        if (!chartsRef) {
+                            console.warn('Global handler: chartInstances not ready');
+                            return;
+                        }
+                        updateWarehouseDistributionChart(chartsRef, {
+                            itemType
+                        });
+                    } catch (err) {
+                        console.error('Global handler error:', err);
+                    }
+                };
             }
 
             // Cập nhật tất cả biểu đồ khi trang tải xong
             updateStatistics();
             updateInventoryOverviewChart('materials', charts);
-            
-            console.log('About to call updateInventoryCategoriesChart...');
+
             updateInventoryCategoriesChart(charts);
             updateWarehouseDistributionChart(charts);
             updateProjectGrowthChart(charts);
@@ -2681,6 +2675,39 @@
 
             // Đánh dấu biểu đồ đã được khởi tạo và cập nhật
             chartsInitialized = true;
+        });
+
+        // Đảm bảo handler và binding luôn tồn tại kể cả khi charts đã có sẵn
+        if (!window.handleWarehouseItemTypeChange) {
+            window.handleWarehouseItemTypeChange = function(itemType) {
+                try {
+                    const chartsRef = window.chartInstances;
+                    if (!chartsRef) {
+                        return;
+                    }
+                    updateWarehouseDistributionChart(chartsRef, { itemType });
+                } catch (err) {
+                    console.error('Global handler error:', err);
+                }
+            };
+        }
+
+        // Binding đảm bảo (ngoài nhánh if) và tái gắn khi DOM thay đổi
+        document.addEventListener('change', function(e) {
+            if (e.target && e.target.id === 'warehouseChartItemType') {
+                window.handleWarehouseItemTypeChange(e.target.value);
+            }
+        });
+
+        // Thử gắn trực tiếp một lần sau khi DOM ready (phòng trường hợp re-render)
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectEl = document.getElementById('warehouseChartItemType');
+            if (selectEl && !selectEl.dataset.bound) {
+                selectEl.addEventListener('change', function() {
+                    window.handleWarehouseItemTypeChange(this.value);
+                });
+                selectEl.dataset.bound = '1';
+            }
         });
 
         // Thêm code xử lý tìm kiếm nâng cao
@@ -2707,7 +2734,6 @@
             function handleSearch() {
                 // Nếu đang trong quá trình tìm kiếm, không thực hiện tìm kiếm mới
                 if (isSearching) {
-                    console.log('Search in progress, skipping...');
                     return;
                 }
 
@@ -2865,14 +2891,8 @@
                         }
                     }
 
-                    console.log('Performing search with query:', query);
-                    console.log('Search category:', category);
-                    console.log('Search filters:', filters);
-                    console.log('Search URL:', `/dashboard/search?${queryParams.toString()}`);
-
                     // Ngăn chặn các request trùng lặp
                     if (window.lastSearchRequest) {
-                        console.log('Aborting previous search request');
                         window.lastSearchRequest.abort();
                     }
 
@@ -2895,15 +2915,12 @@
                             cache: 'no-store'
                         })
                         .then(response => {
-                            console.log('Search response status:', response.status);
                             if (!response.ok) {
                                 throw new Error(`HTTP error! Status: ${response.status}`);
                             }
                             return response.json();
                         })
                         .then(data => {
-                            console.log('Search response data:', data);
-
                             // Xóa reference đến request hiện tại
                             window.lastSearchRequest = null;
 
@@ -2927,7 +2944,6 @@
                         .catch(error => {
                             // Không hiển thị lỗi nếu request bị hủy
                             if (error.name === 'AbortError') {
-                                console.log('Search request aborted');
                                 resolve();
                                 return;
                             }
@@ -2950,88 +2966,101 @@
 
                 // Thêm kết quả mới
                 results.forEach(result => {
-                    const row = document.createElement('tr');
+                    const renderRow = (loc, isFirst) => {
+                        const row = document.createElement('tr');
 
-                    // Mã
-                    const codeCell = document.createElement('td');
-                    codeCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-                    codeCell.textContent = result.code;
+                        // Mã
+                        const codeCell = document.createElement('td');
+                        codeCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                        codeCell.textContent = result.code;
 
-                    // Tên
-                    const nameCell = document.createElement('td');
-                    nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-                    nameCell.textContent = result.name;
+                        // Tên
+                        const nameCell = document.createElement('td');
+                        nameCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                        nameCell.textContent = result.name;
 
-                    // Loại
-                    const categoryCell = document.createElement('td');
-                    categoryCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                        // Loại
+                        const categoryCell = document.createElement('td');
+                        categoryCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
 
-                    const categoryBadge = document.createElement('span');
-                    categoryBadge.textContent = result.categoryName;
-                    categoryBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
+                        const categoryBadge = document.createElement('span');
+                        categoryBadge.textContent = result.categoryName;
+                        categoryBadge.className = 'px-2 py-1 rounded text-xs text-white font-medium';
+                        switch (result.category) {
+                            case 'materials':
+                                categoryBadge.classList.add('bg-blue-500');
+                                break;
+                            case 'finished':
+                                categoryBadge.classList.add('bg-green-500');
+                                break;
+                            case 'goods':
+                                categoryBadge.classList.add('bg-purple-500');
+                                break;
+                            case 'projects':
+                                categoryBadge.classList.add('bg-yellow-500');
+                                break;
+                            case 'customers':
+                                categoryBadge.classList.add('bg-red-500');
+                                break;
+                            default:
+                                categoryBadge.classList.add('bg-gray-500');
+                        }
+                        categoryCell.appendChild(categoryBadge);
 
-                    // Màu sắc theo loại
-                    switch (result.category) {
-                        case 'materials':
-                            categoryBadge.classList.add('bg-blue-500');
-                            break;
-                        case 'finished':
-                            categoryBadge.classList.add('bg-green-500');
-                            break;
-                        case 'goods':
-                            categoryBadge.classList.add('bg-purple-500');
-                            break;
-                        case 'projects':
-                            categoryBadge.classList.add('bg-yellow-500');
-                            break;
-                        case 'customers':
-                            categoryBadge.classList.add('bg-red-500');
-                            break;
-                        default:
-                            categoryBadge.classList.add('bg-gray-500');
+                        // Số lượng theo từng vị trí
+                        const qtyCell = document.createElement('td');
+                        qtyCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                        if (loc) {
+                            qtyCell.textContent = loc.quantity ?? 0;
+                        } else {
+                            const qty = (result.quantity !== undefined) ? result.quantity : (result.additionalInfo && result.additionalInfo.quantity ? result.additionalInfo.quantity : 0);
+                            qtyCell.textContent = qty;
+                        }
+
+                        // Vị trí
+                        const locationCell = document.createElement('td');
+                        locationCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                        if (loc) {
+                            locationCell.textContent = `${loc.name} (${loc.quantity})${loc.counted === false ? ' *' : ''}`;
+                        } else {
+                            locationCell.textContent = result.location || 'N/A';
+                        }
+
+                        // Thao tác
+                        const actionCell = document.createElement('td');
+                        actionCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
+                        const viewButton = document.createElement('button');
+                        viewButton.className = 'text-blue-500 hover:text-blue-700 mr-2';
+                        viewButton.innerHTML = '<i class="fas fa-eye"></i>';
+                        viewButton.addEventListener('click', function() {
+                            // Nếu là dòng vị trí, gắn selectedLocation để modal hiển thị đúng số lượng/vị trí
+                            const payload = Object.assign({}, result);
+                            if (loc) { payload.selectedLocation = loc; }
+                            showItemDetails(payload);
+                        });
+
+                        const detailLink = document.createElement('a');
+                        detailLink.href = result.detailUrl;
+                        detailLink.className = 'text-green-500 hover:text-green-700';
+                        detailLink.innerHTML = '<i class="fas fa-external-link-alt"></i>';
+
+                        actionCell.appendChild(viewButton);
+                        actionCell.appendChild(detailLink);
+
+                        row.appendChild(codeCell);
+                        row.appendChild(nameCell);
+                        row.appendChild(categoryCell);
+                        row.appendChild(qtyCell);
+                        row.appendChild(locationCell);
+                        row.appendChild(actionCell);
+                        searchResultsList.appendChild(row);
+                    };
+
+                    if (Array.isArray(result.locations) && result.locations.length > 0) {
+                        result.locations.forEach((loc, idx) => renderRow(loc, idx === 0));
+                    } else {
+                        renderRow(null, true);
                     }
-
-                    categoryCell.appendChild(categoryBadge);
-
-                    // Serial
-                    const serialCell = document.createElement('td');
-                    serialCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-                    serialCell.textContent = result.serial;
-
-                    // Vị trí
-                    const locationCell = document.createElement('td');
-                    locationCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-                    locationCell.textContent = result.location;
-
-                    // Thao tác
-                    const actionCell = document.createElement('td');
-                    actionCell.className = 'py-2 px-4 border-b text-gray-800 dark:text-white';
-
-                    const viewButton = document.createElement('button');
-                    viewButton.className = 'text-blue-500 hover:text-blue-700 mr-2';
-                    viewButton.innerHTML = '<i class="fas fa-eye"></i>';
-                    viewButton.addEventListener('click', function() {
-                        showItemDetails(result);
-                    });
-
-                    const detailLink = document.createElement('a');
-                    detailLink.href = result.detailUrl;
-                    detailLink.className = 'text-green-500 hover:text-green-700';
-                    detailLink.innerHTML = '<i class="fas fa-external-link-alt"></i>';
-
-                    actionCell.appendChild(viewButton);
-                    actionCell.appendChild(detailLink);
-
-                    // Thêm các ô vào hàng
-                    row.appendChild(codeCell);
-                    row.appendChild(nameCell);
-                    row.appendChild(categoryCell);
-                    row.appendChild(serialCell);
-                    row.appendChild(locationCell);
-                    row.appendChild(actionCell);
-
-                    // Thêm hàng vào bảng
-                    searchResultsList.appendChild(row);
                 });
 
                 // Hiển thị kết quả
@@ -3050,6 +3079,20 @@
                 document.getElementById('itemSerial').textContent = item.serial;
                 document.getElementById('viewDetail').href = item.detailUrl;
 
+                // Tính vị trí mặc định từ danh sách locations nếu có
+                const defaultLocation = (function() {
+                    if (Array.isArray(item.locations) && item.locations.length > 0) {
+                        const counted = item.locations.filter(l => l.counted !== false);
+                        const arr = (counted.length > 0 ? counted : item.locations)
+                            .map(l => `${l.name} (${l.quantity})${l.counted === false ? ' *' : ''}`);
+                        return arr.join(', ');
+                    }
+                    return item.location || 'N/A';
+                })();
+
+                // Nếu click từ một hàng vị trí, ưu tiên hiển thị theo vị trí đó
+                const selectedLoc = item.selectedLocation || null;
+
                 // Ẩn tất cả các phần thông tin chi tiết
                 document.getElementById('materialsInfo').classList.add('hidden');
                 document.getElementById('finishedInfo').classList.add('hidden');
@@ -3063,10 +3106,10 @@
                         const materialsInfo = document.getElementById('materialsInfo');
                         materialsInfo.classList.remove('hidden');
                         document.getElementById('materialSupplier').textContent = item.additionalInfo.supplier;
-                        document.getElementById('materialQuantity').textContent = item.additionalInfo.quantity;
+                        document.getElementById('materialQuantity').textContent = (selectedLoc ? selectedLoc.quantity : item.additionalInfo.quantity);
                         document.getElementById('materialUnit').textContent = item.additionalInfo.unit;
                         document.getElementById('itemDate').textContent = item.date;
-                        document.getElementById('itemLocation').textContent = item.location;
+                        document.getElementById('itemLocation').textContent = selectedLoc ? `${selectedLoc.name} (${selectedLoc.quantity})${selectedLoc.counted === false ? ' *' : ''}` : defaultLocation;
                         break;
 
                     case 'finished':
@@ -3074,20 +3117,19 @@
                         finishedInfo.classList.remove('hidden');
                         document.getElementById('finishedManufactureDate').textContent = item.additionalInfo
                             .manufactureDate;
-                        document.getElementById('finishedQuantity').textContent = item.additionalInfo.quantity;
+                        document.getElementById('finishedQuantity').textContent = (selectedLoc ? selectedLoc.quantity : item.additionalInfo.quantity);
                         document.getElementById('finishedProject').textContent = item.additionalInfo.project;
                         document.getElementById('itemDate').textContent = item.date;
-                        document.getElementById('itemLocation').textContent = item.location;
+                        document.getElementById('itemLocation').textContent = selectedLoc ? `${selectedLoc.name} (${selectedLoc.quantity})${selectedLoc.counted === false ? ' *' : ''}` : defaultLocation;
                         break;
 
                     case 'goods':
                         const goodsInfo = document.getElementById('goodsInfo');
                         goodsInfo.classList.remove('hidden');
                         document.getElementById('goodsDistributor').textContent = item.additionalInfo.distributor;
-                        document.getElementById('goodsPrice').textContent = item.additionalInfo.price;
-                        document.getElementById('goodsQuantity').textContent = item.additionalInfo.quantity;
+                        document.getElementById('goodsQuantity').textContent = (selectedLoc ? selectedLoc.quantity : item.additionalInfo.quantity);
                         document.getElementById('itemDate').textContent = item.date;
-                        document.getElementById('itemLocation').textContent = item.location;
+                        document.getElementById('itemLocation').textContent = selectedLoc ? `${selectedLoc.name} (${selectedLoc.quantity})${selectedLoc.counted === false ? ' *' : ''}` : defaultLocation;
                         break;
 
                     case 'projects':

@@ -49,7 +49,7 @@
                         {{ $assembly->assignedEmployee->name ?? 'Chưa phân công' }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {{ $assembly->created_at ? $assembly->created_at->format('d/m/Y') : '' }}</td>
+                        {{ $assembly->date ? $assembly->date->format('d/m/Y') : '' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $assembly->notes ?? '' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span

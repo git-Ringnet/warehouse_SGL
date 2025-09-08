@@ -372,11 +372,14 @@ class InventoryImportController extends Controller
 
         DB::beginTransaction();
         try {
+            // Chuyển đổi định dạng ngày từ d/m/Y sang Y-m-d
+            $importDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->import_date)->format('Y-m-d');
+            
             // Tạo phiếu nhập kho với trạng thái pending
             $inventoryImport = InventoryImport::create([
                 'supplier_id' => $request->supplier_id,
                 'import_code' => $request->import_code,
-                'import_date' => $request->import_date,
+                'import_date' => $importDate,
                 'order_code' => $request->order_code,
                 'notes' => $request->notes,
                 'status' => 'pending' // Mặc định là chờ xử lý
@@ -701,11 +704,14 @@ class InventoryImportController extends Controller
             $oldSupplierId = $inventoryImport->supplier_id;
             $oldImportCode = $inventoryImport->import_code;
 
+            // Chuyển đổi định dạng ngày từ d/m/Y sang Y-m-d
+            $importDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->import_date)->format('Y-m-d');
+            
             // Cập nhật phiếu nhập kho - không còn cần warehouse_id
             $inventoryImport->update([
                 'supplier_id' => $request->supplier_id,
                 'import_code' => $request->import_code,
-                'import_date' => $request->import_date,
+                'import_date' => $importDate,
                 'order_code' => $request->order_code,
                 'notes' => $request->notes,
             ]);
@@ -727,7 +733,7 @@ class InventoryImportController extends Controller
                             '$.supplier_id', " . $request->supplier_id . ",
                             '$.supplier_name', '" . addslashes($newSupplierName) . "',
                             '$.order_code', '" . addslashes($request->order_code ?? '') . "',
-                            '$.import_date', '" . $request->import_date . "'
+                            '$.import_date', '" . $importDate . "'
                         )")
                     ]);
             }

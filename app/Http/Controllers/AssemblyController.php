@@ -381,14 +381,6 @@ class AssemblyController extends Controller
                 $componentQty = intval($component['quantity']);
                 $productUnit = intval($component['product_unit'] ?? 0);
 
-                // Debug: Log product_unit value
-                Log::info('Processing component product_unit', [
-                    'component_id' => $component['id'],
-                    'raw_product_unit' => $component['product_unit'] ?? 'not_set',
-                    'parsed_product_unit' => $productUnit,
-                    'component_data' => $component
-                ]);
-
                 // Calculate serials for this specific unit
                 $unitSerials = [];
                 $unitSerialIds = [];
@@ -431,17 +423,6 @@ class AssemblyController extends Controller
                 if (!empty($unitSerialIds)) {
                     $assemblyMaterialData['serial_id'] = $unitSerialIds[0]; // Use first serial_id for this unit
                 }
-
-                Log::info('Creating assembly material for unit', [
-                    'material_id' => $component['id'],
-                    'product_unit' => $productUnit,
-                    'quantity' => $componentQty,
-                    'unit_serials' => $unitSerials,
-                    'unit_serial' => $unitSerial,
-                    'original_serials' => $component['serials'] ?? 'not_set',
-                    'original_serial_ids' => $component['serial_ids'] ?? 'not_set',
-                    'product_qty' => $productQty
-                ]);
 
                 AssemblyMaterial::create($assemblyMaterialData);
             }
@@ -717,12 +698,14 @@ class AssemblyController extends Controller
             $validationRules['components.*.quantity'] = 'required|integer|min:1';
             $validationRules['components.*.serials'] = 'nullable|array';
             $validationRules['components.*.note'] = 'nullable|string';
+            $validationRules['components.*.warehouse_id'] = 'nullable|exists:warehouses,id';
         } else {
             // For other statuses, allow serial and note updates
             $validationRules['components'] = 'nullable|array';
             $validationRules['components.*.serial'] = 'nullable|string';
             $validationRules['components.*.note'] = 'nullable|string';
             $validationRules['components.*.product_unit'] = 'nullable|integer|min:0';
+            $validationRules['components.*.warehouse_id'] = 'nullable|exists:warehouses,id';
         }
 
         $request->validate($validationRules);
@@ -766,6 +749,49 @@ class AssemblyController extends Controller
 
             // 2. Validate component serials for duplicates
             if ($request->components) {
+                // First, collect all serials by material_id to check for cross-component duplicates
+                $allSerialsByMaterial = [];
+                $materialNames = [];
+                
+                foreach ($request->components as $componentIndex => $component) {
+                    $materialId = $component['material_id'] ?? $component['id'] ?? null;
+                    if (!$materialId) continue;
+                    
+                    // Get material name for error messages
+                    if (!isset($materialNames[$materialId])) {
+                        $material = Material::find($materialId);
+                        $materialNames[$materialId] = $material ? $material->name : 'Unknown';
+                    }
+                    
+                    // Collect serials for this component
+                    $componentSerials = [];
+                    if (isset($component['serials']) && is_array($component['serials'])) {
+                        $componentSerials = array_filter($component['serials']);
+                    } elseif (!empty($component['serial'])) {
+                        $componentSerials = [$component['serial']];
+                    }
+                    
+                    // Add to material's serial list
+                    if (!empty($componentSerials)) {
+                        if (!isset($allSerialsByMaterial[$materialId])) {
+                            $allSerialsByMaterial[$materialId] = [];
+                        }
+                        $allSerialsByMaterial[$materialId] = array_merge($allSerialsByMaterial[$materialId], $componentSerials);
+                    }
+                }
+                
+                // Check for duplicate serials across different components for the same material
+                foreach ($allSerialsByMaterial as $materialId => $allSerials) {
+                    $uniqueSerials = array_unique($allSerials);
+                    if (count($allSerials) !== count($uniqueSerials)) {
+                        $materialName = $materialNames[$materialId];
+                        $duplicates = array_diff_assoc($allSerials, $uniqueSerials);
+                        $duplicateList = implode(', ', array_unique($duplicates));
+                        throw new \Exception("Phát hiện serial trùng lặp cho linh kiện '{$materialName}': {$duplicateList}. Mỗi serial chỉ có thể sử dụng một lần trong phiếu lắp ráp.");
+                    }
+                }
+                
+                // Then check individual component validation
                 foreach ($request->components as $componentIndex => $component) {
                     // Check for duplicate serials within the same component
                     if (isset($component['serials']) && is_array($component['serials'])) {
@@ -773,7 +799,7 @@ class AssemblyController extends Controller
                         $uniqueSerials = array_unique($filteredSerials);
 
                         if (count($filteredSerials) !== count($uniqueSerials)) {
-                            throw new \Exception("Phát hiện trùng lặp serial linh kiện trong phiếu lắp ráp!");
+                            throw new \Exception("Phát hiện trùng lặp serial linh kiện trong cùng một dòng!");
                         }
                     }
 
@@ -909,13 +935,7 @@ class AssemblyController extends Controller
                         $query->where('product_unit', $productUnit);
                     }
                     $deletedCount = $query->delete();
-                    Log::info('Assembly delete component request', [
-                        'assembly_id' => $assembly->id,
-                        'material_id' => $materialId,
-                        'target_product_id' => $targetProductId,
-                        'product_unit' => $productUnit,
-                        'deleted_count_first' => $deletedCount,
-                    ]);
+
                     // Fallback: if nothing deleted (possible mismatch on target_product_id), retry without target_product_id condition
                     if ($deletedCount === 0) {
                         $fallback = AssemblyMaterial::where('assembly_id', $assembly->id)
@@ -924,9 +944,6 @@ class AssemblyController extends Controller
                             $fallback->where('product_unit', $productUnit);
                         }
                         $deletedCount2 = $fallback->delete();
-                        Log::info('Assembly delete component fallback', [
-                            'deleted_count_second' => $deletedCount2
-                        ]);
                     }
                 }
             }
@@ -955,14 +972,6 @@ class AssemblyController extends Controller
 
             // 6. Update or create component materials
             if ($request->components) {
-                // Debug: Log the incoming components data
-                Log::info('Incoming components data for assembly update:', [
-                    'assembly_id' => $assembly->id,
-                    'assembly_status' => $assembly->status,
-                    'components_count' => count($request->components),
-                    'components_data' => $request->components
-                ]);
-
                 foreach ($request->components as $componentIndex => $component) {
                     // Support both 'material_id' (edit form existing) and 'id' (newly added like create form)
                     $materialId = $component['material_id'] ?? $component['id'] ?? null;
@@ -1013,15 +1022,6 @@ class AssemblyController extends Controller
                         }
                     }
 
-                    // Debug logging
-                    Log::info('Processing component update', [
-                        'componentIndex' => $componentIndex,
-                        'componentMaterialId' => $component['material_id'] ?? 'not_set',
-                        'assemblyId' => $assembly->id,
-                        'assemblyMaterialFound' => $assemblyMaterial ? 'yes' : 'no',
-                        'componentData' => $component
-                    ]);
-
                     // Skip recreation if this tuple was marked as deleted
                     $componentKey = ($materialId ?: '0') . '|' . (($targetProductId ?? null) ?: 'null') . '|' . (isset($productUnit) && $productUnit !== null ? $productUnit : 'null');
                     if (!$assemblyMaterial && in_array($componentKey, $deletedKeys, true)) {
@@ -1034,17 +1034,6 @@ class AssemblyController extends Controller
                             // For in_progress assemblies, allow quantity updates and serial updates
                             $newQuantity = (int)($component['quantity'] ?? $assemblyMaterial->quantity);
                             $oldQuantity = $assemblyMaterial->quantity;
-
-                            // Debug: Log the component update details
-                            Log::info('Processing in_progress component update:', [
-                                'component_index' => $componentIndex,
-                                'material_id' => $materialId,
-                                'old_quantity' => $oldQuantity,
-                                'new_quantity' => $newQuantity,
-                                'component_serials' => $component['serials'] ?? 'not_set',
-                                'component_serial' => $component['serial'] ?? 'not_set',
-                                'assembly_material_id' => $assemblyMaterial->id
-                            ]);
 
                             if ($newQuantity < $oldQuantity) {
                                 throw new \Exception("Không thể giảm số lượng linh kiện từ {$oldQuantity} xuống {$newQuantity}. Chỉ có thể tăng số lượng.");
@@ -1068,14 +1057,6 @@ class AssemblyController extends Controller
                                 $merged = array_slice($merged, 0, max(0, $newQuantity));
                                 // Convert to comma-separated string
                                 $serial = !empty($merged) ? implode(',', $merged) : null;
-
-                                // Debug: Log serial processing
-                                Log::info('Serial processing for in_progress (merged):', [
-                                    'existing_serials' => $existingSerials,
-                                    'incoming_serials' => $component['serials'],
-                                    'merged_serials' => $merged,
-                                    'final_serial_string' => $serial
-                                ]);
                             } elseif (isset($component['serial'])) {
                                 // Single serial provided (edge cases) – override appropriately
                                 $serial = $component['serial'];
@@ -1090,13 +1071,8 @@ class AssemblyController extends Controller
                                 'note' => $component['note'] ?? $assemblyMaterial->note,
                                 'serial_id' => null, // Reset first
                                 'product_unit' => $assemblyMaterial->product_unit,
+                                'warehouse_id' => $component['warehouse_id'] ?? $assemblyMaterial->warehouse_id,
                             ];
-
-                            // Debug: Log the final update data
-                            Log::info('Final update data for in_progress:', [
-                                'update_data' => $updateData,
-                                'assembly_material_id' => $assemblyMaterial->id
-                            ]);
 
                             // Set new serial_id if provided
                             if (isset($component['serial_id']) && !empty($component['serial_id'])) {
@@ -1136,6 +1112,7 @@ class AssemblyController extends Controller
                                 'serial' => $serial,
                                 'note' => $component['note'] ?? null,
                                 'serial_id' => null, // Reset first
+                                'warehouse_id' => $component['warehouse_id'] ?? $assemblyMaterial->warehouse_id,
                             ];
                         } else {
                             // For other statuses, allow serial and note updates only
@@ -1166,6 +1143,7 @@ class AssemblyController extends Controller
                                 'serial' => $serial,
                                 'note' => $component['note'] ?? null,
                                 'serial_id' => null, // Reset first
+                                'warehouse_id' => $component['warehouse_id'] ?? $assemblyMaterial->warehouse_id,
                             ];
 
                             // Set new serial_id if provided
@@ -1181,13 +1159,6 @@ class AssemblyController extends Controller
                         }
 
                         $assemblyMaterial->update($updateData);
-                        
-                        // Debug: Log the update result
-                        Log::info('Assembly material updated:', [
-                            'assembly_material_id' => $assemblyMaterial->id,
-                            'updated_quantity' => $assemblyMaterial->fresh()->quantity,
-                            'updated_serial' => $assemblyMaterial->fresh()->serial
-                        ]);
                     } else if ($assembly->status === 'pending') {
                         // Create new component when pending
                         $quantity = (int)($component['quantity'] ?? 1);
@@ -1304,8 +1275,6 @@ class AssemblyController extends Controller
                         'item_type' => 'material'
                     ]);
                 }
-
-                Log::info("Assembly deletion: Returned {$totalQuantityToReturn} of material ID {$material->material_id} to warehouse {$warehouseId}");
             }
 
             // 2. Remove assembled products from target warehouse
@@ -1325,7 +1294,6 @@ class AssemblyController extends Controller
                         if ($warehouseProduct->quantity >= $assemblyProduct->quantity) {
                             // Sufficient quantity, decrement normally
                             $warehouseProduct->decrement('quantity', $assemblyProduct->quantity);
-                            Log::info("Assembly deletion: Removed {$assemblyProduct->quantity} of product ID {$assemblyProduct->product_id} from warehouse {$assembly->target_warehouse_id}");
                         } else {
                             // Not enough quantity, set to 0 and log warning
                             $actualQuantity = $warehouseProduct->quantity;
@@ -1387,7 +1355,6 @@ class AssemblyController extends Controller
                         if ($warehouseProduct) {
                             // Product exists, increment quantity
                             $warehouseProduct->increment('quantity', $dispatchItem->quantity);
-                            Log::info("Restored {$dispatchItem->quantity} of product ID {$dispatchItem->item_id} to warehouse {$dispatchItem->warehouse_id}");
                         } else {
                             // Product doesn't exist, create new record
                             WarehouseMaterial::create([
@@ -1396,7 +1363,6 @@ class AssemblyController extends Controller
                                 'quantity' => $dispatchItem->quantity,
                                 'item_type' => 'product'
                             ]);
-                            Log::info("Created warehouse record and restored {$dispatchItem->quantity} of product ID {$dispatchItem->item_id} to warehouse {$dispatchItem->warehouse_id}");
                         }
                     }
                 }
@@ -1405,7 +1371,6 @@ class AssemblyController extends Controller
                 $dispatch->items()->delete();
                 // Delete the dispatch
                 $dispatch->delete();
-                Log::info("Deleted related dispatch for assembly {$assembly->code}");
             }
 
             // 7. Delete the assembly
@@ -1757,16 +1722,6 @@ class AssemblyController extends Controller
                 }
             }
 
-            Log::info('Material serials request', [
-                'material_id' => $materialId,
-                'warehouse_id' => $warehouseId,
-                'product_unit' => $productUnit,
-                'assembly_id' => $assemblyId,
-                'existing_serials' => $existingSerials,
-                'count' => $serials->count(),
-                'method' => $request->method()
-            ]);
-
             return response()->json([
                 'success' => true,
                 'serials' => $serials
@@ -1867,8 +1822,6 @@ class AssemblyController extends Controller
      */
     private function createDispatchForAssembly(Assembly $assembly)
     {
-        Log::info('createDispatchForAssembly called', ['assembly_id' => $assembly->id]);
-
         // Load assembly products and project if not already loaded
         if (!$assembly->relationLoaded('products')) {
             $assembly->load('products.product');
@@ -1877,25 +1830,14 @@ class AssemblyController extends Controller
             $assembly->load('project');
         }
 
-        Log::info('Loaded relationships', [
-            'products_count' => $assembly->products->count(),
-            'project_name' => $assembly->project ? $assembly->project->project_name : 'null'
-        ]);
-
         // Generate dispatch code
         $dispatchCode = Dispatch::generateDispatchCode();
-        Log::info('Generated dispatch code: ' . $dispatchCode);
 
         // Get current user for created_by
         $currentUserId = Auth::user() ? Auth::user()->id : 1; // Fallback to user ID 1
 
         // Sử dụng warehouse_id nếu target_warehouse_id là null
         $sourceWarehouseId = $assembly->target_warehouse_id ?? $assembly->warehouse_id;
-        Log::info('Using warehouse ID for dispatch', [
-            'target_warehouse_id' => $assembly->target_warehouse_id,
-            'warehouse_id' => $assembly->warehouse_id,
-            'using_warehouse_id' => $sourceWarehouseId
-        ]);
 
         // Tạo trường project_receiver theo định dạng yêu cầu
         $projectReceiver = '';
@@ -1949,11 +1891,6 @@ class AssemblyController extends Controller
             // For assembly with purpose=project, we don't need to decrement stock
             // because the product was just assembled and will be dispatched directly
             // without being stored in the warehouse first
-            Log::info("Dispatch: Skip decrementing stock for assembly with purpose=project", [
-                'product_id' => $assemblyProduct->product_id,
-                'warehouse_id' => $sourceWarehouseId,
-                'quantity' => $assemblyProduct->quantity
-            ]);
         }
 
         // Ghi nhật ký tạo mới phiếu xuất
@@ -1968,7 +1905,6 @@ class AssemblyController extends Controller
             );
         }
 
-        Log::info("Created dispatch {$dispatch->dispatch_code} for assembly {$assembly->code}");
 
         return $dispatch;
     }
@@ -1978,18 +1914,10 @@ class AssemblyController extends Controller
      */
     private function createMaterialExportSlipForAssembly(Assembly $assembly)
     {
-        Log::info('Starting createMaterialExportSlipForAssembly', [
-            'assembly_id' => $assembly->id,
-            'assembly_code' => $assembly->code,
-            'purpose' => $assembly->purpose,
-            'warehouse_id' => $assembly->warehouse_id,
-            'target_warehouse_id' => $assembly->target_warehouse_id
-        ]);
 
         // Tạo mã phiếu xuất kho tự động
         $exportCode = 'XK' . date('ymd') . str_pad(rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
-        Log::info('Generated export code', ['export_code' => $exportCode]);
 
         // Tạo trường project_receiver theo định dạng yêu cầu
         // - Nếu xuất đi dự án: hiển thị mã phiếu xuất
@@ -2018,44 +1946,22 @@ class AssemblyController extends Controller
             'updated_at' => now(),
         ]);
 
-        Log::info('Created dispatch record', [
-            'dispatch_id' => $dispatch->id,
-            'dispatch_code' => $dispatch->dispatch_code
-        ]);
 
         // Lấy danh sách vật tư đã sử dụng trong lắp ráp
         $assemblyMaterials = \App\Models\AssemblyMaterial::where('assembly_id', $assembly->id)->get();
 
-        Log::info('Found assembly materials', [
-            'count' => $assemblyMaterials->count(),
-            'materials' => $assemblyMaterials->map(function ($am) {
-                return [
-                    'material_id' => $am->material_id,
-                    'quantity' => $am->quantity,
-                    'serial' => $am->serial
-                ];
-            })->toArray()
-        ]);
+       
 
         foreach ($assemblyMaterials as $am) {
             if ($am->material) {
-                Log::info('Processing assembly material', [
-                    'material_id' => $am->material_id,
-                    'material_code' => $am->material->code,
-                    'material_name' => $am->material->name,
-                    'quantity' => $am->quantity,
-                    'serial' => $am->serial
-                ]);
+               
 
                 // Xử lý serial_numbers - chuyển thành array
                 $serialNumbers = null;
                 if ($am->serial) {
                     $serialArray = explode(',', $am->serial);
                     $serialNumbers = $serialArray; // Không cần json_encode vì model đã cast thành array
-                    Log::info('Processed serial numbers', [
-                        'original_serial' => $am->serial,
-                        'serial_array' => $serialArray
-                    ]);
+                   
                 }
 
                 // Tạo item trong phiếu xuất kho
@@ -2071,16 +1977,6 @@ class AssemblyController extends Controller
                     'notes' => 'Vật tư lắp ráp từ phiếu lắp ráp',
                     'created_at' => now(),
                     'updated_at' => now(),
-                ]);
-
-                Log::info('Created dispatch item', [
-                    'dispatch_item_id' => $dispatchItem->id,
-                    'dispatch_id' => $dispatchItem->dispatch_id,
-                    'item_type' => $dispatchItem->item_type,
-                    'item_id' => $dispatchItem->item_id,
-                    'quantity' => $dispatchItem->quantity,
-                    'warehouse_id' => $dispatchItem->warehouse_id,
-                    'serial_numbers' => $dispatchItem->serial_numbers
                 ]);
 
                 // Lưu nhật ký thay đổi cho xuất kho vật tư lắp ráp
@@ -2150,14 +2046,6 @@ class AssemblyController extends Controller
                                     'notes' => 'Used in Assembly ID: ' . $assembly->id,
                                 ]);
                         }
-
-                        Log::info('Decremented warehouse stock for assembly material export', [
-                            'warehouse_id' => $am->warehouse_id,
-                            'material_id' => $am->material_id,
-                            'decrement' => (int)$am->quantity,
-                            'new_quantity' => $newQty,
-                            'serials_removed' => $serialNumbers,
-                        ]);
                     } else {
                         Log::warning('WarehouseMaterial not found when decrementing on material export', [
                             'warehouse_id' => $am->warehouse_id,
@@ -2171,11 +2059,6 @@ class AssemblyController extends Controller
                         'material_id' => $am->material_id,
                     ]);
                 }
-
-                Log::info('Created change log for material export', [
-                    'material_code' => $am->material->code,
-                    'export_code' => $exportCode
-                ]);
             } else {
                 Log::warning('Assembly material not found', [
                     'assembly_material_id' => $am->id,
@@ -2183,12 +2066,6 @@ class AssemblyController extends Controller
                 ]);
             }
         }
-
-        Log::info('Completed createMaterialExportSlipForAssembly', [
-            'assembly_id' => $assembly->id,
-            'dispatch_id' => $dispatch->id,
-            'dispatch_code' => $dispatch->dispatch_code
-        ]);
 
         return $dispatch;
     }
@@ -2317,23 +2194,6 @@ class AssemblyController extends Controller
                         'updated_at' => now(),
                     ]);
                 }
-
-                // Add default testing items
-                // $defaultTestItems = [
-                //     'Kiểm tra ngoại quan',
-                //     'Kiểm tra chức năng cơ bản',
-                //     'Kiểm tra hoạt động liên tục'
-                // ];
-
-                // foreach ($defaultTestItems as $testItem) {
-                //     \App\Models\TestingDetail::create([
-                //         'testing_id' => $testing->id,
-                //         'test_item_name' => $testItem,
-                //         'result' => 'pending',
-                //         'created_at' => now(),
-                //         'updated_at' => now(),
-                //     ]);
-                // }
 
                 // Ghi nhật ký tạo mới phiếu kiểm thử
                 if (Auth::check()) {
@@ -2488,19 +2348,6 @@ class AssemblyController extends Controller
             $formula = $request->input('formula', []);
             $getAll = $request->input('get_all', false);
 
-            Log::info('Check formula request:', [
-                'formula' => $formula,
-                'formula_count' => count($formula),
-                'formula_structure' => array_map(function ($item) {
-                    return [
-                        'id' => $item['id'] ?? 'missing',
-                        'material_id' => $item['material_id'] ?? 'missing',
-                        'quantity' => $item['quantity'] ?? 'missing'
-                    ];
-                }, $formula),
-                'get_all' => $getAll
-            ]);
-
             if (empty($formula)) {
                 return response()->json([
                     'exists' => false,
@@ -2512,36 +2359,11 @@ class AssemblyController extends Controller
             $products = Product::with('materials')->get();
             $matchingProducts = [];
 
-            Log::info('Checking against products:', ['total_products' => $products->count()]);
-
-            // Log all existing products and their materials for debugging
-            foreach ($products as $product) {
-                Log::info('Product in database:', [
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'materials_count' => $product->materials->count(),
-                    'materials' => $product->materials->map(function ($material) {
-                        return [
-                            'material_id' => $material->pivot->material_id,
-                            'quantity' => $material->pivot->quantity
-                        ];
-                    })->toArray()
-                ]);
-            }
-
             foreach ($products as $product) {
                 $productMaterials = $product->materials;
 
-                Log::info('Checking product:', [
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'product_materials_count' => $productMaterials->count(),
-                    'formula_count' => count($formula)
-                ]);
-
                 // Check if the number of materials matches
                 if (count($productMaterials) !== count($formula)) {
-                    Log::info('Material count mismatch, skipping product');
                     continue;
                 }
 
@@ -2552,14 +2374,7 @@ class AssemblyController extends Controller
                     $materialId = $formulaItem['material_id'] ?? $formulaItem['id'] ?? null;
                     $quantity = $formulaItem['quantity'] ?? 0;
 
-                    Log::info('Checking formula item:', [
-                        'formula_item' => $formulaItem,
-                        'extracted_material_id' => $materialId,
-                        'extracted_quantity' => $quantity
-                    ]);
-
                     if (!$materialId) {
-                        Log::info('Missing material_id in formula item');
                         $matches = false;
                         break;
                     }
@@ -2570,17 +2385,11 @@ class AssemblyController extends Controller
 
                     if (!$productMaterial || (int)$productMaterial->pivot->quantity !== (int)$quantity) {
                         $matches = false;
-                        Log::info('Material/quantity mismatch:', [
-                            'material_id' => $materialId,
-                            'quantity' => $quantity,
-                            'product_material' => $productMaterial ? $productMaterial->toArray() : null
-                        ]);
                         break;
                     }
                 }
 
                 if ($matches) {
-                    Log::info('Formula match found in products:', ['product_id' => $product->id, 'product_name' => $product->name]);
                     $matchingProducts[] = [
                         'id' => $product->id,
                         'name' => $product->name,
@@ -2615,21 +2424,11 @@ class AssemblyController extends Controller
             // Get all assemblies with their materials
             $assemblies = Assembly::with(['materials.material', 'products.product'])->get();
 
-            Log::info('Checking against assemblies:', ['total_assemblies' => $assemblies->count()]);
-
             foreach ($assemblies as $assembly) {
                 $assemblyMaterials = $assembly->materials;
 
-                Log::info('Checking assembly:', [
-                    'assembly_id' => $assembly->id,
-                    'assembly_code' => $assembly->code,
-                    'assembly_materials_count' => $assemblyMaterials->count(),
-                    'formula_count' => count($formula)
-                ]);
-
                 // Check if the number of materials matches
                 if (count($assemblyMaterials) !== count($formula)) {
-                    Log::info('Material count mismatch, skipping assembly');
                     continue;
                 }
 
@@ -2641,7 +2440,6 @@ class AssemblyController extends Controller
                     $quantity = $formulaItem['quantity'] ?? 0;
 
                     if (!$materialId) {
-                        Log::info('Missing material_id in formula item for assembly check');
                         $matches = false;
                         break;
                     }
@@ -2652,11 +2450,6 @@ class AssemblyController extends Controller
 
                     if (!$assemblyMaterial || (int)$assemblyMaterial->pivot->quantity !== (int)$quantity) {
                         $matches = false;
-                        Log::info('Material/quantity mismatch in assembly:', [
-                            'material_id' => $materialId,
-                            'quantity' => $quantity,
-                            'assembly_material' => $assemblyMaterial ? $assemblyMaterial->toArray() : null
-                        ]);
                         break;
                     }
                 }
@@ -2665,12 +2458,6 @@ class AssemblyController extends Controller
                     // Get the first product from this assembly for display
                     $firstProduct = $assembly->products->first();
                     $productName = $firstProduct ? $firstProduct->product->name : 'Unknown Product';
-
-                    Log::info('Formula match found in assembly:', [
-                        'assembly_id' => $assembly->id,
-                        'assembly_code' => $assembly->code,
-                        'product_name' => $productName
-                    ]);
 
                     return response()->json([
                         'exists' => true,
@@ -2688,7 +2475,6 @@ class AssemblyController extends Controller
                 }
             }
 
-            Log::info('No matching formula found');
             return response()->json([
                 'exists' => false,
                 'message' => 'Formula not found in existing products or assemblies'
@@ -3212,13 +2998,6 @@ class AssemblyController extends Controller
                     }
                 }
             }
-
-            Log::info('Updated related records for assembly', [
-                'assembly_id' => $assembly->id,
-                'assembly_code' => $assembly->code,
-                'dispatches_updated' => $dispatches->count(),
-                'testings_updated' => $testings->count()
-            ]);
         } catch (\Exception $e) {
             Log::error('Error updating related records for assembly', [
                 'assembly_id' => $assembly->id,

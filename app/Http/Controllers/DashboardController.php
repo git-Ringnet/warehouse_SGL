@@ -65,6 +65,7 @@ class DashboardController extends Controller
             ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
             ->where('inventory_import_materials.item_type', 'material')
             ->where('inventory_import_materials.material_id', '>', 0) // Đảm bảo có material_id
+            ->where('inventory_imports.status', 'approved') // Chỉ tính phiếu nhập kho đã duyệt
             ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
             ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
             ->whereExists(function ($query) {
@@ -108,20 +109,16 @@ class DashboardController extends Controller
      */
     private function getProductStats($startDate, $endDate) 
     {
-        // Tổng nhập kho thành phẩm - lấy từ lịch sử nhập kho thực tế trong khoảng thời gian được chỉ định
-        $totalImport = DB::table('inventory_import_materials')
-            ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
-            ->where('inventory_import_materials.item_type', 'product')
-            ->where('inventory_import_materials.material_id', '>', 0) // Sử dụng material_id để lưu trữ product_id
-            ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
-            ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
-            ->whereExists(function ($query) {
-                $query->select(DB::raw(1))
-                    ->from('products')
-                    ->whereColumn('products.id', 'inventory_import_materials.material_id')
-                    ->where('products.status', '!=', 'deleted');
-            })
-            ->sum('inventory_import_materials.quantity');
+        // Tổng nhập kho thành phẩm - lấy từ warehouse_materials (thành phẩm được tạo từ phiếu lắp ráp)
+        $totalImport = DB::table('warehouse_materials')
+            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+            ->join('products', 'products.id', '=', 'warehouse_materials.material_id')
+            ->where('warehouse_materials.item_type', 'product')
+            ->where('warehouses.status', 'active')
+            ->where('products.status', '!=', 'deleted')
+            ->whereDate('warehouse_materials.created_at', '>=', $startDate->format('Y-m-d'))
+            ->whereDate('warehouse_materials.created_at', '<=', $endDate->format('Y-m-d'))
+            ->sum('warehouse_materials.quantity');
 
         // Tổng xuất kho thành phẩm - lấy từ lịch sử xuất kho thực tế trong khoảng thời gian được chỉ định
         $totalExport = DB::table('dispatch_items')
@@ -159,6 +156,7 @@ class DashboardController extends Controller
             ->join('inventory_imports', 'inventory_import_materials.inventory_import_id', '=', 'inventory_imports.id')
             ->where('inventory_import_materials.item_type', 'good')
             ->where('inventory_import_materials.material_id', '>', 0) // Sử dụng material_id để lưu trữ good_id
+            ->where('inventory_imports.status', 'approved') // Chỉ tính phiếu nhập kho đã duyệt
             ->whereDate('inventory_imports.import_date', '>=', $startDate->format('Y-m-d'))
             ->whereDate('inventory_imports.import_date', '<=', $endDate->format('Y-m-d'))
             ->whereExists(function ($query) {
@@ -209,14 +207,6 @@ class DashboardController extends Controller
             $startDate = $request->input('start_date');
             $endDate = $request->input('end_date');
             
-            Log::info('Getting inventory overview chart data', [
-                'category' => $category,
-                'time_range_type' => $timeRangeType,
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'request_url' => $request->fullUrl()
-            ]);
-            
             // Tạo mảng nhãn thời gian và dữ liệu theo loại thời gian
             $labels = [];
             $data = [];
@@ -226,15 +216,6 @@ class DashboardController extends Controller
                 $data = $this->getChartDataByTimeRange($category, $timeRangeType, $startDate, $endDate);
                 $labels = $data['labels'];
                 $chartData = $data['data'];
-                
-                Log::info('Chart data generated', [
-                    'category' => $category,
-                    'time_range_type' => $timeRangeType,
-                    'start_date' => $startDate,
-                    'end_date' => $endDate,
-                    'labels_count' => count($labels),
-                    'data_keys' => array_keys($chartData)
-                ]);
             } else {
                 // Mặc định là 6 tháng gần nhất
                 $months = 6;
@@ -273,11 +254,6 @@ class DashboardController extends Controller
             
             // Nếu không có dữ liệu, trả về dữ liệu rỗng
             if (!$hasData) {
-                Log::warning('No data found for chart, returning empty data', [
-                    'category' => $category,
-                    'time_range_type' => $timeRangeType
-                ]);
-                
                 // Trả về dữ liệu rỗng
                 $labelCount = count($labels);
                 $chartData = [
@@ -311,12 +287,7 @@ class DashboardController extends Controller
             
             return response()->json($response);
             
-        } catch (\Exception $e) {
-            Log::error('Error getting inventory overview chart data', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
+        } catch (\Exception $e) {            
             return response()->json([
                 'error' => 'Có lỗi xảy ra khi lấy dữ liệu biểu đồ',
                 'message' => $e->getMessage()
@@ -330,8 +301,6 @@ class DashboardController extends Controller
     public function getInventoryCategoriesChart(Request $request)
     {
         try {
-            Log::info('Getting inventory categories chart data');
-            
             // Lấy tham số ngày từ request
             $startDate = $request->get('start_date');
             $endDate = $request->get('end_date');
@@ -360,14 +329,7 @@ class DashboardController extends Controller
             $productCount = $productStats['total_import'];
             $goodCount = $goodStats['total_import'];
             
-            Log::info('Inventory counts from import data', [
-                'start_date' => $startDate->format('Y-m-d'),
-                'end_date' => $endDate->format('Y-m-d'),
-                'time_range_type' => $timeRangeType,
-                'material_count' => $materialCount,
-                'product_count' => $productCount,
-                'good_count' => $goodCount
-            ]);
+            
             
             // Tính phần trăm
             $total = $materialCount + $productCount + $goodCount;
@@ -389,29 +351,18 @@ class DashboardController extends Controller
             }
             
             // Nếu tổng là 0, trả về dữ liệu rỗng
-            if ($total == 0) {
-                Log::warning('No inventory data found, returning empty data');
+            if ($total == 0) {  
                 return response()->json([
                     'labels' => ['Vật tư', 'Thành phẩm', 'Hàng hóa'],
                     'data' => [0, 0, 0]
                 ]);
             }
             
-            Log::info('Inventory categories chart data generated successfully', [
-                'material_percent' => $materialPercent,
-                'product_percent' => $productPercent,
-                'good_percent' => $goodPercent
-            ]);
-            
             return response()->json([
                 'labels' => ['Vật tư', 'Thành phẩm', 'Hàng hóa'],
                 'data' => [$materialPercent, $productPercent, $goodPercent]
             ]);
         } catch (\Exception $e) {
-            Log::error('Error in getInventoryCategoriesChart', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             
             // Return empty data in case of error
             return response()->json([
@@ -427,32 +378,26 @@ class DashboardController extends Controller
     public function getWarehouseDistributionChart(Request $request)
     {
         try {
-            Log::info('Getting warehouse distribution chart data', [
-                'filters' => $request->all()
-            ]);
-            
             // Lấy tham số lọc (nếu có)
             $itemType = $request->input('item_type'); // 'material', 'product', 'good' hoặc null (tất cả)
             $warehouseIds = $request->input('warehouse_ids'); // mảng id kho hoặc null (tất cả)
+            
             
             if ($warehouseIds && is_string($warehouseIds)) {
                 $warehouseIds = explode(',', $warehouseIds);
             }
             
-            // Lấy danh sách kho (có thể lọc theo ID)
-            $warehousesQuery = Warehouse::with(['warehouseMaterials']);
+            // Lấy danh sách kho (chỉ lấy kho active và không bị ẩn/xóa)
+            $warehousesQuery = Warehouse::with(['warehouseMaterials'])
+                ->where('status', 'active')
+                ->where('is_hidden', false)
+                ->whereNull('deleted_at');
             
             if ($warehouseIds) {
                 $warehousesQuery->whereIn('id', $warehouseIds);
             }
             
             $warehouses = $warehousesQuery->get();
-            
-            Log::info('Fetched warehouses for distribution chart', [
-                'count' => $warehouses->count(),
-                'warehouse_ids' => $warehouseIds ? implode(',', $warehouseIds) : 'all',
-                'item_type' => $itemType ?: 'all'
-            ]);
             
             $data = [];
             $labels = [];
@@ -467,37 +412,59 @@ class DashboardController extends Controller
                 // Khởi tạo query để lấy dữ liệu
                 $query = $warehouse->warehouseMaterials();
                 
-                // Áp dụng lọc theo loại nếu có
+                // Tính tổng số lượng theo loại vật tư (loại bỏ các item bị ẩn và dữ liệu test)
                 if ($itemType) {
-                    $query->where('item_type', $itemType);
+                    // Nếu có filter theo loại, chỉ tính loại đó
+                    $warehouseTotal = $query->where('item_type', $itemType)
+                        ->where('quantity', '<=', 1000000) // Loại bỏ dữ liệu test có số lượng quá lớn
+                        ->whereHas($itemType, function($q) {
+                            $q->where('is_hidden', false);
+                        })
+                        ->sum('quantity');
+                    $materialCount = ($itemType == 'material') ? $warehouseTotal : 0;
+                    $productCount = ($itemType == 'product') ? $warehouseTotal : 0;
+                    $goodCount = ($itemType == 'good') ? $warehouseTotal : 0;
+                } else {
+                    // Nếu không có filter, tính tất cả các loại
+                    $materialCount = $warehouse->warehouseMaterials()
+                        ->where('item_type', 'material')
+                        ->where('quantity', '<=', 1000000) // Loại bỏ dữ liệu test
+                        ->whereHas('material', function($q) {
+                            $q->where('is_hidden', false);
+                        })
+                        ->sum('quantity');
+                    $productCount = $warehouse->warehouseMaterials()
+                        ->where('item_type', 'product')
+                        ->where('quantity', '<=', 1000000) // Loại bỏ dữ liệu test
+                        ->whereHas('product', function($q) {
+                            $q->where('is_hidden', false);
+                        })
+                        ->sum('quantity');
+                    $goodCount = $warehouse->warehouseMaterials()
+                        ->where('item_type', 'good')
+                        ->where('quantity', '<=', 1000000) // Loại bỏ dữ liệu test
+                        ->whereHas('good', function($q) {
+                            $q->where('is_hidden', false);
+                        })
+                        ->sum('quantity');
+                    $warehouseTotal = $materialCount + $productCount + $goodCount;
                 }
                 
-                // Tính tổng số lượng theo loại vật tư
-                $materialCount = $itemType ? ($itemType == 'material' ? $query->sum('quantity') : 0) : $query->where('item_type', 'material')->sum('quantity');
-                $productCount = $itemType ? ($itemType == 'product' ? $query->sum('quantity') : 0) : $query->where('item_type', 'product')->sum('quantity');
-                $goodCount = $itemType ? ($itemType == 'good' ? $query->sum('quantity') : 0) : $query->where('item_type', 'good')->sum('quantity');
+                // Chỉ thêm kho có dữ liệu hoặc khi không có filter
+                if (!$itemType || $warehouseTotal > 0) {
+                    $total += $warehouseTotal;
+                    
+                    $warehouseData[] = [
+                        'id' => $warehouse->id,
+                        'name' => $warehouse->name,
+                        'material_count' => $materialCount,
+                        'product_count' => $productCount,
+                        'good_count' => $goodCount,
+                        'total' => $warehouseTotal,
+                        'address' => $warehouse->address
+                    ];
+                }
                 
-                $warehouseTotal = $materialCount + $productCount + $goodCount;
-                $total += $warehouseTotal;
-                
-                // Thêm tất cả kho, kể cả kho trống
-                $warehouseData[] = [
-                    'id' => $warehouse->id,
-                    'name' => $warehouse->name,
-                    'material_count' => $materialCount,
-                    'product_count' => $productCount,
-                    'good_count' => $goodCount,
-                    'total' => $warehouseTotal,
-                    'address' => $warehouse->address
-                ];
-                
-                Log::info("Warehouse {$warehouse->name} counts", [
-                    'id' => $warehouse->id,
-                    'material_count' => $materialCount,
-                    'product_count' => $productCount,
-                    'good_count' => $goodCount,
-                    'total' => $warehouseTotal
-                ]);
             }
             
             // Sắp xếp kho theo số lượng giảm dần
@@ -506,7 +473,7 @@ class DashboardController extends Controller
             });
             
             // Gộp những kho có phần trăm quá nhỏ để tránh đè lên nhau trên biểu đồ
-            $minPercentThreshold = 1.0; // Chỉ hiển thị riêng những kho có phần trăm >= 1%
+            $minPercentThreshold = 0.1; // Chỉ hiển thị riêng những kho có phần trăm >= 0.1%
             $warehouseDataFiltered = [];
             $othersData = [
                 'id' => 'others',
@@ -594,8 +561,7 @@ class DashboardController extends Controller
             }
             
             // Nếu không có dữ liệu, trả về dữ liệu rỗng
-            if (empty($labels)) {
-                Log::warning('No warehouse data found, returning empty data');
+            if (empty($labels)) {   
                 return response()->json([
                     'labels' => [],
                     'data' => [],
@@ -619,14 +585,6 @@ class DashboardController extends Controller
                 $colors = array_merge($colors, $colors);
             }
             
-            Log::info('Warehouse distribution chart data generated successfully', [
-                'labels_count' => count($labels),
-                'total_percent' => array_sum($data),
-                'item_type' => $itemType ?: 'all',
-                'merged_warehouses_count' => count($mergedWarehouses),
-                'merged_warehouses' => $mergedWarehouses
-            ]);
-            
             return response()->json([
                 'labels' => $labels,
                 'data' => $data,
@@ -639,11 +597,6 @@ class DashboardController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            Log::error('Error in getWarehouseDistributionChart', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            
             // Return empty data in case of error
             return response()->json([
                 'labels' => [],
@@ -672,90 +625,32 @@ class DashboardController extends Controller
                 $endDate = $endDate->endOfMonth();
                 
                 // Debug thông tin ngày tháng
-                Log::info("Processing date range for materials, month {$i}", [
-                    'start_date' => $startDate->format('Y-m-d'),
-                    'end_date' => $endDate->format('Y-m-d'),
-                    'is_current_month' => ($i == 0) ? 'yes' : 'no'
-                ]);
                 
-                // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
-                if ($i == 0) {
-                    // Tổng nhập kho vật tư - lấy giống hàm getMaterialStats
-                    $importCount = WarehouseMaterial::where('item_type', 'material')
-                        ->whereHas('warehouse', function($query) {
-                            $query->where('status', 'active');
-                        })
-                        ->whereHas('material', function($query) {
-                            $query->where('status', '!=', 'deleted');
-                        })
-                        ->sum('quantity');
-                    
-                    // Tổng xuất kho (số lượng đã sử dụng trong lắp ráp)
-                    $exportCount = DB::table('assembly_materials')->sum('quantity');
-                    
-                    // Tổng hư hỏng - sử dụng logic mới giống như thống kê bên trên
-                    $damagedCount = $this->calculateDamagedMaterials($startDate, $endDate);
-                    
-                    Log::info("Current month material totals from stats", [
-                        'import' => $importCount,
-                        'export' => $exportCount,
-                        'damaged' => $damagedCount
-                    ]);
-                } else {
-                    // Số lượng nhập kho - Thử nhiều cách để lấy dữ liệu nhập kho
-                    // Cách 1: Thông qua bảng inventory_import_materials
-                    $importCount = DB::table('inventory_import_materials')
-                        ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
-                        ->where('inventory_import_materials.item_type', 'material')
-                        ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
-                        ->sum('inventory_import_materials.quantity');
-                    
-                    // Log để debug
-                    Log::info("Import count from inventory_import_materials for month {$startDate->format('Y-m')}", [
-                        'month' => $startDate->format('Y-m'),
-                        'count' => $importCount
-                    ]);
-                    
-                    // Nếu không có dữ liệu, thử cách 2: Kiểm tra trong warehouse_materials
-                    if ($importCount == 0) {
-                        $warehouseCount = DB::table('warehouse_materials')
-                            ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
-                            ->join('materials', 'materials.id', '=', 'warehouse_materials.material_id')
-                            ->where('warehouse_materials.item_type', 'material')
-                            ->where('warehouses.status', 'active')
-                            ->where('materials.status', '!=', 'deleted')
-                            ->where('warehouse_materials.created_at', '>=', $startDate)
-                            ->where('warehouse_materials.created_at', '<=', $endDate)
-                            ->sum('warehouse_materials.quantity');
-                        
-                        if ($warehouseCount > 0) {
-                            $importCount = $warehouseCount;
-                            Log::info("Found import count in warehouse_materials for month {$startDate->format('Y-m')}", [
-                                'count' => $importCount
-                            ]);
-                        }
-                    }
-                    
-                    // Số lượng xuất kho (sử dụng trong lắp ráp)
-                    $exportCount = DB::table('assembly_materials')
-                        ->join('assemblies', 'assemblies.id', '=', 'assembly_materials.assembly_id')
-                        ->whereBetween('assemblies.created_at', [$startDate, $endDate])
-                        ->sum('assembly_materials.quantity');
-                    
-                    // Số lượng hư hỏng - sử dụng logic mới
-                    $damagedCount = $this->calculateDamagedMaterials($startDate, $endDate);
-                }
+                
+                // Tính theo công thức chuẩn cho mọi tháng
+                // Nhập kho: phiếu đã duyệt trong khoảng
+                $importCount = DB::table('inventory_import_materials')
+                    ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+                    ->where('inventory_import_materials.item_type', 'material')
+                    ->where('inventory_imports.status', 'approved')
+                    ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
+                    ->sum('inventory_import_materials.quantity');
+
+                // Xuất kho: số vật tư dùng trong lắp ráp theo khoảng
+                $exportCount = DB::table('assembly_materials')
+                    ->join('assemblies', 'assemblies.id', '=', 'assembly_materials.assembly_id')
+                    ->whereBetween('assemblies.created_at', [$startDate, $endDate])
+                    ->sum('assembly_materials.quantity');
+
+                // Hư hỏng
+                $damagedCount = $this->calculateDamagedMaterials($startDate, $endDate);
                 
                 $import[] = $importCount;
                 $export[] = $exportCount;
                 $damaged[] = $damagedCount;
             }
             
-            Log::info('Materials chart data generated successfully', [
-                'import' => $import,
-                'export' => $export,
-                'damaged' => $damaged
-            ]);
+            
             
             return [
                 'import' => $import,
@@ -763,10 +658,7 @@ class DashboardController extends Controller
                 'damaged' => $damaged
             ];
         } catch (\Exception $e) {
-            Log::error('Error in getMaterialsChartData', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            
             
             // Return empty data in case of error
             return [
@@ -794,11 +686,7 @@ class DashboardController extends Controller
                 $endDate = $endDate->endOfMonth();
                 
                 // Debug thông tin ngày tháng
-                Log::info("Processing date range for products, month {$i}", [
-                    'start_date' => $startDate->format('Y-m-d'),
-                    'end_date' => $endDate->format('Y-m-d'),
-                    'is_current_month' => ($i == 0) ? 'yes' : 'no'
-                ]);
+
                 
                 // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
                 if ($i == 0) {
@@ -820,11 +708,6 @@ class DashboardController extends Controller
                     // Tổng hư hỏng - sử dụng logic mới giống như thống kê bên trên
                     $damagedCount = $this->calculateDamagedProducts($startDate, $endDate);
                     
-                    Log::info("Current month product totals from stats", [
-                        'import' => $importCount,
-                        'export' => $exportCount,
-                        'damaged' => $damagedCount
-                    ]);
                 } else {
                     // Số lượng nhập kho
                     $importCount = DB::table('inventory_import_materials')
@@ -832,11 +715,6 @@ class DashboardController extends Controller
                         ->where('inventory_import_materials.item_type', 'product')
                         ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
                         ->sum('inventory_import_materials.quantity');
-                    
-                    // Log để debug
-                    Log::info("Import count for products, month {$startDate->format('Y-m')}", [
-                        'count' => $importCount
-                    ]);
                     
                     // Nếu không có dữ liệu, thử kiểm tra trong warehouse_materials
                     if ($importCount == 0) {
@@ -852,9 +730,6 @@ class DashboardController extends Controller
                         
                         if ($warehouseCount > 0) {
                             $importCount = $warehouseCount;
-                            Log::info("Found product import count in warehouse_materials for month {$startDate->format('Y-m')}", [
-                                'count' => $importCount
-                            ]);
                         }
                     }
                     
@@ -874,11 +749,6 @@ class DashboardController extends Controller
                 $damaged[] = $damagedCount;
             }
             
-            Log::info('Products chart data generated successfully', [
-                'import' => $import,
-                'export' => $export,
-                'damaged' => $damaged
-            ]);
             
             return [
                 'import' => $import,
@@ -886,10 +756,6 @@ class DashboardController extends Controller
                 'damaged' => $damaged
             ];
         } catch (\Exception $e) {
-            Log::error('Error in getProductsChartData', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             
             // Return empty data in case of error
             return [
@@ -917,11 +783,6 @@ class DashboardController extends Controller
                 $endDate = $endDate->endOfMonth();
                 
                 // Debug thông tin ngày tháng
-                Log::info("Processing date range for goods, month {$i}", [
-                    'start_date' => $startDate->format('Y-m-d'),
-                    'end_date' => $endDate->format('Y-m-d'),
-                    'is_current_month' => ($i == 0) ? 'yes' : 'no'
-                ]);
                 
                 // Nếu là tháng hiện tại, lấy tổng số từ bảng thống kê để đảm bảo khớp với số liệu hiển thị ở trên
                 if ($i == 0) {
@@ -943,23 +804,14 @@ class DashboardController extends Controller
                     // Tổng hư hỏng - sử dụng logic mới giống như thống kê bên trên
                     $damagedCount = $this->calculateDamagedGoods($startDate, $endDate);
                     
-                    Log::info("Current month goods totals from stats", [
-                        'import' => $importCount,
-                        'export' => $exportCount,
-                        'damaged' => $damagedCount
-                    ]);
                 } else {
                     // Số lượng nhập kho
                     $importCount = DB::table('inventory_import_materials')
                         ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
                         ->where('inventory_import_materials.item_type', 'good')
+                        ->where('inventory_imports.status', 'approved') // Chỉ tính phiếu nhập kho đã duyệt
                         ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
                         ->sum('inventory_import_materials.quantity');
-                    
-                    // Log để debug
-                    Log::info("Import count for goods, month {$startDate->format('Y-m')}", [
-                        'count' => $importCount
-                    ]);
                     
                     // Nếu không có dữ liệu, thử kiểm tra trong warehouse_materials
                     if ($importCount == 0) {
@@ -975,9 +827,6 @@ class DashboardController extends Controller
                         
                         if ($warehouseCount > 0) {
                             $importCount = $warehouseCount;
-                            Log::info("Found goods import count in warehouse_materials for month {$startDate->format('Y-m')}", [
-                                'count' => $importCount
-                            ]);
                         }
                     }
                     
@@ -985,6 +834,7 @@ class DashboardController extends Controller
                     $exportCount = DB::table('dispatch_items')
                         ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
                         ->where('dispatch_items.item_type', 'good')
+                        ->whereIn('dispatches.status', ['approved', 'completed']) // Chỉ tính phiếu xuất kho đã duyệt
                         ->whereBetween('dispatches.dispatch_date', [$startDate, $endDate])
                         ->sum('dispatch_items.quantity');
                     
@@ -997,11 +847,6 @@ class DashboardController extends Controller
                 $damaged[] = $damagedCount;
             }
             
-            Log::info('Goods chart data generated successfully', [
-                'import' => $import,
-                'export' => $export,
-                'damaged' => $damaged
-            ]);
             
             return [
                 'import' => $import,
@@ -1009,10 +854,6 @@ class DashboardController extends Controller
                 'damaged' => $damaged
             ];
         } catch (\Exception $e) {
-            Log::error('Error in getGoodsChartData', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             
             // Return empty data in case of error
             return [
@@ -1026,69 +867,59 @@ class DashboardController extends Controller
     /**
      * Lấy dữ liệu biểu đồ gia tăng dự án
      */
-    public function getProjectGrowthChart()
+    public function getProjectGrowthChart(Request $request)
     {
         try {
-            Log::info('Getting project growth chart data');
-            
-            $months = 6;
+            $startInput = $request->input('start_date');
+            $endInput = $request->input('end_date');
+
+            // Chuẩn hóa ngày
+            if ($startInput && strpos($startInput, '/') !== false) {
+                $start = \Carbon\Carbon::createFromFormat('d/m/Y', $startInput)->startOfDay();
+            } else if ($startInput) {
+                $start = \Carbon\Carbon::parse($startInput)->startOfDay();
+            } else {
+                $start = now()->copy()->startOfMonth()->subMonths(5);
+            }
+
+            if ($endInput && strpos($endInput, '/') !== false) {
+                $end = \Carbon\Carbon::createFromFormat('d/m/Y', $endInput)->endOfDay();
+            } else if ($endInput) {
+                $end = \Carbon\Carbon::parse($endInput)->endOfDay();
+            } else {
+                $end = now()->copy()->endOfMonth();
+            }
+
+            // Bảo đảm start <= end
+            if ($start->gt($end)) {
+                [$start, $end] = [$end, $start];
+            }
+
+            // Duyệt theo từng tháng trong khoảng
+            $cursor = $start->copy()->startOfMonth();
             $labels = [];
             $data = [];
-            $currentDate = now();
-            
-            // Tạo mảng nhãn thời gian
-            for ($i = 0; $i < $months; $i++) {
-                $date = clone $currentDate;
-                $date->subMonths($months - 1 - $i);
-                $labels[] = 'Tháng ' . $date->format('n');
-            }
-            
-            // Tính số lượng dự án tích lũy theo tháng
-            $cumulativeProjects = 0;
-            
-            for ($i = 0; $i < $months; $i++) {
-                $startDate = clone $currentDate;
-                $startDate = $startDate->subMonths($months - 1 - $i)->startOfMonth();
-                
-                // Nếu là tháng đầu tiên, lấy tất cả dự án được tạo trước đó
-                if ($i == 0) {
-                    $cumulativeProjects = \App\Models\Project::where('created_at', '<', $startDate)
-                        ->count();
-                }
-                
-                // Đếm số dự án mới trong tháng
-                $endDate = clone $startDate;
-                $endDate = $endDate->endOfMonth();
-                
-                $newProjects = \App\Models\Project::where('created_at', '>=', $startDate)
-                    ->where('created_at', '<=', $endDate)
-                    ->count();
-                
-                // Cộng dồn số lượng dự án
+
+            // số tích lũy trước tháng đầu tiên
+            $cumulativeProjects = \App\Models\Project::where('created_at', '<', $cursor)->count();
+
+            while ($cursor->lte($end)) {
+                $labels[] = 'Tháng ' . $cursor->format('n');
+                $monthStart = $cursor->copy()->startOfMonth();
+                $monthEnd = $cursor->copy()->endOfMonth();
+
+                $newProjects = \App\Models\Project::whereBetween('created_at', [$monthStart, $monthEnd])->count();
                 $cumulativeProjects += $newProjects;
                 $data[] = $cumulativeProjects;
-                
-                Log::info("Project count for month {$startDate->format('Y-m')}", [
-                    'month' => $startDate->format('Y-m'),
-                    'new_projects' => $newProjects,
-                    'cumulative_projects' => $cumulativeProjects
-                ]);
+
+                $cursor->addMonth();
             }
-            
-            Log::info('Project growth chart data generated successfully', [
-                'labels' => $labels,
-                'data' => $data
-            ]);
             
             return response()->json([
                 'labels' => $labels,
                 'data' => $data
             ]);
         } catch (\Exception $e) {
-            Log::error('Error in getProjectGrowthChart', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             
             // Return empty data in case of error
             return response()->json([
@@ -1119,16 +950,6 @@ class DashboardController extends Controller
             // Mặc định luôn tìm kiếm cả sản phẩm có tồn kho = 0 (theo yêu cầu mới)
             // Chỉ loại trừ những mục có tồn kho = 0 nếu người dùng chọn tùy chọn "exclude_out_of_stock"
             $includeOutOfStock = !isset($filters['exclude_out_of_stock']) || $filters['exclude_out_of_stock'] !== 'true';
-            
-            Log::info('Dashboard search request', [
-                'method' => $request->method(),
-                'query' => $query,
-                'category' => $category,
-                'filters' => $filters,
-                'includeOutOfStock' => $includeOutOfStock,
-                'ip' => $request->ip(),
-                'user_agent' => $request->header('User-Agent')
-            ]);
             
             if (empty($query)) {
                 return response()->json([
@@ -1162,12 +983,6 @@ class DashboardController extends Controller
                     $itemsFromProjects = !empty($projectIds) ? $this->searchItemsByProjectIds($projectIds) : [];
                     $itemsFromRentals = !empty($rentalIds) ? $this->searchItemsByRentalIds($rentalIds) : [];
                     $results = array_merge($projectResults, $rentalResults, $itemsFromProjects, $itemsFromRentals);
-                    
-                    Log::info('Projects category search results', [
-                        'projects_count' => count($projectResults),
-                        'rentals_count' => count($rentalResults),
-                        'total_count' => count($results)
-                    ]);
                     break;
                 case 'customers':
                     $results = $this->searchCustomers($query, $filters);
@@ -1177,7 +992,6 @@ class DashboardController extends Controller
                     break;
                 default:
                     // Tìm kiếm tất cả
-                    Log::info('Searching all categories with query: ' . $query);
                     
                     $materialResults = $this->searchMaterials($query, $filters, $includeOutOfStock);
                     $productResults = $this->searchProducts($query, $filters, $includeOutOfStock);
@@ -1207,15 +1021,7 @@ class DashboardController extends Controller
                         $itemsFromRentals
                     );
                     
-                    Log::info('Combined search results', [
-                        'materials_count' => count($materialResults),
-                        'products_count' => count($productResults),
-                        'goods_count' => count($goodResults),
-                        'projects_count' => count($projectResults),
-                        'customers_count' => count($customerResults),
-                        'rentals_count' => count($rentalResults),
-                        'total_count' => count($results)
-                    ]);
+                    
                     
                     // Giới hạn kết quả
                     $results = array_slice($results, 0, 50);
@@ -1223,11 +1029,7 @@ class DashboardController extends Controller
             
             $count = count($results);
             
-            Log::info('Search completed', [
-                'query' => $query,
-                'category' => $category,
-                'result_count' => $count
-            ]);
+            
             
             return response()->json([
                 'success' => true,
@@ -1235,12 +1037,7 @@ class DashboardController extends Controller
                 'results' => $results
             ]);
         } catch (\Exception $e) {
-            Log::error('Error in dashboard search', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'query' => $request->input('query'),
-                'category' => $request->input('category', 'all')
-            ]);
+            
             
             return response()->json([
                 'success' => false,
@@ -1257,10 +1054,7 @@ class DashboardController extends Controller
     private function searchMaterials($query, $filters = [], $includeOutOfStock = false)
     {
         try {
-            Log::info('Searching materials with query: ' . $query, [
-                'filters' => $filters,
-                'includeOutOfStock' => $includeOutOfStock
-            ]);
+            
             
             $materials = Material::where(function($q) use ($query) {
                     $q->where('code', 'like', "%{$query}%")
@@ -1302,7 +1096,7 @@ class DashboardController extends Controller
             
             $materials = $materials->limit(20)->get();
             
-            Log::info('Found ' . $materials->count() . ' materials matching the query');
+            
             
             return $materials->map(function($material) use ($includeOutOfStock) {
                 $warehouseQuery = WarehouseMaterial::where('material_id', $material->id)
@@ -1325,6 +1119,20 @@ class DashboardController extends Controller
                 $location = $this->resolveItemLocation('material', $material->id, $warehouseName);
                 
                 $status = property_exists($material, 'status') ? $material->status : 'active';
+
+                // Danh sách vị trí kho chi tiết (mỗi kho một dòng)
+                $locationRows = WarehouseMaterial::where('material_id', $material->id)
+                    ->where('item_type', 'material')
+                    ->whereHas('warehouse', function($q){ $q->where('status','active'); })
+                    ->when(!$includeOutOfStock, function($q){ $q->where('quantity','>',0); })
+                    ->with('warehouse')
+                    ->get()
+                    ->map(function($wm){
+                        return [
+                            'name' => $wm->warehouse ? $wm->warehouse->name : 'N/A',
+                            'quantity' => (int) $wm->quantity,
+                        ];
+                    })->toArray();
                 
                 return [
                     'id' => $material->id,
@@ -1332,9 +1140,10 @@ class DashboardController extends Controller
                     'name' => $material->name,
                     'category' => 'materials',
                     'categoryName' => 'Vật tư',
-                    'serial' => $material->code, // Sử dụng code làm serial
+                    'serial' => $material->code,
                     'date' => $material->created_at->format('d/m/Y'),
                     'location' => $location,
+                    'locations' => $locationRows,
                     'status' => $status,
                     'detailUrl' => route('materials.show', $material->id),
                     'additionalInfo' => [
@@ -1346,14 +1155,15 @@ class DashboardController extends Controller
                             })
                             ->sum('quantity'),
                         'unit' => $material->unit
-                    ]
+                    ],
+                    'quantity' => WarehouseMaterial::where('material_id', $material->id)
+                        ->where('item_type', 'material')
+                        ->whereHas('warehouse', function($query){ $query->where('status','active'); })
+                        ->sum('quantity'),
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error in searchMaterials', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            
             return [];
         }
     }
@@ -1364,11 +1174,6 @@ class DashboardController extends Controller
     private function searchProducts($query, $filters = [], $includeOutOfStock = false)
     {
         try {
-            Log::info('Searching products with query: ' . $query, [
-                'filters' => $filters,
-                'includeOutOfStock' => $includeOutOfStock
-            ]);
-            
             $products = Product::where(function($q) use ($query) {
                     $q->where('code', 'like', "%{$query}%")
                       ->orWhere('name', 'like', "%{$query}%");
@@ -1409,7 +1214,6 @@ class DashboardController extends Controller
             
             $products = $products->limit(20)->get();
             
-            Log::info('Found ' . $products->count() . ' products matching the query');
             
             return $products->map(function($product) use ($includeOutOfStock) {
                 $warehouseQuery = WarehouseMaterial::where('material_id', $product->id)
@@ -1432,6 +1236,43 @@ class DashboardController extends Controller
                 $location = $this->resolveItemLocation('product', $product->id, $warehouseName);
                 
                 $status = property_exists($product, 'status') ? $product->status : 'active';
+
+                // Kho được tính tồn của thành phẩm
+                $countingWarehouses = [];
+                if (is_array($product->inventory_warehouses) && !empty($product->inventory_warehouses)) {
+                    if (!in_array('all', $product->inventory_warehouses)) {
+                        $countingWarehouses = $product->inventory_warehouses;
+                    }
+                }
+
+                $locationRows = WarehouseMaterial::where('material_id', $product->id)
+                    ->where('item_type', 'product')
+                    ->whereHas('warehouse', function($q){ $q->where('status','active'); })
+                    // Luôn lấy tất cả vị trí để hiển thị, kể cả số lượng 0
+                    ->with('warehouse')
+                    ->get()
+                    ->map(function($wm){
+                        return [
+                            'name' => $wm->warehouse ? $wm->warehouse->name : 'N/A',
+                            'quantity' => (int) $wm->quantity,
+                            'warehouse_id' => $wm->warehouse_id,
+                        ];
+                    })->toArray();
+
+                // Xác định location ngắn gọn để hiển thị ở bảng tổng hợp
+                $shortLocation = 'N/A';
+                if (!empty($locationRows)) {
+                    // Ưu tiên kho được tính tồn có số lượng > 0
+                    $preferred = null;
+                    foreach ($locationRows as $r) {
+                        $isCounted = empty($countingWarehouses) ? true : in_array($r['warehouse_id'], $countingWarehouses);
+                        if ($isCounted && ($r['quantity'] ?? 0) > 0) { $preferred = $r; break; }
+                    }
+                    $chosen = $preferred ?: $locationRows[0];
+                    $shortLocation = $chosen['name'] . ' (' . ($chosen['quantity'] ?? 0) . ')';
+                } elseif (!empty($warehouseName)) {
+                    $shortLocation = $warehouseName;
+                }
                 
                 return [
                     'id' => $product->id,
@@ -1439,9 +1280,15 @@ class DashboardController extends Controller
                     'name' => $product->name,
                     'category' => 'finished',
                     'categoryName' => 'Thành phẩm',
-                    'serial' => $product->code, // Sử dụng code làm serial
+                    'serial' => $product->code,
                     'date' => $product->created_at->format('d/m/Y'),
-                    'location' => $location,
+                    'location' => $shortLocation,
+                    // Đánh dấu vị trí nào được tính tồn
+                    'locations' => array_map(function($row) use ($countingWarehouses){
+                        $row['counted'] = empty($countingWarehouses) ? true : in_array($row['warehouse_id'], $countingWarehouses);
+                        unset($row['warehouse_id']);
+                        return $row;
+                    }, $locationRows),
                     'status' => $status,
                     'detailUrl' => route('products.show', $product->id),
                     'additionalInfo' => [
@@ -1451,16 +1298,22 @@ class DashboardController extends Controller
                             ->whereHas('warehouse', function($query) {
                                 $query->where('status', 'active');
                             })
+                            ->when(!empty($countingWarehouses), function($q) use ($countingWarehouses){
+                                $q->whereIn('warehouse_id', $countingWarehouses);
+                            })
                             ->sum('quantity'),
                         'project' => 'N/A' // Có thể cập nhật nếu có thông tin dự án
-                    ]
+                    ],
+                    'quantity' => WarehouseMaterial::where('material_id', $product->id)
+                        ->where('item_type', 'product')
+                        ->whereHas('warehouse', function($query){ $query->where('status','active'); })
+                        ->when(!empty($countingWarehouses), function($q) use ($countingWarehouses){
+                            $q->whereIn('warehouse_id', $countingWarehouses);
+                        })
+                        ->sum('quantity'),
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error in searchProducts', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return [];
         }
     }
@@ -1471,10 +1324,6 @@ class DashboardController extends Controller
     private function searchGoods($query, $filters = [], $includeOutOfStock = false)
     {
         try {
-            Log::info('Searching goods with query: ' . $query, [
-                'filters' => $filters,
-                'includeOutOfStock' => $includeOutOfStock
-            ]);
             
             $goods = Good::where(function($q) use ($query) {
                     $q->where('code', 'like', "%{$query}%")
@@ -1516,7 +1365,6 @@ class DashboardController extends Controller
             
             $goods = $goods->limit(20)->get();
             
-            Log::info('Found ' . $goods->count() . ' goods matching the query');
             
             return $goods->map(function($good) use ($includeOutOfStock) {
                 $warehouseQuery = WarehouseMaterial::where('material_id', $good->id)
@@ -1528,7 +1376,15 @@ class DashboardController extends Controller
                 if (!$includeOutOfStock) {
                     $warehouseQuery->where('quantity', '>', 0);
                 }
-                
+                // Áp dụng cấu hình kho tính tồn kho nếu có
+                $countingWarehouses = [];
+                if (is_array($good->inventory_warehouses) && !empty($good->inventory_warehouses)) {
+                    if (!in_array('all', $good->inventory_warehouses)) {
+                        $countingWarehouses = $good->inventory_warehouses;
+                        $warehouseQuery->whereIn('warehouse_id', $countingWarehouses);
+                    }
+                }
+
                 $warehouseInfo = $warehouseQuery->first();
                     
                 $warehouseName = '';
@@ -1539,6 +1395,49 @@ class DashboardController extends Controller
                 $location = $this->resolveItemLocation('good', $good->id, $warehouseName);
                 
                 $status = property_exists($good, 'status') ? $good->status : 'active';
+
+                $locationRows = WarehouseMaterial::where('material_id', $good->id)
+                    ->where('item_type', 'good')
+                    ->whereHas('warehouse', function($q){ $q->where('status','active'); })
+                    // Luôn lấy tất cả vị trí hiện có, kể cả số lượng 0 để có thể hiển thị đầy đủ
+                    ->with('warehouse')
+                    ->get()
+                    ->map(function($wm){
+                        // Trả về tất cả vị trí để người dùng thấy đủ, sẽ đánh dấu counted ở dưới
+                        return [
+                            'name' => $wm->warehouse ? $wm->warehouse->name : 'N/A',
+                            'quantity' => (int) $wm->quantity,
+                            'warehouse_id' => $wm->warehouse_id,
+                        ];
+                    })->toArray();
+
+                // Đánh dấu vị trí nào được tính tồn kho
+                $locationRows = array_map(function($row) use ($countingWarehouses) {
+                    $row['counted'] = empty($countingWarehouses) ? true : in_array($row['warehouse_id'], $countingWarehouses);
+                    unset($row['warehouse_id']);
+                    return $row;
+                }, $locationRows);
+
+                // Bổ sung dòng cho các kho được tính tồn nhưng hiện chưa có bản ghi (số lượng 0)
+                if (!empty($countingWarehouses)) {
+                    $existingIds = array_map(function($r){ return $r['warehouse_id'] ?? null; },
+                        WarehouseMaterial::where('material_id', $good->id)
+                            ->where('item_type', 'good')
+                            ->pluck('warehouse_id')
+                            ->toArray());
+
+                    $missingIds = array_diff($countingWarehouses, $existingIds);
+                    if (!empty($missingIds)) {
+                        $names = Warehouse::whereIn('id', $missingIds)->pluck('name','id')->toArray();
+                        foreach ($missingIds as $wid) {
+                            $locationRows[] = [
+                                'name' => $names[$wid] ?? ('Kho #' . $wid),
+                                'quantity' => 0,
+                                'counted' => true,
+                            ];
+                        }
+                    }
+                }
                 
                 return [
                     'id' => $good->id,
@@ -1549,6 +1448,7 @@ class DashboardController extends Controller
                     'serial' => $good->serial ?: $good->code,
                     'date' => $good->created_at->format('d/m/Y'),
                     'location' => $location,
+                    'locations' => $locationRows,
                     'status' => $status,
                     'detailUrl' => route('goods.show', $good->id),
                     'additionalInfo' => [
@@ -1559,15 +1459,21 @@ class DashboardController extends Controller
                             ->whereHas('warehouse', function($query) {
                                 $query->where('status', 'active');
                             })
+                            ->when(!empty($countingWarehouses), function($q) use ($countingWarehouses) {
+                                $q->whereIn('warehouse_id', $countingWarehouses);
+                            })
                             ->sum('quantity')
-                    ]
+                    ],
+                    'quantity' => WarehouseMaterial::where('material_id', $good->id)
+                        ->where('item_type', 'good')
+                        ->whereHas('warehouse', function($query){ $query->where('status','active'); })
+                        ->when(!empty($countingWarehouses), function($q) use ($countingWarehouses) {
+                            $q->whereIn('warehouse_id', $countingWarehouses);
+                        })
+                        ->sum('quantity'),
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error in searchGoods', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return [];
         }
     }
@@ -1578,10 +1484,7 @@ class DashboardController extends Controller
     private function searchProjects($query, $filters = [])
     {
         try {
-            Log::info('Searching projects with query: ' . $query, [
-                'filters' => $filters
-            ]);
-            
+
             // Escape ký tự đặc biệt trong chuỗi tìm kiếm
             $searchQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
             
@@ -1603,7 +1506,7 @@ class DashboardController extends Controller
             
             $projects = $projects->limit(20)->get();
             
-            Log::info('Found ' . $projects->count() . ' projects matching the query');
+           
             
             return $projects->map(function($project) {
                 return [
@@ -1628,10 +1531,7 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error in searchProjects', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+           
             return [];
         }
     }
@@ -1642,9 +1542,7 @@ class DashboardController extends Controller
     private function searchCustomers($query, $filters = [])
     {
         try {
-            Log::info('Searching customers with query: ' . $query, [
-                'filters' => $filters
-            ]);
+            
             
             // Escape ký tự đặc biệt trong chuỗi tìm kiếm
             $searchQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
@@ -1660,7 +1558,7 @@ class DashboardController extends Controller
                 
             $customers = $customers->limit(20)->get();
             
-            Log::info('Found ' . $customers->count() . ' customers matching the query');
+           
             
             return $customers->map(function($customer) {
                 // Lấy danh sách dự án của khách hàng
@@ -1694,10 +1592,7 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error in searchCustomers', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+           
             return [];
         }
     }
@@ -1708,9 +1603,7 @@ class DashboardController extends Controller
     private function searchRentals($query, $filters = [])
     {
         try {
-            Log::info('Searching rentals with query: ' . $query, [
-                'filters' => $filters
-            ]);
+            
             
             // Escape ký tự đặc biệt trong chuỗi tìm kiếm
             $searchQuery = str_replace(['%', '_'], ['\%', '\_'], $query);
@@ -1746,7 +1639,7 @@ class DashboardController extends Controller
             
             $rentals = $rentals->limit(20)->get();
             
-            Log::info('Found ' . $rentals->count() . ' rentals matching the query');
+           
             
             return $rentals->map(function($rental) {
                 return [
@@ -1771,10 +1664,7 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error in searchRentals', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            
             return [];
         }
     }
@@ -1855,7 +1745,7 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error searchItemsByProjectIds', ['error' => $e->getMessage()]);
+            
             return [];
         }
     }
@@ -1928,7 +1818,7 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error searchItemsByRentalIds', ['error' => $e->getMessage()]);
+            
             return [];
         }
     }
@@ -1995,7 +1885,6 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error searchProjectsByItemQuery', ['error' => $e->getMessage()]);
             return [];
         }
     }
@@ -2060,7 +1949,6 @@ class DashboardController extends Controller
                 ];
             })->toArray();
         } catch (\Exception $e) {
-            Log::error('Error searchRentalsByItemQuery', ['error' => $e->getMessage()]);
             return [];
         }
     }
@@ -2292,8 +2180,7 @@ class DashboardController extends Controller
             }
 
             return $fallbackWarehouseName ?: 'N/A';
-        } catch (\Exception $e) {
-            Log::warning('resolveItemLocation failed', ['error' => $e->getMessage()]);
+        } catch (\Exception $e) {   
             return $fallbackWarehouseName ?: 'N/A';
         }
     }
@@ -2324,25 +2211,37 @@ class DashboardController extends Controller
     private function getImportsForPeriod($category, $startDate, $endDate)
     {
         $itemType = $this->getItemTypeByCategory($category);
-        
+
+        // Vật tư và Hàng hóa: lấy theo phiếu nhập đã duyệt trong khoảng thời gian
+        if ($itemType === 'material' || $itemType === 'good') {
+            $query = DB::table('inventory_import_materials')
+                ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+                ->where('inventory_import_materials.item_type', $itemType)
+                ->where('inventory_imports.status', 'approved')
+                ->whereBetween('inventory_imports.import_date', [$startDate, $endDate]);
+
+            if ($itemType === 'material') {
+                $query->join('materials', 'materials.id', '=', 'inventory_import_materials.material_id')
+                      ->where('materials.status', '!=', 'deleted')
+                      ->where('materials.is_hidden', false);
+            } else {
+                $query->join('goods', 'goods.id', '=', 'inventory_import_materials.material_id')
+                      ->where('goods.status', '!=', 'deleted')
+                      ->where('goods.is_hidden', false);
+            }
+
+            return $query->sum('inventory_import_materials.quantity');
+        }
+
+        // Thành phẩm: vào kho khi lắp ráp/kiểm thử => lấy theo warehouse_materials
         $query = DB::table('warehouse_materials')
             ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
-            ->where('warehouse_materials.item_type', $itemType)
+            ->join('products', 'products.id', '=', 'warehouse_materials.material_id')
+            ->where('warehouse_materials.item_type', 'product')
             ->where('warehouses.status', 'active')
+            ->where('products.status', '!=', 'deleted')
             ->whereBetween('warehouse_materials.created_at', [$startDate, $endDate]);
-            
-        // Thêm join và điều kiện theo loại item
-        if ($itemType === 'material') {
-            $query->join('materials', 'materials.id', '=', 'warehouse_materials.material_id')
-                  ->where('materials.status', '!=', 'deleted');
-        } elseif ($itemType === 'product') {
-            $query->join('products', 'products.id', '=', 'warehouse_materials.material_id')
-                  ->where('products.status', '!=', 'deleted');
-        } elseif ($itemType === 'good') {
-            $query->join('goods', 'goods.id', '=', 'warehouse_materials.material_id')
-                  ->where('goods.status', '!=', 'deleted');
-        }
-        
+
         return $query->sum('warehouse_materials.quantity');
     }
 
@@ -2417,18 +2316,8 @@ class DashboardController extends Controller
                 $totalDamaged += $materialDamaged;
             }
             
-            Log::info('Calculated damaged materials', [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'total_damaged' => $totalDamaged
-            ]);
-            
             return $totalDamaged;
         } catch (\Exception $e) {
-            Log::error('Error calculating damaged materials', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return 0;
         }
     }
@@ -2451,18 +2340,8 @@ class DashboardController extends Controller
                 $totalDamaged += $productDamaged;
             }
             
-            Log::info('Calculated damaged products', [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'total_damaged' => $totalDamaged
-            ]);
-            
             return $totalDamaged;
         } catch (\Exception $e) {
-            Log::error('Error calculating damaged products', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return 0;
         }
     }
@@ -2485,18 +2364,8 @@ class DashboardController extends Controller
                 $totalDamaged += $goodDamaged;
             }
             
-            Log::info('Calculated damaged goods', [
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'total_damaged' => $totalDamaged
-            ]);
-            
             return $totalDamaged;
         } catch (\Exception $e) {
-            Log::error('Error calculating damaged goods', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return 0;
         }
     }
@@ -2541,22 +2410,36 @@ class DashboardController extends Controller
             }
             
             // Tính tổng nhập vào các kho không dùng để tính tồn kho
-            // Sử dụng bảng inventory_import_materials để theo dõi nhập kho
-            $importToNonInventoryWarehouses = DB::table('inventory_import_materials')
-                ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
-                ->join('warehouses', 'warehouses.id', '=', 'inventory_imports.warehouse_id')
-                ->where('inventory_import_materials.item_type', $itemType)
-                ->where('inventory_import_materials.material_id', $itemId)
-                ->where('warehouses.status', 'active')
-                ->whereNotIn('warehouses.id', $inventoryWarehouses)
-                ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
-                ->sum('inventory_import_materials.quantity');
+            // - Với material/good: dựa vào inventory_imports
+            // - Với product: dựa vào warehouse_materials (thành phẩm vào kho khi hoàn tất lắp ráp/kiểm thử)
+            if ($itemType === 'product') {
+                $importToNonInventoryWarehouses = DB::table('warehouse_materials')
+                    ->join('warehouses', 'warehouses.id', '=', 'warehouse_materials.warehouse_id')
+                    ->where('warehouse_materials.item_type', 'product')
+                    ->where('warehouse_materials.material_id', $itemId)
+                    ->where('warehouses.status', 'active')
+                    ->whereNotIn('warehouses.id', $inventoryWarehouses)
+                    ->whereBetween('warehouse_materials.created_at', [$startDate, $endDate])
+                    ->sum('warehouse_materials.quantity');
+            } else {
+                $importToNonInventoryWarehouses = DB::table('inventory_import_materials')
+                    ->join('inventory_imports', 'inventory_imports.id', '=', 'inventory_import_materials.inventory_import_id')
+                    // Quan trọng: lấy kho theo từng dòng chi tiết, không phải trên header phiếu
+                    ->join('warehouses', 'warehouses.id', '=', 'inventory_import_materials.warehouse_id')
+                    ->where('inventory_import_materials.item_type', $itemType)
+                    ->where('inventory_import_materials.material_id', $itemId)
+                    ->where('inventory_imports.status', 'approved')
+                    ->where('warehouses.status', 'active')
+                    ->whereNotIn('warehouses.id', $inventoryWarehouses)
+                    ->whereBetween('inventory_imports.import_date', [$startDate, $endDate])
+                    ->sum('inventory_import_materials.quantity');
+            }
             
             // Tính tổng xuất khỏi các kho không dùng để tính tồn kho
             // Sử dụng bảng dispatch_items để theo dõi xuất kho
             $exportFromNonInventoryWarehouses = DB::table('dispatch_items')
                 ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
-                ->join('warehouses', 'warehouses.id', '=', 'dispatches.warehouse_id')
+                ->join('warehouses', 'warehouses.id', '=', 'dispatch_items.warehouse_id')
                 ->where('dispatch_items.item_type', $itemType)
                 ->where('dispatch_items.item_id', $itemId)
                 ->whereIn('dispatches.status', ['approved', 'completed'])
@@ -2572,12 +2455,6 @@ class DashboardController extends Controller
             return max(0, $damaged);
             
         } catch (\Exception $e) {
-            Log::error('Error calculating item damaged', [
-                'item_type' => $itemType,
-                'item_id' => $itemId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return 0;
         }
     }

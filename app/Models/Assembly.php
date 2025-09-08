@@ -32,6 +32,13 @@ class Assembly extends Model
     ];
 
     /**
+     * Attribute casting.
+     */
+    protected $casts = [
+        'date' => 'date',
+    ];
+
+    /**
      * Get the source warehouse for this assembly.
      */
     public function warehouse()
