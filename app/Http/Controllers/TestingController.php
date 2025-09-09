@@ -1856,16 +1856,24 @@ class TestingController extends Controller
             $successDispatch = null; // Khai báo biến để lưu phiếu xuất kho thành phẩm
             if ($testing->test_type == 'finished_product' && $testing->assembly && $testing->assembly->purpose == 'project') {
                 // Chỉ tạo phiếu nhập kho cho vật tư không đạt (xuất đi dự án)
-                $failImport = $this->createInventoryImport(
-                    $testing,
-                    $request->fail_warehouse_id,
-                    'Vật tư lắp ráp không đạt từ phiếu kiểm thử: ' . $testing->test_code . ' (Xuất đi dự án)',
-                    'fail'
-                );
-                if ($failImport) {
-                    $createdImports[] = $failImport;
-                    // Tự động duyệt tồn kho (đảm bảo vào kho ngay)
-                    $this->approveInventoryImportAutomatically($failImport);
+                // Chỉ tạo phiếu nhập kho cho vật tư không đạt khi thực sự có vật tư không đạt
+                if ($this->hasFailMaterials($testing)) {
+                    $failImport = $this->createInventoryImport(
+                        $testing,
+                        $request->fail_warehouse_id,
+                        'Vật tư lắp ráp không đạt từ phiếu kiểm thử: ' . $testing->test_code . ' (Xuất đi dự án)',
+                        'fail'
+                    );
+                    if ($failImport) {
+                        $createdImports[] = $failImport;
+                        // Tự động duyệt tồn kho (đảm bảo vào kho ngay)
+                        $this->approveInventoryImportAutomatically($failImport);
+                    }
+                } else {
+                    Log::info('Không có vật tư không đạt, bỏ qua tạo phiếu nhập kho fail cho dự án', [
+                        'testing_id' => $testing->id,
+                        'test_code' => $testing->test_code
+                    ]);
                 }
                 
                 // TẠO PHIẾU XUẤT KHO THÀNH PHẨM KHI XUẤT ĐI DỰ ÁN
@@ -1887,13 +1895,21 @@ class TestingController extends Controller
                 );
                 if ($successImport) { $createdImports[] = $successImport; $this->approveInventoryImportAutomatically($successImport); }
 
-                $failImport = $this->createInventoryImport(
-                    $testing,
-                    $request->fail_warehouse_id,
-                    'Vật tư lắp ráp không đạt từ phiếu kiểm thử: ' . $testing->test_code,
-                    'fail'
-                );
-                if ($failImport) { $createdImports[] = $failImport; $this->approveInventoryImportAutomatically($failImport); }
+                // Chỉ tạo phiếu nhập kho cho vật tư không đạt khi thực sự có vật tư không đạt
+                if ($this->hasFailMaterials($testing)) {
+                    $failImport = $this->createInventoryImport(
+                        $testing,
+                        $request->fail_warehouse_id,
+                        'Vật tư lắp ráp không đạt từ phiếu kiểm thử: ' . $testing->test_code,
+                        'fail'
+                    );
+                    if ($failImport) { $createdImports[] = $failImport; $this->approveInventoryImportAutomatically($failImport); }
+                } else {
+                    Log::info('Không có vật tư không đạt, bỏ qua tạo phiếu nhập kho fail', [
+                        'testing_id' => $testing->id,
+                        'test_code' => $testing->test_code
+                    ]);
+                }
             }
 
             // Tạo phiếu chuyển kho cho phiếu kiểm thử vật tư/hàng hóa
@@ -2527,15 +2543,25 @@ class TestingController extends Controller
                 $createdImports[] = $successImport;
             }
 
-            // Tạo phiếu nhập kho cho vật tư không đạt
-            $failImport = $this->createInventoryImport(
-                $testing,
-                $failWarehouseId,
-                'Vật tư lắp ráp không đạt từ phiếu kiểm thử: ' . $testing->test_code,
-                'fail'
-            );
-            if ($failImport) {
-                $createdImports[] = $failImport;
+            // Kiểm tra xem có vật tư không đạt không trước khi tạo phiếu
+            $hasFailMaterials = $this->hasFailMaterials($testing);
+            
+            if ($hasFailMaterials) {
+                // Chỉ tạo phiếu nhập kho cho vật tư không đạt khi thực sự có vật tư không đạt
+                $failImport = $this->createInventoryImport(
+                    $testing,
+                    $failWarehouseId,
+                    'Vật tư lắp ráp không đạt từ phiếu kiểm thử: ' . $testing->test_code,
+                    'fail'
+                );
+                if ($failImport) {
+                    $createdImports[] = $failImport;
+                }
+            } else {
+                Log::info('Không có vật tư không đạt, bỏ qua tạo phiếu nhập kho fail', [
+                    'testing_id' => $testing->id,
+                    'test_code' => $testing->test_code
+                ]);
             }
 
             Log::info('Đã tạo phiếu nhập kho từ phiếu kiểm thử', [
@@ -2552,6 +2578,96 @@ class TestingController extends Controller
         }
 
         return $createdImports;
+    }
+
+    /**
+     * Kiểm tra xem có vật tư không đạt không
+     */
+    private function hasFailMaterials($testing)
+    {
+        // Kiểm tra vật tư trong testing items
+        $materialItems = $testing->items->where('item_type', 'material');
+        foreach ($materialItems as $item) {
+            $failQuantity = (int)($item->fail_quantity ?? 0);
+            
+            // Nếu có serial_results, tính từ serial_results
+            if (!empty($item->serial_results)) {
+                $serialResults = json_decode($item->serial_results, true);
+                if (is_array($serialResults)) {
+                    $failCount = 0;
+                    foreach ($serialResults as $result) {
+                        if ($result === 'fail') {
+                            $failCount++;
+                        }
+                    }
+                    $failQuantity = $failCount;
+                }
+            }
+            
+            if ($failQuantity > 0) {
+                return true;
+            }
+        }
+        
+        // Kiểm tra vật tư từ assembly nếu có
+        if ($testing->assembly && $testing->assembly->materials) {
+            $notesData = [];
+            if (!empty($testing->notes)) {
+                $decoded = json_decode($testing->notes, true);
+                if (is_array($decoded)) {
+                    $notesData = $decoded;
+                }
+            }
+            
+            foreach ($testing->assembly->materials as $asmMaterial) {
+                $materialId = (int)$asmMaterial->material_id;
+                if ($materialId === 0) continue;
+                
+                // Tìm testing item tương ứng
+                $testingItem = $testing->items->firstWhere('material_id', $materialId);
+                
+                $failSerial = 0;
+                if ($testingItem && !empty($testingItem->serial_results)) {
+                    $sr = json_decode($testingItem->serial_results, true);
+                    if (is_array($sr)) {
+                        foreach ($sr as $v) {
+                            if ($v === 'fail') $failSerial++;
+                        }
+                    }
+                }
+                
+                // Tính fail từ no-serial
+                $serialsAsm = [];
+                if (!empty($asmMaterial->serial)) {
+                    $serialsAsm = array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial))));
+                }
+                $asmQty = (int)($asmMaterial->quantity ?? 0);
+                $noSerialCount = max(0, $asmQty - count($serialsAsm));
+                
+                // Tính pass theo đơn vị
+                $unitIdx = (int)($asmMaterial->product_unit ?? 0);
+                $productItemId = null;
+                $tp = $asmMaterial->target_product_id ?? null;
+                if ($tp) {
+                    $pItem = $testing->items->first(function($ti) use ($tp) {
+                        return (int)($ti->product_id ?? 0) === (int)$tp || (int)($ti->good_id ?? 0) === (int)$tp;
+                    });
+                    if ($pItem) $productItemId = $pItem->id;
+                }
+                $unitPass = 0;
+                if ($productItemId && isset($notesData['no_serial_pass_quantity'][$productItemId][$unitIdx])) {
+                    $unitPass = (int)$notesData['no_serial_pass_quantity'][$productItemId][$unitIdx];
+                }
+                $failNoSerial = max(0, $noSerialCount - $unitPass);
+                
+                $totalFail = $failSerial + $failNoSerial;
+                if ($totalFail > 0) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -2630,6 +2746,15 @@ class TestingController extends Controller
             // KHÔNG lấy vật tư từ assembly vào phiếu thành phẩm
             // Vật tư sẽ được xử lý riêng trong phiếu vật tư hư hỏng
         } else {
+            // Kiểm tra xem có vật tư không đạt không trước khi xử lý
+            if (!$this->hasFailMaterials($testing)) {
+                Log::info('Không có vật tư không đạt, bỏ qua tạo phiếu nhập kho fail', [
+                    'testing_id' => $testing->id,
+                    'test_code' => $testing->test_code
+                ]);
+                return; // Không tạo phiếu nhập kho nếu không có vật tư không đạt
+            }
+            
             // Lấy cả vật tư KHÔNG đạt VÀ thành phẩm KHÔNG đạt từ testing items
             $materialItems = $testing->items->where('item_type', 'material')->filter(function($item) {
                 return ($item->fail_quantity ?? 0) > 0;
@@ -3104,15 +3229,25 @@ class TestingController extends Controller
                 $createdTransfers[] = $successTransfer;
             }
 
-            // Tạo phiếu chuyển kho cho vật tư/hàng hóa không đạt
-            $failTransfer = $this->createWarehouseTransfer(
-                $testing,
-                $failWarehouseId,
-                'Vật tư/Hàng hóa không đạt từ phiếu kiểm thử: ' . $testing->test_code,
-                'fail'
-            );
-            if ($failTransfer) {
-                $createdTransfers[] = $failTransfer;
+            // Kiểm tra xem có vật tư không đạt không trước khi tạo phiếu chuyển kho
+            $hasFailItems = $this->hasFailMaterials($testing);
+            
+            if ($hasFailItems) {
+                // Tạo phiếu chuyển kho cho vật tư/hàng hóa không đạt
+                $failTransfer = $this->createWarehouseTransfer(
+                    $testing,
+                    $failWarehouseId,
+                    'Vật tư/Hàng hóa không đạt từ phiếu kiểm thử: ' . $testing->test_code,
+                    'fail'
+                );
+                if ($failTransfer) {
+                    $createdTransfers[] = $failTransfer;
+                }
+            } else {
+                Log::info('Không có vật tư không đạt, bỏ qua tạo phiếu chuyển kho fail', [
+                    'testing_id' => $testing->id,
+                    'test_code' => $testing->test_code
+                ]);
             }
 
             Log::info('Đã tạo phiếu chuyển kho từ phiếu kiểm thử', [
@@ -3148,6 +3283,15 @@ class TestingController extends Controller
                     return ($item->pass_quantity ?? 0) > 0;
                 });
             } else {
+                // Kiểm tra xem có vật tư không đạt không trước khi xử lý
+                if (!$this->hasFailMaterials($testing)) {
+                    Log::info('Không có vật tư không đạt, bỏ qua tạo phiếu chuyển kho fail', [
+                        'testing_id' => $testing->id,
+                        'test_code' => $testing->test_code
+                    ]);
+                    return null; // Không tạo phiếu chuyển kho nếu không có vật tư không đạt
+                }
+                
                 // Lấy vật tư/hàng hóa không đạt
                 $items = $testing->items->filter(function($item) {
                     return ($item->fail_quantity ?? 0) > 0;
