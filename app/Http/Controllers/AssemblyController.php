@@ -605,7 +605,9 @@ class AssemblyController extends Controller
                 }
             }
 
-            $materialSerials[$material->material_id] = $serials;
+            // Create unique key for material + warehouse + product_unit combination
+            $key = $material->material_id . '_' . $warehouseIdForMaterial . '_' . ($material->product_unit ?? 0);
+            $materialSerials[$key] = $serials;
         }
 
         // Load all product serials

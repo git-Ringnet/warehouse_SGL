@@ -40,10 +40,6 @@
         
         // Function to update serial selects for warehouse change (clears existing serials)
         async function updateSerialSelectsForWarehouseChange(container, newQuantity) {
-            console.log('=== UPDATE SERIAL SELECTS FOR WAREHOUSE CHANGE ===');
-            console.log('Container:', container);
-            console.log('New quantity:', newQuantity);
-            
             // Clear the warehouse-changed flag
             container.removeAttribute('data-warehouse-changed');
             
@@ -954,15 +950,12 @@
                                                                                             serial {{ $i + 1 }}
                                                                                             --</option>
                                                                                         @php
-                                                                                            $materialId =
-                                                                                                $component['material']
-                                                                                                    ->material_id;
-                                                                                            $availableSerials =
-                                                                                                $materialSerials[
-                                                                                                    $materialId
-                                                                                                ] ?? [];
-                                                                                            $currentSerial =
-                                                                                                $serials[$i] ?? '';
+                                                                                            $materialId = $component['material']->material_id;
+                                                                                            $warehouseId = $component['material']->warehouse_id ?: $assembly->warehouse_id;
+                                                                                            $productUnit = $component['material']->product_unit ?? 0;
+                                                                                            $key = $materialId . '_' . $warehouseId . '_' . $productUnit;
+                                                                                            $availableSerials = $materialSerials[$key] ?? [];
+                                                                                            $currentSerial = $serials[$i] ?? '';
                                                                                         @endphp
                                                                                         @foreach ($availableSerials as $serial)
                                                                                             <option
@@ -1016,7 +1009,10 @@
                                                                                                 <option value="">-- Chọn serial {{ $i + 1 }} --</option>
                                                                                                 @php
                                                                                                     $materialId = $component['material']->material_id;
-                                                                                                    $availableSerials = $materialSerials[$materialId] ?? [];
+                                                                                                    $warehouseId = $component['material']->warehouse_id ?: $assembly->warehouse_id;
+                                                                                                    $productUnit = $component['material']->product_unit ?? 0;
+                                                                                                    $key = $materialId . '_' . $warehouseId . '_' . $productUnit;
+                                                                                                    $availableSerials = $materialSerials[$key] ?? [];
                                                                                                     $currentSerial = $serials[$i] ?? '';
                                                                                                 @endphp
                                                                                                 @foreach ($availableSerials as $serial)
@@ -1205,7 +1201,10 @@
                                                                                             {{ $i + 1 }} --</option>
                                                                                         @php
                                                                                             $materialId = $material->material_id;
-                                                                                            $availableSerials = $materialSerials[$materialId] ?? [];
+                                                                                            $warehouseId = $material->warehouse_id ?: $assembly->warehouse_id;
+                                                                                            $productUnit = $material->product_unit ?? 0;
+                                                                                            $key = $materialId . '_' . $warehouseId . '_' . $productUnit;
+                                                                                            $availableSerials = $materialSerials[$key] ?? [];
                                                                                         @endphp
                                                                                         @foreach ($availableSerials as $serial)
                                                                                             <option value="{{ $serial['serial_number'] }}">
@@ -2955,8 +2954,6 @@
                     if (IS_IN_PROGRESS) {
                         const newQuantity = parseInt(e.target.value);
                         const originalQuantity = parseInt(e.target.dataset.originalQuantity || '0');
-                        
-                        console.log('Global check - new:', newQuantity, 'original:', originalQuantity);
                         
                         if (newQuantity < originalQuantity) {
                             alert('Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
