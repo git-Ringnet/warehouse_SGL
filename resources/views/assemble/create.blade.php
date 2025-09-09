@@ -3795,7 +3795,33 @@
             document.querySelector('form').addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent default submission
 
-                // Validation các trường bắt buộc
+                // 1) Ưu tiên kiểm tra mã phiếu lắp ráp trước
+                const assemblyCode = document.getElementById('assembly_code').value.trim();
+                if (!assemblyCode) {
+                    showValidationError('❌ Vui lòng nhập mã phiếu lắp ráp!', 'assembly_code');
+                    return;
+                }
+                // Nếu đang hiển thị lỗi mã phiếu, dừng lại luôn
+                const hasImmediateCodeError = document.querySelector('.assembly-code-error');
+                if (hasImmediateCodeError) {
+                    showValidationError('❌ Mã phiếu đã tồn tại! Vui lòng thay đổi mã phiếu trước khi lưu.', 'assembly_code');
+                    return;
+                }
+                // Re-check trên server để tránh xung đột khi mở 2 tab
+                try {
+                    const codeCheckRespFirst = await fetch('{{ route('assemblies.check-code') }}?code=' + encodeURIComponent(assemblyCode));
+                    const codeCheckDataFirst = await codeCheckRespFirst.json();
+                    if (codeCheckDataFirst && codeCheckDataFirst.exists) {
+                        showCodeError('Mã phiếu đã tồn tại! Vui lòng đổi mã hoặc tạo lại mã.');
+                        showValidationError('❌ Mã phiếu đã tồn tại! Vui lòng thay đổi mã phiếu trước khi lưu.', 'assembly_code');
+                        return;
+                    }
+                } catch (_) {
+                    showValidationError('Không kiểm tra được tính duy nhất của mã phiếu. Vui lòng thử lại.', 'assembly_code');
+                    return;
+                }
+
+                // 2) Validation các trường bắt buộc
                 const assignedTo = document.getElementById('assigned_to').value;
                 const testerId = document.getElementById('tester_id').value;
                 const selectedProductsCount = selectedProducts.length;
@@ -3902,20 +3928,6 @@
                 // Đồng bộ hidden inputs
                 updateHiddenComponentList();
                 updateHiddenProductList();
-
-                // Kiểm tra mã phiếu có hợp lệ không
-                const assemblyCode = document.getElementById('assembly_code').value.trim();
-                if (!assemblyCode) {
-                    showValidationError('❌ Vui lòng nhập mã phiếu lắp ráp!', 'assembly_code');
-                    return;
-                }
-
-                // Kiểm tra xem có đang hiển thị lỗi trùng mã không
-                const hasCodeError = document.querySelector('.assembly-code-error');
-                if (hasCodeError) {
-                    showValidationError('❌ Mã phiếu đã tồn tại! Vui lòng thay đổi mã phiếu trước khi lưu.', 'assembly_code');
-                    return;
-                }
 
                 // Kiểm tra số lượng thành phẩm phải hợp lệ
                 for (let i = 0; i < selectedProducts.length; i++) {
