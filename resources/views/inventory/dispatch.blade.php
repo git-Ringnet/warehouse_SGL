@@ -454,6 +454,7 @@
             let selectedContractProducts = [];
             let selectedBackupProducts = [];
             let availableItems = []; // Lưu danh sách sản phẩm từ kho đã chọn
+            let isLoadingSerials = false; // Flag để tránh gọi loadAvailableSerials nhiều lần
 
             // Hàm tạo serial selects theo quantity
             function generateSerialInputs(quantity, category, productId, index) {
@@ -571,6 +572,13 @@
 
             // Hàm load available serial numbers cho tất cả serial selects
             async function loadAvailableSerials() {
+                // Tránh gọi nhiều lần cùng lúc
+                if (isLoadingSerials) {
+                    console.log('Already loading serials, skipping...');
+                    return;
+                }
+                
+                isLoadingSerials = true;
                 const serialSelects = document.querySelectorAll('select[name*="serials"]');
                 console.log(`Loading serials for ${serialSelects.length} select elements`);
 
@@ -625,8 +633,12 @@
                                     // Clear previous options
                                     select.innerHTML = '<option value="">Chọn serial...</option>';
 
-                                    // Add available serials
-                                    availableSerials.forEach(serial => {
+                                    // Remove duplicates from availableSerials
+                                    const uniqueSerials = [...new Set(availableSerials)];
+                                    console.log(`Original serials: ${availableSerials.length}, Unique serials: ${uniqueSerials.length}`);
+
+                                    // Add available serials (only unique ones)
+                                    uniqueSerials.forEach(serial => {
                                         const option = document.createElement('option');
                                         option.value = serial;
                                         option.textContent = serial;
@@ -634,7 +646,7 @@
                                     });
 
                                     // Show "No serials available" if empty
-                                    if (availableSerials.length === 0) {
+                                    if (uniqueSerials.length === 0) {
                                         const option = document.createElement('option');
                                         option.value = '';
                                         option.textContent = 'Không có serial khả dụng';
@@ -684,6 +696,9 @@
                         console.error(`Error loading serials for ${itemType} ${itemId}:`, error);
                     }
                 }
+                
+                // Reset flag khi hoàn thành
+                isLoadingSerials = false;
             }
 
             // Xử lý thêm sản phẩm hợp đồng
@@ -692,15 +707,28 @@
 
             if (addContractProductBtn) {
                 addContractProductBtn.addEventListener('click', function() {
-                    const selectedProductId = contractProductSelect.value;
+                    const selectedValue = contractProductSelect.value;
+                    const selectedType = contractProductSelect.dataset.type;
+                    const selectedId = contractProductSelect.dataset.id;
 
-                    if (!selectedProductId) {
+                    if (!selectedValue) {
                         alert('Vui lòng chọn thành phẩm hợp đồng để thêm!');
                         return;
                     }
 
-                    addContractProduct(parseInt(selectedProductId));
+                    // Parse the combined value or use separate values
+                    let productId, productType;
+                    if (selectedValue.includes('_')) {
+                        [productId, productType] = selectedValue.split('_');
+                    } else {
+                        productId = selectedId || selectedValue;
+                        productType = selectedType;
+                    }
+
+                    addContractProduct(parseInt(productId), productType);
                     contractProductSelect.value = '';
+                    contractProductSelect.dataset.type = '';
+                    contractProductSelect.dataset.id = '';
                 });
             }
 
@@ -710,15 +738,28 @@
 
             if (addBackupProductBtn) {
                 addBackupProductBtn.addEventListener('click', function() {
-                    const selectedProductId = backupProductSelect.value;
+                    const selectedValue = backupProductSelect.value;
+                    const selectedType = backupProductSelect.dataset.type;
+                    const selectedId = backupProductSelect.dataset.id;
 
-                    if (!selectedProductId) {
+                    if (!selectedValue) {
                         alert('Vui lòng chọn thiết bị dự phòng để thêm!');
                         return;
                     }
 
-                    addBackupProduct(parseInt(selectedProductId));
+                    // Parse the combined value or use separate values
+                    let productId, productType;
+                    if (selectedValue.includes('_')) {
+                        [productId, productType] = selectedValue.split('_');
+                    } else {
+                        productId = selectedId || selectedValue;
+                        productType = selectedType;
+                    }
+
+                    addBackupProduct(parseInt(productId), productType);
                     backupProductSelect.value = '';
+                    backupProductSelect.dataset.type = '';
+                    backupProductSelect.dataset.id = '';
                 });
             }
 
@@ -739,6 +780,11 @@
                             warehouses: item.warehouses || [],
                             display_name: item.display_name
                         }));
+                        
+                        // Debug: Log available items để kiểm tra dữ liệu
+                        console.log('Available items loaded:', availableItems);
+                        console.log('Sample item with warehouses:', availableItems.find(item => item.warehouses && item.warehouses.length > 0));
+                        
                         updateProductSelects();
                     } else {
                         alert('Lỗi từ server: ' + (data.message || 'Không thể tải danh sách sản phẩm'));
@@ -808,16 +854,18 @@
                     // Options cho select cũ (nếu còn).
                     if (contractProductSelect) {
                         const opt = document.createElement('option');
-                        opt.value = item.id;
+                        opt.value = `${item.id}_${item.type}`; // Include type in value
                         opt.textContent = item.display_name;
                         opt.dataset.type = item.type;
+                        opt.dataset.id = item.id;
                         contractProductSelect.appendChild(opt);
                     }
                     if (backupProductSelect) {
                         const opt = document.createElement('option');
-                        opt.value = item.id;
+                        opt.value = `${item.id}_${item.type}`; // Include type in value
                         opt.textContent = item.display_name;
                         opt.dataset.type = item.type;
+                        opt.dataset.id = item.id;
                         backupProductSelect.appendChild(opt);
                     }
 
@@ -825,18 +873,20 @@
                     if (contractDropdown) {
                         const div = document.createElement('div');
                         div.className = 'product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
-                        div.dataset.value = item.id;
+                        div.dataset.value = `${item.id}_${item.type}`; // Include type in value
                         div.dataset.text = item.display_name;
                         div.dataset.type = item.type;
+                        div.dataset.id = item.id;
                         div.textContent = item.display_name;
                         contractDropdown.appendChild(div);
                     }
                     if (backupDropdown) {
                         const div = document.createElement('div');
                         div.className = 'product-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0';
-                        div.dataset.value = item.id;
+                        div.dataset.value = `${item.id}_${item.type}`; // Include type in value
                         div.dataset.text = item.display_name;
                         div.dataset.type = item.type;
+                        div.dataset.id = item.id;
                         div.textContent = item.display_name;
                         backupDropdown.appendChild(div);
                     }
@@ -860,9 +910,14 @@
             }
 
             // Hàm thêm sản phẩm hợp đồng
-            function addContractProduct(productId) {
-                // Determine type from availableItems by id (new UI doesn't use <select> dataset)
-                const foundProduct = availableItems.find(p => p.id == productId);
+            function addContractProduct(productId, productType = null) {
+                // Determine type from availableItems by id and type (if provided)
+                let foundProduct;
+                if (productType) {
+                    foundProduct = availableItems.find(p => p.id == productId && p.type === productType);
+                } else {
+                    foundProduct = availableItems.find(p => p.id == productId);
+                }
 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -891,9 +946,14 @@
             }
 
             // Hàm thêm thiết bị dự phòng
-            function addBackupProduct(productId) {
-                // Determine type from availableItems by id (new UI doesn't use <select> dataset)
-                const foundProduct = availableItems.find(p => p.id == productId);
+            function addBackupProduct(productId, productType = null) {
+                // Determine type from availableItems by id and type (if provided)
+                let foundProduct;
+                if (productType) {
+                    foundProduct = availableItems.find(p => p.id == productId && p.type === productType);
+                } else {
+                    foundProduct = availableItems.find(p => p.id == productId);
+                }
 
                 if (!foundProduct) {
                     alert('Không tìm thấy thông tin sản phẩm!');
@@ -1088,13 +1148,15 @@
                 selectedContractProducts.forEach((product, index) => {
                     // Tạo dropdown kho xuất cho sản phẩm hợp đồng
                     let warehouseOptions = '';
-                    const productItem = availableItems.find(item => item.id === product.id);
+                    const productItem = availableItems.find(item => item.id === product.id && item.type === product.type);
+                    console.log(`Contract - Looking for product: id=${product.id}, type=${product.type}`);
+                    console.log('Contract - Found productItem:', productItem);
                     if (productItem && productItem.warehouses) {
                         productItem.warehouses.forEach(warehouse => {
                             const selected = warehouse.warehouse_id == product
                                 .selected_warehouse_id ? 'selected' : '';
                             warehouseOptions +=
-                                `<option value="${warehouse.warehouse_id}" ${selected} data-quantity="${warehouse.quantity}">${warehouse.warehouse_name}</option>`;
+                                `<option value="${warehouse.warehouse_id}" ${selected} data-quantity="${warehouse.quantity}">${warehouse.warehouse_name} (Tồn: ${warehouse.quantity})</option>`;
                         });
                     }
 
@@ -1236,7 +1298,9 @@
                 selectedBackupProducts.forEach((product, index) => {
                     // Tạo dropdown kho xuất cho thiết bị dự phòng
                     let warehouseOptions = '';
-                    const productItem = availableItems.find(item => item.id === product.id);
+                    const productItem = availableItems.find(item => item.id === product.id && item.type === product.type);
+                    console.log(`Backup - Looking for product: id=${product.id}, type=${product.type}`);
+                    console.log('Backup - Found productItem:', productItem);
                     if (productItem && productItem.warehouses) {
                         productItem.warehouses.forEach(warehouse => {
                             const selected = warehouse.warehouse_id == product
@@ -3035,11 +3099,15 @@
             dropdown.addEventListener('click', function(e) {
                 if (e.target.classList.contains('product-option')) {
                     const option = e.target;
-                    const selectedId = option.dataset.value;
+                    const selectedValue = option.dataset.value; // This now contains "id_type"
                     const selectedText = option.dataset.text;
+                    const selectedType = option.dataset.type;
+                    const selectedId = option.dataset.id;
                     
                     searchInput.value = selectedText;
-                    hiddenInput.value = selectedId;
+                    hiddenInput.value = selectedValue; // Store the combined value
+                    hiddenInput.dataset.type = selectedType; // Store type separately
+                    hiddenInput.dataset.id = selectedId; // Store id separately
                     dropdown.classList.add('hidden');
                     
                     // Remove highlighting
@@ -3071,7 +3139,16 @@
                         e.preventDefault();
                         const highlightedOption = dropdown.querySelector('.product-option.highlight');
                         if (highlightedOption) {
-                            highlightedOption.click();
+                            const selectedValue = highlightedOption.dataset.value;
+                            const selectedText = highlightedOption.dataset.text;
+                            const selectedType = highlightedOption.dataset.type;
+                            const selectedId = highlightedOption.dataset.id;
+                            
+                            searchInput.value = selectedText;
+                            hiddenInput.value = selectedValue;
+                            hiddenInput.dataset.type = selectedType;
+                            hiddenInput.dataset.id = selectedId;
+                            dropdown.classList.add('hidden');
                         }
                         break;
                     case 'Escape':
@@ -3125,11 +3202,15 @@
             dropdown.addEventListener('click', function(e) {
                 if (e.target.classList.contains('product-option')) {
                     const option = e.target;
-                    const selectedId = option.dataset.value;
+                    const selectedValue = option.dataset.value; // This now contains "id_type"
                     const selectedText = option.dataset.text;
+                    const selectedType = option.dataset.type;
+                    const selectedId = option.dataset.id;
                     
                     searchInput.value = selectedText;
-                    hiddenInput.value = selectedId;
+                    hiddenInput.value = selectedValue; // Store the combined value
+                    hiddenInput.dataset.type = selectedType; // Store type separately
+                    hiddenInput.dataset.id = selectedId; // Store id separately
                     dropdown.classList.add('hidden');
                     
                     // Remove highlighting
@@ -3161,7 +3242,16 @@
                         e.preventDefault();
                         const highlightedOption = dropdown.querySelector('.product-option.highlight');
                         if (highlightedOption) {
-                            highlightedOption.click();
+                            const selectedValue = highlightedOption.dataset.value;
+                            const selectedText = highlightedOption.dataset.text;
+                            const selectedType = highlightedOption.dataset.type;
+                            const selectedId = highlightedOption.dataset.id;
+                            
+                            searchInput.value = selectedText;
+                            hiddenInput.value = selectedValue;
+                            hiddenInput.dataset.type = selectedType;
+                            hiddenInput.dataset.id = selectedId;
+                            dropdown.classList.add('hidden');
                         }
                         break;
                     case 'Escape':

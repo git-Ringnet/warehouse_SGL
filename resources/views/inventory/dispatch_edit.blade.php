@@ -210,7 +210,7 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Người đại diện công ty</label>
                             <div class="relative">
-                                <input type="text" id="company_representative_search" placeholder="Tìm kiếm người đại diện..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ optional($employees->firstWhere('id', $dispatch->company_representative_id))->name }}">
+                                <input type="text" id="company_representative_search" autocomplete="off" placeholder="Tìm kiếm người đại diện..." class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ optional($employees->firstWhere('id', $dispatch->company_representative_id))->name }}">
                                 <div id="company_representative_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                 @if (isset($employees))
                                     @foreach ($employees as $employee)
@@ -1051,9 +1051,9 @@
                 // Initial validation and option availability update
                 setTimeout(function() {
                     updateSerialOptionsAvailability();
-                    // Đồng bộ cột tồn kho theo kho đang chọn ngay sau khi render lần đầu
-                    if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
-                        syncStockCellsWithSelectedWarehouses();
+                    // Làm giàu lại số tồn hiển thị trong dropdown sau lần render đầu
+                    if (typeof refreshWarehouseOptionStocks === 'function') {
+                        refreshWarehouseOptionStocks();
                     }
                 }, 500);
             }, 100);
@@ -1293,10 +1293,10 @@
                         // Initialize searchable pickers for contract/backup
                         initContractProductSearch();
                         initBackupProductSearch();
-                        // Sau khi render từ API, cập nhật ngay cột tồn kho
-                        if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
-                            setTimeout(syncStockCellsWithSelectedWarehouses, 0);
-                        }
+                        // Tạm thời vô hiệu hóa để debug
+                        // if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
+                        //     setTimeout(syncStockCellsWithSelectedWarehouses, 0);
+                        // }
                     }
                 } catch (error) {
                     console.error('Error loading available items:', error);
@@ -1432,7 +1432,12 @@
                                 item.warehouses = foundItem.warehouses;
                                 const warehouse = foundItem.warehouses.find(w => w.warehouse_id == item.selected_warehouse_id);
                                 if (warehouse) {
-                                    item.current_stock = warehouse.quantity;
+                                    console.log(`Contract item ${item.code}: current_stock=${item.current_stock}, warehouse_quantity=${warehouse.quantity}`);
+                                    // Chỉ cập nhật nếu tồn kho hiện tại là 0 hoặc chưa được set
+                                    if (!item.current_stock || item.current_stock === 0) {
+                                        item.current_stock = warehouse.quantity;
+                                        console.log(`Updated contract item ${item.code} stock to: ${item.current_stock}`);
+                                    }
                                 }
                             }
                         });
@@ -1446,7 +1451,12 @@
                                 item.warehouses = foundItem.warehouses;
                                 const warehouse = foundItem.warehouses.find(w => w.warehouse_id == item.selected_warehouse_id);
                                 if (warehouse) {
-                                    item.current_stock = warehouse.quantity;
+                                    console.log(`Backup item ${item.code}: current_stock=${item.current_stock}, warehouse_quantity=${warehouse.quantity}`);
+                                    // Chỉ cập nhật nếu tồn kho hiện tại là 0 hoặc chưa được set
+                                    if (!item.current_stock || item.current_stock === 0) {
+                                        item.current_stock = warehouse.quantity;
+                                        console.log(`Updated backup item ${item.code} stock to: ${item.current_stock}`);
+                                    }
                                 }
                             }
                         });
@@ -1454,10 +1464,9 @@
                         // Re-render tables with updated stock information
                         renderContractProductTable();
                         renderBackupProductTable();
-                        // Đồng bộ tồn kho ngay sau khi re-render
-                        if (typeof syncStockCellsWithSelectedWarehouses === 'function') {
-                            setTimeout(syncStockCellsWithSelectedWarehouses, 0);
-                        }
+                        // Không cần đồng bộ tồn kho vì đã được cập nhật trong loadExistingItems
+                        // Chỉ đồng bộ nếu cần thiết
+                        console.log('Stock info loaded and tables rendered');
                     }
                 } catch (error) {
                     console.error('Error loading stock info for existing items:', error);
@@ -1564,15 +1573,27 @@
 
             // Đồng bộ ô "TỒN KHO" theo option kho đang chọn cho cả contract và backup
             function syncStockCellsWithSelectedWarehouses() {
+                console.log('syncStockCellsWithSelectedWarehouses called');
                 try {
                     // Contract rows
                     document.querySelectorAll('.contract-warehouse-select').forEach(select => {
                         const index = parseInt(select.dataset.index);
                         const selectedOption = select.options[select.selectedIndex];
-                        const qty = parseInt(selectedOption?.dataset?.quantity || '0') || 0;
+                        let qty = parseInt(selectedOption?.dataset?.quantity || '0') || 0;
+
+                        console.log(`Contract index ${index}: option qty=${qty}, selectedContractProducts qty=${selectedContractProducts[index]?.current_stock}`);
+
+                        // Nếu không có data-quantity từ option, lấy từ selectedContractProducts
+                        if (qty === 0 && Array.isArray(selectedContractProducts) && selectedContractProducts[index]) {
+                            qty = selectedContractProducts[index].current_stock || 0;
+                            console.log(`Using selectedContractProducts qty: ${qty}`);
+                        }
 
                         const stockCell = document.getElementById(`contract-stock-${index}`);
-                        if (stockCell) stockCell.textContent = qty;
+                        if (stockCell) {
+                            console.log(`Setting contract stock cell ${index} to: ${qty}`);
+                            stockCell.textContent = qty;
+                        }
 
                         const quantityInput = document.getElementById(`contract-quantity-${index}`);
                         if (quantityInput) quantityInput.max = qty;
@@ -1586,7 +1607,12 @@
                     document.querySelectorAll('.backup-warehouse-select').forEach(select => {
                         const index = parseInt(select.dataset.index);
                         const selectedOption = select.options[select.selectedIndex];
-                        const qty = parseInt(selectedOption?.dataset?.quantity || '0') || 0;
+                        let qty = parseInt(selectedOption?.dataset?.quantity || '0') || 0;
+
+                        // Nếu không có data-quantity từ option, lấy từ selectedBackupProducts
+                        if (qty === 0 && Array.isArray(selectedBackupProducts) && selectedBackupProducts[index]) {
+                            qty = selectedBackupProducts[index].current_stock || 0;
+                        }
 
                         const stockCell = document.getElementById(`backup-stock-${index}`);
                         if (stockCell) stockCell.textContent = qty;
@@ -1600,6 +1626,55 @@
                     });
                 } catch (e) {
                     console.warn('syncStockCellsWithSelectedWarehouses error:', e);
+                }
+            }
+
+            // Làm giàu dữ liệu tồn kho hiển thị trong dropdown (không đổi lựa chọn hiện tại)
+            async function refreshWarehouseOptionStocks() {
+                // Contract rows
+                const contractSelects = document.querySelectorAll('.contract-warehouse-select');
+                for (const select of contractSelects) {
+                    const index = parseInt(select.dataset.index);
+                    for (const option of Array.from(select.options)) {
+                        const warehouseId = parseInt(option.value);
+                        try {
+                            const details = await getDetailedStockInfo(
+                                selectedContractProducts[index].type,
+                                selectedContractProducts[index].id,
+                                warehouseId,
+                                parseInt(option.dataset.quantity) || 0
+                            );
+                            if (details && typeof details.totalStock === 'number') {
+                                option.dataset.quantity = String(details.totalStock);
+                                if (option.textContent && option.textContent.includes('(')) {
+                                    option.textContent = option.textContent.replace(/\(Tồn: .*?\)/, `(Tồn: ${details.totalStock})`);
+                                }
+                            }
+                        } catch (_) {}
+                    }
+                }
+
+                // Backup rows
+                const backupSelects = document.querySelectorAll('.backup-warehouse-select');
+                for (const select of backupSelects) {
+                    const index = parseInt(select.dataset.index);
+                    for (const option of Array.from(select.options)) {
+                        const warehouseId = parseInt(option.value);
+                        try {
+                            const details = await getDetailedStockInfo(
+                                selectedBackupProducts[index].type,
+                                selectedBackupProducts[index].id,
+                                warehouseId,
+                                parseInt(option.dataset.quantity) || 0
+                            );
+                            if (details && typeof details.totalStock === 'number') {
+                                option.dataset.quantity = String(details.totalStock);
+                                if (option.textContent && option.textContent.includes('(')) {
+                                    option.textContent = option.textContent.replace(/\(Tồn: .*?\)/, `(Tồn: ${details.totalStock})`);
+                                }
+                            }
+                        } catch (_) {}
+                    }
                 }
             }
 
@@ -2004,6 +2079,11 @@
                 console.log(`Found ${serialSelects.length} serial selects`);
 
                 for (const select of serialSelects) {
+                    // Chống gọi chồng lấp gây lặp option
+                    if (select.getAttribute('data-loading-serials') === 'true') {
+                        continue;
+                    }
+                    select.setAttribute('data-loading-serials', 'true');
                     // Vẫn load options cho select dù disabled (để hiển thị serial đã xuất)
 
                     const itemType = select.dataset.itemType;
@@ -2085,33 +2165,39 @@
                                 console.log(`Value to preserve for ${itemType} ${itemId}: currentValue="${currentValue}", selectedSerial="${selectedSerial}", final="${valueToPreserve}"`);
 
                                 // Clear ALL existing options except default
-                                const optionsToRemove = [];
-                                for (let i = 1; i < select.children.length; i++) {
-                                    optionsToRemove.push(select.children[i]);
+                                while (select.children.length > 1) {
+                                    select.removeChild(select.lastChild);
                                 }
-                                optionsToRemove.forEach(option => option.remove());
 
-                                // Add serial options from API
+                                // Add serial options from API (dedup)
+                                const seen = new Set();
                                 data.serials.forEach(serial => {
+                                    if (seen.has(serial)) return;
+                                    seen.add(serial);
                                     const option = document.createElement('option');
                                     option.value = serial;
                                     option.textContent = serial;
                                     select.appendChild(option);
                                 });
 
-                                // Set or append preserved value
+                                // Set preserved value only if still valid in current warehouse or allowed by status
+                                const isPending = ('{{ $dispatch->status }}' === 'pending');
                                 if (valueToPreserve) {
                                     if (data.serials.includes(valueToPreserve)) {
                                         console.log(`Setting preserved value "${valueToPreserve}" for ${itemType} ${itemId} (available from API)`);
                                         select.value = valueToPreserve;
-                                    } else {
-                                        // Append preserved value as a custom option (renamed/legacy), then select it
-                                        console.log(`Appending preserved value "${valueToPreserve}" not in API for ${itemType} ${itemId}`);
+                                    } else if (!isPending) {
+                                        // Only append preserved value for non-pending (read-only/approved) edit screens
+                                        console.log(`Appending preserved value "${valueToPreserve}" not in API for ${itemType} ${itemId} (non-pending)`);
                                         const opt = document.createElement('option');
                                         opt.value = valueToPreserve;
                                         opt.textContent = valueToPreserve;
                                         select.appendChild(opt);
                                         select.value = valueToPreserve;
+                                    } else {
+                                        // Pending: clear invalid preserved selection
+                                        select.value = '';
+                                        select.setAttribute('data-selected-serial', '');
                                     }
                                 }
                             } else {
@@ -2120,25 +2206,29 @@
                                 console.log(`Current value: ${currentValue}, Selected serial: ${selectedSerial}`);
                                 
                                 // Clear ALL existing options except default
-                                const optionsToRemove = [];
-                                for (let i = 1; i < select.children.length; i++) {
-                                    optionsToRemove.push(select.children[i]);
+                                while (select.children.length > 1) {
+                                    select.removeChild(select.lastChild);
                                 }
-                                optionsToRemove.forEach(option => option.remove());
                                 
-                                // Preserve value by appending it as option even when API returns none
-                                let valueToPreserve = mappedDesired || originalSerial || '';
-                                if (valueToPreserve) {
-                                    console.log(`Preserving value "${valueToPreserve}" for ${itemType} ${itemId} despite empty API list`);
-                                    const opt = document.createElement('option');
-                                    opt.value = valueToPreserve;
-                                    opt.textContent = valueToPreserve;
-                                    select.appendChild(opt);
-                                    select.value = valueToPreserve;
-                                } else {
-                                    // Ensure no selection when nothing to preserve
+                                // For pending: do NOT preserve serial when the new warehouse has none
+                                const isPending = ('{{ $dispatch->status }}' === 'pending');
+                                if (isPending) {
                                     select.value = '';
                                     select.setAttribute('data-selected-serial', '');
+                                } else {
+                                    // Non-pending: optionally keep original for read-only display
+                                    let valueToPreserve = mappedDesired || originalSerial || '';
+                                    if (valueToPreserve) {
+                                        console.log(`Preserving value "${valueToPreserve}" for ${itemType} ${itemId} (non-pending)`);
+                                        const opt = document.createElement('option');
+                                        opt.value = valueToPreserve;
+                                        opt.textContent = valueToPreserve;
+                                        select.appendChild(opt);
+                                        select.value = valueToPreserve;
+                                    } else {
+                                        select.value = '';
+                                        select.setAttribute('data-selected-serial', '');
+                                    }
                                 }
 
                                 // Add change event listener for validation
@@ -2158,11 +2248,9 @@
                         }
                         
                         // Clear ALL existing options except default
-                        const optionsToRemove = [];
-                        for (let i = 1; i < select.children.length; i++) {
-                            optionsToRemove.push(select.children[i]);
+                        while (select.children.length > 1) {
+                            select.removeChild(select.lastChild);
                         }
-                        optionsToRemove.forEach(option => option.remove());
                         
                         // Clear selection
                         select.value = '';
@@ -2173,6 +2261,9 @@
                             select.addEventListener('change', validateSerialOnChange);
                             select.setAttribute('data-validation-listener', 'true');
                         }
+                    } finally {
+                        // Mở khóa
+                        select.setAttribute('data-loading-serials', 'false');
                     }
                 }
             }
@@ -2652,13 +2743,15 @@
 
                     if (warehousesData) {
                         warehousesData.forEach(warehouse => {
-                            const selected = warehouse.warehouse_id == product
-                                .selected_warehouse_id ? 'selected' : '';
-                            // For approved dispatches, don't show stock info since it might be outdated
-                            const stockInfo = '{{ $dispatch->status }}' === 'pending' ?
-                                ` (Tồn: ${warehouse.quantity})` : '';
-                            warehouseOptions +=
-                                `<option value="${warehouse.warehouse_id}" ${selected} data-quantity="${warehouse.quantity}">${warehouse.warehouse_name}${stockInfo}</option>`;
+                            const selected = warehouse.warehouse_id == product.selected_warehouse_id ? 'selected' : '';
+                            // Fallback: nếu quantity = 0 nhưng sản phẩm đang chọn có current_stock > 0 và cùng kho, hiển thị current_stock
+                            const effectiveQty = (warehouse.quantity && warehouse.quantity > 0)
+                                ? warehouse.quantity
+                                : ((warehouse.warehouse_id == product.selected_warehouse_id && (product.current_stock || 0) > 0)
+                                    ? product.current_stock
+                                    : 0);
+                            const stockInfo = '{{ $dispatch->status }}' === 'pending' ? ` (Tồn: ${effectiveQty})` : '';
+                            warehouseOptions += `<option value="${warehouse.warehouse_id}" ${selected} data-quantity="${effectiveQty}">${warehouse.warehouse_name}${stockInfo}</option>`;
                         });
                     }
 
@@ -2718,11 +2811,31 @@
                 // Thêm event listeners cho dropdown kho xuất hợp đồng
                 const contractWarehouseSelects = contractProductList.querySelectorAll('.contract-warehouse-select');
                 contractWarehouseSelects.forEach(select => {
-                    select.addEventListener('change', function() {
+                    select.addEventListener('change', async function() {
                         const index = parseInt(this.dataset.index);
                         const newWarehouseId = parseInt(this.value);
                         const selectedOption = this.options[this.selectedIndex];
-                        const newQuantity = parseInt(selectedOption.dataset.quantity);
+                        let newQuantity = parseInt(selectedOption.dataset.quantity);
+
+                        // Fallback to API if option does not carry the right quantity
+                        try {
+                            const details = await getDetailedStockInfo(
+                                selectedContractProducts[index].type,
+                                selectedContractProducts[index].id,
+                                newWarehouseId,
+                                isNaN(newQuantity) ? (selectedContractProducts[index].current_stock || 0) : newQuantity
+                            );
+                            if (details && typeof details.totalStock === 'number') {
+                                newQuantity = details.totalStock;
+                                selectedOption.dataset.quantity = String(newQuantity);
+                                if (selectedOption.textContent && selectedOption.textContent.includes('(')) {
+                                    selectedOption.textContent = selectedOption.textContent.replace(/\(Tồn: .*?\)/, `(Tồn: ${newQuantity})`);
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Failed to get detailed stock for contract item:', e);
+                            newQuantity = isNaN(newQuantity) ? 0 : newQuantity;
+                        }
 
                         // Cập nhật thông tin kho đã chọn
                         selectedContractProducts[index].selected_warehouse_id = newWarehouseId;
@@ -2812,7 +2925,12 @@
                     });
                 });
 
-                // Load available serials cho contract products
+                // Làm mới số tồn trong dropdown ngay lập tức, không chờ load serial
+                if (typeof refreshWarehouseOptionStocks === 'function') {
+                    refreshWarehouseOptionStocks();
+                }
+
+                // Load available serials cho contract products (chạy song song)
                 loadAvailableSerials();
 
                 const removeContractButtons = contractProductList.querySelectorAll('.remove-contract-product');
@@ -2857,13 +2975,14 @@
 
                     if (warehousesData) {
                         warehousesData.forEach(warehouse => {
-                            const selected = warehouse.warehouse_id == product
-                                .selected_warehouse_id ? 'selected' : '';
-                            // For approved dispatches, don't show stock info since it might be outdated
-                            const stockInfo = '{{ $dispatch->status }}' === 'pending' ?
-                                ` (Tồn: ${warehouse.quantity})` : '';
-                            warehouseOptions +=
-                                `<option value="${warehouse.warehouse_id}" ${selected} data-quantity="${warehouse.quantity}">${warehouse.warehouse_name}${stockInfo}</option>`;
+                            const selected = warehouse.warehouse_id == product.selected_warehouse_id ? 'selected' : '';
+                            const effectiveQty = (warehouse.quantity && warehouse.quantity > 0)
+                                ? warehouse.quantity
+                                : ((warehouse.warehouse_id == product.selected_warehouse_id && (product.current_stock || 0) > 0)
+                                    ? product.current_stock
+                                    : 0);
+                            const stockInfo = '{{ $dispatch->status }}' === 'pending' ? ` (Tồn: ${effectiveQty})` : '';
+                            warehouseOptions += `<option value="${warehouse.warehouse_id}" ${selected} data-quantity="${effectiveQty}">${warehouse.warehouse_name}${stockInfo}</option>`;
                         });
                     }
 
@@ -2923,11 +3042,31 @@
                 // Thêm event listeners cho dropdown kho xuất dự phòng
                 const backupWarehouseSelects = backupProductList.querySelectorAll('.backup-warehouse-select');
                 backupWarehouseSelects.forEach(select => {
-                    select.addEventListener('change', function() {
+                    select.addEventListener('change', async function() {
                         const index = parseInt(this.dataset.index);
                         const newWarehouseId = parseInt(this.value);
                         const selectedOption = this.options[this.selectedIndex];
-                        const newQuantity = parseInt(selectedOption.dataset.quantity);
+                        let newQuantity = parseInt(selectedOption.dataset.quantity);
+
+                        // Fallback to API if option does not carry the right quantity
+                        try {
+                            const details = await getDetailedStockInfo(
+                                selectedBackupProducts[index].type,
+                                selectedBackupProducts[index].id,
+                                newWarehouseId,
+                                isNaN(newQuantity) ? (selectedBackupProducts[index].current_stock || 0) : newQuantity
+                            );
+                            if (details && typeof details.totalStock === 'number') {
+                                newQuantity = details.totalStock;
+                                selectedOption.dataset.quantity = String(newQuantity);
+                                if (selectedOption.textContent && selectedOption.textContent.includes('(')) {
+                                    selectedOption.textContent = selectedOption.textContent.replace(/\(Tồn: .*?\)/, `(Tồn: ${newQuantity})`);
+                                }
+                            }
+                        } catch (e) {
+                            console.warn('Failed to get detailed stock for backup item:', e);
+                            newQuantity = isNaN(newQuantity) ? 0 : newQuantity;
+                        }
 
                         // Cập nhật thông tin kho đã chọn
                         selectedBackupProducts[index].selected_warehouse_id = newWarehouseId;
@@ -2992,7 +3131,12 @@
                     });
                 });
 
-                // Load available serials cho backup products
+                // Làm mới số tồn trong dropdown ngay lập tức, không chờ load serial
+                if (typeof refreshWarehouseOptionStocks === 'function') {
+                    refreshWarehouseOptionStocks();
+                }
+
+                // Load available serials cho backup products (chạy song song)
                 loadAvailableSerials();
 
                 // Thêm event listeners cho các input và nút xóa

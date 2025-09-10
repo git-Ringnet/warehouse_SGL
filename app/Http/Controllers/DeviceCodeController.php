@@ -226,13 +226,6 @@ class DeviceCodeController extends Controller
                         $serialComponents = $deviceCode['serial_components'];
                     }
                 }
-                
-                // Log để debug
-                Log::info('Processing serial_components:', [
-                    'original' => $deviceCode['serial_components'] ?? 'null',
-                    'processed' => $serialComponents,
-                    'type' => gettype($serialComponents)
-                ]);
 
                 DeviceCode::create([
                     'dispatch_id' => $dispatch_id,
@@ -285,14 +278,10 @@ class DeviceCodeController extends Controller
                 ->where('type', $type)
                 ->get();
 
-            Log::info("Found {$deviceCodes->count()} device codes for dispatch {$dispatch_id}, type {$type}");
-
             // Lấy tất cả dispatch items cho dispatch và type này
             $dispatchItems = DispatchItem::where('dispatch_id', $dispatch_id)
                 ->where('category', $type)
                 ->get();
-
-            Log::info("Found {$dispatchItems->count()} dispatch items for dispatch {$dispatch_id}, type {$type}");
 
             foreach ($dispatchItems as $dispatchItem) {
                 // Lưu lại serial trước khi đồng bộ để xác định những serial cũ bị thay thế
@@ -310,20 +299,14 @@ class DeviceCodeController extends Controller
                 
                 $itemDeviceCodes = $itemDeviceCodes->values();
 
-                Log::info("Found {$itemDeviceCodes->count()} device codes for dispatch item {$dispatchItem->id} (item_type: {$dispatchItem->item_type}, item_id: {$dispatchItem->item_id})");
-
                 if ($itemDeviceCodes->isNotEmpty()) {
                     // Lấy tất cả serial_main từ device codes
                     $serialNumbers = $itemDeviceCodes->pluck('serial_main')->filter()->toArray();
                     
-                    Log::info("Serial numbers for dispatch item {$dispatchItem->id}: " . json_encode($serialNumbers));
-                    
                     // Cập nhật serial_numbers trong dispatch_item
                     $dispatchItem->update([
                         'serial_numbers' => $serialNumbers
-                    ]);
-
-                    Log::info("Successfully synced serial numbers for dispatch item {$dispatchItem->id}: " . json_encode($serialNumbers));
+                    ]);  
 
                     // Nếu phiếu đã duyệt, cập nhật trạng thái serial trong bảng serials để không hiển thị lại khi tạo phiếu mới
                     if ($dispatch && $dispatch->status === 'approved') {
@@ -336,8 +319,6 @@ class DeviceCodeController extends Controller
                                 ->where('product_id', $dispatchItem->item_id)
                                 ->whereIn('serial_number', $affectedSerials)
                                 ->update(['status' => 'inactive']);
-
-                            Log::info('Updated serial status to inactive for serials: ' . json_encode($affectedSerials));
                         }
                     }
                 } else {

@@ -1442,6 +1442,13 @@ class DispatchController extends Controller
     {
         $items = collect();
 
+        // Lấy danh sách kho active 1 lần để tái sử dụng
+        $activeWarehouses = \App\Models\Warehouse::where('status', 'active')
+            ->where('is_hidden', false)
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get();
+
         // Get products from products table (thành phẩm)
         $products = Product::where('status', 'active')
             ->where('is_hidden', false)
@@ -1451,26 +1458,24 @@ class DispatchController extends Controller
             }])->get();
 
         foreach ($products as $product) {
-            // Get all warehouses that have this product
+            // Tính tồn kho theo từng kho cho sản phẩm này, đảm bảo không bị thiếu và đúng số lượng
             $warehouses = [];
+            // Gom nhóm quantity theo warehouse_id
+            $byWarehouse = [];
             if ($product->warehouseMaterials && $product->warehouseMaterials->isNotEmpty()) {
                 foreach ($product->warehouseMaterials as $warehouseMaterial) {
-                    $warehouses[] = [
-                        'warehouse_id' => $warehouseMaterial->warehouse_id,
-                        'warehouse_name' => $warehouseMaterial->warehouse->name ?? 'N/A',
-                        'quantity' => $warehouseMaterial->quantity ?? 0
-                    ];
+                    $wid = (int) $warehouseMaterial->warehouse_id;
+                    $byWarehouse[$wid] = ($byWarehouse[$wid] ?? 0) + ((int) ($warehouseMaterial->quantity ?? 0));
                 }
-            } else {
-                // If no warehouse materials, create default warehouses with 0 quantity
-                $allWarehouses = \App\Models\Warehouse::take(3)->get();
-                foreach ($allWarehouses as $warehouse) {
-                    $warehouses[] = [
-                        'warehouse_id' => $warehouse->id,
-                        'warehouse_name' => $warehouse->name,
-                        'quantity' => 0 // Show 0 quantity when no stock data
-                    ];
-                }
+            }
+            // Duyệt tất cả kho active và điền quantity nếu có, nếu không thì 0
+            foreach ($activeWarehouses as $warehouse) {
+                $qty = (int) ($byWarehouse[$warehouse->id] ?? 0);
+                $warehouses[] = [
+                    'warehouse_id' => $warehouse->id,
+                    'warehouse_name' => $warehouse->name,
+                    'quantity' => $qty
+                ];
             }
 
             // Add item - always include products
@@ -1494,26 +1499,22 @@ class DispatchController extends Controller
             }])->get();
 
         foreach ($goods as $good) {
-            // Get all warehouses that have this good
+            // Tính tồn kho theo từng kho cho hàng hóa này
             $warehouses = [];
+            $byWarehouse = [];
             if ($good->warehouseMaterials && $good->warehouseMaterials->isNotEmpty()) {
                 foreach ($good->warehouseMaterials as $warehouseMaterial) {
-                    $warehouses[] = [
-                        'warehouse_id' => $warehouseMaterial->warehouse_id,
-                        'warehouse_name' => $warehouseMaterial->warehouse->name ?? 'N/A',
-                        'quantity' => $warehouseMaterial->quantity ?? 0
-                    ];
+                    $wid = (int) $warehouseMaterial->warehouse_id;
+                    $byWarehouse[$wid] = ($byWarehouse[$wid] ?? 0) + ((int) ($warehouseMaterial->quantity ?? 0));
                 }
-            } else {
-                // If no warehouse materials, create default warehouses with 0 quantity
-                $allWarehouses = \App\Models\Warehouse::take(3)->get();
-                foreach ($allWarehouses as $warehouse) {
-                    $warehouses[] = [
-                        'warehouse_id' => $warehouse->id,
-                        'warehouse_name' => $warehouse->name,
-                        'quantity' => 0 // Show 0 quantity when no stock data
-                    ];
-                }
+            }
+            foreach ($activeWarehouses as $warehouse) {
+                $qty = (int) ($byWarehouse[$warehouse->id] ?? 0);
+                $warehouses[] = [
+                    'warehouse_id' => $warehouse->id,
+                    'warehouse_name' => $warehouse->name,
+                    'quantity' => $qty
+                ];
             }
 
             // Add item - always include goods

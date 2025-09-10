@@ -2001,7 +2001,7 @@ class AssemblyController extends Controller
                         'created_at' => now()->toDateTimeString(),
                         'action_type' => 'material_assembly_warehouse_export'
                     ],
-                    'Vật tư lắp ráp lưu kho'
+                    'Vật tư lắp ráp'
                 );
 
                 // Giảm tồn kho ngay khi tạo phiếu xuất vật tư (phiếu này đang tự động approved)

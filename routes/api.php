@@ -24,9 +24,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/export-requests', [RequestExportController::class, 'index']);
 
 // Thêm các route cho dispatch API
-Route::get('dispatch/items/all', [App\Http\Controllers\InventoryController::class, 'getAvailableItems']);
-Route::get('dispatch/rentals', [App\Http\Controllers\InventoryController::class, 'getRentalContracts']);
-Route::get('dispatch/item-serials', [App\Http\Controllers\InventoryController::class, 'getItemSerials']);
+Route::get('dispatch/items/all', [App\Http\Controllers\DispatchController::class, 'getAllAvailableItems']);
+Route::get('dispatch/rentals', [App\Http\Controllers\DispatchController::class, 'getRentals']);
+Route::get('dispatch/item-serials', [App\Http\Controllers\DispatchController::class, 'getItemSerials']);
 
 // Thêm các route cho device codes API
 Route::post('device-codes/save', [DeviceCodeController::class, 'saveDeviceCodes']);
