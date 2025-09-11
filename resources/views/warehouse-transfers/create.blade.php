@@ -139,7 +139,7 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1 required">Tên vật tư/ thành phẩm/ hàng hoá</label>
                                         <div class="relative">
-                                            <input type="text" name="materials[0][material_search]" class="material-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Tìm kiếm sản phẩm...">
+                                            <input type="text" autocomplete="off" name="materials[0][material_search]" class="material-search w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Tìm kiếm sản phẩm...">
                                             <div class="material-dropdown absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
                                             <input type="hidden" name="materials[0][material_id]" class="material-hidden" value="">
                                         </div>
@@ -962,23 +962,29 @@
             rows.forEach((row, index) => {
                 const hiddenEl = row.querySelector('.material-hidden');
                 const materialId = hiddenEl ? hiddenEl.value : '';
+                const itemType = row.querySelector('.item-type-select').value;
                 const selectedSerials = Array.from(row.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim()); // Trim here
                 
                 if (selectedSerials.length > 0) {
                     selectedSerials.forEach(serial => {
-                        if (!allSelectedSerials[serial]) {
-                            allSelectedSerials[serial] = [];
+                        const key = `${serial}-${materialId}-${itemType}`;
+                        if (!allSelectedSerials[key]) {
+                            allSelectedSerials[key] = [];
                         }
-                        allSelectedSerials[serial].push({
+                        allSelectedSerials[key].push({
                             rowIndex: index,
-                            materialId
+                            materialId,
+                            itemType
                         });
                     });
                 }
             });
             
-            // Kiểm tra và hiển thị cảnh báo cho các serial trùng
+            // Kiểm tra và hiển thị cảnh báo cho các serial trùng trong cùng sản phẩm
             rows.forEach((row, index) => {
+                const hiddenEl = row.querySelector('.material-hidden');
+                const materialId = hiddenEl ? hiddenEl.value : '';
+                const itemType = row.querySelector('.item-type-select').value;
                 const selectedSerials = Array.from(row.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim()); // Trim here
                 const errorDiv = row.querySelector('.serial-error');
                 
@@ -986,15 +992,17 @@
                 errorDiv.textContent = '';
                 errorDiv.style.display = 'none';
                 
-                // Tìm những serial bị trùng
-                const duplicates = selectedSerials.filter(serial => 
-                    allSelectedSerials[serial].length > 1 && 
-                    allSelectedSerials[serial].some(info => info.rowIndex !== index)
-                );
+                // Tìm những serial bị trùng trong cùng sản phẩm (cùng materialId và itemType)
+                const duplicates = selectedSerials.filter(serial => {
+                    const key = `${serial}-${materialId}-${itemType}`;
+                    return allSelectedSerials[key] && 
+                           allSelectedSerials[key].length > 1 && 
+                           allSelectedSerials[key].some(info => info.rowIndex !== index);
+                });
                 
                 if (duplicates.length > 0) {
                     // Hiển thị cảnh báo
-                    let message = 'Serial đã được chọn ở hàng khác: ' + duplicates.join(', ');
+                    let message = 'Serial đã được chọn ở hàng khác cho cùng sản phẩm: ' + duplicates.join(', ');
                     errorDiv.textContent = message;
                     errorDiv.style.display = 'block';
                 }

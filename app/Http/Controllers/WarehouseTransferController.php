@@ -274,26 +274,30 @@ class WarehouseTransferController extends Controller
                 }
             }
             
-            // Kiểm tra serial trùng giữa các item
-            $allSerials = [];
+            // Kiểm tra serial trùng trong cùng một sản phẩm
             $serialDuplicates = [];
             foreach ($materialsData as $idx => $material) {
+                $materialId = $material['id'];
+                $itemType = $material['type'] ?? 'material';
                 $serials = $material['serial_numbers'] ?? [];
                 if (!is_array($serials)) {
                     $serials = preg_split('/[,;\n\r]+/', $serials);
                     $serials = array_map('trim', $serials);
                     $serials = array_filter($serials);
                 }
+                
+                // Kiểm tra trùng serial trong cùng sản phẩm này
+                $productSerials = [];
                 foreach ($serials as $serial) {
-                    if (in_array($serial, $allSerials)) {
-                        $serialDuplicates[] = $serial;
+                    if (in_array($serial, $productSerials)) {
+                        $serialDuplicates[] = "Serial '{$serial}' bị trùng trong sản phẩm {$materialId}";
                     } else {
-                        $allSerials[] = $serial;
+                        $productSerials[] = $serial;
                     }
                 }
             }
             if (!empty($serialDuplicates)) {
-                return back()->with('error', 'Serial bị trùng giữa các vật tư: ' . implode(', ', array_unique($serialDuplicates)))->withInput();
+                return back()->with('error', 'Có serial bị trùng: ' . implode(', ', $serialDuplicates))->withInput();
             }
 
             // Kiểm tra tồn kho trước khi tạo phiếu
@@ -611,26 +615,30 @@ class WarehouseTransferController extends Controller
                 }
             }
 
-            // Kiểm tra serial trùng giữa các item
-            $allSerials = [];
+            // Kiểm tra serial trùng trong cùng một sản phẩm
             $serialDuplicates = [];
             foreach ($materialsData as $idx => $material) {
+                $materialId = $material['id'];
+                $itemType = $material['type'] ?? 'material';
                 $serials = $material['serial_numbers'] ?? [];
                 if (!is_array($serials)) {
                     $serials = preg_split('/[,;\n\r]+/', $serials);
                     $serials = array_map('trim', $serials);
                     $serials = array_filter($serials);
                 }
+                
+                // Kiểm tra trùng serial trong cùng sản phẩm này
+                $productSerials = [];
                 foreach ($serials as $serial) {
-                    if (in_array($serial, $allSerials)) {
-                        $serialDuplicates[] = $serial;
+                    if (in_array($serial, $productSerials)) {
+                        $serialDuplicates[] = "Serial '{$serial}' bị trùng trong sản phẩm {$materialId}";
                     } else {
-                        $allSerials[] = $serial;
+                        $productSerials[] = $serial;
                     }
                 }
             }
             if (!empty($serialDuplicates)) {
-                return back()->with('error', 'Serial bị trùng giữa các vật tư: ' . implode(', ', array_unique($serialDuplicates)))->withInput();
+                return back()->with('error', 'Có serial bị trùng: ' . implode(', ', $serialDuplicates))->withInput();
             }
 
             // Lấy vật tư chính (vật tư đầu tiên)

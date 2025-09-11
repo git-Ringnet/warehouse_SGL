@@ -316,6 +316,19 @@
                                     nonSerialCountEl.textContent = '0';
                                     updateMaterialsJson();
                                     updateSummaryTable();
+                                    
+                                    // Rebuild dropdown options for the new type
+                                    const merged = [];
+                                    if (type && itemsData[type]) {
+                                        itemsData[type].forEach(it => {
+                                            merged.push({ id: it.id, text: `${it.code || ''} - ${it.name || ''}`, type: type });
+                                        });
+                                    }
+                                    merged.sort((a,b)=> a.text.localeCompare(b.text,'vi',{sensitivity:'base'}));
+                                    const dropdown = row.querySelector('.material-dropdown');
+                                    if (dropdown) {
+                                        dropdown.innerHTML = merged.map(it => `<div class="material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="${it.id}" data-type="${it.type}" data-text="${it.text}">${it.text}</div>`).join('');
+                                    }
                                 };
                                 // Khởi tạo tìm kiếm vật tư cho hàng hiện tại
                                 (function initRowSearch(r){
@@ -323,13 +336,14 @@
                                     const dropdown = r.querySelector('.material-dropdown');
                                     const hidden = r.querySelector('.material-hidden');
                                     if (!search || !dropdown || !hidden) return;
-                                    // build options
+                                    // build options - chỉ lấy items theo loại đã chọn
+                                    const currentType = r.querySelector('.item-type-select').value;
                                     const merged = [];
-                                    ['material','product','good'].forEach(k => {
-                                        (itemsData[k]||[]).forEach(it => {
-                                            merged.push({ id: it.id, text: `${it.code || ''} - ${it.name || ''}`, type: k });
+                                    if (currentType && itemsData[currentType]) {
+                                        itemsData[currentType].forEach(it => {
+                                            merged.push({ id: it.id, text: `${it.code || ''} - ${it.name || ''}`, type: currentType });
                                         });
-                                    });
+                                    }
                                     merged.sort((a,b)=> a.text.localeCompare(b.text,'vi',{sensitivity:'base'}));
                                     dropdown.innerHTML = merged.map(it => `<div class="material-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" data-value="${it.id}" data-type="${it.type}" data-text="${it.text}">${it.text}</div>`).join('');
                                     // bind search
@@ -555,23 +569,29 @@
                             rows.forEach((row, index) => {
                                 const hiddenEl2 = row.querySelector('.material-hidden');
                                 const materialId = hiddenEl2 ? hiddenEl2.value : '';
+                                const itemType = row.querySelector('.item-type-select').value;
                                 const selectedSerials = Array.from(row.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim());
                                 
                                 if (selectedSerials.length > 0) {
                                     selectedSerials.forEach(serial => {
-                                        if (!allSelectedSerials[serial]) {
-                                            allSelectedSerials[serial] = [];
+                                        const key = `${serial}-${materialId}-${itemType}`;
+                                        if (!allSelectedSerials[key]) {
+                                            allSelectedSerials[key] = [];
                                         }
-                                        allSelectedSerials[serial].push({
+                                        allSelectedSerials[key].push({
                                             rowIndex: index,
-                                            materialId
+                                            materialId,
+                                            itemType
                                         });
                                     });
                                 }
                             });
                             
-                            // Kiểm tra và hiển thị cảnh báo cho các serial trùng
+                            // Kiểm tra và hiển thị cảnh báo cho các serial trùng trong cùng sản phẩm
                             rows.forEach((row, index) => {
+                                const hiddenEl2 = row.querySelector('.material-hidden');
+                                const materialId = hiddenEl2 ? hiddenEl2.value : '';
+                                const itemType = row.querySelector('.item-type-select').value;
                                 const selectedSerials = Array.from(row.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim());
                                 const errorDiv = row.querySelector('.serial-error');
                                 
@@ -579,15 +599,17 @@
                                 errorDiv.textContent = '';
                                 errorDiv.style.display = 'none';
                                 
-                                // Tìm những serial bị trùng
-                                const duplicates = selectedSerials.filter(serial => 
-                                    allSelectedSerials[serial].length > 1 && 
-                                    allSelectedSerials[serial].some(info => info.rowIndex !== index)
-                                );
+                                // Tìm những serial bị trùng trong cùng sản phẩm (cùng materialId và itemType)
+                                const duplicates = selectedSerials.filter(serial => {
+                                    const key = `${serial}-${materialId}-${itemType}`;
+                                    return allSelectedSerials[key] && 
+                                           allSelectedSerials[key].length > 1 && 
+                                           allSelectedSerials[key].some(info => info.rowIndex !== index);
+                                });
                                 
                                 if (duplicates.length > 0) {
                                     // Hiển thị cảnh báo
-                                    let message = 'Serial đã được chọn ở hàng khác: ' + duplicates.join(', ');
+                                    let message = 'Serial đã được chọn ở hàng khác cho cùng sản phẩm: ' + duplicates.join(', ');
                                     errorDiv.textContent = message;
                                     errorDiv.style.display = 'block';
                                 }
