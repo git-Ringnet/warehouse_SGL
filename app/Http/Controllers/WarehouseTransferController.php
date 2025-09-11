@@ -1026,107 +1026,33 @@ class WarehouseTransferController extends Controller
                 'item_type' => $itemType
             ]);
 
-            // Lấy danh sách serial đã nhập từ phiếu nhập kho - BỎ ĐIỀU KIỆN item_type
-            // để lấy tất cả serial bất kể loại sản phẩm
-            $importQuery = DB::table('inventory_import_materials')
-                ->where('material_id', $materialId)
-                ->whereNotNull('serial_numbers')
-                ->whereRaw("serial_numbers != '[]'")
-                ->whereRaw("serial_numbers != ''")
-                ->select('serial_numbers', 'item_type');
-                
-            Log::info('Import Query:', ['sql' => $importQuery->toSql(), 'bindings' => $importQuery->getBindings()]);
-            
-            $importedItems = $importQuery->get();
-            Log::info('Raw Import Items:', ['count' => count($importedItems), 'data' => $importedItems]);
-            
-            $importedSerials = [];
-            foreach ($importedItems as $item) {
-                if (!empty($item->serial_numbers)) {
-                    try {
-                        Log::info('Processing serial data:', [
-                            'item_type' => $item->item_type,
-                            'raw_data' => $item->serial_numbers
-                        ]);
-                        
-                        // Thử nhiều cách decode khác nhau
-                        $serials = null;
-                        
-                        // Cách 1: Decode trực tiếp
-                        $serials = json_decode($item->serial_numbers, true);
-                        
-                        // Cách 2: Nếu cách 1 không được, thử xử lý chuỗi
-                        if (is_null($serials) || !is_array($serials)) {
-                            // Loại bỏ dấu ngoặc vuông nếu có
-                            $cleaned = trim($item->serial_numbers, '[]');
-                            // Tách chuỗi thành mảng
-                            $serials = preg_split('/[,"\s]+/', $cleaned, -1, PREG_SPLIT_NO_EMPTY);
-                            $serials = array_map(function($s) { return trim($s, '"\''); }, $serials);
-                        }
-                        
-                        // Thêm vào danh sách
-                        if (is_array($serials)) {
-                            Log::info('Decoded serials:', ['serials' => $serials]);
-                            $importedSerials = array_merge($importedSerials, $serials);
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Lỗi khi decode serial: ' . $e->getMessage(), ['serial_data' => $item->serial_numbers]);
-                    }
-                }
+            // Lấy số lượng tồn kho theo đúng kho và loại sản phẩm
+            $totalStockQuery = WarehouseMaterial::where('warehouse_id', $warehouseId)
+                ->where('material_id', $materialId);
+            if ($itemType === 'material') {
+                $totalStockQuery->where(function ($q) {
+                    $q->where('item_type', 'material')
+                      ->orWhereNull('item_type');
+                });
+            } else {
+                $totalStockQuery->where('item_type', $itemType);
             }
-            
-            // Loại bỏ trùng lặp
-            $importedSerials = array_unique($importedSerials);
-            
-            Log::info('Imported serials:', ['count' => count($importedSerials), 'serials' => $importedSerials]);
-
-            // Lấy danh sách serial đã chuyển đi từ phiếu chuyển kho - BỎ ĐIỀU KIỆN type
-            // để lấy tất cả serial đã chuyển đi bất kể loại sản phẩm
-            $transferQuery = DB::table('warehouse_transfer_materials')
-                ->join('warehouse_transfers', 'warehouse_transfers.id', '=', 'warehouse_transfer_materials.warehouse_transfer_id')
-                ->where('warehouse_transfers.source_warehouse_id', $warehouseId)
-                ->where('warehouse_transfer_materials.material_id', $materialId)
-                ->where('warehouse_transfers.status', 'completed') // Chỉ xem xét phiếu đã duyệt
-                ->whereNotNull('warehouse_transfer_materials.serial_numbers')
-                ->select('warehouse_transfer_materials.serial_numbers', 'warehouse_transfer_materials.type');
-                
-            Log::info('Transfer Query:', ['sql' => $transferQuery->toSql(), 'bindings' => $transferQuery->getBindings()]);
-            
-            $transferredItems = $transferQuery->get();
-            Log::info('Raw Transferred Items:', ['count' => count($transferredItems), 'data' => $transferredItems]);
-            
-            $transferredSerials = [];
-            foreach ($transferredItems as $item) {
-                if (!empty($item->serial_numbers)) {
-                    try {
-                        $serials = json_decode($item->serial_numbers, true);
-                        if (is_array($serials)) {
-                            $transferredSerials = array_merge($transferredSerials, $serials);
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Lỗi khi decode serial: ' . $e->getMessage(), ['serial_data' => $item->serial_numbers]);
-                    }
-                }
-            }
-            
-            // Loại bỏ trùng lặp
-            $transferredSerials = array_unique($transferredSerials);
-            
-            Log::info('Transferred serials:', ['count' => count($transferredSerials), 'serials' => $transferredSerials]);
-
-            // Lấy số lượng tồn kho
-            $totalStock = WarehouseMaterial::where('warehouse_id', $warehouseId)
-                ->where('material_id', $materialId)
-                ->where('item_type', $itemType)
-                ->sum('quantity');
+            $totalStock = $totalStockQuery->sum('quantity');
                 
             Log::info('Total stock:', ['quantity' => $totalStock]);
 
-            // Lấy serial numbers trực tiếp từ warehouse_materials (nơi lưu trữ chính xác nhất)
-            $warehouseMaterial = WarehouseMaterial::where('warehouse_id', $warehouseId)
-                ->where('material_id', $materialId)
-                ->where('item_type', $itemType)
-                ->first();
+            // Lấy serial numbers trực tiếp từ warehouse_materials (nguồn chuẩn duy nhất theo kho)
+            $warehouseMaterialQuery = WarehouseMaterial::where('warehouse_id', $warehouseId)
+                ->where('material_id', $materialId);
+            if ($itemType === 'material') {
+                $warehouseMaterialQuery->where(function ($q) {
+                    $q->where('item_type', 'material')
+                      ->orWhereNull('item_type');
+                });
+            } else {
+                $warehouseMaterialQuery->where('item_type', $itemType);
+            }
+            $warehouseMaterial = $warehouseMaterialQuery->first();
                 
             $availableSerials = [];
             if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
@@ -1140,10 +1066,8 @@ class WarehouseTransferController extends Controller
                 }
             }
             
-            // Nếu không có serial trong warehouse_materials, thử tính từ inventory_import_materials - warehouse_transfer_materials
-            if (empty($availableSerials)) {
-            $availableSerials = array_values(array_diff($importedSerials, $transferredSerials));
-            }
+            // Không dùng dữ liệu nhập kho/giao dịch khác kho để suy diễn serial nữa để tránh lẫn kho
+            // Nếu không có serial lưu tại kho này, coi như kho này không có serial sẵn
             
             // Số lượng tồn kho không có serial = tổng tồn kho - số lượng có serial
             $nonSerialStock = $totalStock - count($availableSerials);

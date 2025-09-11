@@ -648,7 +648,7 @@
                                 <div class="flex gap-2">
                                     <div class="flex-1">
                                         <div class="relative">
-                                            <input type="text" id="contract_product_search" placeholder="Tìm kiếm thiết bị theo hợp đồng..." class="w-full h-10 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
+                                            <input type="text" autocomplete="off" id="contract_product_search" placeholder="Tìm kiếm thiết bị theo hợp đồng..." class="w-full h-10 border border-blue-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50">
                                             <div id="contract_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-blue-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
                                             <input type="hidden" id="contract_product_select">
                                         </div>
@@ -719,7 +719,7 @@
                                 <div class="flex gap-2">
                                     <div class="flex-1">
                                         <div class="relative">
-                                            <input type="text" id="backup_product_search" placeholder="Tìm kiếm thiết bị dự phòng..." class="w-full h-10 border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
+                                            <input type="text" autocomplete="off" id="backup_product_search" placeholder="Tìm kiếm thiết bị dự phòng..." class="w-full h-10 border border-orange-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-orange-50">
                                             <div id="backup_product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-orange-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
                                             <input type="hidden" id="backup_product_select">
                                         </div>

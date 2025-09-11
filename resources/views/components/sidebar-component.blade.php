@@ -1,13 +1,13 @@
 <!-- Sidebar -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<div class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50"
+<div id="appSidebar" class="sidebar w-64 fixed top-0 left-0 overflow-y-auto shadow-lg z-50 transform transition-transform duration-300 md:translate-x-0 -translate-x-full"
     style="bottom: 0; background: linear-gradient(180deg, #1a365d 0%, #0f2942 100%);">
     <div class="p-4 flex items-center justify-between border-b border-gray-700">
         <div class="flex items-center">
             <i class="fas fa-warehouse text-2xl mr-3" style="color: #fff"></i>
             <span class="logo-text text-xl font-bold">SGL WMS</span>
         </div>
-        <button id="toggleSidebar" class="text-white focus:outline-none">
+        <button id="toggleSidebar" class="text-white focus:outline-none md:hidden">
             <i class="fas fa-bars"></i>
         </button>
     </div>
@@ -451,6 +451,9 @@
     class="bg-white dark:bg-gray-800 shadow-sm py-4 px-6 flex justify-between items-center fixed top-0 right-0 left-0 z-40"
     style="left: 256px; z-index: 45 !important;">
     <div class="flex items-center">
+        <button id="mobileMenuBtn" class="md:hidden mr-3 text-gray-700 dark:text-gray-300">
+            <i class="fas fa-bars text-xl"></i>
+        </button>
         <h1 class="text-xl font-bold text-gray-800 dark:text-white opacity-0" id="page-title">
         </h1>
     </div>
@@ -538,9 +541,6 @@
                 <a href="{{ route('profile') }}"
                     class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Hồ
                     sơ</a>
-                <a href="#"
-                    class="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700">Cài
-                    đặt</a>
                 <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
                 <button onclick="handleLogout()"
                     class="block w-full text-left px-4 py-2 text-red-500 hover:bg-blue-50 dark:hover:bg-gray-700">Đăng
@@ -549,6 +549,9 @@
         </div>
     </div>
 </header>
+
+<!-- Overlay for mobile sidebar -->
+<div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-40 hidden md:hidden z-40"></div>
 
 <!-- Include SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -702,6 +705,55 @@
         // Call the function when the page loads
         updatePageTitle();
     });
+
+    // Sidebar toggle (mobile)
+    (function() {
+        const body = document.body;
+        const sidebar = document.getElementById('appSidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const mobileBtn = document.getElementById('mobileMenuBtn');
+        const toggleBtnInside = document.getElementById('toggleSidebar');
+
+        function openSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            sidebar.classList.add('translate-x-0');
+            overlay.classList.remove('hidden');
+            body.classList.add('overflow-hidden');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            sidebar.classList.remove('translate-x-0');
+            overlay.classList.add('hidden');
+            body.classList.remove('overflow-hidden');
+        }
+
+        function toggleSidebarMobile() {
+            if (sidebar.classList.contains('-translate-x-full')) {
+                openSidebar();
+            } else {
+                closeSidebar();
+            }
+        }
+
+        if (mobileBtn) mobileBtn.addEventListener('click', toggleSidebarMobile);
+        if (toggleBtnInside) toggleBtnInside.addEventListener('click', toggleSidebarMobile);
+        if (overlay) overlay.addEventListener('click', closeSidebar);
+
+        // Close sidebar on resize to desktop to avoid stuck overlay
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768) {
+                overlay.classList.add('hidden');
+                sidebar.classList.remove('-translate-x-full');
+                sidebar.classList.add('translate-x-0');
+                body.classList.remove('overflow-hidden');
+            } else {
+                // Ensure hidden by default on small screens
+                sidebar.classList.add('-translate-x-full');
+                sidebar.classList.remove('translate-x-0');
+            }
+        });
+    })();
 </script>
 <script src="{{ asset('js/sidebar-active.js') }}"></script>
 
@@ -765,5 +817,14 @@
         margin-left: 256px;
         padding-top: 72px;
         /* Adjust based on your header height */
+    }
+
+    @media (max-width: 768px) {
+        header[style] {
+            left: 0 !important;
+        }
+        .content-area {
+            margin-left: 0;
+        }
     }
 </style>

@@ -420,7 +420,7 @@
                     @if ($assembly->status === 'pending')
                         <div class="flex items-center space-x-2 mb-4">
                             <div class="w-72 relative">
-                                <input type="text" id="product_search" 
+                                <input type="text" id="product_search" autocomplete="off"
                                        placeholder="Tìm kiếm thành phẩm..." 
                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <div id="product_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">

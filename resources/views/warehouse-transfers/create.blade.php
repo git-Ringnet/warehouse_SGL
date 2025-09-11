@@ -378,6 +378,8 @@
             product: [],
             good: []
         };
+        // Quản lý request tải serial theo từng hàng để có thể huỷ khi thay đổi nhanh
+        const serialRequestControllers = new WeakMap();
         
         // Hàm load items theo kho nguồn
         async function loadItemsByWarehouse(warehouseId) {
@@ -396,7 +398,6 @@
                         product: data.products || [],
                         good: data.goods || []
                     };
-                    console.log('Loaded items for warehouse:', warehouseId, itemsData);
                 } else {
                     console.error('Error loading items:', data.error);
                 }
@@ -569,6 +570,19 @@
             [sourceWarehouseSelect, itemTypeSelect, materialHidden].forEach(el => {
                 if (!el) return;
                 el.addEventListener('change', function() {
+                    // Huỷ request cũ nếu còn đang chạy và reset UI ngay lập tức
+                    const prevController = serialRequestControllers.get(row);
+                    if (prevController) prevController.abort();
+
+                    const serialContainer = row.querySelector('.serial-list');
+                    const serialInput = row.querySelector('.serial-input');
+                    const selectedCountEl = row.querySelector('.selected-count');
+                    const nonSerialCountEl = row.querySelector('.non-serial-count');
+                    if (serialContainer) serialContainer.innerHTML = '<div class="text-gray-500 text-sm">Chọn kho nguồn và vật tư để hiển thị danh sách serial</div>';
+                    if (serialInput) serialInput.value = '[]';
+                    if (selectedCountEl) selectedCountEl.textContent = '0';
+                    if (nonSerialCountEl) nonSerialCountEl.textContent = '0';
+
                     if (sourceWarehouseSelect.value && materialHidden && materialHidden.value) {
                         loadSerials(row);
                     }
@@ -739,13 +753,9 @@
         function checkInventory(materialId, warehouseId, itemType) {
             if (!materialId || !warehouseId) return;
             
-            console.log(`Đang kiểm tra tồn kho: materialId=${materialId}, warehouseId=${warehouseId}, itemType=${itemType}`);
-            
             // Lấy base URL từ window.location
             const baseUrl = window.location.origin;
             const apiUrl = `${baseUrl}/warehouse-transfers/check-inventory`;
-            
-            console.log('Gọi API URL:', apiUrl);
             
             // Sử dụng phương thức POST thay vì GET
             fetch(apiUrl, {
@@ -761,17 +771,14 @@
                 })
             })
             .then(response => {
-                console.log('API Response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('API Response data:', data);
                 // Cập nhật hiển thị tồn kho trong bảng
                 const stockCells = document.querySelectorAll(`.stock-quantity[data-id="${materialId}"][data-type="${itemType}"]`);
-                console.log('Tìm thấy', stockCells.length, 'ô cần cập nhật');
                 
                 stockCells.forEach(cell => {
                     cell.textContent = data.quantity;
@@ -780,8 +787,6 @@
                     const row = cell.closest('tr');
                     const quantityCell = row.querySelector('td:nth-child(6)');
                     const quantity = parseInt(quantityCell.textContent);
-                    
-                    console.log('Số lượng chuyển:', quantity, 'Tồn kho:', data.quantity);
                     
                     if (quantity > data.quantity) {
                         cell.classList.add('text-red-600', 'font-bold');
@@ -863,7 +868,6 @@
             }));
             
             document.getElementById('materials_json').value = JSON.stringify(materials);
-            console.log('Updated materials_json:', materials);
         }
         
         // Hàm load danh sách serial
@@ -877,19 +881,24 @@
                 return;
             }
             
-            console.log('Loading serials...', {
-                sourceWarehouseId,
-                materialId,
-                itemType
-            });
-            
             try {
-                // Truy vấn trực tiếp vào database để lấy serial
-                const response = await fetch(`/api/warehouse-transfers/get-serials?warehouse_id=${sourceWarehouseId}&material_id=${materialId}&item_type=${itemType}`);
+                // Huỷ request cũ (nếu có) và tạo controller mới cho hàng này
+                const oldController = serialRequestControllers.get(row);
+                if (oldController) oldController.abort();
+                const controller = new AbortController();
+                serialRequestControllers.set(row, controller);
+
+                // Truy vấn lấy serial, truyền signal để có thể abort
+                const response = await fetch(`/api/warehouse-transfers/get-serials?warehouse_id=${sourceWarehouseId}&material_id=${materialId}&item_type=${itemType}`, { signal: controller.signal });
                 const data = await response.json();
-                console.log('Serial Data Check:', data);
                 
                 if (data.success && data.data && data.data.available_serials) {
+                    // Nếu request này đã bị abort hoặc người dùng đã đổi lựa chọn, không cập nhật UI
+                    const currentHidden = row.querySelector('.material-hidden');
+                    const currentType = row.querySelector('.item-type-select');
+                    if (!currentHidden || currentHidden.value !== materialId || !currentType || currentType.value !== itemType || document.getElementById('source_warehouse_id').value !== String(sourceWarehouseId)) {
+                        return; // stale response
+                    }
                     // Lấy serial từ dữ liệu trả về
                     const allSerials = data.data.available_serials;
                     
@@ -928,13 +937,16 @@
                         validateSerialSelection(row);
                         updateMaterialsJson();
                     });
-                    
-                    console.log(`Đã tìm thấy ${allSerials.length} serial và hiển thị trên form.`);
+
                 } else {
                     const serialContainer = row.querySelector('.serial-list');
                     serialContainer.innerHTML = '<div class="text-gray-500 text-sm">Không có serial tồn kho</div>';
                 }
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    // Bị huỷ do đổi lựa chọn nhanh → không log, không cập nhật gì
+                    return;
+                }
                 console.error('Lỗi khi tải danh sách serial:', error);
                 const serialContainer = row.querySelector('.serial-list');
                 serialContainer.innerHTML = '<div class="text-red-500 text-sm">Có lỗi xảy ra khi tải danh sách serial</div>';
@@ -1002,12 +1014,7 @@
             const quantity = parseInt(quantityInput.value) || 0;
             const selectedSerials = Array.from(serialContainer.querySelectorAll('.serial-checkbox:checked')).map(cb => cb.value.trim()); // Trim here
             const nonSerialStock = parseInt(nonSerialCountEl.textContent) || 0;
-            
-            console.log('Validating serials:', {
-                quantity: quantity,
-                selectedSerials: selectedSerials,
-                nonSerialStock: nonSerialStock
-            });
+
 
             // Cập nhật số lượng serial đã chọn
             selectedCountEl.textContent = selectedSerials.length;
@@ -1035,6 +1042,14 @@
             // Trường hợp 2: Số lượng Serial chọn < số lượng chuyển
             if (selectedSerials.length < quantity) {
                 const emptySerialCount = quantity - selectedSerials.length;
+
+                // Nếu số lượng thiết bị không serial cần chuyển vượt quá tồn không serial hiện có → lỗi
+                if (emptySerialCount > nonSerialStock) {
+                    quantityError.textContent = `Không đủ số lượng không có serial. Cần ${emptySerialCount}, còn ${nonSerialStock}.`;
+                    quantityError.style.display = 'block';
+                    return false;
+                }
+
                 // Thêm thông báo thông tin (không phải lỗi)
                 const nonSerialInfoEl = row.querySelector('.non-serial-info');
                 if (!nonSerialInfoEl) {
@@ -1106,7 +1121,6 @@
         // Function tạo mã mới
         async function generateNewCode() {
             try {
-                console.log('Generating new code...');
                 const response = await fetch('/api/warehouse-transfers/generate-code', {
                     method: 'GET',
                     headers: {
@@ -1121,7 +1135,6 @@
                 }
                 
                 const data = await response.json();
-                console.log('Response:', data);
                 
                 if (data.success) {
                     document.getElementById('transfer_code').value = data.code;
@@ -1150,6 +1163,17 @@
                 // Cập nhật lại tất cả các hàng vật tư dựa trên kho mới
                 const materialRows = document.querySelectorAll('.material-row');
                 materialRows.forEach(row => {
+                    // Huỷ request serial đang chạy của hàng này nếu có và reset UI
+                    const prevController = serialRequestControllers.get(row);
+                    if (prevController) prevController.abort();
+                    const serialContainer = row.querySelector('.serial-list');
+                    const serialInput = row.querySelector('.serial-input');
+                    const selectedCountEl = row.querySelector('.selected-count');
+                    const nonSerialCountEl = row.querySelector('.non-serial-count');
+                    if (serialContainer) serialContainer.innerHTML = '<div class="text-gray-500 text-sm">Chọn kho nguồn và vật tư để hiển thị danh sách serial</div>';
+                    if (serialInput) serialInput.value = '[]';
+                    if (selectedCountEl) selectedCountEl.textContent = '0';
+                    if (nonSerialCountEl) nonSerialCountEl.textContent = '0';
                     // Rebuild searchable dropdown options with new itemsData
                     initializeRowMaterialSearch(row);
                     // Nếu đã chọn loại sản phẩm, cập nhật danh sách theo loại đó
@@ -1194,7 +1218,6 @@
             try {
                 const response = await fetch(`/api/warehouse-transfers/get-serials?warehouse_id=${sourceWarehouseId}&material_id=${materialId}&item_type=${itemType}`);
                 const data = await response.json();
-                console.log('Serial Data Check:', data);
                 
                 // Hiển thị kết quả
                 let message = `Tìm thấy ${data.count} bản ghi có serial:\n\n`;
