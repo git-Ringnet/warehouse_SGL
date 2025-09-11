@@ -273,7 +273,24 @@
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     {{ $testing->test_date->format('d/m/Y') }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                    {{ Str::limit($testing->notes, 50) ?: 'N/A' }}</td>
+                                    @php
+                                        $notesDisplay = '';
+                                        $raw = $testing->notes;
+                                        if (!empty($raw)) {
+                                            if (is_string($raw)) {
+                                                $decoded = json_decode($raw, true);
+                                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                                    $notesDisplay = $decoded['general_note'] ?? ($decoded['note'] ?? ($decoded['notes'] ?? ''));
+                                                } else {
+                                                    $notesDisplay = $raw;
+                                                }
+                                            } elseif (is_array($raw)) {
+                                                $notesDisplay = $raw['general_note'] ?? ($raw['note'] ?? '');
+                                            }
+                                        }
+                                    @endphp
+                                    {{ $notesDisplay ? Str::limit($notesDisplay, 80) : 'N/A' }}
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                     <span
                                         class="px-2 py-1 
@@ -343,10 +360,21 @@
                                     @endif
 
                                     @if ($testing->status == 'completed' && !$testing->is_inventory_updated && $canUpdateInventory)
+                                        @php
+                                            $isProject = $testing->assembly && ($testing->assembly->purpose === 'project');
+                                            $projectLabel = '';
+                                            if ($isProject) {
+                                                $code = $testing->assembly->project_code ?? '';
+                                                $name = $testing->assembly->project_name ?? '';
+                                                $projectLabel = trim(($code ? ($code . ' - ') : '') . $name);
+                                            }
+                                        @endphp
                                         <button data-testing-id="{{ $testing->id }}"
                                             data-test-code="{{ $testing->test_code }}"
                                             data-test-type="{{ $testing->test_type }}"
-                                            onclick="openUpdateInventory(this.dataset.testingId, this.dataset.testCode, this.dataset.testType)"
+                                            data-assembly-purpose="{{ $isProject ? 'project' : ($testing->assembly->purpose ?? '') }}"
+                                            data-project-label="{{ $projectLabel }}"
+                                            onclick="openUpdateInventory(this.dataset.testingId, this.dataset.testCode, this.dataset.testType, this.dataset.assemblyPurpose, this.dataset.projectLabel)"
                                             class="w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-500 transition-colors group"
                                             title="Cập nhật về kho">
                                             <i class="fas fa-warehouse text-purple-500 group-hover:text-white"></i>
@@ -446,20 +474,27 @@
                 @csrf
                 <div class="px-6 py-4">
                     <input type="hidden" id="testing_id" name="testing_id">
+                    <input type="hidden" id="success_warehouse_hidden" name="success_warehouse_id" value="" disabled>
+                    <input type="hidden" name="redirect_to" value="index">
                     <p class="mb-4 text-sm text-gray-600">Cập nhật kết quả kiểm thử <span id="test_code_display"
                             class="font-semibold"></span> vào kho</p>
 
-                    <div class="mb-4">
+                    <div id="success_block" class="mb-4">
                         <label for="success_warehouse_id" class="block text-sm font-medium text-gray-700 mb-1">Kho lưu
                             thiết bị Đạt</label>
                         <select id="success_warehouse_id" name="success_warehouse_id"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                             required>
                             <option value="">-- Chọn kho --</option>
+                            <!-- Option Dự án xuất đi sẽ được thêm động nếu assembly purpose = project -->
                             @foreach (\App\Models\Warehouse::where('status', 'active')->get() as $warehouse)
                                 <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
                             @endforeach
                         </select>
+                    </div>
+                    <div id="project_block" class="mb-4 hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Dự án cho Thành phẩm đạt (không thể chỉnh sửa)</label>
+                        <input id="project_label_display" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700" readonly value="">
                     </div>
 
                     <div class="mb-4">
@@ -534,7 +569,7 @@
         }
 
         // Update Inventory Modal functions
-        function openUpdateInventory(testingId, testCode, testType) {
+        function openUpdateInventory(testingId, testCode, testType, assemblyPurpose = '', projectLabel = '') {
             document.getElementById('testing_id').value = testingId;
             document.getElementById('test_code_display').textContent = testCode;
             document.getElementById('updateInventoryForm').action = `/testing/${testingId}/update-inventory`;
@@ -542,6 +577,9 @@
             // Cập nhật label dựa trên loại kiểm thử
             const successLabel = document.querySelector('label[for="success_warehouse_id"]');
             const failLabel = document.querySelector('label[for="fail_warehouse_id"]');
+            const successBlock = document.getElementById('success_block');
+            const projectBlock = document.getElementById('project_block');
+            const projectLabelDisplay = document.getElementById('project_label_display');
             
             if (testType === 'finished_product') {
                 successLabel.textContent = 'Kho lưu Thành phẩm đạt';
@@ -549,6 +587,32 @@
             } else {
                 successLabel.textContent = 'Kho lưu thiết bị Đạt';
                 failLabel.textContent = 'Kho lưu thiết bị Không đạt';
+            }
+            
+            // Nếu assembly là dự án: ẩn chọn kho đạt, hiển thị dự án (read-only) và set hidden value gửi lên server
+            const successSelect = document.getElementById('success_warehouse_id');
+            const successHidden = document.getElementById('success_warehouse_hidden');
+            if (assemblyPurpose === 'project') {
+                successBlock.classList.add('hidden');
+                projectBlock.classList.remove('hidden');
+                projectLabelDisplay.value = projectLabel || 'Dự án xuất đi';
+                // đảm bảo form vẫn gửi giá trị 'project_export' mà không bị validate required
+                successSelect.required = false;
+                successSelect.disabled = true;
+                successSelect.value = '';
+                // bật hidden input để submit
+                successHidden.disabled = false;
+                successHidden.value = 'project_export';
+            } else {
+                projectBlock.classList.add('hidden');
+                successBlock.classList.remove('hidden');
+                // reset nếu trước đó là project
+                successSelect.required = true;
+                successSelect.disabled = false;
+                if (successSelect.value === 'project_export') successSelect.value = '';
+                // tắt hidden input nếu không phải project
+                successHidden.disabled = true;
+                successHidden.value = '';
             }
             
             document.getElementById('updateInventoryModal').classList.remove('hidden');

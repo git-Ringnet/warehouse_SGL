@@ -1421,11 +1421,21 @@
                         @if($testing->test_type == 'finished_product')
                         @php
                         $assemblyPurpose = $testing->assembly ? $testing->assembly->purpose : null;
-                        $projectName = $testing->assembly ? $testing->assembly->project_name : 'Dự án';
+                        $projectName = 'Dự án';
+                        $projectCode = '';
+                        
+                        // Lấy thông tin từ bảng Project thông qua relationship
+                        if ($testing->assembly && $testing->assembly->project) {
+                            $project = $testing->assembly->project;
+                            $projectName = $project->project_name ?? 'Dự án';
+                            $projectCode = $project->project_code ?? '';
+                        }
+                        
+                        $projectLabel = trim(($projectCode ? ($projectCode . ' - ') : '') . $projectName);
                         @endphp
                         @if($assemblyPurpose == 'project')
                         <p class="text-sm font-medium text-green-700">Dự án cho Thành phẩm đạt:</p>
-                        <p class="text-green-600">{{ $projectName }}</p>
+                        <p class="text-green-600">{{ $projectLabel }}</p>
                         @else
                         <p class="text-sm font-medium text-green-700">Kho lưu Thành phẩm đạt:</p>
                         <p class="text-green-600">{{ $testing->successWarehouse->name ?? 'Chưa có' }}</p>
@@ -1524,10 +1534,20 @@
                     @if($testing->test_type == 'finished_product')
                     @php
                     $assemblyPurpose = $testing->assembly ? $testing->assembly->purpose : null;
-                    $projectName = $testing->assembly ? $testing->assembly->project_name : 'Dự án';
+                    $projectName = 'Dự án';
+                    $projectCode = '';
+                    
+                    // Lấy thông tin từ bảng Project thông qua relationship
+                    if ($testing->assembly && $testing->assembly->project) {
+                        $project = $testing->assembly->project;
+                        $projectName = $project->project_name ?? 'Dự án';
+                        $projectCode = $project->project_code ?? '';
+                    }
+                    
+                    $projectLabel = trim(($projectCode ? ($projectCode . ' - ') : '') . $projectName);
                     @endphp
                     @if($assemblyPurpose == 'project')
-                    (Dự án cho Thành phẩm đạt: {{ $projectName }},
+                    (Dự án cho Thành phẩm đạt: {{ $projectLabel }},
                     Kho lưu Module Vật tư lắp ráp không đạt: {{ $testing->failWarehouse->name ?? 'N/A' }})
                     @else
                     (Kho lưu Thành phẩm đạt: {{ $testing->successWarehouse->name ?? 'N/A' }},
@@ -1619,11 +1639,42 @@
                         @if($testing->test_type == 'finished_product')
                         @php
                         $assemblyPurpose = $testing->assembly ? $testing->assembly->purpose : null;
-                        $projectName = $testing->assembly ? $testing->assembly->project_name : 'Dự án';
+                        $projectCode = '';
+                        $projectName = 'Dự án';
+                        
+                        // Debug: Log thông tin assembly và project
+                        \Log::info('DEBUG: Assembly info in view', [
+                            'assembly_id' => $testing->assembly ? $testing->assembly->id : 'null',
+                            'assembly_purpose' => $assemblyPurpose,
+                            'assembly_project_id' => $testing->assembly ? $testing->assembly->project_id : 'null',
+                            'has_project_relationship' => $testing->assembly && $testing->assembly->project ? 'yes' : 'no'
+                        ]);
+                        
+                        // Lấy thông tin từ bảng Project thông qua relationship
+                        if ($testing->assembly && $testing->assembly->project) {
+                            $project = $testing->assembly->project;
+                            $projectName = $project->project_name ?? 'Dự án';
+                            $projectCode = $project->project_code ?? '';
+                            
+                            \Log::info('DEBUG: Project info in view', [
+                                'project_id' => $project->id,
+                                'project_name' => $projectName,
+                                'project_code' => $projectCode
+                            ]);
+                        } else {
+                            \Log::warning('DEBUG: No project relationship found in view', [
+                                'assembly_id' => $testing->assembly ? $testing->assembly->id : 'null',
+                                'assembly_purpose' => $assemblyPurpose,
+                                'assembly_project_id' => $testing->assembly ? $testing->assembly->project_id : 'null'
+                            ]);
+                        }
+                        
+                        $projectLabel = trim(($projectCode ? ($projectCode . ' - ') : '') . $projectName);
                         @endphp
                         @if($assemblyPurpose == 'project')
                         <label for="success_warehouse_id" class="block text-sm font-medium text-gray-700 mb-1">Dự án cho Thành phẩm đạt (không thể chỉnh sửa)</label>
-                        <input type="text" value="{{ $projectName }}" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-gray-600" readonly>
+                        <input type="text" value="{{ $projectLabel }}" class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-gray-600" readonly>
+                        <p class="mt-1 text-xs text-gray-500">Thành phẩm đạt sẽ được xuất trực tiếp tới dự án này.</p>
                         <input type="hidden" name="success_warehouse_id" value="project_export">
                         @else
                         <label for="success_warehouse_id" class="block text-sm font-medium text-gray-700 mb-1">Kho lưu Thành phẩm đạt</label>
