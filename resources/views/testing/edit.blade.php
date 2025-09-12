@@ -102,11 +102,14 @@
                         
                         <div class="mt-4">
                                 <label for="receiver_id" class="block text-sm font-medium text-gray-700 mb-1">Người tiếp nhận kiểm thử</label>
+                                @php
+                                    $lockReceiver = in_array($testing->status, ['pending','in_progress']);
+                                @endphp
                                 <div class="relative">
                                     <input type="text" id="receiver_id_search" 
                                            placeholder="Tìm kiếm người tiếp nhận kiểm thử..." 
                                            value="{{ $testing->receiverEmployee->name ?? '' }}"
-                                           class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                                           @if($lockReceiver) readonly disabled class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 cursor-not-allowed" @else class="w-full h-10 border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" @endif>
                                     <div id="receiver_id_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                                         @foreach($employees as $employee)
                                             <div class="employee-option px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
@@ -118,6 +121,9 @@
                                     </div>
                                     <input type="hidden" id="receiver_id" name="receiver_id" value="{{ $testing->receiver_id ?? '' }}">
                                 </div>
+                                @if($lockReceiver)
+                                    <p class="text-xs text-gray-500 mt-1">Trường này bị khóa khi phiếu ở trạng thái Chờ xử lý/Đang thực hiện.</p>
+                                @endif
                                 @error('receiver_id')
                                     <span class="text-red-500 text-xs">{{ $message }}</span>
                                 @enderror
@@ -1190,96 +1196,107 @@
             }
         }
 
-        // Receiver ID search functionality
+        // Receiver ID search functionality (bị khóa khi trạng thái là pending/in_progress)
         const receiverIdSearch = document.getElementById('receiver_id_search');
         const receiverIdDropdown = document.getElementById('receiver_id_dropdown');
         const receiverIdHidden = document.getElementById('receiver_id');
+        const isReceiverLocked = @json(in_array($testing->status, ['pending','in_progress']));
         let selectedReceiverId = '';
         let selectedReceiverName = '';
 
         // Show dropdown on focus
-        receiverIdSearch.addEventListener('focus', function() {
-            receiverIdDropdown.classList.remove('hidden');
-        });
+        if (!isReceiverLocked) {
+            receiverIdSearch.addEventListener('focus', function() {
+                receiverIdDropdown.classList.remove('hidden');
+            });
+        }
 
         // Hide dropdown when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!receiverIdSearch.contains(e.target) && !receiverIdDropdown.contains(e.target)) {
-                receiverIdDropdown.classList.add('hidden');
-            }
-        });
-
-        // Filter employees based on search input
-        receiverIdSearch.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            const options = receiverIdDropdown.querySelectorAll('.employee-option');
-            
-            options.forEach(option => {
-                const text = option.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    option.style.display = 'block';
-                    // Highlight search term
-                    const highlightedText = option.textContent.replace(
-                        new RegExp(searchTerm, 'gi'),
-                        match => `<mark class="bg-yellow-200">${match}</mark>`
-                    );
-                    option.innerHTML = highlightedText;
-                } else {
-                    option.style.display = 'none';
+        if (!isReceiverLocked) {
+            document.addEventListener('click', function(e) {
+                if (!receiverIdSearch.contains(e.target) && !receiverIdDropdown.contains(e.target)) {
+                    receiverIdDropdown.classList.add('hidden');
                 }
             });
-            
-            receiverIdDropdown.classList.remove('hidden');
-        });
+        }
+
+        // Filter employees based on search input
+        if (!isReceiverLocked) {
+            receiverIdSearch.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const options = receiverIdDropdown.querySelectorAll('.employee-option');
+                
+                options.forEach(option => {
+                    const text = option.textContent.toLowerCase();
+                    if (text.includes(searchTerm)) {
+                        option.style.display = 'block';
+                        // Highlight search term
+                        const highlightedText = option.textContent.replace(
+                            new RegExp(searchTerm, 'gi'),
+                            match => `<mark class="bg-yellow-200">${match}</mark>`
+                        );
+                        option.innerHTML = highlightedText;
+                    } else {
+                        option.style.display = 'none';
+                    }
+                });
+                
+                receiverIdDropdown.classList.remove('hidden');
+            });
+        }
 
         // Handle employee option selection
-        receiverIdDropdown.addEventListener('click', function(e) {
-            if (e.target.classList.contains('employee-option')) {
-                const option = e.target;
-                selectedReceiverId = option.dataset.value;
-                selectedReceiverName = option.dataset.text;
-                
-                receiverIdSearch.value = selectedReceiverName;
-                receiverIdHidden.value = selectedReceiverId;
-                receiverIdDropdown.classList.add('hidden');
-                
-                // Remove highlighting
-                option.innerHTML = option.dataset.text;
-            }
-        });
+        if (!isReceiverLocked) {
+            receiverIdDropdown.addEventListener('click', function(e) {
+                if (e.target.classList.contains('employee-option')) {
+                    const option = e.target;
+                    selectedReceiverId = option.dataset.value;
+                    selectedReceiverName = option.dataset.text;
+                    
+                    receiverIdSearch.value = selectedReceiverName;
+                    receiverIdHidden.value = selectedReceiverId;
+                    receiverIdDropdown.classList.add('hidden');
+                    
+                    // Remove highlighting
+                    option.innerHTML = option.dataset.text;
+                }
+            });
+        }
 
         // Keyboard navigation
-        receiverIdSearch.addEventListener('keydown', function(e) {
-            const options = Array.from(receiverIdDropdown.querySelectorAll('.employee-option:not([style*="display: none"])'));
-            const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
-            
-            switch(e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    if (currentIndex < options.length - 1) {
-                        options.forEach(option => option.classList.remove('highlight'));
-                        options[currentIndex + 1].classList.add('highlight');
-                    }
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    if (currentIndex > 0) {
-                        options.forEach(option => option.classList.remove('highlight'));
-                        options[currentIndex - 1].classList.add('highlight');
-                    }
-                    break;
-                case 'Enter':
-                    e.preventDefault();
-                    const highlightedOption = receiverIdDropdown.querySelector('.employee-option.highlight');
-                    if (highlightedOption) {
-                        highlightedOption.click();
-                    }
-                    break;
-                case 'Escape':
-                    receiverIdDropdown.classList.add('hidden');
-                    break;
-            }
-        });
+        if (!isReceiverLocked) {
+            receiverIdSearch.addEventListener('keydown', function(e) {
+                const options = Array.from(receiverIdDropdown.querySelectorAll('.employee-option:not([style*="display: none"])'));
+                const currentIndex = options.findIndex(option => option.classList.contains('highlight'));
+                
+                switch(e.key) {
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (currentIndex < options.length - 1) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex + 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            options.forEach(option => option.classList.remove('highlight'));
+                            options[currentIndex - 1].classList.add('highlight');
+                        }
+                        break;
+                    case 'Enter':
+                        e.preventDefault();
+                        const highlightedOption = receiverIdDropdown.querySelector('.employee-option.highlight');
+                        if (highlightedOption) {
+                            highlightedOption.click();
+                        }
+                        break;
+                    case 'Escape':
+                        receiverIdDropdown.classList.add('hidden');
+                        break;
+                }
+            });
+        }
     </script>
 </body>
 </html> 

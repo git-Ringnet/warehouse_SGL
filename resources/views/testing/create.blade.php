@@ -45,7 +45,7 @@
             @endif
             
             <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6">
-                <form action="{{ route('testing.store') }}" method="POST">
+                <form id="createTestingForm" action="{{ route('testing.store') }}" method="POST">
                     @csrf
                     <div class="mb-6">
                         <h2 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2">Thông tin cơ bản</h2>
@@ -937,6 +937,92 @@
             
             console.log('=== validateSerialSelection END ===');
         }
+        
+        // Hiển thị thông báo nổi gọn gàng ở góc phải trên, tự ẩn sau 5s
+        function showToast(message, type = 'error') {
+            const existing = document.getElementById('global-toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.id = 'global-toast';
+            const color = type === 'error' ? 'bg-red-600' : (type === 'success' ? 'bg-green-600' : 'bg-blue-600');
+            toast.className = `${color} text-white text-sm px-4 py-3 rounded shadow-lg fixed top-4 right-4 z-50`;
+            toast.innerHTML = `<div class="flex items-start"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 mr-2 text-white\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M8.257 3.099c.765-1.36 2.721-1.36 3.486 0l6.518 11.59c.75 1.334-.213 3.01-1.742 3.01H3.48c-1.53 0-2.492-1.676-1.743-3.01l6.52-11.59zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V7a1 1 0 00-1-1z\" clip-rule=\"evenodd\"/></svg><div>${message}</div></div>`;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.classList.add('opacity-0'); toast.style.transition = 'opacity 300ms'; }, 4700);
+            setTimeout(() => { toast.remove(); }, 5000);
+        }
+
+        // Ngăn submit nếu có item chọn serial vượt quá số lượng kiểm thử
+        (function attachSubmitGuard() {
+            const form = document.getElementById('createTestingForm');
+            if (!form) return;
+            form.addEventListener('submit', function(e) {
+                let hasError = false;
+                // Duyệt từng dòng item trong bảng tóm tắt
+                const rows = document.querySelectorAll('#items-summary-table tr');
+                rows.forEach((row, idx) => {
+                    const serialCheckboxes = row.querySelectorAll('input[type="checkbox"][name*="serials"]');
+                    if (!serialCheckboxes || serialCheckboxes.length === 0) return;
+                    const selectedCount = row.querySelectorAll('input[type="checkbox"][name*="serials"]:checked').length;
+                    const qtyCell = row.querySelectorAll('td')[3];
+                    const quantity = qtyCell ? parseInt((qtyCell.textContent||'').trim(), 10) : 0;
+                    if (selectedCount > quantity) {
+                        hasError = true;
+                        showToast(`Đã chọn ${selectedCount} serial nhưng số lượng kiểm thử chỉ ${quantity}. Vui lòng bỏ bớt serial trước khi lưu.`, 'error');
+                        // Nhấn mạnh khu vực lỗi bằng hiệu ứng viền đỏ ngắn
+                        row.classList.add('ring-2','ring-red-400');
+                        setTimeout(() => row.classList.remove('ring-2','ring-red-400'), 1200);
+                    }
+                });
+                if (hasError) {
+                    e.preventDefault();
+                    return;
+                }
+                // Nếu không có lỗi client, gửi AJAX để nhận validation JSON (không reload trang)
+                e.preventDefault();
+                const formData = new FormData(form);
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    body: formData
+                }).then(async (res) => {
+                    if (res.status === 422) {
+                        const data = await res.json();
+                        // Lấy thông điệp lỗi đầu tiên rõ ràng từ validator
+                        let firstError = 'Dữ liệu không hợp lệ';
+                        if (data && data.errors) {
+                            const keys = Object.keys(data.errors);
+                            if (keys.length > 0) {
+                                const key = keys[0];
+                                const arr = data.errors[key];
+                                if (Array.isArray(arr) && arr.length > 0) firstError = arr[0];
+                            }
+                        }
+                        showToast(firstError, 'error');
+                        // Tô viền đỏ các field lỗi nếu liên quan đến serials
+                        const errorKeys = Object.keys(data.errors || {});
+                        if (errorKeys.some(k => k.includes('items.') && k.includes('.serials'))) {
+                            const rows = document.querySelectorAll('#items-summary-table tr');
+                            rows.forEach(row => { row.classList.add('ring-2','ring-red-400'); setTimeout(() => row.classList.remove('ring-2','ring-red-400'), 1200); });
+                        }
+                        return;
+                    }
+                    if (res.ok) {
+                        const data = await res.json();
+                        showToast(data.message || 'Tạo phiếu kiểm thử thành công!', 'success');
+                        // Điều hướng sau 800ms để người dùng kịp thấy toast
+                        setTimeout(() => { window.location.href = data.redirect || '{{ route('testing.index') }}'; }, 800);
+                    } else {
+                        const text = await res.text();
+                        showToast('Đã xảy ra lỗi không xác định.', 'error');
+                        console.error('Store error:', text);
+                    }
+                }).catch(err => {
+                    showToast('Lỗi mạng. Vui lòng thử lại.', 'error');
+                    console.error(err);
+                });
+            });
+        })();
         
         // Helper function để kiểm tra empty
         function empty(value) {

@@ -156,22 +156,70 @@ class TestingController extends Controller
         ]);
 
         // Custom validation: Kiểm tra số lượng serial không vượt quá số lượng kiểm thử
+        // và không vượt quá số lượng "không có serial" thực tế trong kho
         $validator->after(function ($validator) use ($request) {
             if ($request->has('items')) {
                 foreach ($request->items as $index => $item) {
                     $quantity = (int)($item['quantity'] ?? 0);
                     $serials = $item['serials'] ?? [];
-                    
-                    // Lọc bỏ serial rỗng
+
+                    // Tổng serial người dùng chọn (kể cả trống đại diện cho N/A)
+                    $totalSelectedSerials = is_array($serials) ? count($serials) : 0;
+
+                    // Số serial thực (không rỗng)
                     $validSerials = array_filter($serials, function($serial) {
                         return !empty(trim($serial));
                     });
-                    
+
+                    // 1) Chặn tổng số serial chọn > số lượng kiểm thử
+                    if ($totalSelectedSerials > $quantity) {
+                        $validator->errors()->add(
+                            "items.{$index}.serials",
+                            "Số Serial chọn không được lớn hơn số lượng kiểm thử (đang chọn {$totalSelectedSerials}/{$quantity})"
+                        );
+                    }
+
+                    // 2) Chặn số serial thực > số lượng kiểm thử (bảo toàn thông báo cũ)
                     if (count($validSerials) > $quantity) {
                         $validator->errors()->add(
-                            "items.{$index}.serials", 
+                            "items.{$index}.serials",
                             "Số lượng serial (" . count($validSerials) . ") không được vượt quá số lượng kiểm thử ({$quantity})"
                         );
+                    }
+
+                    // 3) Kiểm tra số lượng chọn "Không có Serial" không vượt quá số N/A thực tế trong kho
+                    try {
+                        // Số lượng cần N/A = số lượng kiểm thử - số serial thực được chọn
+                        $neededNoSerial = max(0, $quantity - count($validSerials));
+                        if ($neededNoSerial > 0 && !empty($item['id']) && !empty($item['warehouse_id'])) {
+                            $wmQuery = [
+                                'warehouse_id' => $item['warehouse_id'],
+                                // Map item_type: product -> good
+                                'item_type' => ($item['item_type'] ?? 'material') === 'product' ? 'good' : ($item['item_type'] ?? 'material'),
+                                'material_id' => (int)$item['id'],
+                            ];
+                            $wm = \App\Models\WarehouseMaterial::where($wmQuery)->first();
+                            $availableQty = (int)($wm->quantity ?? 0);
+                            // Lấy danh sách serial hiện có trong kho
+                            $currentSerials = [];
+                            if (!empty($wm) && !empty($wm->serial_number)) {
+                                $decoded = json_decode($wm->serial_number, true);
+                                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                    $currentSerials = array_values(array_filter(array_map('trim', $decoded)));
+                                } else {
+                                    $currentSerials = array_values(array_filter(array_map('trim', explode(',', (string)$wm->serial_number))));
+                                }
+                            }
+                            $availableNoSerial = max(0, $availableQty - count($currentSerials));
+                            if ($neededNoSerial > $availableNoSerial) {
+                                $validator->errors()->add(
+                                    "items.{$index}.serials",
+                                    "Số lượng thiết bị không có Serial cần kiểm thử (" . $neededNoSerial . ") vượt quá số lượng không Serial thực tế trong kho (" . $availableNoSerial . ")"
+                                );
+                            }
+                        }
+                    } catch (\Throwable $e) {
+                        // An toàn: không làm hỏng flow nếu lỗi đọc dữ liệu kho
                     }
                 }
             }
@@ -185,6 +233,13 @@ class TestingController extends Controller
         }
 
         if ($validator->fails()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput();
@@ -234,11 +289,9 @@ class TestingController extends Controller
 
                 // Xử lý serial numbers nếu có
                 if (isset($item['serials']) && is_array($item['serials']) && !empty($item['serials'])) {
-                    // Lấy serial đầu tiên được chọn
-                    $selectedSerials = array_filter($item['serials']); // Loại bỏ các giá trị rỗng
-                    if (!empty($selectedSerials)) {
-                        $itemData['serial_number'] = implode(', ', $selectedSerials);
-                    }
+                    // Lưu toàn bộ serial thực (loại bỏ rỗng) vào cột serial_number để theo dõi
+                    $selectedSerials = array_values(array_filter(array_map('trim', $item['serials'])));
+                    if (!empty($selectedSerials)) { $itemData['serial_number'] = implode(', ', $selectedSerials); }
                 }
 
                 TestingItem::create($itemData);
@@ -281,6 +334,13 @@ class TestingController extends Controller
             );
 
             // Sau khi tạo phiếu kiểm thử thành công
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Tạo phiếu kiểm thử thành công!',
+                    'redirect' => route('testing.index')
+                ]);
+            }
             return redirect()->route('testing.index')->with('success', 'Tạo phiếu kiểm thử thành công!');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -290,9 +350,13 @@ class TestingController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return redirect()->back()
-                ->with('error', 'Đã xảy ra lỗi: ' . $e->getMessage())
-                ->withInput();
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã xảy ra lỗi: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->back()->with('error', 'Đã xảy ra lỗi: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -362,6 +426,18 @@ class TestingController extends Controller
             $request->merge([
                 'test_date' => DateHelper::convertToDatabaseFormat($request->test_date)
             ]);
+        }
+
+        // LOCK FIELD: Không cho phép chỉnh sửa Người tiếp nhận kiểm thử (receiver_id)
+        // khi phiếu ở trạng thái Chờ xử lý hoặc Đang thực hiện
+        if (in_array($testing->status, ['pending', 'in_progress'], true)
+            && $request->has('receiver_id')
+            && (string)$request->get('receiver_id') !== (string)$testing->receiver_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Không được phép thay đổi Người tiếp nhận kiểm thử khi phiếu ở trạng thái Chờ xử lý/Đang thực hiện.',
+                'errors' => ['receiver_id' => ['Trường Người tiếp nhận kiểm thử đang bị khóa.']]
+            ], 422);
         }
 
         // Debug: Log request data
