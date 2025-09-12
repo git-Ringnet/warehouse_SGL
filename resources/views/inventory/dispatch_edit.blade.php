@@ -1384,12 +1384,12 @@
                             type: '{{ $item->item_type }}',
                             unit: '{{ $item->item_unit }}',
                             quantity: {{ $item->quantity }},
-                            selected_warehouse_id: {{ $item->warehouse_id }},
+                            selected_warehouse_id: @json($item->warehouse_id),
                             current_stock: 0, // Will be updated from API call
                             category: '{{ $item->category }}',
                             serial_numbers: @json($item->serial_numbers ?? []),
                             warehouses: [{
-                                warehouse_id: {{ $item->warehouse_id }},
+                                warehouse_id: @json($item->warehouse_id),
                                 warehouse_name: '{{ $item->warehouse->name ?? 'N/A' }}',
                                 quantity: 0 // Will be updated from API call
                             }],
@@ -1487,7 +1487,7 @@
                             type: '{{ $item->item_type }}',
                             unit: '{{ $item->item_unit }}',
                             quantity: {{ $item->quantity }},
-                            selected_warehouse_id: {{ $item->warehouse_id }},
+                            selected_warehouse_id: @json($item->warehouse_id),
                             current_stock: 0, // Will be updated from API
                             category: '{{ $item->category }}',
                             serial_numbers: @json($item->serial_numbers ?? []),
@@ -1503,8 +1503,7 @@
 
                         if (foundItem) {
                             existingItem.warehouses = foundItem.warehouses;
-                            const warehouse = foundItem.warehouses.find(w => w.warehouse_id ==
-                                {{ $item->warehouse_id }});
+                            const warehouse = foundItem.warehouses.find(w => w.warehouse_id == existingItem.selected_warehouse_id);
                             if (warehouse) {
                                 existingItem.current_stock = warehouse.quantity;
                             }

@@ -798,8 +798,36 @@ class WarehouseTransferController extends Controller
                     ? array_values(array_intersect($serialArray, $sourceSerials))
                     : [];
 
-                // Số lượng hiệu lực: nếu có danh sách serial → theo count(serial hợp lệ), nếu không → theo quantity nhập
-                $effectiveQty = !empty($serialArray) ? count($validSerialsToMove) : (int) $quantity;
+                // Tính số lượng serial thực tế có thể chuyển
+                $serialQty = count($validSerialsToMove);
+                
+                // Kiểm tra nếu có yêu cầu serial nhưng không có serial nào hợp lệ
+                if (!empty($serialArray) && $serialQty == 0) {
+                    Log::error("Không có serial nào hợp lệ trong kho: yêu cầu " . json_encode($serialArray) . ", có sẵn " . json_encode($sourceSerials));
+                    return false;
+                }
+                
+                // Tính số lượng không serial có sẵn trong kho
+                $totalStock = $sourceWarehouseMaterial->quantity;
+                $availableNonSerialQty = $totalStock - count($sourceSerials);
+                
+                // Số lượng không serial yêu cầu chuyển
+                $requestedNonSerialQty = (int) $quantity - $serialQty;
+                
+                // Kiểm tra đủ số lượng không serial
+                if ($requestedNonSerialQty > $availableNonSerialQty) {
+                    Log::error("Không đủ số lượng không serial: yêu cầu {$requestedNonSerialQty}, có sẵn {$availableNonSerialQty}");
+                    return false;
+                }
+                
+                // Số lượng không serial thực tế có thể chuyển (bằng số lượng yêu cầu vì đã kiểm tra đủ)
+                $actualNonSerialQty = $requestedNonSerialQty;
+                
+                // Tổng số lượng thực tế có thể chuyển
+                $effectiveQty = $serialQty + $actualNonSerialQty;
+                
+                // Log để debug
+                Log::info("Chuyển kho validation: materialId={$materialId}, totalStock={$totalStock}, sourceSerials=" . count($sourceSerials) . ", requestedSerialQty=" . count($serialArray) . ", validSerialQty={$serialQty}, requestedNonSerialQty={$requestedNonSerialQty}, availableNonSerialQty={$availableNonSerialQty}, actualNonSerialQty={$actualNonSerialQty}, effectiveQty={$effectiveQty}");
 
                 // Loại bỏ các serial đã chuyển khỏi kho nguồn
                 if (!empty($validSerialsToMove)) {
@@ -818,9 +846,11 @@ class WarehouseTransferController extends Controller
                     $sourceWarehouseMaterial->save();
                 }
             } else {
-                // Không có bản ghi kho nguồn, không thể chuyển serial nào
+                // Không có bản ghi kho nguồn, không thể chuyển gì
                 $validSerialsToMove = [];
-                $effectiveQty = (int) $quantity; // Cho trường hợp chuyển không serial
+                $serialQty = 0;
+                $actualNonSerialQty = 0;
+                $effectiveQty = 0;
             }
 
             // Tăng số lượng và thêm serial ở kho đích
@@ -879,7 +909,7 @@ class WarehouseTransferController extends Controller
                 }
             }
 
-            Log::info("Chuyển serial thành công: từ kho {$sourceWarehouseId} sang kho {$destinationWarehouseId}, materialId={$materialId}, itemType={$itemType}, quantity={$quantity}, serials=" . json_encode($serialArray) . ", validSerials=" . json_encode(isset($validSerialsToMove) ? $validSerialsToMove : []) . ", ghi chú={$note}");
+            Log::info("Chuyển serial thành công: từ kho {$sourceWarehouseId} sang kho {$destinationWarehouseId}, materialId={$materialId}, itemType={$itemType}, totalQuantity={$quantity}, serialQty={$serialQty}, actualNonSerialQty={$actualNonSerialQty}, effectiveQty={$effectiveQty}, serials=" . json_encode($serialArray) . ", validSerials=" . json_encode(isset($validSerialsToMove) ? $validSerialsToMove : []) . ", ghi chú={$note}");
             return true;
 
         } catch (\Exception $e) {
@@ -1375,7 +1405,7 @@ class WarehouseTransferController extends Controller
             // Cập nhật tồn kho cho từng vật tư
             foreach ($warehouseTransfer->materials as $material) {
                 // Chuyển serial và cập nhật tồn kho từ kho nguồn sang kho đích
-                $this->updateWarehouseStockWithSerials(
+                $result = $this->updateWarehouseStockWithSerials(
                     $warehouseTransfer->source_warehouse_id,
                     $warehouseTransfer->destination_warehouse_id,
                     $material->material_id,
@@ -1384,6 +1414,12 @@ class WarehouseTransferController extends Controller
                     $material->serial_numbers,
                     "Chuyển kho từ phiếu chuyển kho #{$warehouseTransfer->transfer_code}"
                 );
+                
+                // Nếu chuyển kho thất bại, rollback và báo lỗi
+                if (!$result) {
+                    DB::rollBack();
+                    return back()->with('error', 'Không thể chuyển kho do không đủ số lượng hoặc serial không hợp lệ');
+                }
 
                 // Lấy thông tin vật tư để tạo nhật ký
                 $itemModel = null;
