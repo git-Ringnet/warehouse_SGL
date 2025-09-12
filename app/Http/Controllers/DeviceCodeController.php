@@ -153,11 +153,81 @@ class DeviceCodeController extends Controller
     public function getByDispatch(Request $request, $dispatch_id)
     {
         try {
+            $type = $request->input('type', 'contract');
+            
             // Get device codes from device_codes table
             $deviceCodes = DB::table('device_codes')
                 ->where('dispatch_id', $dispatch_id)
-                ->select('item_id', 'serial_main', 'old_serial', 'product_id', 'item_type')
+                ->where('type', $type)
+                ->select('id', 'item_id', 'serial_main', 'old_serial', 'product_id', 'item_type', 'serial_components', 'serial_sim', 'access_code', 'iot_id', 'mac_4g', 'note')
                 ->get();
+
+            // Nếu không có device codes, lấy dữ liệu từ dispatch_items và assembly để tạo device codes mặc định
+            if ($deviceCodes->isEmpty()) {
+                $dispatchItems = DB::table('dispatch_items')
+                    ->where('dispatch_id', $dispatch_id)
+                    ->where('category', $type)
+                    ->get();
+
+                $deviceCodes = $dispatchItems->map(function ($item) {
+                    // Parse serial_numbers từ JSON string
+                    $serialNumbers = [];
+                    if ($item->serial_numbers) {
+                        try {
+                            $serialNumbers = json_decode($item->serial_numbers, true) ?: [];
+                        } catch (\Exception $e) {
+                            $serialNumbers = [];
+                        }
+                    }
+
+                    // Lấy serial components từ assembly nếu có
+                    $serialComponents = [];
+                    if ($item->item_type === 'product') {
+                        // Tìm assembly products có serial
+                        $assemblyProducts = DB::table('assembly_products')
+                            ->where('product_id', $item->item_id)
+                            ->whereNotNull('serials')
+                            ->where('serials', '!=', '')
+                            ->get();
+
+                        foreach ($assemblyProducts as $assemblyProduct) {
+                            if ($assemblyProduct->serials) {
+                                $serialComponents[] = $assemblyProduct->serials;
+                            }
+                        }
+
+                        // Lấy serial vật tư từ assembly_materials
+                        $assemblyMaterials = DB::table('assembly_materials')
+                            ->join('assemblies', 'assembly_materials.assembly_id', '=', 'assemblies.id')
+                            ->join('assembly_products', function($join) use ($item) {
+                                $join->on('assembly_products.assembly_id', '=', 'assemblies.id')
+                                     ->where('assembly_products.product_id', '=', $item->item_id);
+                            })
+                            ->where('assembly_materials.target_product_id', $item->item_id)
+                            ->whereNotNull('assembly_materials.serial')
+                            ->where('assembly_materials.serial', '!=', '')
+                            ->pluck('assembly_materials.serial')
+                            ->toArray();
+
+                        $serialComponents = array_merge($serialComponents, $assemblyMaterials);
+                    }
+
+                    return (object) [
+                        'id' => null,
+                        'item_id' => $item->item_id,
+                        'serial_main' => $serialNumbers[0] ?? '', // Lấy serial đầu tiên làm serial chính
+                        'old_serial' => $serialNumbers[0] ?? '',
+                        'product_id' => $item->item_id,
+                        'item_type' => $item->item_type,
+                        'serial_components' => json_encode($serialComponents), // Serial components từ assembly
+                        'serial_sim' => '',
+                        'access_code' => '',
+                        'iot_id' => '',
+                        'mac_4g' => '',
+                        'note' => ''
+                    ];
+                });
+            }
 
             return response()->json([
                 'success' => true,
@@ -184,7 +254,76 @@ class DeviceCodeController extends Controller
             $device_codes = $request->input('device_codes', []);
             $type = $request->input('type', 'contract'); // Get type from request
             
-            // Delete existing device codes for this dispatch and type
+            // Kiểm tra trùng serial trước khi xóa và tạo mới
+            $usedSerials = [];
+            foreach ($device_codes as $deviceCode) {
+                $newSerial = $deviceCode['serial_main'] ?? null;
+                if ($newSerial) {
+                    $productId = $deviceCode['product_id'];
+                    
+                    // Debug log
+                    Log::info('Checking serial: ' . $newSerial . ' for product: ' . $productId);
+                    
+                    // Kiểm tra trùng serial trong bảng tồn kho
+                    // Chỉ báo lỗi nếu serial tồn tại với product_id khác
+                    $existsInStockWithDifferentProduct = DB::table('serials')
+                        ->where('serial_number', $newSerial)
+                        ->where('product_id', '!=', $productId)
+                        ->exists();
+                    if ($existsInStockWithDifferentProduct) {
+                        Log::info('Serial ' . $newSerial . ' exists in serials table with different product');
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Serial "'. $newSerial .'" đã được sử dụng cho sản phẩm khác trong bảng tồn kho.'
+                        ], 422);
+                    }
+                    
+                    // Kiểm tra trùng serial với device codes khác (không cùng product_id)
+                    // Loại trừ device codes của cùng dispatch và type (vì sẽ bị xóa)
+                    $conflictingDeviceCodes = DeviceCode::where('serial_main', $newSerial)
+                        ->where('product_id', '!=', $productId)
+                        ->where(function($query) use ($dispatch_id, $type) {
+                            $query->where('dispatch_id', '!=', $dispatch_id)
+                                  ->orWhere('type', '!=', $type);
+                        })
+                        ->get();
+                    
+                    if ($conflictingDeviceCodes->isNotEmpty()) {
+                        Log::info('Serial ' . $newSerial . ' conflicts with existing device codes:', $conflictingDeviceCodes->toArray());
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Serial "'. $newSerial .'" đã được sử dụng cho thiết bị khác (Product ID: ' . $conflictingDeviceCodes->first()->product_id . ').'
+                        ], 422);
+                    }
+                    
+                    // Kiểm tra trùng serial trong cùng batch (cùng dispatch và type)
+                    $duplicateInBatch = false;
+                    foreach ($usedSerials as $usedSerial) {
+                        if ($usedSerial['serial'] === $newSerial && $usedSerial['product_id'] !== $productId) {
+                            $duplicateInBatch = true;
+                            Log::info('Serial ' . $newSerial . ' duplicate in batch with product: ' . $usedSerial['product_id']);
+                            break;
+                        }
+                    }
+                    
+                    if ($duplicateInBatch) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Serial "'. $newSerial .'" bị trùng lặp trong cùng một lần lưu.'
+                        ], 422);
+                    }
+                    
+                    // Lưu serial đã sử dụng trong batch này
+                    $usedSerials[] = [
+                        'serial' => $newSerial,
+                        'product_id' => $productId
+                    ];
+                    
+                    Log::info('Serial ' . $newSerial . ' is valid');
+                }
+            }
+            
+            // Nếu tất cả serial đều hợp lệ, mới xóa và tạo mới
             DeviceCode::where('dispatch_id', $dispatch_id)
                      ->where('type', $type)
                      ->delete();
@@ -192,24 +331,6 @@ class DeviceCodeController extends Controller
             // Create new device codes
             foreach ($device_codes as $deviceCode) {
                 $newSerial = $deviceCode['serial_main'] ?? null;
-                if ($newSerial) {
-                    // Kiểm tra trùng serial trong bảng tồn kho hoặc device_codes khác
-                    $existsInStock = DB::table('serials')->where('serial_number', $newSerial)->exists();
-                    $existsInDeviceCodes = DeviceCode::where('serial_main', $newSerial)
-                        ->where(function($q) use ($dispatch_id, $type) {
-                            // Cho phép trùng với chính thiết bị đang cập nhật (cùng dispatch & type)
-                            $q->where('dispatch_id', '!=', $dispatch_id)
-                              ->orWhere('type', '!=', $type);
-                        })
-                        ->exists();
-                    if ($existsInStock || $existsInDeviceCodes) {
-                        DB::rollBack();
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Serial "'. $newSerial .'" đã được sử dụng cho thiết bị khác.'
-                        ], 422);
-                    }
-                }
                 // Skip empty records
                 if (empty($deviceCode['serial_main'])) {
                     continue;

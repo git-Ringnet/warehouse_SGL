@@ -3008,4 +3008,61 @@ class AssemblyController extends Controller
             // Không throw exception để không ảnh hưởng đến việc cập nhật phiếu lắp ráp chính
         }
     }
+
+    /**
+     * Lấy serial components từ assembly cho các products
+     */
+    public function getSerialComponents(Request $request)
+    {
+        try {
+            $productIds = $request->input('product_ids', []);
+            
+            if (empty($productIds)) {
+                return response()->json([
+                    'success' => true,
+                    'serial_components' => []
+                ]);
+            }
+
+            $serialComponents = [];
+
+            foreach ($productIds as $productId) {
+                // Lấy serial từ assembly_products
+                $assemblyProducts = DB::table('assembly_products')
+                    ->where('product_id', $productId)
+                    ->whereNotNull('serials')
+                    ->where('serials', '!=', '')
+                    ->pluck('serials')
+                    ->toArray();
+
+                // Lấy serial vật tư từ assembly_materials
+                $assemblyMaterials = DB::table('assembly_materials')
+                    ->join('assemblies', 'assembly_materials.assembly_id', '=', 'assemblies.id')
+                    ->join('assembly_products', function($join) use ($productId) {
+                        $join->on('assembly_products.assembly_id', '=', 'assemblies.id')
+                             ->where('assembly_products.product_id', '=', $productId);
+                    })
+                    ->where('assembly_materials.target_product_id', $productId)
+                    ->whereNotNull('assembly_materials.serial')
+                    ->where('assembly_materials.serial', '!=', '')
+                    ->pluck('assembly_materials.serial')
+                    ->toArray();
+
+                // Kết hợp tất cả serial components
+                $allSerials = array_merge($assemblyProducts, $assemblyMaterials);
+                $serialComponents[$productId] = array_values(array_unique(array_filter($allSerials)));
+            }
+
+            return response()->json([
+                'success' => true,
+                'serial_components' => $serialComponents
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy serial components: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
