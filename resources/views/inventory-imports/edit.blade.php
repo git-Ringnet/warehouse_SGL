@@ -1107,6 +1107,24 @@
                 }
             });
             
+            // Kiểm tra định dạng ngày nhập kho
+            const importDateField = document.querySelector('[name="import_date"]');
+            if (importDateField && importDateField.value) {
+                const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+                if (!dateRegex.test(importDateField.value)) {
+                    showFieldError('import_date', 'Ngày nhập kho phải có định dạng dd/mm/yyyy');
+                    isValid = false;
+                } else {
+                    // Kiểm tra ngày có hợp lệ không
+                    const [, day, month, year] = importDateField.value.match(dateRegex);
+                    const date = new Date(year, month - 1, day);
+                    if (date.getDate() != day || date.getMonth() != month - 1 || date.getFullYear() != year) {
+                        showFieldError('import_date', 'Ngày nhập kho không hợp lệ');
+                        isValid = false;
+                    }
+                }
+            }
+            
             // Kiểm tra danh sách vật tư
             const materialRows = document.querySelectorAll('.material-row');
             if (materialRows.length === 0) {
