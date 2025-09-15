@@ -603,7 +603,7 @@
                                                                     </td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
                                                                         @if($testing->status == 'in_progress')
-                                                                            <textarea name="item_notes[{{ $testingItemRow->id ?? $asmMaterial->material_id }}]" rows="1" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho vật tư này">{{ $testingItemRow->notes ?? ($asmMaterial->note ?? '') }}</textarea>
+                                                                            <textarea name="item_notes[{{ $testingItemRow->id ?? $asmMaterial->material_id ?? 'unknown_' . $loop->index }}]" rows="1" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho vật tư này">{{ $testingItemRow->notes ?? ($asmMaterial->note ?? '') }}</textarea>
                                                                         @else
                                                                             {{ $asmMaterial->note ?? ($testingItemRow->notes ?? '') }}
                                                                         @endif
@@ -621,7 +621,7 @@
                                                                                     @for($i = 0; $i < $quantity; $i++)
                                                                                         @php $label = chr(65 + $i); @endphp
                                                                                         @if($i < $serialCount)
-                                                                                            <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : $asmMaterial->material_id }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                                            <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
                                                                                                 <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
                                                                                                 <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
                                                                                                 <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>

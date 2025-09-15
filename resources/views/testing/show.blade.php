@@ -30,6 +30,23 @@
                 padding: 0;
             }
 
+            /* Biến input/select/textarea thành text khi in */
+            input, select, textarea {
+                border: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                height: auto !important;
+                outline: none !important;
+                appearance: none !important;
+            }
+
+            button, a, .btn, .actions, .action-buttons { display: none !important; }
+
+            /* Loại bỏ viền/thẻ card khi in */
+            .print\:border-0 { border: 0 !important; }
+            .print\:shadow-none { box-shadow: none !important; }
+
             .page-break {
                 page-break-before: always;
             }

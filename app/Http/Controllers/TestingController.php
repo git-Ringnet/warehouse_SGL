@@ -526,10 +526,10 @@ class TestingController extends Controller
         }
         
         $validator = Validator::make($request->all(), [
-            'tester_id' => $isAutoSave ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
-            'assigned_to' => $isAutoSave ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
-            'receiver_id' => $isAutoSave ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
-            'test_date' => $isAutoSave ? 'nullable|date' : 'required|date',
+            'tester_id' => ($isAutoSave || $isAddTestDetail || $isDeleteTestDetail) ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
+            'assigned_to' => ($isAutoSave || $isAddTestDetail || $isDeleteTestDetail) ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
+            'receiver_id' => ($isAutoSave || $isAddTestDetail || $isDeleteTestDetail) ? 'nullable|exists:employees,id' : 'required|exists:employees,id',
+            'test_date' => ($isAutoSave || $isAddTestDetail || $isDeleteTestDetail) ? 'nullable|date' : 'required|date',
             'notes' => 'nullable|string',
             'pass_quantity' => 'nullable|integer|min:0',
             'fail_quantity' => 'nullable|integer|min:0',
@@ -559,9 +559,19 @@ class TestingController extends Controller
         $validator->after(function ($validator) use ($request, $testing) {
             if ($request->has('serial_results')) {
                 foreach ($request->serial_results as $itemId => $serialResults) {
+                    // Bỏ qua các key không hợp lệ (bắt đầu bằng 'unknown_')
+                    if (strpos($itemId, 'unknown_') === 0) {
+                        continue;
+                    }
+                    
                     // Tìm testing item để lấy quantity
                     $testingItem = TestingItem::where('testing_id', $testing->id)
-                        ->where('id', $itemId)
+                        ->where(function($query) use ($itemId) {
+                            $query->where('id', $itemId)
+                                ->orWhere('material_id', $itemId)
+                                ->orWhere('good_id', $itemId)
+                                ->orWhere('product_id', $itemId);
+                        })
                         ->first();
                     
                     if ($testingItem) {

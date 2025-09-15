@@ -8,26 +8,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: white;
-            color: #333;
-        }
+        /* A4 print layout */
+        @page { size: A4; margin: 12mm 10mm; }
+        body { font-family: 'Roboto', sans-serif; background-color: #fff; color: #333; }
+        .print-container { width: 190mm; margin: 0 auto; }
+        .page-break { page-break-before: always; }
         @media print {
             .no-print {
                 display: none;
             }
-            body {
-                padding: 0;
-                margin: 0;
-            }
-            .page-break {
-                page-break-before: always;
-            }
+            body { padding: 0; margin: 0; }
         }
     </style>
 </head>
-<body class="p-6">
+<body><div class="print-container">
     <!-- Print Header -->
     <div class="flex justify-between items-center mb-6 border-b border-gray-300 pb-4">
         <div class="flex items-center">
@@ -397,6 +391,69 @@
     </div>
     @endif
 
+    {{-- Vật tư lắp ráp theo từng thành phẩm (đồng bộ trang Chi tiết) --}}
+    @if($testing->assembly && $testing->items->where('item_type','product')->count() > 0)
+    <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Vật tư lắp ráp theo thành phẩm</h2>
+        @php $productItems = $testing->items->where('item_type','product'); @endphp
+        @foreach($productItems as $piIndex => $pItem)
+            @php
+                $targetProductId = $pItem->product_id ?? $pItem->good_id;
+                $relatedAsmMaterials = $testing->assembly && $testing->assembly->materials
+                    ? $testing->assembly->materials->where('target_product_id', $targetProductId)
+                    : collect();
+            @endphp
+            <div class="mb-4">
+                <div class="font-medium text-gray-800 mb-2">{{ $piIndex + 1 }}. Thành phẩm:
+                    @if($pItem->product) {{ $pItem->product->code }} - {{ $pItem->product->name }}
+                    @elseif($pItem->good) {{ $pItem->good->code }} - {{ $pItem->good->name }}
+                    @else Thành phẩm @endif
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">STT</th>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Mã VT</th>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Tên VT</th>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Số lượng</th>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Serial</th>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Kho xuất</th>
+                                <th class="py-2 px-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-b">Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($relatedAsmMaterials as $idx => $am)
+                                @php
+                                    $mat = $am->material ?? null;
+                                    $serialText = '';
+                                    if (!empty($am->serial)) {
+                                        $serialArr = array_values(array_filter(array_map('trim', explode(',', $am->serial))));
+                                        $serialText = implode(', ', $serialArr);
+                                    }
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="py-2 px-3 border-b">{{ $idx + 1 }}</td>
+                                    <td class="py-2 px-3 border-b">{{ $mat ? $mat->code : '' }}</td>
+                                    <td class="py-2 px-3 border-b">{{ $mat ? $mat->name : '' }}</td>
+                                    <td class="py-2 px-3 border-b">{{ $am->quantity ?? 0 }}</td>
+                                    <td class="py-2 px-3 border-b">{{ $serialText ?: 'N/A' }}</td>
+                                    <td class="py-2 px-3 border-b">{{ $am->warehouse->name ?? 'N/A' }}</td>
+                                    <td class="py-2 px-3 border-b">{{ $am->note ?? '' }}</td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="py-3 px-3 text-center text-gray-500">Không có vật tư lắp ráp</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endforeach
+    </div>
+    @endif
+
     @if($testing->assembly)
     <!-- Thông tin phiếu lắp ráp liên quan -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 p-6 mb-6">
@@ -404,16 +461,10 @@
             <i class="fas fa-cogs text-blue-500 mr-2"></i>
             Thông tin lắp ráp liên quan
         </h2>
-        
         <div class="flex items-center">
             <p class="text-sm text-gray-500 font-medium mr-2">Mã phiếu lắp ráp:</p>
             <span class="text-blue-600 font-semibold">{{ $testing->assembly->code }}</span>
         </div>
-    </div>
-    
-            </div>
-        </div>
-        @endif
     </div>
     @endif
 
@@ -571,6 +622,7 @@
         </a>
     </div>
 
+    </div>
     <script>
         window.onload = function() {
             // Automatically open print dialog when the page loads
