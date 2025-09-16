@@ -236,6 +236,9 @@
                             <h3 class="text-md font-medium text-gray-800 mb-3">Kết quả kiểm thử thiết bị</h3>
                             
                         <div class="space-y-6">
+                                @php
+                                    $globalUnitCounter = 0; // Biến đếm toàn cục cho đơn vị thành phẩm
+                                @endphp
                                 @forelse($testing->items->filter(function($item) use ($testing) {
                                     // Chỉ hiển thị items chính, không hiển thị vật tư con của thành phẩm
                                     if ($testing->test_type == 'finished_product') {
@@ -518,10 +521,14 @@
 
                                     @if(!empty($materialsByUnit))
                                         @foreach($materialsByUnit as $unitIdx => $unitMaterials)
+                                            @php
+                                                $globalUnitCounter++; // Tăng biến đếm toàn cục
+                                                $displayUnitIndex = $globalUnitCounter; // Sử dụng biến đếm toàn cục
+                                            @endphp
                                             <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
                                                 <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
                                                     <div class="text-sm text-green-800 font-medium">
-                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
+                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
                                                     </div>
                                                     <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
                                                 </div>
@@ -621,7 +628,7 @@
                                                                                     @for($i = 0; $i < $quantity; $i++)
                                                                                         @php $label = chr(65 + $i); @endphp
                                                                                         @if($i < $serialCount)
-                                                                                            <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                                                <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
                                                                                                 <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
                                                                                                 <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
                                                                                                 <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>

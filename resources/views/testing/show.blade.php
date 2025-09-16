@@ -262,6 +262,9 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @php
+                                    $globalUnitCounter = 0; // Biến đếm toàn cục cho đơn vị thành phẩm
+                                @endphp
                                 @forelse($testing->items->filter(function($item) use ($testing) {
                                 if ($testing->test_type == 'finished_product') {
                                 return $item->item_type == 'product' || $item->item_type == 'finished_product';
@@ -606,10 +609,14 @@
 
     @if(!empty($materialsByUnit))
     @foreach($materialsByUnit as $unitIdx => $unitMaterials)
+    @php
+        $globalUnitCounter++; // Tăng biến đếm toàn cục
+        $displayUnitIndex = $globalUnitCounter; // Sử dụng biến đếm toàn cục
+    @endphp
     <div class="mt-6 mb-4 rounded-lg overflow-hidden border border-green-200">
         <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
             <div class="text-sm text-green-800 font-medium">
-                <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
+                <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
             </div>
             <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
         </div>
@@ -942,6 +949,9 @@
     @elseif(false)
     <!-- Read-only view for completed status -->
     <div class="space-y-6">
+        @php
+            $globalUnitCounter = 0; // Biến đếm toàn cục cho đơn vị thành phẩm
+        @endphp
         @forelse($testing->items->filter(function($item) use ($testing) {
         if ($testing->test_type == 'finished_product') {
         return $item->item_type == 'product' || $item->item_type == 'finished_product';
@@ -1072,10 +1082,14 @@
 
                 @if(!empty($materialsByUnit))
                 @foreach($materialsByUnit as $unitIdx => $unitMaterials)
+                @php
+                    $globalUnitCounter++; // Tăng biến đếm toàn cục
+                    $displayUnitIndex = $globalUnitCounter; // Sử dụng biến đếm toàn cục
+                @endphp
                 <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
                     <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
                         <div class="text-sm text-green-800 font-medium">
-                            <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $unitIdx }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
+                            <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
                         </div>
                         @php
                             // Đọc số liệu N/A theo đơn vị từ DB (bảng testing_item_unit_results)
