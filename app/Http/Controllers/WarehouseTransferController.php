@@ -1058,12 +1058,6 @@ class WarehouseTransferController extends Controller
             $materialId = $request->input('material_id');
             $itemType = $request->input('item_type', 'material');
 
-            Log::info('Đang lấy serial với params:', [
-                'warehouse_id' => $warehouseId,
-                'material_id' => $materialId,
-                'item_type' => $itemType
-            ]);
-
             // Lấy số lượng tồn kho theo đúng kho và loại sản phẩm
             $totalStockQuery = WarehouseMaterial::where('warehouse_id', $warehouseId)
                 ->where('material_id', $materialId);
@@ -1076,8 +1070,6 @@ class WarehouseTransferController extends Controller
                 $totalStockQuery->where('item_type', $itemType);
             }
             $totalStock = $totalStockQuery->sum('quantity');
-                
-            Log::info('Total stock:', ['quantity' => $totalStock]);
 
             // Lấy serial numbers trực tiếp từ warehouse_materials (nguồn chuẩn duy nhất theo kho)
             $warehouseMaterialQuery = WarehouseMaterial::where('warehouse_id', $warehouseId)
@@ -1110,11 +1102,6 @@ class WarehouseTransferController extends Controller
             // Số lượng tồn kho không có serial = tổng tồn kho - số lượng có serial
             $nonSerialStock = $totalStock - count($availableSerials);
             $nonSerialStock = max(0, $nonSerialStock);
-
-            Log::info('Kết quả cuối cùng:', [
-                'available_serials' => $availableSerials,
-                'non_serial_stock' => $nonSerialStock
-            ]);
 
             return response()->json([
                 'success' => true,
