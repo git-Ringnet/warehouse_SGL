@@ -24,6 +24,8 @@ class TestingItem extends Model
         'result',
         'pass_quantity',
         'fail_quantity',
+        'no_serial_pass_quantity',
+        'no_serial_fail_quantity',
         'serial_results',
         'notes',
     ];

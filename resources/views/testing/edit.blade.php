@@ -16,6 +16,36 @@
             content: " *";
             color: #ef4444;
         }
+
+        /* Styles cho dropdown vật tư trống Serial */
+        select.bg-yellow-50 {
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        select.bg-yellow-50:focus {
+            transform: scale(1.02);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+        }
+
+        select.bg-green-50 {
+            color: #065f46;
+        }
+
+        select.bg-red-50 {
+            color: #991b1b;
+        }
+
+        /* Animation cho dropdown khi thay đổi */
+        @keyframes dropdown-change {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        select.bg-yellow-50:not(:focus) {
+            animation: dropdown-change 0.2s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -430,19 +460,7 @@
                                                     </tr>
                                                 @endfor
                                             </tbody>
-                                            @if($serialCount == 0)
-                                            <tfoot>
-                                                <tr class="bg-gray-50 border-t border-gray-200">
-                                                    <td class="px-3 py-2 text-sm text-gray-700" colspan="6">
-                                                        <div class="flex items-center gap-2">
-                                                            <span class="text-xs text-gray-600">Số lượng Đạt</span>
-                                                            <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $quantity }}" value="{{ $item->pass_quantity ?? 0 }}" class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white" />
-                                                        </div>
-                                                    </td>
-                                                    <td></td>
-                                                </tr>
-                                            </tfoot>
-                                            @endif
+                                            {{-- KHÔNG CẦN HÀNG "SỐ LƯỢNG ĐẠT" CHO VẬT TƯ HÀNG HOÁ NỮA --}}
                                         </table>
                                     </div>
 
@@ -634,18 +652,17 @@
                                                                                                 <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
                                                                                             </select>
                                                                                         @else
-                                                                                            <div class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-gray-100 text-gray-500 flex items-center">
-                                                                                                N/A
-                                                                                            </div>
+                                                                                            {{-- Thay N/A bằng dropdown Đạt/Không đạt cho vật tư trống Serial --}}
+                                                                                            <select name="serial_results[{{ $testingItemRow->id }}][{{ $label }}]" class="w-full h-8 border border-yellow-300 rounded px-2 text-xs bg-yellow-50">
+                                                                                                <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                                                <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                                                <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                                                            </select>
                                                                                         @endif
                                                                                     @endfor
                                                                                 </div>
                                                                             @else
-                                                                                @php $maxQtyRow = (int)($asmMaterial->quantity ?? 0); @endphp
-                                                                                <div class="flex items-center gap-2">
-                                                                                    <span class="text-xs text-gray-600">Số lượng Đạt</span>
-                                                                                    <input type="number" name="item_pass_quantity[{{ $asmMaterial->material_id }}]" min="0" max="{{ $maxQtyRow }}" value="{{ $testingItemRow->pass_quantity ?? 0 }}" class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white" />
-                                                                                </div>
+                                                                                {{-- KHÔNG CẦN INPUT "SỐ LƯỢNG ĐẠT" CHO VẬT TƯ TRỐNG SERIAL NỮA --}}
                                                                             @endif
                                                                         @else
                                                                             <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
@@ -655,58 +672,7 @@
                                                             @endforeach
                                                         </tbody>
 
-                                                        <!-- Hàng tổng hợp cho vật tư không có serial -->
-                                                        <tfoot>
-                                                            <tr class="bg-gray-50 border-t border-gray-200">
-                                                                <td class="px-3 py-2 text-sm text-gray-700 font-medium">{{ count($unitMaterials) }}</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">N/A</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">-</td>
-                                                                <td class="px-3 py-2 text-sm text-gray-700">
-                                                                    @if($testing->status == 'in_progress')
-                                                                    @php
-                                                                    // Tính tổng số lượng của các item không có serial (N/A)
-                                                                    $totalNoSerialQuantity = 0;
-                                                                    foreach($unitMaterials as $asmMaterial) {
-                                                                        $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
-                                                                        $quantity = $asmMaterial->quantity ?? 0;
-                                                                        $serialCount = count($serialsRow);
-                                                                        $noSerialCount = $quantity - $serialCount;
-                                                                        $totalNoSerialQuantity += $noSerialCount;
-                                                                    }
-
-                                                                    // Lấy giá trị đã lưu từ notes
-                                                                    $savedNoSerialPassQuantity = 0;
-                                                                    if ($testing->notes) {
-                                                                        $notesData = json_decode($testing->notes, true);
-                                                                        if (is_array($notesData)
-                                                                            && isset($notesData['no_serial_pass_quantity'][$item->id])
-                                                                            && isset($notesData['no_serial_pass_quantity'][$item->id][$unitIdx])) {
-                                                                            $savedNoSerialPassQuantity = (int) $notesData['no_serial_pass_quantity'][$item->id][$unitIdx];
-                                                                        }
-                                                                    }
-                                                                    @endphp
-                                                                    <div class="flex items-center gap-2">
-                                                                        <span class="text-xs text-gray-600">Số lượng Đạt</span>
-                                                                        <input type="number"
-                                                                            name="item_pass_quantity_no_serial[{{ $item->id }}][{{ $unitIdx }}]"
-                                                                            min="0"
-                                                                            max="{{ $totalNoSerialQuantity }}"
-                                                                            value="{{ $savedNoSerialPassQuantity }}"
-                                                                            class="w-20 h-8 border border-gray-300 rounded px-2 text-sm bg-white"
-                                                                            placeholder="0" />
-                                                                        <span class="text-xs text-gray-500">≤ {{ $totalNoSerialQuantity }}</span>
-                                                                    </div>
-                                                                    @else
-                                                                    <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
-                                                                    @endif
-                                                                </td>
-                                                            </tr>
-                                                        </tfoot>
+                                                        {{-- KHÔNG CẦN HÀNG "SỐ LƯỢNG ĐẠT" CHO THÀNH PHẨM LẮP RÁP NỮA --}}
                                                     </table>
                                                 </div>
                                             </div>
@@ -833,9 +799,12 @@
                                                                     @else
                                                                         <div>
                                                                             <label class="block text-xs text-gray-600 mb-1">N/A</label>
-                                                                            <div class="w-full h-8 border border-gray-300 rounded px-2 text-sm bg-gray-100 text-gray-500 flex items-center">
-                                                                                N/A
-                                                                            </div>
+                                                                            {{-- Thay N/A bằng dropdown Đạt/Không đạt cho vật tư trống Serial --}}
+                                                                            <select name="serial_results[{{ $testingItem->id }}][{{ $label }}]" class="w-full h-8 border border-yellow-300 rounded px-2 text-xs bg-yellow-50">
+                                                                                <option value="pending" {{ ($resultMap[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                                <option value="pass" {{ ($resultMap[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                                <option value="fail" {{ ($resultMap[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                                            </select>
                                                                         </div>
                                                                     @endif
                                                                 @endfor
@@ -875,14 +844,7 @@
                                                             $materialFailQuantity = $material->testing_item ? ($material->testing_item->fail_quantity ?? 0) : 0;
                                                                 $remainingQty = $material->quantity - $materialSerialCount;
                                                         @endphp
-                                                        <div>
-                                                            <label class="block text-xs text-gray-600 mb-1">Số lượng Đạt</label>
-                                                                <input type="number" name="item_pass_quantity[{{ $material->material_id }}]" min="0" max="{{ $remainingQty }}" class="w-full h-8 border border-gray-300 rounded px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $materialPassQuantity }}">
-                                                        </div>
-                                                        <div>
-                                                            <label class="block text-xs text-gray-600 mb-1">Số lượng không Đạt</label>
-                                                                <input type="number" name="item_fail_quantity[{{ $material->material_id }}]" min="0" max="{{ $remainingQty }}" class="w-full h-8 border border-gray-300 rounded px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $materialFailQuantity }}">
-                                                        </div>
+                                                        {{-- KHÔNG CẦN INPUT "SỐ LƯỢNG ĐẠT/KHÔNG ĐẠT" CHO VẬT TƯ TRỐNG SERIAL NỮA --}}
                                                     </div>
                                                 @else
                                                     <div class="text-center text-gray-400 py-2">
@@ -1304,6 +1266,30 @@
                 }
             });
         }
+
+        // Thêm hiệu ứng cho dropdown vật tư trống Serial
+        document.addEventListener('DOMContentLoaded', function() {
+            const noSerialSelects = document.querySelectorAll('select.bg-yellow-50');
+            
+            noSerialSelects.forEach(select => {
+                select.addEventListener('change', function() {
+                    // Thêm hiệu ứng khi thay đổi giá trị
+                    if (this.value === 'pass') {
+                        this.classList.add('border-green-400', 'bg-green-50');
+                        this.classList.remove('border-yellow-300', 'bg-yellow-50', 'border-red-400', 'bg-red-50');
+                    } else if (this.value === 'fail') {
+                        this.classList.add('border-red-400', 'bg-red-50');
+                        this.classList.remove('border-yellow-300', 'bg-yellow-50', 'border-green-400', 'bg-green-50');
+                    } else {
+                        this.classList.add('border-yellow-300', 'bg-yellow-50');
+                        this.classList.remove('border-green-400', 'bg-green-50', 'border-red-400', 'bg-red-50');
+                    }
+                });
+                
+                // Áp dụng màu sắc ban đầu
+                select.dispatchEvent(new Event('change'));
+            });
+        });
     </script>
 </body>
 </html> 
