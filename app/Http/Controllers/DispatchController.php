@@ -152,10 +152,20 @@ class DispatchController extends Controller
      */
     public function store(Request $request)
     {
-        Log::info('=== DISPATCH STORE STARTED ===');
-        Log::info('Request data:', $request->all());
-
         try {
+            // Convert dispatch_date from dd/mm/yyyy to Y-m-d format
+            if ($request->has('dispatch_date') && $request->dispatch_date) {
+                try {
+                    $convertedDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->dispatch_date)->format('Y-m-d');
+                    $request->merge(['dispatch_date' => $convertedDate]);
+                } catch (\Exception $e) {
+                    Log::error('Date conversion error: ' . $e->getMessage());
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'Ngày xuất không hợp lệ. Vui lòng nhập theo định dạng dd/mm/yyyy.');
+                }
+            }
+
             $validationRules = [
                 'dispatch_date' => 'required|date',
                 'dispatch_type' => 'required|in:project,rental,warranty',
@@ -491,6 +501,19 @@ class DispatchController extends Controller
 
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $dispatch->toArray();
+
+        // Convert dispatch_date from dd/mm/yyyy to Y-m-d format
+        if ($request->has('dispatch_date') && $request->dispatch_date) {
+            try {
+                $convertedDate = \Carbon\Carbon::createFromFormat('d/m/Y', $request->dispatch_date)->format('Y-m-d');
+                $request->merge(['dispatch_date' => $convertedDate]);
+            } catch (\Exception $e) {
+                Log::error('Date conversion error: ' . $e->getMessage());
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Ngày xuất không hợp lệ. Vui lòng nhập theo định dạng dd/mm/yyyy.');
+            }
+        }
 
         // Validation rules depend on dispatch status
         if ($dispatch->status === 'pending') {
@@ -860,72 +883,47 @@ class DispatchController extends Controller
                         $stockErrors[] = $stockCheck['message'] . " (Tổng từ: $categoriesText)";
                     }
 
-                    // Nếu mặt hàng có quản lý serial trong kho này, bắt buộc chọn đủ serial = số lượng xuất
-                    // Xác định có serial khả dụng trong kho cho item này không
-                    $hasAnySerialInWarehouse = \App\Models\Serial::where('warehouse_id', $groupedItem['warehouse_id'])
-                        ->where('type', $groupedItem['item_type'])
-                        ->where('product_id', $groupedItem['item_id'])
-                        ->exists();
+                    // Tính số serial khả dụng và tổng tồn trực tiếp từ warehouse_materials
+                    $warehouseMaterialRow = \App\Models\WarehouseMaterial::where('item_type', $groupedItem['item_type'])
+                        ->where('material_id', $groupedItem['item_id'])
+                        ->where('warehouse_id', $groupedItem['warehouse_id'])
+                        ->first();
 
-                    if ($hasAnySerialInWarehouse) {
-                        if ((int)$groupedItem['serial_selected'] !== (int)$groupedItem['total_quantity']) {
-                            $stockErrors[] = sprintf(
-                                'Mục %s (ID %d) tại kho %d yêu cầu chọn đủ số serial (%d/%d).',
-                                $groupedItem['item_type'],
-                                $groupedItem['item_id'],
-                                $groupedItem['warehouse_id'],
-                                (int)$groupedItem['serial_selected'],
-                                (int)$groupedItem['total_quantity']
-                            );
-                        }
+                    $availableSerialCount = 0;
+                    $currentTotalQuantity = 0;
+                    if ($warehouseMaterialRow) {
+                        $currentTotalQuantity = (int) $warehouseMaterialRow->quantity;
+                        $currentSerials = $this->normalizeSerialArray($warehouseMaterialRow->serial_number);
+                        $availableSerialCount = is_array($currentSerials) ? count(array_filter($currentSerials)) : 0;
+                    }
+                    
+                    // Xác thực: số serial đã chọn không vượt quá số serial khả dụng
+                    if ((int)$groupedItem['serial_selected'] > $availableSerialCount) {
+                        $stockErrors[] = sprintf(
+                            'Mục %s (ID %d) tại kho %d chọn %d serial vượt quá số serial khả dụng (%d).',
+                            $groupedItem['item_type'],
+                            $groupedItem['item_id'],
+                            $groupedItem['warehouse_id'],
+                            (int)$groupedItem['serial_selected'],
+                            $availableSerialCount
+                        );
                     }
 
                     // Kiểm tra tồn kho không-serial nếu có yêu cầu
                     $noSerialRequired = $groupedItem['total_quantity'] - $groupedItem['serial_selected'];
                     if ($noSerialRequired > 0) {
-                        // Tổng tồn kho
-                        $totalInWarehouse = $stockCheck['current_stock'];
-                        
-                        // Lấy tất cả serial của item này trong kho
-                        $allSerials = Serial::where('warehouse_id', $groupedItem['warehouse_id'])
-                            ->where('type', $groupedItem['item_type'])
-                            ->where('product_id', $groupedItem['item_id'])
-                            ->pluck('serial_number')
-                            ->toArray();
-                        
-                        // Lấy serial đã xuất từ dispatch_items của các phiếu approved
-                        $dispatchedSerials = [];
-                        $dispatchedItems = DispatchItem::whereHas('dispatch', function($q) {
-                                $q->where('status', 'approved');
-                            })
-                            ->where('item_type', $groupedItem['item_type'])
-                            ->where('item_id', $groupedItem['item_id'])
-                            ->where('warehouse_id', $groupedItem['warehouse_id'])
-                            ->get();
-                        
-                        foreach ($dispatchedItems as $dispatchedItem) {
-                            if (!empty($dispatchedItem->serial_numbers)) {
-                                if (is_string($dispatchedItem->serial_numbers)) {
-                                    $decoded = json_decode($dispatchedItem->serial_numbers, true);
-                                    if (is_array($decoded)) {
-                                        $dispatchedSerials = array_merge($dispatchedSerials, array_filter($decoded));
-                                    }
-                                } elseif (is_array($dispatchedItem->serial_numbers)) {
-                                    $dispatchedSerials = array_merge($dispatchedSerials, array_filter($dispatchedItem->serial_numbers));
-                                }
-                            }
-                        }
-                        
-                        // Serial chưa xuất = tất cả serial - serial đã xuất
-                        $availableSerials = array_diff($allSerials, $dispatchedSerials);
-                        $serialInWarehouse = count($availableSerials);
+                        // Tổng tồn kho: ưu tiên số liệu thực tế từ warehouse_materials
+                        $totalInWarehouse = $currentTotalQuantity > 0 ? $currentTotalQuantity : ($stockCheck['current_stock'] ?? 0);
+
+                        // Không-serial khả dụng = tổng tồn - số serial đang có
+                        $serialInWarehouse = $availableSerialCount;
                         $availableNoSerial = max($totalInWarehouse - $serialInWarehouse, 0);
                         
                         Log::info('Non-serial stock check:', [
                             'item' => $groupedItem['item_type'] . '_' . $groupedItem['item_id'],
                             'totalInWarehouse' => $totalInWarehouse,
-                            'allSerials' => count($allSerials),
-                            'dispatchedSerials' => count($dispatchedSerials),
+                            'allSerials' => $serialInWarehouse,
+                            'dispatchedSerials' => null,
                             'availableSerials' => $serialInWarehouse,
                             'availableNoSerial' => $availableNoSerial,
                             'noSerialRequired' => $noSerialRequired

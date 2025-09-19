@@ -607,6 +607,9 @@
                     return;
                 }
 
+                // Clear thiết bị và vật tư cũ trước khi tìm kiếm mới
+                clearDeviceList();
+
                 // Gọi API tìm kiếm bảo hành
                 fetch('/api/repairs/search-warranty?warranty_code=' + encodeURIComponent(warrantyCode), {
                         method: 'GET',
@@ -827,6 +830,19 @@
             function clearDeviceList() {
                 const devicesList = document.getElementById('devices_list');
                 devicesList.innerHTML = '';
+                
+                // Xóa thiết bị đã chọn và vật tư
+                selectedDevices = [];
+                deviceMaterialsList = [];
+                
+                // Cập nhật hiển thị
+                updateSelectedDevicesDisplay();
+                updateMaterialsDisplay();
+                
+                // Ẩn bảng vật tư nếu không có thiết bị nào
+                if (deviceMaterialsList.length === 0) {
+                    deviceMaterials.classList.add('hidden');
+                }
             }
 
             // Hàm lấy class CSS cho nguồn thiết bị
@@ -985,7 +1001,7 @@
                         // Fetch vật tư cho cả thiết bị từ bảo hành và từ kho
                         if (device.source !== 'warehouse' && currentWarrantyCode) {
                             // Thiết bị từ bảo hành
-                        fetchDeviceMaterials(device.id, device.code);
+                        fetchDeviceMaterials(device.id, device.code, device.serial || '');
                         } else if (device.source === 'warehouse') {
                             // Thiết bị từ kho – truyền đúng device.id để đồng bộ remove
                             fetchDeviceMaterialsFromWarehouse(device.id, device.code, device.type, device.serial || '');
@@ -1035,7 +1051,7 @@
             }
 
             // Hàm lấy vật tư của thiết bị
-            function fetchDeviceMaterials(deviceId, deviceCode) {
+            function fetchDeviceMaterials(deviceId, deviceCode, deviceSerial = '') {
                 // Gọi API lấy vật tư của thiết bị
                 const url =
                     `/api/repairs/device-materials?device_id=${deviceId}${currentWarrantyCode ? '&warranty_code=' + encodeURIComponent(currentWarrantyCode) : ''}`;
@@ -1055,6 +1071,7 @@
                                 addMaterialToList({
                                     deviceId: deviceId,
                                     deviceCode: deviceCode,
+                                    deviceSerial: deviceSerial,
                                     materialId: material.id,
                                     materialCode: material.code,
                                     materialName: material.name,
@@ -1079,9 +1096,10 @@
             }
 
             // Hàm lấy vật tư của thiết bị từ kho
-            function fetchDeviceMaterialsFromWarehouse(deviceIdFull, deviceCode, deviceType, deviceSerial = '') {
+            function fetchDeviceMaterialsFromWarehouse(deviceIdFull, deviceCode, deviceType, deviceSerialParam = '') {
                 // Sử dụng đúng deviceId từ danh sách thiết bị đã chọn
                 const deviceId = deviceIdFull;
+                const deviceSerial = deviceSerialParam;
 
                 // Gọi API lấy vật tư của thiết bị từ kho
                 const url = `/api/repairs/device-materials?deviceId=${encodeURIComponent(deviceId)}`;
@@ -1104,6 +1122,7 @@
                                 addMaterialToList({
                                     deviceId: deviceId,
                                     deviceCode: deviceCode,
+                                    deviceSerial: deviceSerial,
                                     materialId: material.id,
                                     materialCode: material.code,
                                     materialName: material.name,
@@ -1135,9 +1154,11 @@
 
             // Hàm thêm vật tư vào danh sách
             function addMaterialToList(material) {
-                // Kiểm tra trùng lặp theo deviceId + materialCode (không dùng materialId vì có thể null)
+                // Kiểm tra trùng lặp theo deviceId + deviceSerial + materialCode để phân biệt các thiết bị cùng mã
                 const exists = deviceMaterialsList.some(m =>
-                    m.deviceId === material.deviceId && m.materialCode === material.materialCode
+                    m.deviceId === material.deviceId && 
+                    m.deviceSerial === material.deviceSerial && 
+                    m.materialCode === material.materialCode
                 );
 
                 if (!exists) {
@@ -1146,6 +1167,7 @@
                 } else {
                     console.log('⚠️ Material already exists in list:', {
                         deviceId: material.deviceId,
+                        deviceSerial: material.deviceSerial,
                         materialCode: material.materialCode
                     });
                 }
@@ -1505,6 +1527,41 @@
                         // Huỷ thay thế
                         material.hasPendingReplacement = false;
                         
+                        // Xóa replacement khỏi mảng materialReplacements
+                        materialReplacements = materialReplacements.filter(r =>
+                            !(r.device_code === material.deviceCode && r.material_code === material.materialCode)
+                        );
+                        
+                        // Khôi phục serial về trạng thái trước khi thay thế
+                        if (material.replacementHistory && material.replacementHistory.length > 0) {
+                            const lastReplacement = material.replacementHistory[material.replacementHistory.length - 1];
+                            
+                            // Xóa serial mới đã thêm
+                            if (lastReplacement.newSerials) {
+                                lastReplacement.newSerials.forEach(newSerial => {
+                                    const index = material.currentSerials.indexOf(newSerial);
+                                    if (index > -1) {
+                                        material.currentSerials.splice(index, 1);
+                                    }
+                                });
+                            }
+                            
+                            // Thêm lại serial cũ đã xóa
+                            if (lastReplacement.oldSerials) {
+                                lastReplacement.oldSerials.forEach(oldSerial => {
+                                    if (!material.currentSerials.includes(oldSerial)) {
+                                        material.currentSerials.push(oldSerial);
+                                    }
+                                });
+                            }
+                            
+                            // Cập nhật materialSerial
+                            material.materialSerial = material.currentSerials.join(', ');
+                            
+                            // Xóa lịch sử thay thế gần nhất
+                            material.replacementHistory.pop();
+                        }
+                        
                         // Bỏ dấu tick ở ô "Hư hỏng" nếu không có thao tác sửa chữa
                         if (!material.repairNote) {
                             material.isDamaged = false;
@@ -1550,10 +1607,15 @@
                 if (index !== -1) {
                     // Gỡ vật tư liên quan
                     const removed = selectedDevices[index];
-                    // Xóa vật tư dựa trên cả deviceId và deviceCode để đảm bảo xóa đúng
-                    deviceMaterialsList = deviceMaterialsList.filter(m => 
-                        m.deviceId !== removed.id && m.deviceCode !== removed.code
-                    );
+                    console.log('🔍 Removing device:', removed);
+                    console.log('🔍 Current materials before filter:', deviceMaterialsList);
+                    
+                    // Xóa vật tư dựa trên deviceId và deviceSerial để phân biệt các thiết bị cùng mã
+                    deviceMaterialsList = deviceMaterialsList.filter(m => {
+                        const shouldKeep = !(m.deviceId === removed.id && m.deviceSerial === removed.serial);
+                        console.log(`🔍 Material ${m.materialCode}: deviceId=${m.deviceId}===${removed.id}, deviceSerial=${m.deviceSerial}===${removed.serial}, shouldKeep=${shouldKeep}`);
+                        return shouldKeep;
+                    });
                     // Cập nhật lại bảng vật tư ngay sau khi lọc
                     if (typeof updateMaterialsDisplay === 'function') {
                         updateMaterialsDisplay();
@@ -1656,8 +1718,8 @@
                 // Xóa vật tư liên quan đến thiết bị này
                 const materialsBefore = deviceMaterialsList.length;
                 deviceMaterialsList = deviceMaterialsList.filter(material => {
-                    // So sánh theo cả deviceId và deviceCode phòng khi deviceId khác nhau giữa FE/BE
-                    const shouldKeep = !(material.deviceId === removedDevice.id || material.deviceCode === removedDevice.code);
+                    // So sánh theo deviceId và deviceSerial để phân biệt các thiết bị cùng mã
+                    const shouldKeep = !(material.deviceId === removedDevice.id && material.deviceSerial === removedDevice.serial);
                     return shouldKeep;
                 });
 
@@ -2329,9 +2391,11 @@
                     }
                 });
 
-                // Thêm serial mới
+                // Thêm serial mới (tránh trùng lặp)
                 replacementInfo.newSerials.forEach(newSerial => {
-                    currentSerialList.push(newSerial);
+                    if (!currentSerialList.includes(newSerial)) {
+                        currentSerialList.push(newSerial);
+                    }
                 });
 
                 // Cập nhật cả hai nguồn dữ liệu

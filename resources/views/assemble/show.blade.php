@@ -182,7 +182,7 @@
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Ngày tạo phiếu:</span>
                             <span
-                                class="text-sm text-gray-700">{{ $assembly->date ? \Carbon\Carbon::parse($assembly->date)->format('H:i d/m/Y') : '' }}</span>
+                                class="text-sm text-gray-700">{{ $assembly->created_at ? $assembly->created_at->format('H:i d/m/Y') : '' }}</span>
                         </div>
                         <div class="flex items-center mb-2">
                             <span class="text-sm font-medium text-gray-700 mr-2">Chỉnh sửa lần cuối:</span>
