@@ -1000,8 +1000,8 @@
                         
                         // Fetch vật tư cho cả thiết bị từ bảo hành và từ kho
                         if (device.source !== 'warehouse' && currentWarrantyCode) {
-                            // Thiết bị từ bảo hành
-                        fetchDeviceMaterials(device.id, device.code, device.serial || '');
+                            // Thiết bị từ bảo hành - truyền dispatch_item_id nếu có
+                            fetchDeviceMaterials(device.id, device.code, device.serial || '', device.dispatch_item_id);
                         } else if (device.source === 'warehouse') {
                             // Thiết bị từ kho – truyền đúng device.id để đồng bộ remove
                             fetchDeviceMaterialsFromWarehouse(device.id, device.code, device.type, device.serial || '');
@@ -1051,10 +1051,15 @@
             }
 
             // Hàm lấy vật tư của thiết bị
-            function fetchDeviceMaterials(deviceId, deviceCode, deviceSerial = '') {
+            function fetchDeviceMaterials(deviceId, deviceCode, deviceSerial = '', dispatchItemId = null) {
                 // Gọi API lấy vật tư của thiết bị
-                const url =
-                    `/api/repairs/device-materials?device_id=${deviceId}${currentWarrantyCode ? '&warranty_code=' + encodeURIComponent(currentWarrantyCode) : ''}`;
+                let url = `/api/repairs/device-materials?device_id=${deviceId}`;
+                if (currentWarrantyCode) {
+                    url += `&warranty_code=${encodeURIComponent(currentWarrantyCode)}`;
+                }
+                if (dispatchItemId) {
+                    url += `&dispatch_item_id=${dispatchItemId}`;
+                }
 
                 fetch(url, {
                         method: 'GET',

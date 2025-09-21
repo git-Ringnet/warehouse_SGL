@@ -623,14 +623,14 @@
                                                 @if (($assembly->quantity ?? 1) > 1)
                                                     <div class="space-y-2">
                                                         @for ($i = 0; $i < ($assembly->quantity ?? 1); $i++)
-                                                            <input type="text" name="products[0][serials][]"
+                                                            <input type="text" name="products[{{ $index ?? 0 }}][serials][]"
                                                                 value="{{ $productSerials[$i] ?? '' }}"
                                                                 placeholder="Serial {{ $i + 1 }}"
                                                                 class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                         @endfor
                                                     </div>
                                                 @else
-                                                    <input type="text" name="products[0][serials][]"
+                                                    <input type="text" name="products[{{ $index ?? 0 }}][serials][]"
                                                         value="{{ $productSerials[0] ?? '' }}" placeholder="Serial"
                                                         class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                                 @endif
@@ -650,7 +650,7 @@
                                                     </div>
                                                 @endif
                                                 @for ($i = 0; $i < ($assembly->quantity ?? 1); $i++)
-                                                    <input type="hidden" name="products[0][serials][]"
+                                                    <input type="hidden" name="products[{{ $index ?? 0 }}][serials][]"
                                                         value="{{ $productSerials[$i] ?? '' }}">
                                                 @endfor
                                             @endif

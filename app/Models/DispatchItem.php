@@ -24,6 +24,8 @@ class DispatchItem extends Model
         'warehouse_id',
         'category',
         'serial_numbers',
+        'assembly_id',
+        'product_unit',
         'notes'
     ];
 
@@ -35,6 +37,8 @@ class DispatchItem extends Model
     protected $casts = [
         'serial_numbers' => 'array',
         'quantity' => 'integer',
+        'assembly_id' => 'integer',
+        'product_unit' => 'integer',
     ];
 
     /**
@@ -83,6 +87,14 @@ class DispatchItem extends Model
     public function warranties(): HasMany
     {
         return $this->hasMany(Warranty::class);
+    }
+
+    /**
+     * Get the assembly for this dispatch item.
+     */
+    public function assembly(): BelongsTo
+    {
+        return $this->belongsTo(Assembly::class);
     }
 
     /**

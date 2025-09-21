@@ -197,27 +197,51 @@ class RepairController extends Controller
             // Nguồn dữ liệu CHÍNH: tổng hợp từ tất cả phiếu xuất của dự án (đã loại trừ backup)
             $devices = [];
             $projectItems = $warranty->project_items ?? [];
+            
+            Log::info('Debug searchWarranty', [
+                'warranty_code' => $warrantyCode,
+                'warranty_id' => $warranty->id,
+                'project_items_count' => count($projectItems),
+                'project_items' => $projectItems
+            ]);
+            
             $indexed = [];
-            foreach ($projectItems as $pi) {
+            foreach ($projectItems as $index => $pi) {
+                Log::info("Processing project item $index", [
+                    'pi' => $pi,
+                    'code_empty' => empty($pi['code']),
+                    'name_empty' => empty($pi['name']),
+                    'type_empty' => empty($pi['type']),
+                    'type_value' => $pi['type'] ?? 'null'
+                ]);
+                
                 if (empty($pi['code']) || empty($pi['name']) || empty($pi['type'])) {
+                    Log::info("Skipping item $index due to empty fields");
                     continue;
                 }
                 if (!in_array($pi['type'], ['product', 'good'])) {
+                    Log::info("Skipping item $index due to invalid type: " . $pi['type']);
                     continue;
                 }
                 $code = $pi['code'];
                 $name = $pi['name'];
                 $quantity = (int) ($pi['quantity'] ?? 1);
                 $serialNumbers = is_array($pi['serial_numbers'] ?? null) ? $pi['serial_numbers'] : [];
-                if (isset($indexed[$code])) {
-                    // Gộp số lượng và serial từ nhiều phiếu
-                    $mergedSerials = array_unique(array_merge($indexed[$code]['serial_numbers'], $serialNumbers));
-                    $indexed[$code]['quantity'] += $quantity; // cộng dồn số lượng
-                    $indexed[$code]['serial_numbers'] = $mergedSerials;
-                    $indexed[$code]['serial_numbers_text'] = !empty($mergedSerials) ? implode(', ', $mergedSerials) : 'N/A';
+                $dispatchItemId = $pi['dispatch_item_id'] ?? null;
+                $dispatchId = $pi['dispatch_id'] ?? null;
+                
+                // Tạo key duy nhất bao gồm dispatch_item_id để phân biệt các sản phẩm từ phiếu xuất khác nhau
+                $uniqueKey = $code . '_' . ($dispatchItemId ?? 'no_dispatch_item');
+                
+                if (isset($indexed[$uniqueKey])) {
+                    // Gộp số lượng và serial từ cùng một dispatch item
+                    $mergedSerials = array_unique(array_merge($indexed[$uniqueKey]['serial_numbers'], $serialNumbers));
+                    $indexed[$uniqueKey]['quantity'] += $quantity; // cộng dồn số lượng
+                    $indexed[$uniqueKey]['serial_numbers'] = $mergedSerials;
+                    $indexed[$uniqueKey]['serial_numbers_text'] = !empty($mergedSerials) ? implode(', ', $mergedSerials) : 'N/A';
                 } else {
-                    $indexed[$code] = [
-                        'id' => $code . '_' . microtime(true) . '_' . uniqid(),
+                    $indexed[$uniqueKey] = [
+                        'id' => $code . '_' . ($dispatchItemId ?? 'no_dispatch_item') . '_' . microtime(true) . '_' . uniqid(),
                         'code' => $code,
                         'name' => $name,
                         'quantity' => $quantity,
@@ -227,6 +251,8 @@ class RepairController extends Controller
                         'status' => 'active',
                         'type' => $pi['type'],
                         'source' => 'contract', // Đánh dấu nguồn từ hợp đồng
+                        'dispatch_item_id' => $dispatchItemId, // Lưu dispatch_item_id để sử dụng sau này
+                        'dispatch_id' => $dispatchId, // Lưu dispatch_id để debug
                     ];
                 }
             }
@@ -269,12 +295,19 @@ class RepairController extends Controller
 
             // Loại bỏ việc bổ sung từ các dispatch khác của dự án để CHỈ lấy thiết bị thuộc warranty hiện tại
 
-            // Danh sách mã hợp lệ chỉ theo warranty hiện tại
-            $allowedCodes = array_keys($indexed);
+            // Danh sách mã hợp lệ chỉ theo warranty hiện tại (chỉ lấy theo code sản phẩm)
+            $allowedCodes = array_values(array_unique(array_map(function ($item) {
+                return $item['code'] ?? '';
+            }, array_values($indexed))));
             $devices = array_values($indexed);
             
             // Tách thành 1 hàng/1 serial thiết bị (nếu có danh sách serial) và thêm N/A nếu thiếu
             $expandedDevices = [];
+            Log::info('Debug devices before expansion', [
+                'devices_count' => count($devices),
+                'devices' => $devices
+            ]);
+            
             foreach ($devices as $d) {
                 $serials = is_array($d['serial_numbers'] ?? null) ? $d['serial_numbers'] : [];
                 $serialCount = count($serials);
@@ -297,7 +330,7 @@ class RepairController extends Controller
                 $missing = max(0, ((int)($d['quantity'] ?? 0)) - $serialCount);
                 for ($i = 0; $i < $missing; $i++) {
                     $expandedDevices[] = [
-                        'id' => $d['code'] . '_NA_' . $i . '_' . microtime(true) . '_' . uniqid(),
+                        'id' => $d['code'] . '_NA_' . ($d['dispatch_item_id'] ?? 'no_dispatch_item') . '_' . $i . '_' . microtime(true) . '_' . uniqid(),
                         'code' => $d['code'],
                         'name' => $d['name'],
                         'quantity' => 1,
@@ -307,10 +340,18 @@ class RepairController extends Controller
                         'status' => $d['status'] ?? 'active',
                         'type' => $d['type'] ?? 'product',
                         'source' => $d['source'] ?? 'contract',
+                        'dispatch_item_id' => $d['dispatch_item_id'] ?? null, // Truyền dispatch_item_id
+                        'dispatch_id' => $d['dispatch_id'] ?? null, // Truyền dispatch_id để debug
                     ];
                 }
             }
             // Chỉ giữ các thiết bị có code thuộc warranty hiện tại
+            Log::info('Debug before filtering', [
+                'expanded_devices_count' => count($expandedDevices),
+                'allowed_codes' => $allowedCodes,
+                'expanded_devices' => $expandedDevices
+            ]);
+            
             $devices = array_values(array_filter($expandedDevices, function ($d) use ($allowedCodes) {
                 return in_array($d['code'] ?? '', $allowedCodes, true);
             }));
@@ -366,6 +407,12 @@ class RepairController extends Controller
                 ];
             }
 
+            Log::info('Debug searchWarranty result', [
+                'warranty_code' => $warrantyCode,
+                'devices_count' => count($devices),
+                'devices' => $devices
+            ]);
+
             return response()->json([
                 'success' => true,
                 'warranty' => [
@@ -392,6 +439,7 @@ class RepairController extends Controller
         $deviceId = $request->get('deviceId') ?: $request->get('device_id');
         $warrantyCode = $request->get('warranty_code');
         $deviceCode = $request->get('device_code'); // Thêm device_code để hỗ trợ thiết bị từ kho
+        $dispatchItemId = $request->get('dispatch_item_id'); // Thêm dispatch_item_id để phân biệt sản phẩm cùng serial N/A
 
         if (!$deviceId && !$deviceCode) {
             return response()->json([
@@ -553,8 +601,9 @@ class RepairController extends Controller
                 ]);
             }
 
-                // Kiểm tra xem có serial cụ thể không
-                if (!empty($deviceSerial)) {
+                // Kiểm tra xem có serial cụ thể không (loại trừ N/A)
+                $normalizedSerial = strtoupper(trim($deviceSerial ?? ''));
+                if (!empty($deviceSerial) && $normalizedSerial !== 'N/A' && $normalizedSerial !== 'NA') {
                     // Nếu có serial cụ thể, tìm vật tư theo serial này
                     $materials = $this->getDeviceMaterialsBySerial($deviceCode, $deviceSerial, $warrantyCode);
                     if (!empty($materials)) {
@@ -564,11 +613,50 @@ class RepairController extends Controller
                             $materials = $this->updateMaterialsSerialsFromAnyWarranty($materials, $deviceCode);
                         }
                     }
-                } else {
-                    // Nếu không có serial, chỉ lấy vật tư lắp ráp mặc định cho sản phẩm
-            $materials = $this->getDeviceMaterialsFromAssembly($product);
-                    // Không áp dụng lịch sử thay thế khi thành phẩm không có serial
-                }
+                    } else {
+                        // Nếu không có serial hoặc serial là N/A, tìm assembly_id và product_unit cho N/A
+                        Log::info('Processing N/A serial for product', [
+                            'product_id' => $product->id,
+                            'product_code' => $product->code,
+                            'device_serial' => $deviceSerial
+                        ]);
+                        
+                        // Thử lấy assembly_id và product_unit từ dispatch item trước
+                        $dispatchInfo = $this->getAssemblyInfoFromDispatch($product->id, $warrantyCode, $dispatchItemId);
+                        if ($dispatchInfo) {
+                            Log::info('Found assembly info from dispatch', [
+                                'product' => $product->code,
+                                'assembly_id' => $dispatchInfo['assembly_id'],
+                                'product_unit' => $dispatchInfo['product_unit'],
+                                'dispatch_item_id' => $dispatchItemId
+                            ]);
+                            $materials = $this->getDeviceMaterialsFromAssembly($product, $dispatchInfo['assembly_id'], $dispatchInfo['product_unit']);
+                        } else {
+                            // Fallback: tìm đơn vị thành phẩm tiếp theo
+                            $unitInfo = $this->getNextAvailableProductUnit($product->id, $warrantyCode);
+                            if ($unitInfo) {
+                                Log::info('Found available product unit', [
+                                    'product' => $product->code,
+                                    'assembly_id' => $unitInfo['assembly_id'],
+                                    'product_unit' => $unitInfo['product_unit']
+                                ]);
+                                $materials = $this->getDeviceMaterialsFromAssembly($product, $unitInfo['assembly_id'], $unitInfo['product_unit']);
+                            } else {
+                                // Fallback to old logic
+                                $assemblyId = $this->findAssemblyIdForProductSerial($product->id, 'N/A', $warrantyCode);
+                                Log::info('Using fallback assembly for N/A serial', [
+                                    'product' => $product->code,
+                                    'assembly_id' => $assemblyId
+                                ]);
+                                if ($assemblyId) {
+                                    $materials = $this->getDeviceMaterialsFromAssembly($product, $assemblyId);
+                                } else {
+                                    $materials = $this->getDeviceMaterialsFromAssembly($product);
+                                }
+                            }
+                        }
+                        // Không áp dụng lịch sử thay thế khi thành phẩm không có serial
+                    }
             }
 
             // Debug: log final materials payload returned to frontend
@@ -1028,29 +1116,270 @@ class RepairController extends Controller
     }
 
     /**
+     * Get assembly info from dispatch item for N/A product
+     */
+    private function getAssemblyInfoFromDispatch(int $productId, ?string $warrantyCode = null, ?int $dispatchItemId = null): ?array
+    {
+        if (!$warrantyCode) {
+            return null;
+        }
+
+        // Tìm warranty để lấy dispatch_id
+        $warranty = \App\Models\Warranty::where('warranty_code', $warrantyCode)->first();
+        if (!$warranty) {
+            return null;
+        }
+
+        // Ưu tiên cao nhất: Nếu có dispatchItemId từ request, lấy thông tin từ dispatch item cụ thể đó
+        if ($dispatchItemId) {
+            $dispatchItem = \App\Models\DispatchItem::where('id', $dispatchItemId)
+                ->where('item_type', 'product')
+                ->where('item_id', $productId)
+                ->whereNotNull('assembly_id')
+                ->whereNotNull('product_unit')
+                ->first();
+
+            if ($dispatchItem) {
+                Log::info('Found assembly info from specific dispatch item (from request)', [
+                    'warranty_code' => $warrantyCode,
+                    'dispatch_item_id' => $dispatchItemId,
+                    'assembly_id' => $dispatchItem->assembly_id,
+                    'product_unit' => $dispatchItem->product_unit
+                ]);
+                return [
+                    'assembly_id' => $dispatchItem->assembly_id,
+                    'product_unit' => $dispatchItem->product_unit
+                ];
+            }
+        }
+
+        // Ưu tiên thứ hai: Nếu có dispatch_item_id trong warranty, lấy thông tin từ dispatch item cụ thể đó
+        if ($warranty->dispatch_item_id) {
+            $dispatchItem = \App\Models\DispatchItem::where('id', $warranty->dispatch_item_id)
+                ->where('item_type', 'product')
+                ->where('item_id', $productId)
+                ->whereNotNull('assembly_id')
+                ->whereNotNull('product_unit')
+                ->first();
+
+            if ($dispatchItem) {
+                Log::info('Found assembly info from specific dispatch item (from warranty)', [
+                    'warranty_code' => $warrantyCode,
+                    'dispatch_item_id' => $warranty->dispatch_item_id,
+                    'assembly_id' => $dispatchItem->assembly_id,
+                    'product_unit' => $dispatchItem->product_unit
+                ]);
+                return [
+                    'assembly_id' => $dispatchItem->assembly_id,
+                    'product_unit' => $dispatchItem->product_unit
+                ];
+            }
+        }
+
+        // Fallback: Nếu không có dispatch_item_id hoặc không tìm thấy, tìm theo dispatch_id
+        if ($warranty->dispatch_id) {
+            $dispatchItem = \App\Models\DispatchItem::where('dispatch_id', $warranty->dispatch_id)
+                ->where('item_type', 'product')
+                ->where('item_id', $productId)
+                ->whereNotNull('assembly_id')
+                ->whereNotNull('product_unit')
+                ->first();
+
+            if ($dispatchItem) {
+                Log::info('Found assembly info from dispatch fallback', [
+                    'warranty_code' => $warrantyCode,
+                    'dispatch_id' => $warranty->dispatch_id,
+                    'assembly_id' => $dispatchItem->assembly_id,
+                    'product_unit' => $dispatchItem->product_unit
+                ]);
+                return [
+                    'assembly_id' => $dispatchItem->assembly_id,
+                    'product_unit' => $dispatchItem->product_unit
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Get next available product unit for N/A serial from assembly
+     */
+    private function getNextAvailableProductUnit(int $productId, ?string $warrantyCode = null): ?array
+    {
+        // Tìm assembly có thành phẩm này với serial N/A, ưu tiên theo project
+        $query = \App\Models\AssemblyProduct::where('product_id', $productId)
+            ->where(function ($q) {
+                $q->whereNull('serials')
+                    ->orWhere('serials', '')
+                    ->orWhere('serials', 'N/A')
+                    ->orWhere('serials', 'NA');
+            });
+
+        // Nếu có warranty context, ưu tiên assembly của project đó
+        if ($warrantyCode) {
+            $warranty = \App\Models\Warranty::where('warranty_code', $warrantyCode)->first();
+            if ($warranty && $warranty->project_id) {
+                $projectAssembly = $query->clone()
+                    ->whereHas('assembly', function($q) use ($warranty) {
+                        $q->where('project_id', $warranty->project_id);
+                    })
+                    ->orderBy('id')
+                    ->first();
+                
+                if ($projectAssembly) {
+                    $availableUnit = $this->findAvailableUnitInAssembly($projectAssembly->assembly_id, $productId);
+                    if ($availableUnit !== null) {
+                        return [
+                            'assembly_id' => $projectAssembly->assembly_id,
+                            'product_unit' => $availableUnit
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Fallback: tìm assembly khác theo thứ tự ID
+        $assemblies = $query->orderBy('id')->get();
+        foreach ($assemblies as $assembly) {
+            $availableUnit = $this->findAvailableUnitInAssembly($assembly->assembly_id, $productId);
+            if ($availableUnit !== null) {
+                return [
+                    'assembly_id' => $assembly->assembly_id,
+                    'product_unit' => $availableUnit
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find available product unit in specific assembly
+     */
+    private function findAvailableUnitInAssembly(int $assemblyId, int $productId): ?int
+    {
+        // Lấy tất cả product_unit đã xuất cho assembly này
+        $usedUnits = \App\Models\DispatchItem::where('assembly_id', $assemblyId)
+            ->where('item_type', 'product')
+            ->where('item_id', $productId)
+            ->whereNotNull('product_unit')
+            ->pluck('product_unit')
+            ->toArray();
+
+        // Lấy tất cả product_unit có trong assembly này
+        $availableUnits = \App\Models\AssemblyMaterial::where('assembly_id', $assemblyId)
+            ->where('target_product_id', $productId)
+            ->whereNotNull('product_unit')
+            ->pluck('product_unit')
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Tìm unit đầu tiên chưa được xuất
+        foreach ($availableUnits as $unit) {
+            if (!in_array($unit, $usedUnits)) {
+                return $unit;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve assembly_id for a product's specific finished-product unit by serial (or N/A).
+     * When multiple N/A records exist, try to find the most relevant one based on warranty context.
+     */
+    private function findAssemblyIdForProductSerial(int $productId, ?string $deviceSerial, ?string $warrantyCode = null): ?int
+    {
+        $query = \App\Models\AssemblyProduct::where('product_id', $productId);
+        $normalized = strtoupper(trim((string)$deviceSerial));
+        
+        if ($normalized === '' || $normalized === 'N/A' || $normalized === 'NA') {
+            $query->where(function ($q) {
+                $q->whereNull('serials')
+                    ->orWhere('serials', '')
+                    ->orWhere('serials', 'N/A')
+                    ->orWhere('serials', 'NA');
+            });
+        } else {
+            $query->where('serials', $deviceSerial);
+        }
+        
+        // If we have warranty context, try to find assembly related to this warranty's project
+        if ($warrantyCode) {
+            $warranty = \App\Models\Warranty::where('warranty_code', $warrantyCode)->first();
+            if ($warranty && $warranty->project_id) {
+                // Try to find assembly for this specific project first
+                $projectAssembly = $query->clone()
+                    ->whereHas('assembly', function($q) use ($warranty) {
+                        $q->where('project_id', $warranty->project_id);
+                    })
+                    ->orderByDesc('id')
+                    ->first();
+                
+                if ($projectAssembly) {
+                    Log::info('Found assembly for warranty project', [
+                        'warranty_code' => $warrantyCode,
+                        'project_id' => $warranty->project_id,
+                        'assembly_id' => $projectAssembly->assembly_id
+                    ]);
+                    return $projectAssembly->assembly_id;
+                }
+            }
+        }
+        
+        // Fallback to most recent assembly
+        $assembly = $query->orderByDesc('id')->first();
+        if ($assembly) {
+            Log::info('Using most recent assembly', [
+                'assembly_id' => $assembly->assembly_id,
+                'created_at' => $assembly->created_at
+            ]);
+        }
+        
+        return optional($assembly)->assembly_id;
+    }
+
+    /**
      * Get device materials from assembly (main source)
      */
-    private function getDeviceMaterialsFromAssembly($product)
+    private function getDeviceMaterialsFromAssembly($product, ?int $assemblyId = null, ?int $productUnit = null)
     {
         $materials = [];
         
         try {
             
             // First try to get materials from assembly_materials table
-        $assemblyMaterials = \App\Models\AssemblyMaterial::where('target_product_id', $product->id)
-            ->with(['material', 'assembly'])
-            ->get();
+            $query = \App\Models\AssemblyMaterial::query();
+            if ($assemblyId) {
+                $query->where('assembly_id', $assemblyId);
+                // Nếu có product_unit cụ thể, chỉ lấy vật tư của unit đó
+                if ($productUnit !== null) {
+                    $query->where('product_unit', $productUnit);
+                }
+            } else {
+                $query->where('target_product_id', $product->id);
+            }
+            $assemblyMaterials = $query->with(['material', 'assembly'])->get();
 
             
         foreach ($assemblyMaterials as $am) {
             if ($am->material) {
+                // Xử lý serial từ assembly - có thể là string hoặc JSON array
+                $raw = (string)($am->serial ?? '');
+                $serials = array_values(array_filter(array_map(function ($s) {
+                    return trim((string)$s);
+                }, preg_split('/\s*,\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [])));
+                
                 $materials[] = [
                     'id' => $am->material->id,
                     'code' => $am->material->code,
                     'name' => $am->material->name,
                     'quantity' => $am->quantity,
-                    'serial' => $am->serial ?? '',
-                    'current_serials' => [$am->serial ?? ''],
+                    'serial' => implode(', ', $serials),
+                    'current_serials' => $serials,
                     'status' => 'active'
                 ];
                 }

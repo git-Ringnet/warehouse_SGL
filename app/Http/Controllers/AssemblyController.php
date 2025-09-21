@@ -33,6 +33,95 @@ use App\Models\UserLog;
 class AssemblyController extends Controller
 {
     /**
+     * Normalize incoming serial_id from various formats to a single integer ID or null.
+     */
+    private function normalizeSerialId($rawSerialId)
+    {
+        // If it's already an integer-like scalar
+        if (is_int($rawSerialId)) {
+            return $rawSerialId;
+        }
+        if (is_string($rawSerialId)) {
+            $trimmed = trim($rawSerialId);
+            if ($trimmed === '') {
+                return null;
+            }
+            // If string contains commas (e.g., "34,53"), take the first valid integer
+            if (strpos($trimmed, ',') !== false) {
+                $parts = array_map('trim', explode(',', $trimmed));
+                foreach ($parts as $part) {
+                    if ($part !== '' && ctype_digit($part)) {
+                        return (int)$part;
+                    }
+                }
+                return null;
+            }
+            // Plain string single number
+            if (ctype_digit($trimmed)) {
+                return (int)$trimmed;
+            }
+            return null;
+        }
+        if (is_array($rawSerialId)) {
+            // Take the first non-empty numeric element
+            foreach ($rawSerialId as $item) {
+                if (is_int($item)) {
+                    return $item;
+                }
+                if (is_string($item)) {
+                    $ti = trim($item);
+                    if ($ti !== '' && ctype_digit($ti)) {
+                        return (int)$ti;
+                    }
+                }
+            }
+            return null;
+        }
+        return null;
+    }
+
+    /**
+     * Normalize serials input (array or comma-separated string) into an array of strings.
+     */
+    private function normalizeSerials($rawSerials): array
+    {
+        if (is_array($rawSerials)) {
+            return array_values(array_filter(array_map(function ($s) {
+                return is_string($s) ? trim($s) : (string)$s;
+            }, $rawSerials), function ($s) { return $s !== ''; }));
+        }
+        if (is_string($rawSerials)) {
+            $parts = array_map('trim', explode(',', $rawSerials));
+            return array_values(array_filter($parts, function ($s) { return $s !== ''; }));
+        }
+        return [];
+    }
+
+    /**
+     * Normalize serial_ids input (array or comma-separated string) into an array of integer IDs.
+     */
+    private function normalizeSerialIds($rawSerialIds): array
+    {
+        $result = [];
+        if (is_array($rawSerialIds)) {
+            foreach ($rawSerialIds as $id) {
+                $nid = $this->normalizeSerialId($id);
+                if ($nid) { $result[] = $nid; }
+            }
+            return $result;
+        }
+        if (is_string($rawSerialIds)) {
+            $parts = array_map('trim', explode(',', $rawSerialIds));
+            foreach ($parts as $p) {
+                $nid = $this->normalizeSerialId($p);
+                if ($nid) { $result[] = $nid; }
+            }
+            return $result;
+        }
+        $nid = $this->normalizeSerialId($rawSerialIds);
+        return $nid ? [$nid] : [];
+    }
+    /**
      * Display a listing of the assemblies.
      */
     public function index(Request $request)
@@ -303,8 +392,9 @@ class AssemblyController extends Controller
             // Create assembly products for each product
             foreach ($products as $productIndex => $productData) {
                 $productQty = intval($productData['quantity']);
-                $productSerials = $productData['serials'] ?? [];
-                $filteredSerials = array_filter($productSerials);
+                $rawProductSerials = $productData['serials'] ?? [];
+                // Accept either array or comma-separated string
+                $filteredSerials = array_values(array_unique($this->normalizeSerials($rawProductSerials)));
                 $productSerialsStr = !empty($filteredSerials) ? implode(',', $filteredSerials) : null;
 
                 // Create assembly product record
@@ -322,46 +412,31 @@ class AssemblyController extends Controller
                 if ($assembly->purpose === 'project' && !$targetWarehouseId) {
                     $targetWarehouseId = $assembly->warehouse_id;
                 }
+
+                // Create serial records for product serials
+                if (!empty($filteredSerials) && $targetWarehouseId) {
+                    $this->createSerialRecords($filteredSerials, (int)$productData['id'], $assembly->id, (int)$targetWarehouseId);
+                }
             }
 
             // Create assembly materials and update stock levels    
             foreach ($components as $component) {
-                // Process serials - either from multiple inputs or single input
+                // Process serials - tolerate array or comma-separated string
                 $serial = null;
                 $serialIds = [];
 
-                if (isset($component['serials']) && is_array($component['serials'])) {
-                    // Filter out empty serials before joining
-                    $filteredComponentSerials = array_filter($component['serials']);
-
-                    // Only use unique values to prevent duplicates
-                    $uniqueComponentSerials = array_unique($filteredComponentSerials);
-
-                    // Join serials with comma
-                    $serial = implode(',', $uniqueComponentSerials);
-
-                    // Get serial_ids if available
-                    if (isset($component['serial_ids']) && is_array($component['serial_ids'])) {
-                        $serialIds = array_filter($component['serial_ids']);
-
-                        // Mark serials as used
-                        foreach ($serialIds as $serialId) {
-                            if (!empty($serialId)) {
-                                Serial::where('id', $serialId)
-                                    ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
-                            }
-                        }
-                    }
-                } elseif (isset($component['serial'])) {
+                $normalizedSerials = $this->normalizeSerials($component['serials'] ?? []);
+                if (!empty($normalizedSerials)) {
+                    $serial = implode(',', array_values(array_unique($normalizedSerials)));
+                } elseif (isset($component['serial']) && !empty($component['serial'])) {
                     $serial = $component['serial'];
+                }
 
-                    // Get single serial_id if available
-                    if (isset($component['serial_id']) && !empty($component['serial_id'])) {
-                        $serialIds = [$component['serial_id']];
-
-                        // Mark serial as used
-                        Serial::where('id', $component['serial_id'])
-                            ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
+                // Get serial_ids if available in any format
+                $serialIds = $this->normalizeSerialIds($component['serial_ids'] ?? ($component['serial_id'] ?? []));
+                if (!empty($serialIds)) {
+                    foreach ($serialIds as $sid) {
+                        Serial::where('id', $sid)->update(['notes' => 'Assembly ID: ' . $assembly->id]);
                     }
                 }
 
@@ -385,25 +460,15 @@ class AssemblyController extends Controller
                 $unitSerials = [];
                 $unitSerialIds = [];
 
-                if (isset($component['serials']) && is_array($component['serials'])) {
-                    $filteredSerials = array_filter($component['serials']);
-
-                    // For multi-unit assemblies, each unit should have its own serials
-                    // The frontend should send separate components for each unit
-                    // So we just use the serials as they are for this specific unit
-                    $unitSerials = $filteredSerials;
-
-                    // Get serial IDs for this unit
-                    if (isset($component['serial_ids']) && is_array($component['serial_ids'])) {
-                        $filteredSerialIds = array_filter($component['serial_ids']);
-                        $unitSerialIds = $filteredSerialIds;
-                    }
-                } elseif (isset($component['serial'])) {
+                $unitSerials = $this->normalizeSerials($component['serials'] ?? []);
+                if (empty($unitSerials) && isset($component['serial']) && $component['serial'] !== '') {
                     $unitSerials = [$component['serial']];
-                    if (isset($component['serial_id']) && !empty($component['serial_id'])) {
-                        $unitSerialIds = [$component['serial_id']];
-                    }
                 }
+                // Fallback: if still empty but aggregate $serial above is present, reuse it
+                if (empty($unitSerials) && !empty($serial)) {
+                    $unitSerials = array_values(array_filter(array_map('trim', explode(',', (string)$serial))));
+                }
+                $unitSerialIds = $this->normalizeSerialIds($component['serial_ids'] ?? ($component['serial_id'] ?? []));
 
                 $unitSerial = !empty($unitSerials) ? implode(',', $unitSerials) : null;
 
@@ -421,7 +486,12 @@ class AssemblyController extends Controller
 
                 // Add serial_id if provided (for single serial or first serial of multiple)
                 if (!empty($unitSerialIds)) {
-                    $assemblyMaterialData['serial_id'] = $unitSerialIds[0]; // Use first serial_id for this unit
+                    // Normalize in case the first element is a comma-separated string
+                    $first = $unitSerialIds[0] ?? null;
+                    $normalizedFirst = $this->normalizeSerialId($first);
+                    if ($normalizedFirst) {
+                        $assemblyMaterialData['serial_id'] = $normalizedFirst; // Use first valid serial_id for this unit
+                    }
                 }
 
                 AssemblyMaterial::create($assemblyMaterialData);
@@ -1078,11 +1148,14 @@ class AssemblyController extends Controller
 
                             // Set new serial_id if provided
                             if (isset($component['serial_id']) && !empty($component['serial_id'])) {
-                                $updateData['serial_id'] = $component['serial_id'];
+                                $normalizedSerialId = $this->normalizeSerialId($component['serial_id']);
+                                if ($normalizedSerialId) {
+                                    $updateData['serial_id'] = $normalizedSerialId;
 
-                                // Update new serial status
-                                Serial::where('id', $component['serial_id'])
-                                    ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
+                                    // Update new serial status
+                                    Serial::where('id', $normalizedSerialId)
+                                        ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
+                                }
                             }
                         } else if ($assembly->status === 'pending') {
                             // For pending status, allow quantity, serial and note updates
@@ -1150,11 +1223,14 @@ class AssemblyController extends Controller
 
                             // Set new serial_id if provided
                             if (isset($component['serial_id']) && !empty($component['serial_id'])) {
-                                $updateData['serial_id'] = $component['serial_id'];
+                                $normalizedSerialId = $this->normalizeSerialId($component['serial_id']);
+                                if ($normalizedSerialId) {
+                                    $updateData['serial_id'] = $normalizedSerialId;
 
-                                // Update new serial status
-                                Serial::where('id', $component['serial_id'])
-                                    ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
+                                    // Update new serial status
+                                    Serial::where('id', $normalizedSerialId)
+                                        ->update(['notes' => 'Assembly ID: ' . $assembly->id]);
+                                }
                             }
 
                             // Do not change product_unit for non in_progress statuses
@@ -1179,7 +1255,7 @@ class AssemblyController extends Controller
                             'quantity' => max(1, $quantity),
                             'serial' => $serial,
                             'note' => $component['note'] ?? null,
-                            'serial_id' => $component['serial_id'] ?? null,
+                            'serial_id' => isset($component['serial_id']) ? $this->normalizeSerialId($component['serial_id']) : null,
                             'warehouse_id' => $warehouseId,
                             'target_product_id' => is_numeric($targetProductId) ? (int) $targetProductId : null,
                             'product_unit' => $productUnit,

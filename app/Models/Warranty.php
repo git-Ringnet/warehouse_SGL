@@ -182,37 +182,16 @@ class Warranty extends Model
                     }
 
                     if ($itemDetails) {
-                        // Check if item already exists in array (from other dispatches)
-                        $existingItemIndex = null;
-                        foreach ($items as $index => $existingItem) {
-                            if (
-                                $existingItem['code'] === $itemDetails->code &&
-                                $existingItem['type'] === $dispatchItem->item_type
-                            ) {
-                                $existingItemIndex = $index;
-                                break;
-                            }
-                        }
-
-                        if ($existingItemIndex !== null) {
-                            // Item exists, add quantity and merge serial numbers
-                            $items[$existingItemIndex]['quantity'] += $dispatchItem->quantity;
-
-                            if (!empty($dispatchItem->serial_numbers)) {
-                                $existingSerials = $items[$existingItemIndex]['serial_numbers'] ?: [];
-                                $newSerials = $dispatchItem->serial_numbers ?: [];
-                                $items[$existingItemIndex]['serial_numbers'] = array_unique(array_merge($existingSerials, $newSerials));
-                            }
-                        } else {
-                            // New item, add to array
-                            $items[] = [
-                                'code' => $itemDetails->code,
-                                'name' => $itemDetails->name,
-                                'quantity' => $dispatchItem->quantity,
-                                'type' => $dispatchItem->item_type,
-                                'serial_numbers' => $dispatchItem->serial_numbers,
-                            ];
-                        }
+                        // Thêm dispatch_item_id để phân biệt các sản phẩm từ phiếu xuất khác nhau
+                        $items[] = [
+                            'code' => $itemDetails->code,
+                            'name' => $itemDetails->name,
+                            'quantity' => $dispatchItem->quantity,
+                            'type' => $dispatchItem->item_type,
+                            'serial_numbers' => $dispatchItem->serial_numbers,
+                            'dispatch_item_id' => $dispatchItem->id, // Thêm dispatch_item_id để phân biệt
+                            'dispatch_id' => $dispatch->id, // Thêm dispatch_id để debug
+                        ];
                     }
                 }
             }

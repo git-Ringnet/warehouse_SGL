@@ -315,7 +315,7 @@
 
     <!-- Modal thay thế vật tư -->
     <div id="replace-material-modal"
-        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        class="fixed inset-0 bg-black bg-opacity-50 items-center justify-center hidden z-50" style="display: none;">
         <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Thay thế vật tư</h3>
@@ -354,16 +354,9 @@
                     </select>
                 </div>
 
-                <!-- Số lượng cần thay thế -->
-                <div>
-                    <label for="replace-quantity" class="block text-sm font-medium text-gray-700 mb-1">
-                        Số lượng cần thay thế: <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" id="replace-quantity" min="1" max="1" value="1"
-                        required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">Tối đa: <span id="max-quantity">1</span> (số lượng vật tư
-                        trong thành phẩm)</p>
+                <!-- Số lượng cần thay thế - Ẩn vì luôn thay thế 1:1 -->
+                <div class="hidden">
+                    <input type="number" id="replace-quantity" value="1" readonly>
                 </div>
 
                 <!-- Chọn serial vật tư cũ cần thay thế -->
@@ -533,6 +526,23 @@
                             if (!originalMaterialSerials[materialKey]) {
                                 originalMaterialSerials[materialKey] = material.serial || '';
                             }
+                            
+                            // Xử lý serial - hiển thị N/A nếu không có serial
+                            let displaySerial = material.serial || '';
+                            let currentSerials = [];
+                            if (displaySerial) {
+                                if (Array.isArray(material.serial)) {
+                                    currentSerials = material.serial;
+                                    displaySerial = material.serial.join(', ');
+                                } else {
+                                    currentSerials = material.serial.split(',').map(s => s.trim()).filter(s => s);
+                                    displaySerial = currentSerials.join(', ');
+                                }
+                            } else {
+                                displaySerial = 'N/A';
+                                currentSerials = ['N/A'];
+                            }
+                            
                             // Tìm dữ liệu sửa chữa đã lưu để prefill ghi chú
                             const existingDM = existingDamagedMaterials.find(dm =>
                                 dm.device_code === deviceCode &&
@@ -550,6 +560,9 @@
                                 ...material,
                                 deviceCode: deviceCode,
                                 deviceId: deviceId,
+                                deviceSerial: deviceCode.includes('_') ? deviceCode.split('_')[1] : 'N/A',
+                                serial: displaySerial,
+                                current_serials: currentSerials,
                                 repairNote: prefilledNote,
                                 hasPendingReplacement: hasReplaced
                             };
@@ -714,14 +727,14 @@
             // Set material info
             document.getElementById('replace-material-code').textContent = material.code;
             document.getElementById('replace-material-name').textContent = material.name;
-            document.getElementById('max-quantity').textContent = material.quantity;
+            // Không cần set max-quantity vì đã ẩn trường số lượng
             document.getElementById('replace-quantity').max = material.quantity;
 
             // Determine if serial is required for this material (has any serial info)
             const normalize = (s) => (s || '').toString().trim().toUpperCase();
             const serialStr = normalize(material.serial);
             const current = Array.isArray(material.current_serials)
-                ? material.current_serials.map(normalize).filter(s => s && s !== 'N/A')
+                ? material.current_serials.map(normalize).filter(s => s)
                 : [];
             const hasAnySerial = (serialStr && serialStr !== 'N/A') || current.length > 0;
             // Persist flag for handlers
@@ -732,6 +745,29 @@
             const newSerialWrap = document.getElementById('serial-selection');
             oldSerialWrap.classList.add('hidden');
             newSerialWrap.classList.add('hidden');
+            
+            // Luôn hiển thị serial cũ ngay lập tức
+            if (hasAnySerial) {
+                // Load current serials immediately
+                const materialKey = `${material.deviceCode}_${material.code}`;
+                const originalSerial = originalMaterialSerials[materialKey] || material.serial || '';
+                
+                let originalSerials = [];
+                if (originalSerial) {
+                    if (typeof originalSerial === 'string') {
+                        originalSerials = originalSerial.split(',').map(s => s.trim()).filter(s => s);
+                    } else if (Array.isArray(originalSerial)) {
+                        originalSerials = [...originalSerial];
+                    }
+                }
+                
+                // Nếu không có serial, tạo array N/A theo số lượng
+                if (originalSerials.length === 0) {
+                    originalSerials = Array(material.quantity).fill('N/A');
+                }
+                
+                loadCurrentSerials(originalSerials, []);
+            }
 
             // Check if there's a previous replacement to pre-populate form
             const lastReplacement = getLastReplacement(material.deviceCode, material.code);
@@ -769,12 +805,38 @@
             }
 
             // Show modal
-            document.getElementById('replace-material-modal').classList.remove('hidden');
+            const modal = document.getElementById('replace-material-modal');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
 
-            // If material has no serial requirement, keep serial sections hidden
+            // If material has no serial requirement, show N/A options
             if (!hasAnySerial) {
-                document.getElementById('old-serial-selection').classList.add('hidden');
-                document.getElementById('serial-selection').classList.add('hidden');
+                // Hiển thị N/A cho serial cũ theo số lượng
+                const oldSerialList = document.getElementById('old-serial-list');
+                const quantity = material.quantity || 1;
+                oldSerialList.innerHTML = '';
+                for (let i = 0; i < quantity; i++) {
+                    oldSerialList.innerHTML += `
+                        <div class="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded border border-gray-100">
+                            <input type="checkbox" class="old-serial-checkbox" value="N/A" id="old-serial-NA-${i}" checked>
+                            <label for="old-serial-NA-${i}" class="flex-1 text-sm cursor-pointer">N/A</label>
+                        </div>
+                    `;
+                }
+                document.getElementById('old-serial-selection').classList.remove('hidden');
+                
+                // Hiển thị N/A cho serial mới theo số lượng
+                const serialList = document.getElementById('serial-list');
+                serialList.innerHTML = '';
+                for (let i = 0; i < quantity; i++) {
+                    serialList.innerHTML += `
+                        <div class="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                            <input type="checkbox" class="serial-checkbox" value="N/A" checked>
+                            <label class="text-sm text-gray-700">N/A</label>
+                        </div>
+                    `;
+                }
+                document.getElementById('serial-selection').classList.remove('hidden');
             }
         }
 
@@ -871,6 +933,13 @@
                 });
 
                 serialArray = [...new Set(serialArray)].filter(s => s && s.trim());
+                
+                // Nếu không có serial nào, tạo N/A theo số lượng vật tư
+                if (serialArray.length === 0) {
+                    // Lấy số lượng từ material hiện tại
+                    const quantity = currentReplacingMaterial ? currentReplacingMaterial.quantity : 1;
+                    serialArray = Array(quantity).fill('N/A');
+                }
 
                 serialArray.forEach((serial, index) => {
                     // Check if this serial should be selected (for displaying current state)
@@ -890,8 +959,17 @@
 
                 document.getElementById('old-serial-selection').classList.remove('hidden');
             } else {
-                document.getElementById('old-serial-list').innerHTML =
-                    '<p class="text-sm text-gray-500">Không có thông tin serial</p>';
+                // Hiển thị N/A theo số lượng vật tư nếu không có serial
+                const quantity = currentReplacingMaterial ? currentReplacingMaterial.quantity : 1;
+                for (let i = 0; i < quantity; i++) {
+                    const serialItem = document.createElement('div');
+                    serialItem.className = 'flex items-center space-x-2 p-2 hover:bg-gray-50 rounded border border-gray-100';
+                    serialItem.innerHTML = `
+                        <input type="checkbox" class="old-serial-checkbox" value="N/A" id="old-serial-NA-${i}">
+                        <label for="old-serial-NA-${i}" class="flex-1 text-sm cursor-pointer">N/A</label>
+                    `;
+                    document.getElementById('old-serial-list').appendChild(serialItem);
+                }
                 document.getElementById('old-serial-selection').classList.remove('hidden');
             }
         }
@@ -922,13 +1000,15 @@
         });
 
         document.getElementById('target-warehouse').addEventListener('change', function() {
-            if (this.value && currentReplacingMaterial && currentReplacingMaterial.requiresSerial) {
+            if (this.value && currentReplacingMaterial) {
                 // Check if there's a previous replacement to show selected state
                 const lastReplacement = getLastReplacement(currentReplacingMaterial.deviceCode,
                     currentReplacingMaterial.code);
                 const selectedNewSerials = lastReplacement ? (lastReplacement.new_serials || []) : [];
 
-                loadAvailableSerials(currentReplacingMaterial.code, this.value, 1, selectedNewSerials);
+                // Load available serials với số lượng đúng
+                const quantity = currentReplacingMaterial.quantity || 1;
+                loadAvailableSerials(currentReplacingMaterial.code, this.value, quantity, selectedNewSerials);
             }
         });
 
@@ -975,8 +1055,17 @@
 
                         document.getElementById('serial-selection').classList.remove('hidden');
                     } else {
-                        document.getElementById('serial-list').innerHTML =
-                            '<p class="text-sm text-gray-500">Không có serial nào khả dụng trong kho này</p>';
+                        // Hiển thị N/A theo số lượng vật tư nếu không có serial khả dụng
+                        const quantity = requiredQuantity || 1;
+                        for (let i = 0; i < quantity; i++) {
+                            const serialItem = document.createElement('div');
+                            serialItem.className = 'flex items-center space-x-2 p-2 hover:bg-gray-50 rounded';
+                            serialItem.innerHTML = `
+                                <input type="checkbox" class="serial-checkbox" value="N/A" checked>
+                                <label class="text-sm text-gray-700">N/A</label>
+                            `;
+                            document.getElementById('serial-list').appendChild(serialItem);
+                        }
                         document.getElementById('serial-selection').classList.remove('hidden');
                     }
                 })
@@ -1007,13 +1096,17 @@
 
         // Close replace modal
         document.getElementById('close-replace-modal').addEventListener('click', function() {
-            document.getElementById('replace-material-modal').classList.add('hidden');
+            const modal = document.getElementById('replace-material-modal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
             currentReplacingMaterial = null;
             resetReplaceModalState();
         });
 
         document.getElementById('cancel-replace-btn').addEventListener('click', function() {
-            document.getElementById('replace-material-modal').classList.add('hidden');
+            const modal = document.getElementById('replace-material-modal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
             currentReplacingMaterial = null;
             resetReplaceModalState();
         });
@@ -1041,6 +1134,9 @@
                 return;
             }
 
+            // Lấy số lượng vật tư cần thay thế
+            const requiredQuantity = currentReplacingMaterial.quantity || 1;
+            
             if (currentReplacingMaterial.requiresSerial) {
                 if (oldSerials.length === 0 || newSerials.length === 0) {
                     alert('Vui lòng chọn serial cũ và serial mới!');
@@ -1049,6 +1145,18 @@
                 if (oldSerials.length !== newSerials.length) {
                     alert('Số lượng serial cũ và mới phải bằng nhau!');
                     return;
+                }
+                if (oldSerials.length !== requiredQuantity) {
+                    alert(`Vui lòng chọn đúng ${requiredQuantity} serial cũ và ${requiredQuantity} serial mới!`);
+                    return;
+                }
+            } else {
+                // Nếu không có serial, tự động thêm N/A theo số lượng
+                if (oldSerials.length === 0) {
+                    oldSerials = Array(requiredQuantity).fill('N/A');
+                }
+                if (newSerials.length === 0) {
+                    newSerials = Array(requiredQuantity).fill('N/A');
                 }
             }
 
@@ -1103,16 +1211,54 @@
                 });
                 // Update the material serial display
                 deviceMaterialsList[materialIndex].serial = currentSerialArray.join(', ');
+                deviceMaterialsList[materialIndex].current_serials = currentSerialArray;
             }
+            
+            // Cập nhật tồn kho
+            updateWarehouseStock(replacement);
+            
             updateMaterialsDisplay();
 
             // Close modal and reset state
-            document.getElementById('replace-material-modal').classList.add('hidden');
+            const modal = document.getElementById('replace-material-modal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
             currentReplacingMaterial = null;
 
             // Force clear all selections for next time
             resetReplaceModalState();
         });
+
+        // Cập nhật tồn kho khi thay thế vật tư
+        function updateWarehouseStock(replacement) {
+            // Gửi request cập nhật tồn kho
+            fetch('/api/repairs/update-warehouse-stock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    material_code: replacement.material_code,
+                    old_serials: replacement.old_serials,
+                    new_serials: replacement.new_serials,
+                    source_warehouse_id: replacement.source_warehouse_id,
+                    target_warehouse_id: replacement.target_warehouse_id,
+                    quantity: replacement.quantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Tồn kho đã được cập nhật:', data);
+                } else {
+                    console.error('Lỗi cập nhật tồn kho:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Lỗi cập nhật tồn kho:', error);
+            });
+        }
 
         // Handle form submission: gom vật tư có ghi chú sửa chữa
         document.querySelector('form').addEventListener('submit', function(e) {

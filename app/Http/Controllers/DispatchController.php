@@ -388,6 +388,83 @@ class DispatchController extends Controller
                     });
                 }
 
+                // Xử lý assembly_id và product_unit cho sản phẩm N/A
+                $assemblyId = null;
+                $productUnit = null;
+                
+                if ($item['item_type'] === 'product' && 
+                    (empty($serialNumbers) || in_array('N/A', $serialNumbers) || in_array('NA', $serialNumbers))) {
+                    // Nếu là N/A và số lượng > 1, tách thành các bản ghi đơn vị (mỗi quantity = 1)
+                    $itemQuantity = (int) ($item['quantity'] ?? 1);
+                    if ($itemQuantity > 1) {
+                        $usedUnitKeys = [];
+                        for ($q = 0; $q < $itemQuantity; $q++) {
+                            $unitInfo = $this->getNextAvailableProductUnitForDispatch($item['item_id'], $dispatch->project_id ?? null);
+                            if (!$unitInfo) {
+                                Log::warning('No available unit found for N/A product when splitting quantity', [
+                                    'product_id' => $item['item_id'],
+                                    'loop_index' => $q
+                                ]);
+                                // Tạo item không gán unit để không chặn quy trình, sẽ xử lý tay sau
+                                $splitAssemblyId = null;
+                                $splitProductUnit = null;
+                            } else {
+                                $splitAssemblyId = $unitInfo['assembly_id'];
+                                $splitProductUnit = $unitInfo['product_unit'];
+                                // Tránh trùng trong cùng phiếu xuất
+                                $key = $splitAssemblyId . ':' . $splitProductUnit;
+                                if (in_array($key, $usedUnitKeys, true)) {
+                                    // Tìm thêm đơn vị kế tiếp cho tới khi không trùng
+                                    $guard = 0;
+                                    do {
+                                        $unitInfo = $this->getNextAvailableProductUnitForDispatch($item['item_id'], $dispatch->project_id ?? null);
+                                        $splitAssemblyId = $unitInfo['assembly_id'] ?? null;
+                                        $splitProductUnit = $unitInfo['product_unit'] ?? null;
+                                        $key = ($splitAssemblyId !== null && $splitProductUnit !== null) ? ($splitAssemblyId . ':' . $splitProductUnit) : null;
+                                        $guard++;
+                                    } while ($key !== null && in_array($key, $usedUnitKeys, true) && $guard < 10);
+                                }
+                                if ($key !== null) {
+                                    $usedUnitKeys[] = $key;
+                                }
+                            }
+
+                            $splitData = [
+                                'dispatch_id' => $dispatch->id,
+                                'item_type' => $item['item_type'],
+                                'item_id' => $item['item_id'],
+                                'quantity' => 1,
+                                'warehouse_id' => $item['warehouse_id'],
+                                'category' => $category,
+                                'serial_numbers' => [],
+                                'assembly_id' => $splitAssemblyId,
+                                'product_unit' => $splitProductUnit,
+                                'notes' => $item['notes'] ?? null,
+                            ];
+                            Log::info('Creating split dispatch item for N/A product', $splitData);
+                            $splitItem = DispatchItem::create($splitData);
+                            Log::info('Split DispatchItem created', ['id' => $splitItem->id]);
+                            if ($firstDispatchItem === null) {
+                                $firstDispatchItem = $splitItem;
+                            }
+                        }
+                        // Đã tách xong, bỏ qua tạo 1 dòng quantity lớn
+                        continue;
+                    }
+
+                    // quantity = 1 với N/A: gán thẳng đơn vị lắp ráp cho bản ghi hiện tại
+                    $unitInfo = $this->getNextAvailableProductUnitForDispatch($item['item_id'], $dispatch->project_id ?? null);
+                    if ($unitInfo) {
+                        $assemblyId = $unitInfo['assembly_id'];
+                        $productUnit = $unitInfo['product_unit'];
+                        Log::info('Assigned assembly and product unit for single N/A product', [
+                            'product_id' => $item['item_id'],
+                            'assembly_id' => $assemblyId,
+                            'product_unit' => $productUnit
+                        ]);
+                    }
+                }
+
                 $dispatchItemData = [
                     'dispatch_id' => $dispatch->id,
                     'item_type' => $item['item_type'],
@@ -396,6 +473,8 @@ class DispatchController extends Controller
                     'warehouse_id' => $item['warehouse_id'],
                     'category' => $category,
                     'serial_numbers' => $serialNumbers,
+                    'assembly_id' => $assemblyId,
+                    'product_unit' => $productUnit,
                     'notes' => $item['notes'] ?? null,
                 ];
                 Log::info("Creating dispatch item with data:", $dispatchItemData);
@@ -1963,6 +2042,88 @@ class DispatchController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Get next available product unit for N/A serial from assembly (for dispatch)
+     */
+    private function getNextAvailableProductUnitForDispatch(int $productId, ?int $projectId = null): ?array
+    {
+        // Tìm assembly có thành phẩm này với serial N/A, ưu tiên theo project
+        $query = \App\Models\AssemblyProduct::where('product_id', $productId)
+            ->where(function ($q) {
+                $q->whereNull('serials')
+                    ->orWhere('serials', '')
+                    ->orWhere('serials', 'N/A')
+                    ->orWhere('serials', 'NA');
+            });
+
+        // Nếu có project context, ưu tiên assembly của project đó
+        if ($projectId) {
+            $projectAssembly = $query->clone()
+                ->whereHas('assembly', function($q) use ($projectId) {
+                    $q->where('project_id', $projectId);
+                })
+                ->orderBy('id')
+                ->first();
+            
+            if ($projectAssembly) {
+                $availableUnit = $this->findAvailableUnitInAssemblyForDispatch($projectAssembly->assembly_id, $productId);
+                if ($availableUnit !== null) {
+                    return [
+                        'assembly_id' => $projectAssembly->assembly_id,
+                        'product_unit' => $availableUnit
+                    ];
+                }
+            }
+        }
+
+        // Fallback: tìm assembly khác theo thứ tự ID
+        $assemblies = $query->orderBy('id')->get();
+        foreach ($assemblies as $assembly) {
+            $availableUnit = $this->findAvailableUnitInAssemblyForDispatch($assembly->assembly_id, $productId);
+            if ($availableUnit !== null) {
+                return [
+                    'assembly_id' => $assembly->assembly_id,
+                    'product_unit' => $availableUnit
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find available product unit in specific assembly (for dispatch)
+     */
+    private function findAvailableUnitInAssemblyForDispatch(int $assemblyId, int $productId): ?int
+    {
+        // Lấy tất cả product_unit đã xuất cho assembly này
+        $usedUnits = \App\Models\DispatchItem::where('assembly_id', $assemblyId)
+            ->where('item_type', 'product')
+            ->where('item_id', $productId)
+            ->whereNotNull('product_unit')
+            ->pluck('product_unit')
+            ->toArray();
+
+        // Lấy tất cả product_unit có trong assembly này
+        $availableUnits = \App\Models\AssemblyMaterial::where('assembly_id', $assemblyId)
+            ->where('target_product_id', $productId)
+            ->whereNotNull('product_unit')
+            ->pluck('product_unit')
+            ->unique()
+            ->sort()
+            ->values()
+            ->toArray();
+
+        // Tìm unit đầu tiên chưa được xuất
+        foreach ($availableUnits as $unit) {
+            if (!in_array($unit, $usedUnits)) {
+                return $unit;
+            }
+        }
+
+        return null;
     }
 
     /**
