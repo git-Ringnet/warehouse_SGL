@@ -516,49 +516,57 @@
                 <span>Loại: Thành phẩm</span>
                 <span>Serial: {{ $item->serial_number ?: 'N/A' }}</span>
                 <span>Số lượng: {{ $item->quantity }}</span>
-                @if(!$isReadOnly)
                 <span class="ml-4">
                     <span class="text-gray-700 font-medium">KẾT QUẢ:</span>
-                    @if(empty($item->serial_number))
                     <div class="inline-flex items-center gap-2 ml-2">
-                        <label class="text-xs text-gray-600">Đạt:</label>
-                        <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->pass_quantity ?? 0 }}">
-                        <label class="text-xs text-gray-600">Không đạt:</label>
-                        <input type="number" name="item_fail_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->fail_quantity ?? 0 }}">
-            </div>
-                    @else
-                    @php
-                    $serials = [];
-                    if ($item->serial_number) {
-                        $serials = array_filter(array_map('trim', explode(',', $item->serial_number)));
-                    }
-                    $serialCount = count($serials);
-                    @endphp
-                    @if($serialCount > 0)
-                    <div class="inline-flex items-center gap-1 ml-2">
-                        @foreach($serials as $index => $serial)
                         @php
-                        $serialLabel = chr(65 + $index);
-                        $serialResults = [];
-                        if ($item->serial_results) {
-                            $serialResults = json_decode($item->serial_results, true);
-                        }
-                        $selectedValue = $serialResults[$serialLabel] ?? 'pending';
+                        $passQuantity = (int)($item->pass_quantity ?? 0);
+                        $failQuantity = (int)($item->fail_quantity ?? 0);
+                        $totalQuantity = (int)($item->quantity ?? 0);
+                        $serialResults = json_decode($item->serial_results ?? '{}', true);
                         @endphp
-                        <div class="flex items-center gap-1">
-                            <span class="text-xs text-gray-600">{{ $serialLabel }}:</span>
-                            <select name="serial_results[{{ $item->id }}][{{ $serialLabel }}]" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                <option value="pending" {{ $selectedValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                <option value="pass" {{ $selectedValue == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                <option value="fail" {{ $selectedValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                            </select>
-        </div>
-                        @endforeach
+                        
+                        @if($passQuantity > 0 && $failQuantity > 0)
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <i class="fas fa-check-circle mr-1"></i> {{ $passQuantity }} Đạt
+                        </span>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <i class="fas fa-times-circle mr-1"></i> {{ $failQuantity }} Không đạt
+                        </span>
+                        @elseif($passQuantity > 0)
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <i class="fas fa-check-circle mr-1"></i> {{ $passQuantity }} Đạt
+                        </span>
+                        @elseif($failQuantity > 0)
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <i class="fas fa-times-circle mr-1"></i> {{ $failQuantity }} Không đạt
+                        </span>
+                        @else
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            <i class="fas fa-clock mr-1"></i> Chưa có kết quả
+                        </span>
+                        @endif
+                        
+                        <span class="text-xs text-gray-500">(Tự động tính từ vật tư lắp ráp - Tất cả vật tư đạt → Thành phẩm đạt, Có vật tư fail → Thành phẩm fail)</span>
+                    </div>
+                    
+                    @if(!empty($serialResults) && count($serialResults) > 1)
+                    <div class="mt-2">
+                        <div class="text-xs font-medium text-gray-700 mb-1">Chi tiết từng đơn vị:</div>
+                        <div class="space-y-1">
+                            @foreach($serialResults as $label => $result)
+                            <div class="flex items-center text-xs">
+                                <span class="w-20 text-gray-600">Đơn vị {{ $loop->iteration }}:</span>
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $result === 'pass' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                    <i class="fas {{ $result === 'pass' ? 'fa-check-circle' : 'fa-times-circle' }} mr-1"></i>
+                                    {{ $result === 'pass' ? 'Đạt' : 'Không đạt' }}
+                                </span>
+                            </div>
+                            @endforeach
+                        </div>
                     </div>
                     @endif
-                    @endif
                 </span>
-                @endif
             </div>
         </div>
     @php
@@ -2094,13 +2102,16 @@
             // Auto-save cho test-item-form
             const testItemForm = document.getElementById('test-item-form');
             if (testItemForm) {
-                // Auto-save khi thay đổi kết quả tổng thể
+                // Auto-save khi thay đổi kết quả tổng thể (chỉ cho vật tư, không cho thành phẩm)
                 testItemForm.querySelectorAll('input[name^="item_pass_quantity"], input[name^="item_fail_quantity"]').forEach(function(input) {
-                    input.addEventListener('change', function() {
-                        autoSaveTestResults();
-                        // Cập nhật ngay lập tức phần "Chi tiết kết quả kiểm thử"
-                        updateOverallResults();
-                    });
+                    // Chỉ áp dụng cho vật tư, không áp dụng cho thành phẩm (vì thành phẩm tự động tính)
+                    if (!input.name.includes('product')) {
+                        input.addEventListener('change', function() {
+                            autoSaveTestResults();
+                            // Cập nhật ngay lập tức phần "Chi tiết kết quả kiểm thử"
+                            updateOverallResults();
+                        });
+                    }
                 });
 
                 // Auto-save khi thay đổi serial results
@@ -2131,15 +2142,21 @@
                     formData.append('_token', document.querySelector('input[name="_token"]').value);
                     formData.append('_method', 'PUT');
 
-                    // Thêm item_pass_quantity và item_fail_quantity
+                    // Thêm item_pass_quantity và item_fail_quantity (chỉ cho vật tư)
                     const passQuantityInputs = testItemForm.querySelectorAll('input[name^="item_pass_quantity"]');
                     passQuantityInputs.forEach(input => {
-                        formData.append(input.name, input.value);
+                        // Chỉ gửi dữ liệu cho vật tư, không gửi cho thành phẩm
+                        if (!input.name.includes('product')) {
+                            formData.append(input.name, input.value);
+                        }
                     });
 
                     const failQuantityInputs = testItemForm.querySelectorAll('input[name^="item_fail_quantity"]');
                     failQuantityInputs.forEach(input => {
-                        formData.append(input.name, input.value);
+                        // Chỉ gửi dữ liệu cho vật tư, không gửi cho thành phẩm
+                        if (!input.name.includes('product')) {
+                            formData.append(input.name, input.value);
+                        }
                     });
 
                     // Thêm serial_results
@@ -2194,18 +2211,21 @@
                     let totalFailQuantity = 0;
                     let totalQuantity = 0;
 
-                    // Lấy tất cả input pass_quantity và fail_quantity
+                    // Lấy tất cả input pass_quantity và fail_quantity (chỉ cho vật tư)
                     const passQuantityInputs = testItemForm.querySelectorAll('input[name^="item_pass_quantity"]');
                     const failQuantityInputs = testItemForm.querySelectorAll('input[name^="item_fail_quantity"]');
 
-                    // Tính toán tổng số lượng
+                    // Tính toán tổng số lượng (chỉ cho vật tư)
                     passQuantityInputs.forEach((input, index) => {
-                        const passQuantity = parseInt(input.value) || 0;
-                        const failQuantity = parseInt(failQuantityInputs[index]?.value) || 0;
+                        // Chỉ tính cho vật tư, không tính cho thành phẩm
+                        if (!input.name.includes('product')) {
+                            const passQuantity = parseInt(input.value) || 0;
+                            const failQuantity = parseInt(failQuantityInputs[index]?.value) || 0;
 
-                        totalPassQuantity += passQuantity;
-                        totalFailQuantity += failQuantity;
-                        totalQuantity += (passQuantity + failQuantity);
+                            totalPassQuantity += passQuantity;
+                            totalFailQuantity += failQuantity;
+                            totalQuantity += (passQuantity + failQuantity);
+                        }
                     });
 
                     // Cập nhật hiển thị
@@ -2238,18 +2258,11 @@
                     formData.append('_token', document.querySelector('input[name="_token"]').value);
                     formData.append('_method', 'PUT');
 
-                    // Lấy dữ liệu kết quả của thành phẩm này
-                    const passQuantityInput = document.querySelector(`input[name="item_pass_quantity[${productId}]"]`);
-                    const failQuantityInput = document.querySelector(`input[name="item_fail_quantity[${productId}]"]`);
+                    // Lấy dữ liệu kết quả của thành phẩm này (chỉ serial_results, không có pass/fail quantity vì tự động tính)
                     const serialResults = document.querySelectorAll(`select[name^="serial_results[${productId}]"]`);
                     const itemNotes = document.querySelector(`textarea[name="item_notes[${productId}]"]`);
 
-                    if (passQuantityInput) {
-                        formData.append(passQuantityInput.name, passQuantityInput.value);
-                    }
-                    if (failQuantityInput) {
-                        formData.append(failQuantityInput.name, failQuantityInput.value);
-                    }
+                    // Không cần lưu pass/fail quantity cho thành phẩm vì tự động tính từ vật tư lắp ráp
                     if (serialResults.length > 0) {
                         serialResults.forEach(select => {
                             formData.append(select.name, select.value);

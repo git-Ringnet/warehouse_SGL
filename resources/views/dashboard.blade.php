@@ -1045,13 +1045,17 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `${context.label}: ${context.raw}%`;
+                                    const val = Number(context.raw);
+                                    const formatted = Number.isFinite(val) ? val.toFixed(val >= 1 ? 1 : 2).replace(/\.0+$/, '') : context.raw;
+                                    return `${context.label}: ${formatted}%`;
                                 },
                             },
                         },
                         datalabels: {
                             formatter: (value) => {
-                                return `${value}%`;
+                                const val = Number(value);
+                                const formatted = Number.isFinite(val) ? val.toFixed(val >= 1 ? 1 : 2).replace(/\.0+$/, '') : value;
+                                return `${formatted}%`;
                             },
                             color: "#000000",
                             font: {
@@ -2445,7 +2449,7 @@
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end">
-                                        <span class="text-sm font-medium text-gray-800 dark:text-white">${percent}%</span>
+                                        <span class="text-sm font-medium text-gray-800 dark:text-white">${Number.isFinite(Number(percent)) ? Number(percent).toFixed(Number(percent) >= 1 ? 1 : 2).replace(/\.0+$/, '') : percent}%</span>
                                         <span class="text-xs text-gray-500">${detail.total.toLocaleString()} đơn vị</span>
                                     </div>
                                 `;
@@ -2465,7 +2469,7 @@
                                         <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${color}"></div>
                                         <span class="text-sm text-gray-600 dark:text-gray-300">${label}</span>
                                     </div>
-                                    <span class="text-sm font-medium text-gray-800 dark:text-white">${percent}%</span>
+                                    <span class="text-sm font-medium text-gray-800 dark:text-white">${Number.isFinite(Number(percent)) ? Number(percent).toFixed(Number(percent) >= 1 ? 1 : 2).replace(/\.0+$/, '') : percent}%</span>
                                 `;
 
                                 legendContainer.appendChild(legendItem);

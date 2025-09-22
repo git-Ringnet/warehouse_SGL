@@ -322,47 +322,53 @@
                                                 @if($testing->status == 'in_progress')
                                                 <span class="ml-4">
                                                     <span class="text-gray-700 font-medium">KẾT QUẢ:</span>
-                                                    @if(empty($item->serial_number))
                                                     <div class="inline-flex items-center gap-2 ml-2">
-                                                        <label class="text-xs text-gray-600">Đạt:</label>
-                                                        <input type="number" name="item_pass_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->pass_quantity ?? 0 }}">
-                                                        <label class="text-xs text-gray-600">Không đạt:</label>
-                                                        <input type="number" name="item_fail_quantity[{{ $item->id }}]" min="0" max="{{ $item->quantity }}" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" value="{{ $item->fail_quantity ?? 0 }}">
-                                                    </div>
-                                                    @else
-                                                    @php
-                                                    // Ưu tiên serial thành phẩm từ lắp ráp nếu có
-                                                    $serials = $mappedProductSerials;
-                                                    if (empty($serials)) {
-                                                        $serials = $item->serial_number ? array_filter(array_map('trim', explode(',', $item->serial_number))) : [];
-                                                    }
-                                                    $serialCount = count($serials);
-                                                    @endphp
-                                                    @if($serialCount > 0)
-                                                    <div class="inline-flex items-center gap-1 ml-2">
-                                                        @foreach($serials as $index => $serial)
                                                         @php
-                                                        $serialLabel = chr(65 + $index);
-                                                        $serialResults = [];
-                                                        if ($item->serial_results) {
-                                                            $serialResults = json_decode($item->serial_results, true);
-                                                        }
-                                                        $selectedValue = $serialResults[$serialLabel] ?? 'pending';
-                                                        @endphp
-                                                        <div class="flex items-center gap-1">
-                                                            <span class="text-xs text-gray-600">{{ $serialLabel }}:</span>
-                                                            <select name="serial_results[{{ $item->id }}][{{ $serialLabel }}]" class="w-16 h-6 border border-gray-300 rounded px-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                                                                <option value="pending" {{ $selectedValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                                                <option value="pass" {{ $selectedValue == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                                                <option value="fail" {{ $selectedValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                                                            </select>
+                                                        $passQuantity = (int)($item->pass_quantity ?? 0);
+                                                        $failQuantity = (int)($item->fail_quantity ?? 0);
+                                                        $totalQuantity = (int)($item->quantity ?? 0);
+                                                        $serialResults = json_decode($item->serial_results ?? '{}', true);
+                                                    @endphp
+                                                        
+                                                        @if($passQuantity > 0 && $failQuantity > 0)
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            <i class="fas fa-check-circle mr-1"></i> {{ $passQuantity }} Đạt
+                                                        </span>
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                            <i class="fas fa-times-circle mr-1"></i> {{ $failQuantity }} Không đạt
+                                                        </span>
+                                                        @elseif($passQuantity > 0)
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            <i class="fas fa-check-circle mr-1"></i> {{ $passQuantity }} Đạt
+                                                        </span>
+                                                        @elseif($failQuantity > 0)
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                            <i class="fas fa-times-circle mr-1"></i> {{ $failQuantity }} Không đạt
+                                                        </span>
+                                                        @else
+                                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                            <i class="fas fa-clock mr-1"></i> Chưa có kết quả
+                                                        </span>
+                                                        @endif
+                                                        
+                                                        <span class="text-xs text-gray-500">(Tự động tính từ vật tư lắp ráp - Tất cả vật tư đạt → Thành phẩm đạt, Có vật tư fail → Thành phẩm fail)</span>
+                                                    </div>
+                                                    
+                                                    @if(!empty($serialResults) && count($serialResults) > 1)
+                                                    <div class="mt-2">
+                                                        <div class="text-xs font-medium text-gray-700 mb-1">Chi tiết từng đơn vị:</div>
+                                                        <div class="space-y-1">
+                                                            @foreach($serialResults as $label => $result)
+                                                            <div class="flex items-center text-xs">
+                                                                <span class="w-20 text-gray-600">Đơn vị {{ $loop->iteration }}:</span>
+                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $result === 'pass' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                                                    <i class="fas {{ $result === 'pass' ? 'fa-check-circle' : 'fa-times-circle' }} mr-1"></i>
+                                                                    {{ $result === 'pass' ? 'Đạt' : 'Không đạt' }}
+                                                                </span>
                                                         </div>
                                                         @endforeach
+                                                        </div>
                                                     </div>
-                                                    @endif
-                                                    @if($serialCount == 0)
-                                                    <span class="ml-2 text-xs text-gray-500">Thiết bị được lắp ráp mà không sử dụng Serial có vật tư</span>
-                                                    @endif
                                                     @endif
                                                 </span>
                                                 @endif
