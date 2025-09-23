@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\DateHelper;
 
 class ProjectRequestController extends Controller
 {
@@ -339,9 +340,14 @@ class ProjectRequestController extends Controller
             }
         }
         
+        // Chuẩn hoá định dạng ngày tháng từ dd/mm/YYYY sang YYYY-mm-dd trước khi validate
+        $request->merge([
+            'request_date' => DateHelper::convertToDatabaseFormat($request->request_date),
+        ]);
+
         // Validation cơ bản cho các trường chung
         $baseRules = [
-            'request_date' => 'required|date',
+            'request_date' => 'required|date_format:Y-m-d',
             'proposer_id' => 'nullable|exists:employees,id', // Bỏ required vì có thể ẩn khi chọn warehouse
             'implementer_id' => 'nullable|exists:employees,id',
             'project_id' => 'required',
@@ -683,9 +689,14 @@ class ProjectRequestController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Chuẩn hoá định dạng ngày tháng trước khi validate
+        $request->merge([
+            'request_date' => DateHelper::convertToDatabaseFormat($request->request_date),
+        ]);
+
         // Validation cơ bản cho các trường chung
         $baseRules = [
-            'request_date' => 'required|date',
+            'request_date' => 'required|date_format:Y-m-d',
             'project_id' => 'required',
             'project_name' => 'required|string|max:255',
             'approval_method' => 'required|in:production,warehouse',

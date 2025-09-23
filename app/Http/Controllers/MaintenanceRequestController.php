@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Helpers\DateHelper;
 
 class MaintenanceRequestController extends Controller
 {
@@ -54,6 +55,11 @@ class MaintenanceRequestController extends Controller
     public function store(Request $request)
     {
         try {
+            // Chuẩn hoá định dạng ngày tháng trước khi validate
+            $request->merge([
+                'request_date' => DateHelper::convertToDatabaseFormat($request->request_date),
+                'maintenance_date' => DateHelper::convertToDatabaseFormat($request->maintenance_date),
+            ]);
             // Kiểm tra nếu là sao chép từ phiếu đã tồn tại
             if ($request->has('copy_from')) {
                 $sourceRequest = MaintenanceRequest::with(['products'])->findOrFail($request->copy_from);
@@ -107,11 +113,11 @@ class MaintenanceRequestController extends Controller
             
             // Validation cơ bản - cập nhật validation rule cho products nếu sử dụng thiết bị từ bảo hành
             $validationRules = [
-                'request_date' => 'required|date',
+                'request_date' => 'required|date_format:Y-m-d',
                 'proposer_id' => 'required|exists:employees,id',
                 'project_name' => 'nullable|string|max:255', // Bỏ required vì tự động điền
                 'customer_id' => 'required|exists:customers,id',
-                'maintenance_date' => 'required|date',
+                'maintenance_date' => 'required|date_format:Y-m-d',
                 'customer_name' => 'required|string|max:255',
                 'customer_phone' => 'required|string|max:20',
                 'customer_email' => 'nullable|email|max:255',
@@ -376,13 +382,19 @@ class MaintenanceRequestController extends Controller
                 ->with('error', 'Chỉ có thể chỉnh sửa phiếu bảo trì ở trạng thái chờ duyệt.');
         }
         
+        // Chuẩn hoá định dạng ngày tháng trước khi validate
+        $request->merge([
+            'request_date' => DateHelper::convertToDatabaseFormat($request->request_date),
+            'maintenance_date' => DateHelper::convertToDatabaseFormat($request->maintenance_date),
+        ]);
+
         // Validation cơ bản - cho phép chỉnh sửa toàn bộ
         $validator = Validator::make($request->all(), [
-            'request_date' => 'required|date',
+            'request_date' => 'required|date_format:Y-m-d',
             'project_type' => 'nullable|in:project,rental', // Bỏ required vì phiếu cũ có thể không có
             'project_id' => 'nullable|integer', // Bỏ required vì phiếu cũ có thể không có
             'project_name' => 'nullable|string|max:255',
-            'maintenance_date' => 'required|date',
+            'maintenance_date' => 'required|date_format:Y-m-d',
             'maintenance_type' => 'required|in:maintenance,repair,replacement,upgrade,other',
             'selected_devices' => 'required|string',
             'notes' => 'nullable|string',

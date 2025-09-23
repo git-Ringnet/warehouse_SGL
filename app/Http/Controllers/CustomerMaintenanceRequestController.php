@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\Employee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\DateHelper;
 
 class CustomerMaintenanceRequestController extends Controller
 {
@@ -398,13 +399,18 @@ class CustomerMaintenanceRequestController extends Controller
         // Lưu dữ liệu cũ trước khi cập nhật
         $oldData = $maintenanceRequest->toArray();
         
+        // Chuẩn hoá định dạng ngày tháng trước khi validate
+        $request->merge([
+            'request_date' => DateHelper::convertToDatabaseFormat($request->request_date),
+        ]);
+
         $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'customer_name' => 'required_if:customer_id,null|max:255',
             'customer_phone' => 'nullable|max:20',
             'customer_email' => 'nullable|email|max:255',
             'project_name' => 'required|max:255',
-            'request_date' => 'required|date',
+            'request_date' => 'required|date_format:Y-m-d',
             'maintenance_reason' => 'required',
             'priority' => 'required|in:low,medium,high,urgent',
         ]);
