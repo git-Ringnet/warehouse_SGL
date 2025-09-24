@@ -1543,7 +1543,7 @@ class ProjectRequestController extends Controller
                     continue;
                 }
 
-            // Phân bổ từ nhiều kho (chỉ trong các kho dùng để tính tồn kho của item):
+            // Phân bổ từ nhiều kho (CHỈ trong các kho dùng để tính tồn kho của item):
             $remaining = (int) $item->quantity;
 
             // Lấy danh sách tồn kho theo item_type chính xác
@@ -1551,35 +1551,33 @@ class ProjectRequestController extends Controller
                 ->where('item_type', $itemType)
                 ->whereHas('warehouse', function($q) { $q->where('status', 'active')->where('is_hidden', false); })
                 ->where('quantity', '>', 0);
-
-            // KHÔNG giới hạn theo inventory_warehouses nữa - lấy tồn kho từ TẤT CẢ các kho
-            // Đây là thay đổi chính: bỏ giới hạn kho để có thể tạo phiếu xuất từ nhiều kho
-            // $allowedWarehouseIds = [];
-            // if ($itemType === 'product') {
-            //     $obj = \App\Models\Product::find($itemId);
-            //     $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            // } elseif ($itemType === 'material') {
-            //     $obj = \App\Models\Material::find($itemId);
-            //     $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            // } elseif ($itemType === 'good') {
-            //     $obj = \App\Models\Good::find($itemId);
-            //     $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
-            // }
-            // if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
-            //     $stockQuery->whereIn('warehouse_id', $allowedWarehouseIds);
-            // }
+            
+            // Chỉ lấy từ những kho được cấu hình dùng để tính tồn kho cho item
+            $allowedWarehouseIds = [];
+            if ($itemType === 'product') {
+                $obj = \App\Models\Product::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($itemType === 'material') {
+                $obj = \App\Models\Material::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($itemType === 'good') {
+                $obj = \App\Models\Good::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            }
+            if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                $stockQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+            }
 
             $stockRows = $stockQuery->orderByDesc('quantity')->get();
 
-            // Nếu không có theo item_type chính xác, lấy tất cả (fallback)
+            // Nếu không có theo item_type chính xác, thử fallback (vẫn giới hạn theo kho được phép)
             if ($stockRows->isEmpty()) {
                 $fallbackQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
                     ->whereHas('warehouse', function($q) { $q->where('status', 'active')->where('is_hidden', false); })
                     ->where('quantity', '>', 0);
-                // KHÔNG giới hạn theo inventory_warehouses nữa
-                // if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
-                //     $fallbackQuery->whereIn('warehouse_id', $allowedWarehouseIds);
-                // }
+                if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                    $fallbackQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+                }
                 $stockRows = $fallbackQuery->orderByDesc('quantity')->get();
             }
 
@@ -1589,7 +1587,7 @@ class ProjectRequestController extends Controller
                 'item_type' => $itemType,
                 'quantity_requested' => $remaining,
                 'stock_rows_count' => $stockRows->count(),
-                'note' => 'Đã bỏ giới hạn inventory_warehouses - lấy từ tất cả kho',
+                'note' => 'Chỉ lấy từ kho dùng để tính tồn kho của item',
                 'stock_details' => $stockRows->map(function($wm) {
                     return [
                         'warehouse_id' => $wm->warehouse_id,
@@ -1738,8 +1736,7 @@ class ProjectRequestController extends Controller
                 continue;
             }
 
-            // Tính tổng tồn kho từ TẤT CẢ các kho (không chỉ giới hạn trong inventory_warehouses)
-            // Đây là thay đổi chính: bỏ giới hạn kho để tính tổng tồn kho
+            // Tính tổng tồn kho CHỈ từ các kho được cấu hình cho item
             $sumQuery = \App\Models\WarehouseMaterial::where('material_id', $itemId)
                 ->where(function($q) use ($stockItemType) {
                     $q->where('item_type', $stockItemType)
@@ -1748,11 +1745,22 @@ class ProjectRequestController extends Controller
                     ->whereHas('warehouse', function($q) {
                         $q->where('status', 'active')->where('is_hidden', false);
                 });
-            
-            // KHÔNG giới hạn theo inventory_warehouses nữa - tính từ tất cả kho
-            // if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
-            //     $sumQuery->whereIn('warehouse_id', $allowedWarehouseIds);
-            // }
+
+            // Lọc theo danh sách kho áp dụng tồn kho cho item
+            $allowedWarehouseIds = [];
+            if ($stockItemType === 'product') {
+                $obj = \App\Models\Product::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($stockItemType === 'material') {
+                $obj = \App\Models\Material::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            } elseif ($stockItemType === 'good') {
+                $obj = \App\Models\Good::find($itemId);
+                $allowedWarehouseIds = is_array($obj?->inventory_warehouses) ? $obj->inventory_warehouses : [];
+            }
+            if (!empty($allowedWarehouseIds) && !in_array('all', $allowedWarehouseIds)) {
+                $sumQuery->whereIn('warehouse_id', $allowedWarehouseIds);
+            }
             $quantityInStock = (int) $sumQuery->sum('quantity');
 
             // Debug log kết quả tìm kiếm (tổng theo tất cả kho)
