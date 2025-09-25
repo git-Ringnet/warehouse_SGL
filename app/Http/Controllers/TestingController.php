@@ -2786,9 +2786,17 @@ class TestingController extends Controller
                         }
                     }
 
-                    // Lấy TẤT CẢ vật tư từ assembly cho thành phẩm này (không phân biệt unit)
+                    // Lấy vật tư từ assembly cho thành phẩm này, CHỈ lấy vật tư của các unit bị fail
                     $assemblyMaterials = $testing->assembly->materials
                         ->where('target_product_id', $targetProductId);
+                    
+                    // Lọc chỉ lấy vật tư của các unit bị fail
+                    if (!empty($failedUnits)) {
+                        $assemblyMaterials = $assemblyMaterials->filter(function($am) use ($failedUnits) {
+                            $unitIndex = (int)($am->product_unit ?? 0);
+                            return in_array($unitIndex, $failedUnits);
+                        });
+                    }
                     
                     Log::info('DEBUG: Vật tư từ assembly cho thành phẩm không đạt', [
                         'target_product_id' => $targetProductId,
@@ -3286,29 +3294,34 @@ class TestingController extends Controller
 
                 // Thêm materials vào phiếu chuyển kho theo kho nguồn hiện tại
                 foreach ($itemsInSource as $item) {
-                if ($type == 'success') {
-                    $quantity = (int)($item->pass_quantity ?? 0) + (int)($item->no_serial_pass_quantity ?? 0);
-                } else {
-                    $quantity = (int)($item->fail_quantity ?? 0) + (int)($item->no_serial_fail_quantity ?? 0);
-                }
+                // ƯU TIÊN dùng tổng pass/fail đã chốt nếu đã đủ (tránh cộng trùng N/A)
+                $totalQty = (int)($item->quantity ?? 0);
+                $finalPass = (int)($item->pass_quantity ?? 0);
+                $finalFail = (int)($item->fail_quantity ?? 0);
+                $hasCompleteTotals = ($finalPass + $finalFail) === $totalQty && $totalQty > 0;
 
-                // Fallback tự động cho phiếu kiểm thử vật tư/hàng hóa: bổ sung phần N/A chưa ghi
-                if ($testing->test_type === 'material') {
+                if ($hasCompleteTotals) {
+                    $quantity = ($type == 'success') ? $finalPass : $finalFail;
+                } else {
+                    // Chưa đủ tổng → fallback: đếm theo serial_results + N/A đã nhập
                     $srPass = 0; $srFail = 0;
                     if (!empty($item->serial_results)) {
                         $sr = json_decode($item->serial_results, true);
-                        if (is_array($sr)) { foreach ($sr as $v) { if ($v === 'pass') $srPass++; elseif ($v === 'fail') $srFail++; } }
+                        if (is_array($sr)) {
+                            foreach ($sr as $v) { if ($v === 'pass') { $srPass++; } elseif ($v === 'fail') { $srFail++; } }
+                        }
                     }
-                    $pqNa = (int)($item->no_serial_pass_quantity ?? 0);
-                    $fqNa = (int)($item->no_serial_fail_quantity ?? 0);
-                    $total = (int)($item->quantity ?? 0);
-                    $remaining = max(0, $total - ($srPass + $srFail + $pqNa + $fqNa));
-                    if ($remaining > 0) {
-                        // Mặc định phần N/A chưa ghi sẽ vào phiếu không đạt
-                        if ($type === 'fail') { $quantity += $remaining; }
+                    if ($type == 'success') {
+                        $quantity = $srPass + (int)($item->no_serial_pass_quantity ?? 0);
+                    } else {
+                        $quantity = $srFail + (int)($item->no_serial_fail_quantity ?? 0);
                     }
                 }
-                
+
+                // FIX: Không tự động cộng "phần còn lại" (remaining) vào phiếu không đạt.
+                // Lấy đúng số lượng từ các trường đã được tính/saved trong phiếu kiểm thử
+                // để đảm bảo số lượng ở phiếu chuyển kho khớp 100% với giao diện kết quả kiểm thử.
+
                 if ($quantity > 0) {
                     // Xác định item_type và material_id
                     $itemType = $item->item_type;
