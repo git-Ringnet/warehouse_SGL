@@ -306,18 +306,7 @@
                                                         Thành phẩm
                                                     @endif
                                                 </span>
-                                                @php
-                                                    // Map Serial thành phẩm từ phiếu lắp ráp nếu có
-                                                    $mappedProductSerials = [];
-                                                    if ($testing->test_type == 'finished_product' && $testing->assembly) {
-                                                        $apForSerial = $testing->assembly->products ? $testing->assembly->products->firstWhere('product_id', ($item->product_id ?? $item->good_id)) : null;
-                                                        if ($apForSerial && !empty($apForSerial->serials)) {
-                                                            $mappedProductSerials = array_values(array_filter(array_map('trim', explode(',', $apForSerial->serials))));
-                                                        }
-                                                    }
-                                                    $serialDisplay = count($mappedProductSerials) > 0 ? implode(', ', $mappedProductSerials) : ($item->serial_number ?: 'N/A');
-                                                @endphp
-                                                <span>Serial: {{ $serialDisplay }}</span>
+                                                
                                                 <span>Số lượng: {{ $item->quantity }}</span>
                                                 @if($testing->status == 'in_progress')
                                                 <span class="ml-4">
@@ -354,22 +343,7 @@
                                                         <span class="text-xs text-gray-500">(Tự động tính từ vật tư lắp ráp - Tất cả vật tư đạt → Thành phẩm đạt, Có vật tư fail → Thành phẩm fail)</span>
                                                     </div>
                                                     
-                                                    @if(!empty($serialResults) && count($serialResults) > 1)
-                                                    <div class="mt-2">
-                                                        <div class="text-xs font-medium text-gray-700 mb-1">Chi tiết từng đơn vị:</div>
-                                                        <div class="space-y-1">
-                                                            @foreach($serialResults as $label => $result)
-                                                            <div class="flex items-center text-xs">
-                                                                <span class="w-20 text-gray-600">Đơn vị {{ $loop->iteration }}:</span>
-                                                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {{ $result === 'pass' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                                                    <i class="fas {{ $result === 'pass' ? 'fa-check-circle' : 'fa-times-circle' }} mr-1"></i>
-                                                                    {{ $result === 'pass' ? 'Đạt' : 'Không đạt' }}
-                                                                </span>
-                                                        </div>
-                                                        @endforeach
-                                                        </div>
-                                                    </div>
-                                                    @endif
+                                                    
                                                 </span>
                                                 @endif
                                             </div>
@@ -549,12 +523,18 @@
                                                 $globalUnitCounter++; // Tăng biến đếm toàn cục
                                                 $displayUnitIndex = $globalUnitCounter; // Sử dụng biến đếm toàn cục
                                             @endphp
-                                            <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
-                                                <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
-                                                    <div class="text-sm text-green-800 font-medium">
-                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
+                                            @php
+                                                $serialResultsForUnits = json_decode($item->serial_results ?? '{}', true) ?: [];
+                                                $makeLabel = function($idx){ return chr(64 + (int)$idx); };
+                                                $unitNumberForLabel = is_numeric($unitIdx) ? ((int)$unitIdx + 1) : $displayUnitIndex;
+                                                $isFailUnit = isset($serialResultsForUnits[$makeLabel($unitNumberForLabel)]) && $serialResultsForUnits[$makeLabel($unitNumberForLabel)] === 'fail';
+                                            @endphp
+                                            <div class="mb-4 rounded-lg overflow-hidden border {{ $isFailUnit ? 'border-yellow-200' : 'border-green-200' }}">
+                                                <div class="px-3 py-2 flex items-center justify-between border-b {{ $isFailUnit ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200' }}">
+                                                    <div class="text-sm font-medium {{ $isFailUnit ? 'text-yellow-800' : 'text-green-800' }}">
+                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }}
                                                     </div>
-                                                    <div class="text-xs text-green-700">{{ count($unitMaterials) }} vật tư</div>
+                                                    <div class="text-xs {{ $isFailUnit ? 'text-yellow-700' : 'text-green-700' }}">{{ count($unitMaterials) }} vật tư</div>
                                                 </div>
                                                 <div class="overflow-x-auto">
                                                     <table class="min-w-full bg-white">
