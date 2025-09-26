@@ -746,6 +746,13 @@ class ProjectRequestController extends Controller
             
             $projectRequest = ProjectRequest::findOrFail($id);
             
+            // Debug: Log dữ liệu form được gửi
+            Log::info('=== PROJECT REQUEST UPDATE DEBUG ===');
+            Log::info('Form data received:', $request->all());
+            Log::info('Item type: ' . $itemType);
+            Log::info('Equipment data:', $request->input('equipment', []));
+            Log::info('Good data:', $request->input('good', []));
+            
             // Lưu dữ liệu cũ trước khi cập nhật
             $oldData = $projectRequest->toArray();
             
@@ -803,7 +810,11 @@ class ProjectRequestController extends Controller
                 $items = $request->input('good') ?? [];
             }
             
-            foreach ($items as $item) {
+            Log::info('Items to process:', $items);
+            Log::info('Items count: ' . count($items));
+            
+            foreach ($items as $index => $item) {
+                Log::info("Processing item at index {$index}:", $item);
                 if (!isset($item['id']) || !isset($item['quantity'])) {
                     continue;
                 }
@@ -833,7 +844,9 @@ class ProjectRequestController extends Controller
                     $itemData['description'] = $itemModel->description;
                     
                     // Tạo item
-                    ProjectRequestItem::create($itemData);
+                    Log::info("Creating ProjectRequestItem with data:", $itemData);
+                    $createdItem = ProjectRequestItem::create($itemData);
+                    Log::info("Created ProjectRequestItem ID: " . $createdItem->id);
                 }
             }
             

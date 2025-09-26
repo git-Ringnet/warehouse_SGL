@@ -158,7 +158,13 @@ function populateDropdown(selectElement, itemType) {
 }
 
 // Xử lý thêm/xóa rows cho equipment
-let equipmentIndex = 1;
+function getNextEquipmentIndex() {
+    const container = document.getElementById('equipment_container');
+    if (!container) return 0;
+    
+    const existingRows = container.querySelectorAll('.equipment-row');
+    return existingRows.length;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     const addEquipmentBtn = document.getElementById('add_equipment');
@@ -166,6 +172,8 @@ document.addEventListener('DOMContentLoaded', function() {
         addEquipmentBtn.addEventListener('click', function() {
             const container = document.getElementById('equipment_container');
             if (!container) return;
+            
+            const equipmentIndex = getNextEquipmentIndex();
             
             const newRow = document.createElement('div');
             newRow.className = 'equipment-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
@@ -192,20 +200,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const newSelect = newRow.querySelector('select');
             populateDropdown(newSelect, 'equipment');
             
-            equipmentIndex++;
-            
             // Hiển thị nút xóa cho tất cả rows
             updateRemoveButtons();
         });
     }
     
     // Xử lý thêm/xóa rows cho material
-    let materialIndex = 1;
+    function getNextMaterialIndex() {
+        const container = document.getElementById('material_container');
+        if (!container) return 0;
+        
+        const existingRows = container.querySelectorAll('.material-row');
+        return existingRows.length;
+    }
+    
     const addMaterialBtn = document.getElementById('add_material');
     if (addMaterialBtn) {
         addMaterialBtn.addEventListener('click', function() {
             const container = document.getElementById('material_container');
             if (!container) return;
+            
+            const materialIndex = getNextMaterialIndex();
             
             const newRow = document.createElement('div');
             newRow.className = 'material-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
@@ -232,20 +247,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const newSelect = newRow.querySelector('select');
             populateDropdown(newSelect, 'material');
             
-            materialIndex++;
-            
             // Hiển thị nút xóa cho tất cả rows
             updateRemoveButtons();
         });
     }
     
     // Xử lý thêm/xóa rows cho good
-    let goodIndex = 1;
+    function getNextGoodIndex() {
+        const container = document.getElementById('good_container');
+        if (!container) return 0;
+        
+        const existingRows = container.querySelectorAll('.good-row');
+        return existingRows.length;
+    }
+    
     const addGoodBtn = document.getElementById('add_good');
     if (addGoodBtn) {
         addGoodBtn.addEventListener('click', function() {
             const container = document.getElementById('good_container');
             if (!container) return;
+            
+            const goodIndex = getNextGoodIndex();
             
             const newRow = document.createElement('div');
             newRow.className = 'good-row grid grid-cols-1 md:grid-cols-5 gap-4 mb-3';
@@ -271,8 +293,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Populate dropdown với dữ liệu
             const newSelect = newRow.querySelector('select');
             populateDropdown(newSelect, 'good');
-            
-            goodIndex++;
             
             // Hiển thị nút xóa cho tất cả rows
             updateRemoveButtons();
