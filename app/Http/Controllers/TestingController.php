@@ -399,15 +399,22 @@ class TestingController extends Controller
             'failWarehouse'
         ]);
 
-        // Ghi nhật ký xem chi tiết phiếu kiểm thử
+        // Ghi nhật ký xem chi tiết phiếu kiểm thử (thu gọn dữ liệu log)
         if (Auth::check()) {
+            $lightData = [
+                'id' => $testing->id,
+                'test_code' => $testing->test_code,
+                'status' => $testing->status,
+                'test_type' => $testing->test_type,
+                'created_at' => $testing->created_at,
+            ];
             UserLog::logActivity(
                 Auth::id(),
                 'view',
                 'testings',
                 'Xem chi tiết phiếu kiểm thử: ' . $testing->test_code,
                 null,
-                $testing->toArray()
+                $lightData
             );
         }
 
