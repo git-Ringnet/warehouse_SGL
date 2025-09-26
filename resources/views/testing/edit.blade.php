@@ -388,25 +388,45 @@
                                     <!-- Vật tư/Hàng hóa cho phiếu kiểm thử loại vật tư/hàng hóa -->
                                 @if($testing->test_type == 'material' && ($item->item_type == 'material' || $item->item_type == 'product'))
                                 <div class="mb-4 border-t border-gray-200 pt-4">
+                                    @php
+                                        // Chuẩn bị dữ liệu trước để hiển thị header đúng số liệu
+                                        $serialsRow = $item->serial_number ? array_values(array_filter(array_map('trim', explode(',', $item->serial_number)))) : [];
+                                        $quantity = (int)($item->quantity ?? 0);
+                                        $serialCount = count($serialsRow);
+                                        $resultMapRow = $item->serial_results ? json_decode($item->serial_results, true) : [];
+                                        $code = $item->material->code ?? ($item->good->code ?? '');
+                                        $name = $item->material->name ?? ($item->good->name ?? '');
+                                        $typeText = $item->item_type == 'material' ? 'Vật tư' : 'Hàng hóa';
+                                    @endphp
                                     <div class="mb-3 rounded-lg overflow-hidden border border-green-200">
                                         <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
                                             <div class="text-sm text-green-800 font-medium">
                                                 <i class="fas fa-box-open mr-2"></i>{{ $item->material->code ?? ($item->good->code ?? '') }} - {{ $item->material->name ?? ($item->good->name ?? '') }}
                                             </div>
-                                            <div class="text-xs text-green-700">Số lượng: {{ $quantity }}</div>
+                                            <div class="flex items-center gap-3">
+                                                @php
+                                                    // Tính KẾT QUẢ cho từng vật tư / hàng hoá (theo dropdown hiện tại)
+                                                    $__pass = 0; $__fail = 0; $__pending = 0;
+                                                    for($__i=0; $__i<$quantity; $__i++){
+                                                        $__label = chr(65 + $__i);
+                                                        $__val = $resultMapRow[$__label] ?? 'pending';
+                                                        if($__val === 'pass') $__pass++;
+                                                        elseif($__val === 'fail') $__fail++;
+                                                        else $__pending++;
+                                                    }
+                                                @endphp
+                                                <div class="text-xs">
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium mr-2">
+                                                        <i class="fas fa-check-circle mr-1"></i> {{ $__pass }} Đạt
+                                                    </span>
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                                                        <i class="fas fa-times-circle mr-1"></i> {{ $__fail }} Không đạt
+                                                    </span>
+                                                </div>
+                                                <div class="text-xs text-green-700">Số lượng: {{ $quantity }}</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    @php
-                                        $serialsRow = $item->serial_number ? array_values(array_filter(array_map('trim', explode(',', $item->serial_number)))) : [];
-                                        $quantity = (int)($item->quantity ?? 0);
-                                        $serialCount = count($serialsRow);
-                                        $resultMapRow = $item->serial_results ? json_decode($item->serial_results, true) : [];
-                                    @endphp
-                                    @php
-                                        $code = $item->material->code ?? ($item->good->code ?? '');
-                                        $name = $item->material->name ?? ($item->good->name ?? '');
-                                        $typeText = $item->item_type == 'material' ? 'Vật tư' : 'Hàng hóa';
-                                    @endphp
                                     <div class="overflow-x-auto">
                                         <table class="min-w-full bg-white">
                                             <thead>

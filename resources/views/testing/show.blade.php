@@ -401,7 +401,28 @@
             <div class="text-sm text-green-800 font-medium">
                 <i class="fas fa-box-open mr-2"></i>{{ $idx + 1 }}. {{ $code }} - {{ $name }} ({{ $typeText }})
             </div>
-            <div class="text-xs text-green-700">Số lượng: {{ $quantity }}</div>
+            <div class="flex items-center gap-3">
+                @php
+                    // Tính KẾT QUẢ cho từng vật tư / hàng hoá
+                    $passCount = 0; $failCount = 0; $pendingCount = 0;
+                    for($__i=0; $__i<$quantity; $__i++){
+                        $__label = chr(65 + $__i);
+                        $__val = $resultMap[$__label] ?? 'pending';
+                        if($__val === 'pass') $passCount++;
+                        elseif($__val === 'fail') $failCount++;
+                        else $pendingCount++;
+                    }
+                @endphp
+                <div class="text-xs">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium mr-2">
+                        <i class="fas fa-check-circle mr-1"></i> {{ $passCount }} Đạt
+                    </span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
+                        <i class="fas fa-times-circle mr-1"></i> {{ $failCount }} Không đạt
+                    </span>
+                </div>
+                <div class="text-xs text-green-700">Số lượng: {{ $quantity }}</div>
+            </div>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full bg-white">
