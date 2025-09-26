@@ -672,7 +672,7 @@
                 }
                 
                 const itemData = itemsData.find(data => data.id == itemId && data.type === itemType);
-                const warehouseData = JSON.parse('@json($warehouses)');
+                const warehouseData = @json($warehouses);
                 const warehouse = warehouseData.find(w => w.id == warehouseId);
                 
                 console.log('itemsData:', itemsData);

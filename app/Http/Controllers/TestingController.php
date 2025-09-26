@@ -87,7 +87,14 @@ class TestingController extends Controller
             ->select('id', 'code', 'name')
             ->orderBy('name', 'asc')
             ->get()
-            ->unique('id');
+            ->unique('id')
+            ->map(function($material) {
+                return [
+                    'id' => $material->id,
+                    'code' => $material->code,
+                    'name' => preg_replace('/[\x00-\x1F\x7F]/', '', $material->name) // Remove control characters
+                ];
+            });
         $products = Product::where('is_hidden', false)
             ->select('id', 'code', 'name')
             ->orderBy('name', 'asc')
@@ -97,7 +104,14 @@ class TestingController extends Controller
             ->where('is_hidden', false)
             ->select('id', 'code', 'name')
             ->orderBy('name', 'asc')
-            ->get();
+            ->get()
+            ->map(function($good) {
+                return [
+                    'id' => $good->id,
+                    'code' => $good->code,
+                    'name' => preg_replace('/[\x00-\x1F\x7F]/', '', $good->name) // Remove control characters
+                ];
+            });
         $suppliers = Supplier::all();
         $warehouses = Warehouse::where('status', 'active')->get();
 
