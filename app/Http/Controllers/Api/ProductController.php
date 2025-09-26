@@ -128,10 +128,76 @@ class ProductController extends Controller
     /**
      * Get detailed materials information for each product
      */
-    public function getMaterialsCount()
+    public function getMaterialsCount(Request $request)
     {
         try {
-            // Get detailed material information for each product
+            $dispatchItems = $request->input('dispatch_items', []);
+            
+            // Nếu có dispatch_items, lấy từ assembly_materials theo assembly_id và product_unit
+            if (!empty($dispatchItems)) {
+                $materialDetails = [];
+                
+                foreach ($dispatchItems as $item) {
+                    if ($item['item_type'] === 'product' && isset($item['assembly_id']) && isset($item['product_unit'])) {
+                        $assemblyId = $item['assembly_id'];
+                        $productUnit = $item['product_unit'];
+                        $productId = $item['item_id'];
+                        
+                        // Lấy vật tư từ assembly_materials theo assembly_id, product_unit và target_product_id
+                        $assemblyMaterials = DB::table('assembly_materials')
+                            ->join('materials', 'assembly_materials.material_id', '=', 'materials.id')
+                            ->where('assembly_materials.assembly_id', $assemblyId)
+                            ->where('assembly_materials.product_unit', $productUnit)
+                            ->where('assembly_materials.target_product_id', $productId)
+                            ->select(
+                                'assembly_materials.material_id',
+                                'assembly_materials.quantity',
+                                'assembly_materials.serial',
+                                'materials.code as material_code',
+                                'materials.name as material_name'
+                            )
+                            ->get();
+                        
+                        // Gộp các dòng cùng material_id và cộng quantity
+                        $groupedMaterials = [];
+                        foreach ($assemblyMaterials as $material) {
+                            $key = $material->material_id;
+                            if (!isset($groupedMaterials[$key])) {
+                                $groupedMaterials[$key] = [
+                                    'material_id' => $material->material_id,
+                                    'material_code' => $material->material_code,
+                                    'material_name' => $material->material_name,
+                                    'quantity' => 0,
+                                    'serial' => $material->serial
+                                ];
+                            }
+                            $groupedMaterials[$key]['quantity'] += $material->quantity;
+                        }
+                        
+                        $details = [];
+                        foreach ($groupedMaterials as $material) {
+                            for ($i = 0; $i < $material['quantity']; $i++) {
+                                $details[] = [
+                                    'material_id' => $material['material_id'],
+                                    'material_code' => $material['material_code'],
+                                    'material_name' => $material['material_name'],
+                                    'serial' => $material['serial'],
+                                    'index' => $i + 1
+                                ];
+                            }
+                        }
+                        
+                        $materialDetails[$productId] = $details;
+                    }
+                }
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => $materialDetails
+                ]);
+            }
+            
+            // Fallback: lấy từ product_materials (quan hệ cố định) nếu không có dispatch_items
             $materialDetails = ProductMaterial::select('product_id', 'material_id', 'quantity')
                 ->with('material:id,code,name')
                 ->get()
@@ -160,6 +226,125 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Lỗi khi lấy thông tin vật tư: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * API chuyên dụng để lấy serial vật tư cho modal "Cập nhật mã thiết bị"
+     * Sử dụng chung cho cả trạng thái pending và approved
+     */
+    public function getDeviceCodeMaterials(Request $request)
+    {
+        try {
+            $dispatchId = $request->get('dispatch_id');
+            $type = $request->get('type', 'contract'); // contract, backup, general
+            
+            if (!$dispatchId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'dispatch_id là bắt buộc'
+                ], 422);
+            }
+
+            // Lấy dispatch items theo type
+            $dispatchItems = DB::table('dispatch_items')
+                ->where('dispatch_id', $dispatchId)
+                ->where('item_type', 'product')
+                ->where('category', $type)
+                ->get();
+
+            $materialDetails = [];
+            
+            foreach ($dispatchItems as $item) {
+                $productId = $item->item_id;
+                $assemblyId = $item->assembly_id;
+                $productUnit = $item->product_unit;
+                
+                // Nếu có assembly_id và product_unit, lấy từ assembly_materials
+                if ($assemblyId && $productUnit !== null) {
+                    $assemblyMaterials = DB::table('assembly_materials')
+                        ->join('materials', 'assembly_materials.material_id', '=', 'materials.id')
+                        ->where('assembly_materials.assembly_id', $assemblyId)
+                        ->where('assembly_materials.product_unit', $productUnit)
+                        ->where('assembly_materials.target_product_id', $productId)
+                        ->select(
+                            'assembly_materials.material_id',
+                            'assembly_materials.quantity',
+                            'assembly_materials.serial',
+                            'materials.code as material_code',
+                            'materials.name as material_name'
+                        )
+                        ->get();
+                    
+                    // Gộp các dòng cùng material_id và cộng quantity
+                    $groupedMaterials = [];
+                    foreach ($assemblyMaterials as $material) {
+                        $key = $material->material_id;
+                        if (!isset($groupedMaterials[$key])) {
+                            $groupedMaterials[$key] = [
+                                'material_id' => $material->material_id,
+                                'material_code' => $material->material_code,
+                                'material_name' => $material->material_name,
+                                'quantity' => 0,
+                                'serial' => $material->serial
+                            ];
+                        }
+                        $groupedMaterials[$key]['quantity'] += $material->quantity;
+                    }
+                    
+                    $details = [];
+                    foreach ($groupedMaterials as $material) {
+                        for ($i = 0; $i < $material['quantity']; $i++) {
+                            $details[] = [
+                                'material_id' => $material['material_id'],
+                                'material_code' => $material['material_code'],
+                                'material_name' => $material['material_name'],
+                                'serial' => $material['serial'],
+                                'index' => $i + 1
+                            ];
+                        }
+                    }
+                    
+                    $materialDetails[$productId] = $details;
+                } else {
+                    // Fallback: lấy từ product_materials nếu không có assembly_id
+                    $productMaterials = DB::table('product_materials')
+                        ->join('materials', 'product_materials.material_id', '=', 'materials.id')
+                        ->where('product_materials.product_id', $productId)
+                        ->select(
+                            'product_materials.material_id',
+                            'product_materials.quantity',
+                            'materials.code as material_code',
+                            'materials.name as material_name'
+                        )
+                        ->get();
+                    
+                    $details = [];
+                    foreach ($productMaterials as $material) {
+                        for ($i = 0; $i < $material->quantity; $i++) {
+                            $details[] = [
+                                'material_id' => $material->material_id,
+                                'material_code' => $material->material_code,
+                                'material_name' => $material->material_name,
+                                'serial' => '', // Không có serial từ product_materials
+                                'index' => $i + 1
+                            ];
+                        }
+                    }
+                    
+                    $materialDetails[$productId] = $details;
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $materialDetails
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi khi lấy thông tin vật tư cho device code: ' . $e->getMessage()
             ], 500);
         }
     }

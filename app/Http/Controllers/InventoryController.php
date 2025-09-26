@@ -99,31 +99,86 @@ class InventoryController extends Controller
     /**
      * Get device information by serial number
      */
-    public function getDeviceInfo($serial)
+    public function getDeviceInfo(\Illuminate\Http\Request $request, $serial)
     {
         try {
+            $productId = $request->get('product_id');
+            $expectedCount = (int) ($request->get('expected_count') ?? 0);
             // Tìm device code theo serial chính
-            $deviceCode = \App\Models\DeviceCode::where('serial_main', $serial)->first();
+            $normalizedSerial = strtoupper(trim((string)$serial));
+            $deviceCodeQuery = \App\Models\DeviceCode::whereRaw('UPPER(TRIM(serial_main)) = ?', [$normalizedSerial]);
+            if ($productId) {
+                $deviceCodeQuery->where('product_id', $productId);
+            }
+            $deviceCode = $deviceCodeQuery->first();
             
             // Nếu có device code, ưu tiên thông tin từ đó
             if ($deviceCode) {
+                $debug = [
+                    'matched' => 'device_codes',
+                    'product_id' => $deviceCode->product_id,
+                    'serial_main' => $deviceCode->serial_main,
+                ];
+                $components = $deviceCode->serial_components ?? [];
+                if (is_string($components)) {
+                    $decoded = json_decode($components, true);
+                    if (is_array($decoded)) {
+                        $components = $decoded;
+                    } else {
+                        $components = [];
+                    }
+                }
+                $components = array_values(array_filter($components, fn($s) => isset($s) && trim((string)$s) !== ''));
+                if ($expectedCount > 0) {
+                    if (count($components) > $expectedCount) {
+                        $components = array_slice($components, 0, $expectedCount);
+                    } elseif (count($components) < $expectedCount) {
+                        $components = array_pad($components, $expectedCount, '');
+                    }
+                }
+
+                // Build components array aligned to product materials order if possible
+                $materialsDetailsForZip = DB::table('product_materials')
+                    ->select('material_id', 'quantity')
+                    ->where('product_id', $productId ?: $deviceCode->product_id)
+                    ->get();
+                $expandedForZip = [];
+                foreach ($materialsDetailsForZip as $md) {
+                    $qty = max(1, (int)$md->quantity);
+                    for ($i = 0; $i < $qty; $i++) {
+                        $expandedForZip[] = (int)$md->material_id;
+                    }
+                }
+                $componentsOut = [];
+                for ($i = 0; $i < count($components); $i++) {
+                    $componentsOut[] = [
+                        'material_id' => $expandedForZip[$i] ?? null,
+                        'serial' => $components[$i] ?? ''
+                    ];
+                }
+
                 return response()->json([
                     'success' => true,
                     'data' => [
-                        'componentSerials' => $deviceCode->serial_components ?? [],
+                        'componentSerials' => $components,
+                        'components' => $componentsOut,
                         'serialSim' => $deviceCode->serial_sim,
                         'accessCode' => $deviceCode->access_code,
                         'iotId' => $deviceCode->iot_id,
                         'mac4g' => $deviceCode->mac_4g,
                         'note' => $deviceCode->note
-                    ]
+                    ],
+                    'debug' => $debug
                 ]);
             }
             
             // Nếu không tìm thấy device code, thử tìm từ assembly
-            $assemblyProduct = DB::table('assembly_products')
-                ->where('serials', $serial)
-                ->first();
+            $assemblyProductQuery = DB::table('assembly_products')
+                ->whereRaw('UPPER(TRIM(serials)) = ?', [$normalizedSerial]);
+            if ($productId) {
+                $assemblyProductQuery->where('product_id', $productId);
+            }
+            $assemblyProduct = $assemblyProductQuery->orderByDesc('id')->first();
 
             if (!$assemblyProduct) {
                 // Không tìm thấy, trả về kết quả trống
@@ -136,27 +191,118 @@ class InventoryController extends Controller
                         'iotId' => null,
                         'mac4g' => null,
                         'note' => null
+                    ],
+                    'debug' => [
+                        'matched' => 'none'
                     ]
                 ]);
             }
 
-            // Lấy tất cả serial vật tư từ assembly_materials
-            $componentSerials = DB::table('assembly_materials')
+            // Lấy tất cả hàng assembly_materials kèm material_id để map đúng thứ tự vật tư
+            $componentRows = DB::table('assembly_materials')
+                ->select('material_id', 'serial', 'quantity')
                 ->where('assembly_id', $assemblyProduct->assembly_id)
-                ->where('target_product_id', $assemblyProduct->product_id)
-                ->pluck('serial')
-                ->filter()
-                ->toArray();
+                ->where('target_product_id', $productId ?: $assemblyProduct->product_id)
+                ->orderBy('id')
+                ->get();
+
+            // Nhóm serial theo material_id, giữ thứ tự phát sinh
+            $serialsByMaterialId = [];
+            $serialsLinearInAssemblyOrder = [];
+            foreach ($componentRows as $row) {
+                $raw = (string)($row->serial ?? '');
+                $tokens = array_map(function ($v) { return trim((string)$v); }, explode(',', $raw));
+                $tokens = array_values(array_filter($tokens, function ($v) {
+                    if ($v === '') return false;
+                    $u = strtoupper($v);
+                    return $u !== 'N/A' && $u !== 'NA' && $u !== 'NULL';
+                }));
+
+                if (empty($tokens)) {
+                    continue;
+                }
+
+                // Preserve assembly row order first, then token order
+                foreach ($tokens as $t) {
+                    $serialsLinearInAssemblyOrder[] = $t;
+                    $serialsByMaterialId[$row->material_id] = $serialsByMaterialId[$row->material_id] ?? [];
+                    $serialsByMaterialId[$row->material_id][] = $t;
+                }
+            }
+
+            // Lấy danh sách vật tư và số lượng của product để xác định expectedCount & thứ tự
+            $materialsDetails = DB::table('product_materials')
+                ->select('material_id', 'quantity')
+                ->where('product_id', $productId ?: $assemblyProduct->product_id)
+                ->get();
+
+            $expandedMaterials = [];
+            foreach ($materialsDetails as $md) {
+                $qty = max(1, (int)$md->quantity);
+                for ($i = 0; $i < $qty; $i++) {
+                    $expandedMaterials[] = (int)$md->material_id;
+                }
+            }
+
+            // Nếu client truyền expectedCount thì ưu tiên (đề phòng chi tiết cấu hình khác nhau)
+            $targetCount = $expectedCount > 0 ? $expectedCount : count($expandedMaterials);
+
+            // Trường hợp phổ biến: nếu số seri trong assembly đúng bằng số ô cần hiển thị, ưu tiên dùng thứ tự tuyến tính theo assembly
+            if ($targetCount > 0 && count($serialsLinearInAssemblyOrder) === $targetCount) {
+                $componentSerials = array_values($serialsLinearInAssemblyOrder);
+                // Không cho seri vật tư trùng seri chính
+                for ($i = 0; $i < count($componentSerials); $i++) {
+                    if (strtoupper(trim((string)$componentSerials[$i])) === $normalizedSerial) {
+                        $componentSerials[$i] = '';
+                    }
+                }
+            } else {
+                // Map serials theo đúng thứ tự từng vật tư và index
+            $componentSerials = [];
+            $materialUsageIndex = [];
+            for ($i = 0; $i < $targetCount; $i++) {
+                $materialId = $expandedMaterials[$i] ?? null;
+                if ($materialId === null) {
+                    $componentSerials[] = '';
+                    continue;
+                }
+                $materialUsageIndex[$materialId] = ($materialUsageIndex[$materialId] ?? 0);
+                $pool = $serialsByMaterialId[$materialId] ?? [];
+                $serialVal = $pool[$materialUsageIndex[$materialId]] ?? '';
+                // Never allow component serial to equal the main device serial
+                if (trim((string)$serialVal) !== '' && strtoupper(trim((string)$serialVal)) === $normalizedSerial) {
+                    $serialVal = '';
+                }
+                $componentSerials[] = $serialVal;
+                $materialUsageIndex[$materialId]++;
+            }
+            }
+
+            // Build components array with material_id pairing in order
+            $componentsOut = [];
+            for ($i = 0; $i < $targetCount; $i++) {
+                $componentsOut[] = [
+                    'material_id' => $expandedMaterials[$i] ?? null,
+                    'serial' => $componentSerials[$i] ?? ''
+                ];
+            }
 
             return response()->json([
                 'success' => true,
                 'data' => [
                     'componentSerials' => $componentSerials,
+                    'components' => $componentsOut,
                     'serialSim' => null,
                     'accessCode' => null,
                     'iotId' => null,
                     'mac4g' => null,
                     'note' => null
+                ],
+                'debug' => [
+                    'matched' => 'assembly',
+                    'assembly_id' => $assemblyProduct->assembly_id,
+                    'product_id' => $productId ?: $assemblyProduct->product_id,
+                    'count' => count($componentSerials)
                 ]
             ]);
 

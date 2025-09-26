@@ -39,13 +39,7 @@
                         <div class="flex flex-col md:flex-row justify-between">
                             <div>
                                 <h2 class="text-2xl font-bold text-gray-800">
-                                    @if ($warranty->item_type === 'project')
-                                        {{ $warranty->item->name ?? 'Bảo hành dự án' }}
-                                    @elseif($warranty->item)
-                                        {{ $warranty->item->name ?? 'Thiết bị không xác định' }}
-                                    @else
-                                        Thiết bị {{ ucfirst($warranty->item_type) }} ID: {{ $warranty->item_id }}
-                                    @endif
+                                    {{ $warranty->project_name }}
                                 </h2>
                                 <div class="flex flex-wrap items-center mt-1 gap-2">
                                     <p class="text-gray-600">Mã bảo hành: <span

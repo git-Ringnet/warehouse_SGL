@@ -43,9 +43,14 @@ Route::get('/products/{id}/images', [App\Http\Controllers\ProductController::cla
 
 // Add this route in the api.php file
 Route::get('/products/materials-count', [App\Http\Controllers\Api\ProductController::class, 'getMaterialsCount']);
+Route::post('/products/materials-count', [App\Http\Controllers\Api\ProductController::class, 'getMaterialsCount']);
+Route::get('/products/device-code-materials', [App\Http\Controllers\Api\ProductController::class, 'getDeviceCodeMaterials']);
 
 // Assembly API routes
 Route::post('/assembly/serial-components', [App\Http\Controllers\AssemblyController::class, 'getSerialComponents']);
+
+// Resolve assembly/product_unit for a product in a project context
+Route::get('/dispatch/resolve-assembly', [App\Http\Controllers\DispatchController::class, 'resolveAssemblyForProduct']);
 
 // Route cho phiếu nhập kho
 Route::prefix('inventory-imports')->group(function () {
