@@ -501,9 +501,9 @@ class ProjectRequestController extends Controller
                 'rental_id' => $projectType === 'rental' ? $actualProjectId : null,
                 'project_address' => $request->project_address ?? '', // Cho phép trống
                 'approval_method' => $request->approval_method,
-                'customer_name' => $customer->name,
-                'customer_phone' => $customer->phone,
-                'customer_email' => $customer->email,
+                'customer_name' => $customer->name ?? '',
+                'customer_phone' => $customer->phone ?? '',
+                'customer_email' => $customer->email ?? '',
                 'customer_address' => $customer->address ?? '',
                 'notes' => $request->notes,
                 'status' => 'pending',
@@ -792,10 +792,10 @@ class ProjectRequestController extends Controller
                 'customer_id' => $customer ? $customer->id : null,
                 'project_id' => $projectType === 'project' ? $actualProjectId : null,
                 'rental_id' => $projectType === 'rental' ? $actualProjectId : null,
-                'customer_name' => $customer ? $customer->name : null,
-                'customer_phone' => $customer ? $customer->phone : null,
-                'customer_email' => $customer ? $customer->email : null,
-                'customer_address' => $customer ? $customer->address : null,
+                'customer_name' => $customer ? ($customer->name ?? $customer->company_name ?? '') : '',
+                'customer_phone' => $customer ? ($customer->phone ?? '') : '',
+                'customer_email' => $customer ? ($customer->email ?? '') : '',
+                'customer_address' => $customer ? ($customer->address ?? '') : '',
                 'notes' => $request->notes,
             ]);
             
