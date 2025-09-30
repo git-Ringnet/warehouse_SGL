@@ -1722,13 +1722,26 @@ class TestingController extends Controller
             }
         }
 
-        // Ràng buộc bổ sung: Với phiếu kiểm thử Vật tư/Hàng hóa, không cho phép chọn kho đích trùng với kho nguồn của các item tương ứng
+        // Logic mới: Cho phép cập nhật ngay cả khi kho đích trùng với kho nguồn
+        // Chỉ tạo phiếu chuyển kho khi có sự thay đổi vị trí thực sự
         if ($testing->test_type === 'material') {
             $items = $testing->items; // đã được eager load từ controller khác, nếu chưa Laravel sẽ lazy load
-
-            // Kiểm tra xung đột cho chuyển Đạt
+            
+            // Log thông tin để debug
+            Log::info('Kiểm tra logic kho cho phiếu kiểm thử vật tư', [
+                'testing_id' => $testing->id,
+                'success_warehouse_id' => $request->success_warehouse_id,
+                'fail_warehouse_id' => $request->fail_warehouse_id,
+                'items_count' => $items->count()
+            ]);
+            
+            // Thông báo thông tin cho người dùng về việc tạo phiếu chuyển kho
+            $willCreateTransfer = false;
+            $transferInfo = [];
+            
+            // Kiểm tra cho chuyển Đạt
             if ($request->success_warehouse_id !== 'project_export') {
-                $hasPassItemsAtSameWarehouse = $items->filter(function ($item) {
+                $passItemsAtSameWarehouse = $items->filter(function ($item) {
                     $pq = (int)($item->pass_quantity ?? 0);
                     $pqNa = (int)($item->no_serial_pass_quantity ?? 0);
                     // Nếu có serial_results, tính pass theo serial (ưu tiên)
@@ -1740,17 +1753,20 @@ class TestingController extends Controller
                         }
                     }
                     return ($pq + $pqNa) > 0; // có hàng đạt để chuyển
-                })->pluck('warehouse_id')->contains(function ($sourceWarehouseId) use ($request) {
-                    return (string)$sourceWarehouseId === (string)$request->success_warehouse_id;
                 });
-
-                if ($hasPassItemsAtSameWarehouse) {
-                    return redirect()->back()->with('error', 'Không thể tạo phiếu chuyển kho Đạt vì Kho đích trùng với Kho nguồn của ít nhất một mặt hàng. Vui lòng chọn Kho lưu Vật tư/Hàng hóa đạt khác với Kho nguồn.');
+                
+                $passItemsAtDifferentWarehouse = $passItemsAtSameWarehouse->filter(function ($item) use ($request) {
+                    return (string)$item->warehouse_id !== (string)$request->success_warehouse_id;
+                });
+                
+                if ($passItemsAtDifferentWarehouse->count() > 0) {
+                    $willCreateTransfer = true;
+                    $transferInfo[] = "Sẽ tạo phiếu chuyển kho Đạt cho " . $passItemsAtDifferentWarehouse->count() . " mặt hàng";
                 }
             }
 
-            // Kiểm tra xung đột cho chuyển Không đạt
-            $hasFailItemsAtSameWarehouse = $items->filter(function ($item) {
+            // Kiểm tra cho chuyển Không đạt
+            $failItemsAtSameWarehouse = $items->filter(function ($item) {
                 $fq = (int)($item->fail_quantity ?? 0);
                 $fqNa = (int)($item->no_serial_fail_quantity ?? 0);
                 $pqNa = (int)($item->no_serial_pass_quantity ?? 0);
@@ -1767,12 +1783,27 @@ class TestingController extends Controller
                     }
                 }
                 return ($fq + $fqNa) > 0; // có hàng không đạt để chuyển
-            })->pluck('warehouse_id')->contains(function ($sourceWarehouseId) use ($request) {
-                return (string)$sourceWarehouseId === (string)$request->fail_warehouse_id;
             });
-
-            if ($hasFailItemsAtSameWarehouse) {
-                return redirect()->back()->with('error', 'Không thể tạo phiếu chuyển kho Không đạt vì Kho đích trùng với Kho nguồn của ít nhất một mặt hàng. Vui lòng chọn Kho lưu Vật tư/Hàng hóa không đạt khác với Kho nguồn.');
+            
+            $failItemsAtDifferentWarehouse = $failItemsAtSameWarehouse->filter(function ($item) use ($request) {
+                return (string)$item->warehouse_id !== (string)$request->fail_warehouse_id;
+            });
+            
+            if ($failItemsAtDifferentWarehouse->count() > 0) {
+                $willCreateTransfer = true;
+                $transferInfo[] = "Sẽ tạo phiếu chuyển kho Không đạt cho " . $failItemsAtDifferentWarehouse->count() . " mặt hàng";
+            }
+            
+            // Log thông tin về việc tạo phiếu chuyển kho
+            if ($willCreateTransfer) {
+                Log::info('Sẽ tạo phiếu chuyển kho', [
+                    'testing_id' => $testing->id,
+                    'transfer_info' => $transferInfo
+                ]);
+            } else {
+                Log::info('Không cần tạo phiếu chuyển kho vì tất cả hàng hóa đều ở cùng kho đích', [
+                    'testing_id' => $testing->id
+                ]);
             }
         }
 
@@ -3278,14 +3309,16 @@ class TestingController extends Controller
             $createdTransfers = [];
 
             foreach ($itemsByWarehouse as $sourceWarehouseId => $itemsInSource) {
+                // Logic mới: Chỉ tạo phiếu chuyển kho khi có sự thay đổi vị trí thực sự
                 // Nếu kho nguồn và kho đích giống nhau thì bỏ qua phiếu cho kho đó
                 if ((string)$sourceWarehouseId === (string)$destinationWarehouseId) {
-                    Log::info('Kho nguồn và kho đích giống nhau, bỏ qua tạo phiếu cho kho', [
-                    'warehouse_id' => $sourceWarehouseId,
-                    'type' => $type
-                ]);
+                    Log::info('Kho nguồn và kho đích giống nhau, bỏ qua tạo phiếu chuyển kho', [
+                        'warehouse_id' => $sourceWarehouseId,
+                        'type' => $type,
+                        'reason' => 'Không có sự thay đổi vị trí thực sự'
+                    ]);
                     continue;
-            }
+                }
 
                 // Tạo phiếu chuyển kho cho kho nguồn hiện tại
                 $transferCode = $this->generateWarehouseTransferCode();
