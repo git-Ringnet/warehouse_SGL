@@ -2686,6 +2686,7 @@ class TestingController extends Controller
                     if ($testingItem) {
                         $hasFail = false;
                         
+                        // SỬA LỖI: Chỉ kiểm tra vật tư thực sự có fail
                         // Kiểm tra serial_results của vật tư
                         if (!empty($testingItem->serial_results)) {
                             $serialResults = json_decode($testingItem->serial_results, true);
@@ -2838,11 +2839,11 @@ class TestingController extends Controller
                         }
                     }
 
-                    // Lấy vật tư từ assembly cho thành phẩm này, CHỈ lấy vật tư của các unit bị fail
+                    // Thành phẩm không đạt → vật tư của CÁC UNIT bị fail là không đạt
                     $assemblyMaterials = $testing->assembly->materials
                         ->where('target_product_id', $targetProductId);
                     
-                    // Lọc chỉ lấy vật tư của các unit bị fail
+                    // Chỉ lấy các vật tư thuộc những unit bị fail (failedUnits)
                     if (!empty($failedUnits)) {
                         $assemblyMaterials = $assemblyMaterials->filter(function($am) use ($failedUnits) {
                             $unitIndex = (int)($am->product_unit ?? 0);
@@ -2865,7 +2866,7 @@ class TestingController extends Controller
                     ]);
                     
                     foreach ($assemblyMaterials as $assemblyMaterial) {
-                        // Theo yêu cầu: Thành phẩm không đạt → nhập TẤT CẢ vật tư của thành phẩm đó vào phiếu FAIL
+                        // Logic đúng: Thành phẩm không đạt → TẤT CẢ vật tư của thành phẩm đó đều không đạt
                         $materialId = $assemblyMaterial->material_id;
                         $totalQuantity = (int)($assemblyMaterial->quantity ?? 0);
                         $unitSerials = [];
@@ -2873,12 +2874,19 @@ class TestingController extends Controller
                             $unitSerials = array_values(array_filter(array_map('trim', explode(',', $assemblyMaterial->serial))));
                         }
                         $quantityToAdd = $totalQuantity > 0 ? $totalQuantity : 1;
-                            $items->push((object) [
+                        
+                        Log::info('DEBUG: Thêm vật tư từ thành phẩm không đạt vào phiếu nhập kho', [
+                            'material_id' => $materialId,
+                            'quantity' => $quantityToAdd,
+                            'serial' => $assemblyMaterial->serial
+                        ]);
+                        
+                        $items->push((object) [
                             'item_type' => 'material',
-                                'material_id' => $materialId,
-                                'quantity' => $quantityToAdd,
+                            'material_id' => $materialId,
+                            'quantity' => $quantityToAdd,
                             'serial_number' => !empty($unitSerials) ? implode(',', $unitSerials) : null,
-                                'pass_quantity' => 0,
+                            'pass_quantity' => 0,
                             'fail_quantity' => $quantityToAdd
                         ]);
                     }
@@ -2928,11 +2936,9 @@ class TestingController extends Controller
                     $quantity = $passQuantity + $noSerialPass;
                     if ($quantity === 0) { $quantity = (int)($item->quantity ?? 0); } // Fallback nhẹ khi dữ liệu thiếu
                 } else {
-                    // Vật tư không đạt: chỉ lấy phần KHÔNG ĐẠT (serial fail + N/A fail)
-                    $failQuantity = (int)($item->fail_quantity ?? 0);
-                    $noSerialFail = (int)($item->no_serial_fail_quantity ?? 0);
-                    $quantity = $failQuantity + $noSerialFail;
-                    if ($quantity === 0) { $quantity = (int)($item->fail_quantity ?? 0); }
+                    // Vật tư không đạt: lấy đúng số lượng từ dòng assembly đã push vào $items
+                    // KHÔNG cộng dồn theo serial/N/A để tránh lệch số lượng
+                    $quantity = (int)($item->quantity ?? 0);
                 }
             }
             
@@ -2944,64 +2950,9 @@ class TestingController extends Controller
                 'fail_quantity' => $item->fail_quantity ?? 0
             ]);
             
-            // Bổ sung tính số lượng vật tư không có serial cho phiếu fail (kết hợp theo assembly + notes)
+            // Nhánh FAIL cho vật tư: giữ nguyên quantity theo assembly, bỏ mọi tính toán bổ sung
             if ($type == 'fail' && $itemType == 'material') {
-                $originalFailQty = (int)($quantity ?? 0);
-                $computedFailFromSerial = 0;
-                if (!empty($item->serial_results)) {
-                    $sr = json_decode($item->serial_results, true);
-                    if (is_array($sr)) {
-                        foreach ($sr as $v) { if ($v === 'fail') { $computedFailFromSerial++; } }
-                    }
-                }
-                $computedFailFromTotal = max(0, (int)($item->quantity ?? 0) - (int)($item->pass_quantity ?? 0));
-
-                $computedNoSerialFailFromAssembly = 0;
-                if ($testing->assembly && $testing->assembly->materials) {
-                    $notesData = [];
-                    if (!empty($testing->notes)) {
-                        $decodedNotes = json_decode($testing->notes, true);
-                        if (is_array($decodedNotes)) { $notesData = $decodedNotes; }
-                    }
-                    foreach ($testing->assembly->materials as $asmMaterial) {
-                        if ((int)$asmMaterial->material_id !== (int)$materialId) continue;
-                        $unitIdx = (int)($asmMaterial->product_unit ?? 0);
-                        $serialsAsm = [];
-                        if (!empty($asmMaterial->serial)) {
-                            $serialsAsm = array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial))));
-                        }
-                        $asmQty = (int)($asmMaterial->quantity ?? 0);
-                        $noSerialCount = max(0, $asmQty - count($serialsAsm));
-
-                        // Xác định productItemId để lấy pass N/A đã nhập theo đơn vị
-                        $productItemId = null;
-                        $targetProductId = $asmMaterial->target_product_id ?? null;
-                        if ($targetProductId) {
-                            $productItem = $testing->items->first(function($ti) use ($targetProductId) {
-                                return (int)($ti->product_id ?? 0) === (int)$targetProductId || (int)($ti->good_id ?? 0) === (int)$targetProductId;
-                            });
-                            if ($productItem) { $productItemId = $productItem->id; }
-                        }
-                        $unitPass = 0;
-                        if ($productItemId && isset($notesData['no_serial_pass_quantity'][$productItemId][$unitIdx])) {
-                            $unitPass = (int)$notesData['no_serial_pass_quantity'][$productItemId][$unitIdx];
-                        }
-                        $computedNoSerialFailFromAssembly += max(0, $noSerialCount - $unitPass);
-                    }
-                }
-
-                // Chọn giá trị phù hợp nhất
-                $quantity = max($originalFailQty, $computedFailFromSerial + $computedNoSerialFailFromAssembly, $computedFailFromTotal);
-                // Ghi nhận lại phần không-serial fail vào cột mới của testing_items (nếu có id)
-                if (isset($item->id)) {
-                    try {
-                        // DISABLED: Logic cũ tự động tính no_serial_fail_quantity
-                        // Bây giờ sử dụng calculateNoSerialQuantities() từ serial_results
-                        // $noSerialFail = max(0, $quantity - $computedFailFromSerial);
-                        // $ti = \App\Models\TestingItem::find($item->id);
-                        // if ($ti) { $ti->no_serial_fail_quantity = (int)$noSerialFail; $ti->save(); }
-                    } catch (\Throwable $e) {}
-                }
+                $quantity = (int)($item->quantity ?? $quantity);
             }
             
             if ($quantity > 0 && $materialId) {
