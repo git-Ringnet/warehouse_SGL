@@ -136,6 +136,7 @@ class ProductController extends Controller
                 },
             ],
             'name' => 'required',
+            'category' => 'nullable|string',
             'description' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'inventory_warehouses' => 'nullable',
@@ -158,6 +159,7 @@ class ProductController extends Controller
             $product = Product::create([
                 'code' => $request->code,
                 'name' => $request->name,
+                'category' => $request->category,
                 'description' => $request->description,
                 'inventory_warehouses' => $inventoryWarehouses,
                 'status' => 'active',
@@ -287,6 +289,7 @@ class ProductController extends Controller
                 },
             ],
             'name' => 'required',
+            'category' => 'nullable|string',
             'description' => 'nullable|string',
             'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             'deleted_images' => 'nullable|string',
@@ -348,6 +351,7 @@ class ProductController extends Controller
             $product->update([
                 'code' => $request->code,
                 'name' => $request->name,
+                'category' => $request->category,
                 'description' => $request->description,
                 'inventory_warehouses' => $inventoryWarehouses
             ]);

@@ -77,9 +77,16 @@
                                     <div class="flex">
                                         <select id="category" name="category" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10">
                                             <option value="">-- Chọn loại thành phẩm --</option>
-                                            @foreach(\App\Models\Product::where('category', '!=', '')->whereNotNull('category')->distinct()->pluck('category')->toArray() as $cat)
-                                                <option value="{{ $cat }}" {{ old('category', $product->category) == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                            @php
+                                                $existingCategories = \App\Models\Product::where('category', '!=', '')->whereNotNull('category')->distinct()->pluck('category')->toArray();
+                                                $currentCategory = old('category', $product->category);
+                                            @endphp
+                                            @foreach($existingCategories as $cat)
+                                                <option value="{{ $cat }}" {{ $currentCategory == $cat ? 'selected' : '' }}>{{ $cat }}</option>
                                             @endforeach
+                                            @if($currentCategory && !in_array($currentCategory, $existingCategories))
+                                                <option value="{{ $currentCategory }}" selected>{{ $currentCategory }}</option>
+                                            @endif
                                         </select>
                                         <button type="button" id="addCategoryBtn" class="ml-2 bg-green-500 hover:bg-green-600 text-white w-10 rounded-lg flex items-center justify-center">
                                             <i class="fas fa-plus"></i>
