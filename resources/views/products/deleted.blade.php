@@ -63,10 +63,10 @@
                                 MÃ THÀNH PHẨM</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                                 TÊN THÀNH PHẨM</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
+                            <!-- <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                                 LOẠI</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                                ĐƠN VỊ</th>
+                                ĐƠN VỊ</th> -->
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                                 TỔNG TỒN KHO</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
@@ -83,12 +83,12 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="text-sm font-medium text-gray-900">{{ $product->name }}</div>
                                 </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <!-- <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {{ $product->category ?? 'Chưa phân loại' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {{ $product->unit ?? 'Chưa có' }}
-                                </td>
+                                    {{ $product->unit ?? 'Cái' }}
+                                </td> -->
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2.5 py-1 rounded-md text-sm font-medium 
                                         @if ($product->inventory_quantity > 50) bg-green-100 text-green-800

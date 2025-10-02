@@ -90,10 +90,6 @@
                         <p class="text-gray-900 font-medium">{{ $product->category ?? 'Chưa phân loại' }}</p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500">Đơn vị</p>
-                        <p class="text-gray-900 font-medium">{{ $product->unit ?? 'Chưa có' }}</p>
-                    </div>
-                    <div>
                         <p class="text-sm text-gray-500">Ngày tạo</p>
                         <p class="text-gray-900">{{ $product->created_at->format('H:i d/m/Y') }}</p>
                     </div>
