@@ -91,6 +91,43 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                <!-- Modal thêm đơn vị mới -->
+                                <div id="unitModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50">
+                                    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                                        <h3 class="text-lg font-semibold mb-4">Thêm đơn vị mới</h3>
+                                        <input type="text" id="newUnit" class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nhập tên đơn vị mới">
+                                        <div class="flex justify-end space-x-3">
+                                            <button type="button" id="cancelAddUnit" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg">Hủy</button>
+                                            <button type="button" id="confirmAddUnit" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">Thêm</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label for="unit" class="block text-sm font-medium text-gray-700 mb-1">Đơn vị
+                                    <span class="text-red-500">*</span></label>
+                                <div class="flex relative">
+                                    <select id="unit" name="unit" required
+                                        class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Chọn đơn vị</option>
+                                        <option value="Cái" {{ old('unit') == 'Cái' ? 'selected' : '' }}>Cái</option>
+                                        <option value="Bộ" {{ old('unit') == 'Bộ' ? 'selected' : '' }}>Bộ</option>
+                                        <option value="Chiếc" {{ old('unit') == 'Chiếc' ? 'selected' : '' }}>Chiếc</option>
+                                        <option value="Mét" {{ old('unit') == 'Mét' ? 'selected' : '' }}>Mét</option>
+                                        <option value="Cuộn" {{ old('unit') == 'Cuộn' ? 'selected' : '' }}>Cuộn</option>
+                                        <option value="Kg" {{ old('unit') == 'Kg' ? 'selected' : '' }}>Kg</option>
+                                    </select>
+                                    <button type="button" id="clearUnitBtn"
+                                        class="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden mx-2">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <button type="button" id="addUnitBtn"
+                                        class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -314,6 +351,86 @@
             
             // Tải danh sách loại thành phẩm khi trang tải xong
             loadCategories();
+
+            // Xử lý đơn vị
+            const unitSelect = document.getElementById('unit');
+            const addUnitBtn = document.getElementById('addUnitBtn');
+            const clearUnitBtn = document.getElementById('clearUnitBtn');
+            const unitModal = document.getElementById('unitModal');
+            const newUnitInput = document.getElementById('newUnit');
+            const confirmAddUnit = document.getElementById('confirmAddUnit');
+            const cancelAddUnit = document.getElementById('cancelAddUnit');
+
+            // Show/hide clear button for unit
+            unitSelect.addEventListener('change', function() {
+                if (this.value) {
+                    clearUnitBtn.classList.remove('hidden');
+                } else {
+                    clearUnitBtn.classList.add('hidden');
+                }
+            });
+
+            // Clear unit selection
+            clearUnitBtn.addEventListener('click', function() {
+                const selectedValue = unitSelect.value;
+
+                // Tìm option có value tương ứng và ẩn nó
+                const selectedOption = unitSelect.querySelector(`option[value="${selectedValue}"]`);
+                if (selectedOption) {
+                    selectedOption.style.display = 'none';
+                }
+
+                unitSelect.value = '';
+                clearUnitBtn.classList.add('hidden');
+            });
+
+            // Mở modal thêm đơn vị
+            addUnitBtn.addEventListener('click', function() {
+                unitModal.classList.remove('hidden');
+                newUnitInput.focus();
+            });
+
+            // Đóng modal khi nhấn Hủy
+            cancelAddUnit.addEventListener('click', function() {
+                unitModal.classList.add('hidden');
+                newUnitInput.value = '';
+            });
+
+            // Xử lý thêm đơn vị mới
+            confirmAddUnit.addEventListener('click', function() {
+                const newUnitName = newUnitInput.value.trim();
+                if (newUnitName) {
+                    // Kiểm tra xem đơn vị đã tồn tại chưa
+                    const existingOption = unitSelect.querySelector(`option[value="${newUnitName}"]`);
+                    if (existingOption) {
+                        // If exists but hidden, show it
+                        existingOption.style.display = 'block';
+                        unitSelect.value = newUnitName;
+                    } else {
+                        // Create new option
+                        const newOption = document.createElement('option');
+                        newOption.value = newUnitName;
+                        newOption.textContent = newUnitName;
+                        newOption.selected = true;
+                        unitSelect.appendChild(newOption);
+                    }
+                    
+                    // Show clear button since we just selected a unit
+                    clearUnitBtn.classList.remove('hidden');
+                    
+                    // Đóng modal
+                    unitModal.classList.add('hidden');
+                    newUnitInput.value = '';
+                }
+            });
+
+            // Close modal when clicking outside
+            unitModal.addEventListener('click', function(e) {
+                if (e.target === unitModal) {
+                    unitModal.classList.add('hidden');
+                    newUnitInput.value = '';
+                }
+            });
         });
     </script>
 </body>

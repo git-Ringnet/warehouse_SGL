@@ -159,23 +159,41 @@
                             <div>
                                 <label for="unit" class="block text-sm font-medium text-gray-700 mb-1 required">Đơn
                                     vị</label>
-                                <select id="unit" name="unit" required
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                                    <option value="">Chọn đơn vị</option>
-                                    <option value="Cái" {{ ($good->unit ?? '') == 'Cái' ? 'selected' : '' }}>Cái
-                                    </option>
-                                    <option value="Bộ" {{ ($good->unit ?? '') == 'Bộ' ? 'selected' : '' }}>Bộ
-                                    </option>
-                                    <option value="Chiếc" {{ ($good->unit ?? '') == 'Chiếc' ? 'selected' : '' }}>
-                                        Chiếc
-                                    </option>
-                                    <option value="Mét" {{ ($good->unit ?? '') == 'Mét' ? 'selected' : '' }}>Mét
-                                    </option>
-                                    <option value="Cuộn" {{ ($good->unit ?? '') == 'Cuộn' ? 'selected' : '' }}>Cuộn
-                                    </option>
-                                    <option value="Kg" {{ ($good->unit ?? '') == 'Kg' ? 'selected' : '' }}>Kg
-                                    </option>
-                                </select>
+                                <div class="flex relative">
+                                    <select id="unit" name="unit" required
+                                        class="w-full border border-gray-300 rounded-lg rounded-r-none px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Chọn đơn vị</option>
+                                        <option value="Cái" {{ ($good->unit ?? '') == 'Cái' ? 'selected' : '' }}>Cái
+                                        </option>
+                                        <option value="Bộ" {{ ($good->unit ?? '') == 'Bộ' ? 'selected' : '' }}>Bộ
+                                        </option>
+                                        <option value="Chiếc" {{ ($good->unit ?? '') == 'Chiếc' ? 'selected' : '' }}>
+                                            Chiếc
+                                        </option>
+                                        <option value="Mét" {{ ($good->unit ?? '') == 'Mét' ? 'selected' : '' }}>Mét
+                                        </option>
+                                        <option value="Cuộn" {{ ($good->unit ?? '') == 'Cuộn' ? 'selected' : '' }}>Cuộn
+                                        </option>
+                                        <option value="Kg" {{ ($good->unit ?? '') == 'Kg' ? 'selected' : '' }}>Kg
+                                        </option>
+                                        @php
+                                            $currentUnit = $good->unit ?? '';
+                                            $defaultUnits = ['Cái', 'Bộ', 'Chiếc', 'Mét', 'Cuộn', 'Kg'];
+                                            $isCustomUnit = $currentUnit && !in_array($currentUnit, $defaultUnits);
+                                        @endphp
+                                        @if($isCustomUnit)
+                                            <option value="{{ $currentUnit }}" selected>{{ $currentUnit }}</option>
+                                        @endif
+                                    </select>
+                                    <button type="button" id="clearUnitBtn"
+                                        class="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 {{ ($good->unit ?? '') ? '' : 'hidden' }} mx-2">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    <button type="button" id="addUnitBtn"
+                                        class="bg-blue-500 text-white px-3 py-2 rounded-lg rounded-l-none border-l-0 hover:bg-blue-600 transition-colors">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -318,6 +336,37 @@
                 </div>
                 <div class="flex justify-end space-x-3">
                     <button type="button" id="cancelCategoryBtn"
+                        class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
+                        Hủy
+                    </button>
+                    <button type="submit"
+                        class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
+                        <i class="fas fa-plus mr-2"></i> Thêm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Add Unit -->
+    <div id="addUnitModal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Thêm đơn vị mới</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-600" id="closeUnitModalBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addUnitForm">
+                <div class="mb-4">
+                    <label for="newUnitName" class="block text-sm font-medium text-gray-700 mb-1">Tên đơn vị
+                        <span class="text-red-500">*</span></label>
+                    <input type="text" id="newUnitName" name="newUnitName" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancelUnitBtn"
                         class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                         Hủy
                     </button>
@@ -488,6 +537,90 @@
 
                     document.getElementById('existing-image-' + imageId).remove();
                 });
+            });
+
+            // Handle unit dropdown functionality
+            const unitSelect = document.getElementById('unit');
+            const clearUnitBtn = document.getElementById('clearUnitBtn');
+            const addUnitBtn = document.getElementById('addUnitBtn');
+            const addUnitModal = document.getElementById('addUnitModal');
+            const closeUnitModalBtn = document.getElementById('closeUnitModalBtn');
+            const cancelUnitBtn = document.getElementById('cancelUnitBtn');
+            const addUnitForm = document.getElementById('addUnitForm');
+            const newUnitNameInput = document.getElementById('newUnitName');
+
+            // Show/hide clear button for unit
+            unitSelect.addEventListener('change', function() {
+                if (this.value) {
+                    clearUnitBtn.classList.remove('hidden');
+                } else {
+                    clearUnitBtn.classList.add('hidden');
+                }
+            });
+
+            // Clear unit selection
+            clearUnitBtn.addEventListener('click', function() {
+                const selectedValue = unitSelect.value;
+
+                // Tìm option có value tương ứng và ẩn nó
+                const selectedOption = unitSelect.querySelector(`option[value="${selectedValue}"]`);
+                if (selectedOption) {
+                    selectedOption.style.display = 'none';
+                }
+
+                unitSelect.value = '';
+                clearUnitBtn.classList.add('hidden');
+            });
+
+            // Show add unit modal
+            addUnitBtn.addEventListener('click', function() {
+                addUnitModal.classList.remove('hidden');
+                newUnitNameInput.focus();
+            });
+
+            // Close unit modal
+            function closeUnitModal() {
+                addUnitModal.classList.add('hidden');
+                newUnitNameInput.value = '';
+            }
+
+            closeUnitModalBtn.addEventListener('click', closeUnitModal);
+            cancelUnitBtn.addEventListener('click', closeUnitModal);
+
+            // Close modal when clicking outside
+            addUnitModal.addEventListener('click', function(e) {
+                if (e.target === addUnitModal) {
+                    closeUnitModal();
+                }
+            });
+
+            // Handle add unit form submission
+            addUnitForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const unitName = newUnitNameInput.value.trim();
+                
+                if (unitName) {
+                    // Check if unit already exists
+                    const existingOption = unitSelect.querySelector(`option[value="${unitName}"]`);
+                    if (existingOption) {
+                        // If exists but hidden, show it
+                        existingOption.style.display = 'block';
+                        unitSelect.value = unitName;
+                    } else {
+                        // Create new option
+                        const newOption = document.createElement('option');
+                        newOption.value = unitName;
+                        newOption.textContent = unitName;
+                        newOption.selected = true;
+                        unitSelect.appendChild(newOption);
+                    }
+                    
+                    // Show clear button since we just selected a unit
+                    clearUnitBtn.classList.remove('hidden');
+                    
+                    // Close modal
+                    closeUnitModal();
+                }
             });
 
             // Auto-add supplier from dropdown when form is submitted
