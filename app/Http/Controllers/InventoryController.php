@@ -211,7 +211,20 @@ class InventoryController extends Controller
             $serialsLinearInAssemblyOrder = [];
             foreach ($componentRows as $row) {
                 $raw = (string)($row->serial ?? '');
-                $tokens = array_map(function ($v) { return trim((string)$v); }, explode(',', $raw));
+                $tokens = [];
+                // Prefer JSON array if present
+                $trimmed = ltrim($raw);
+                if ($trimmed !== '' && $trimmed[0] === '[') {
+                    $decoded = json_decode($raw, true);
+                    if (is_array($decoded)) {
+                        $tokens = array_map(function ($v) { return trim((string)$v); }, $decoded);
+                    }
+                }
+                // Fallback to splitting by common delimiters: comma, newline, semicolon, pipe
+                if (empty($tokens)) {
+                    $split = preg_split('/[\s]*[,;|\n\r]+[\s]*/u', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+                    $tokens = array_map(function ($v) { return trim((string)$v); }, $split);
+                }
                 $tokens = array_values(array_filter($tokens, function ($v) {
                     if ($v === '') return false;
                     $u = strtoupper($v);

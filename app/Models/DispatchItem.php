@@ -38,7 +38,7 @@ class DispatchItem extends Model
         'serial_numbers' => 'array',
         'quantity' => 'integer',
         'assembly_id' => 'integer',
-        'product_unit' => 'integer',
+        'product_unit' => 'array',
     ];
 
     /**

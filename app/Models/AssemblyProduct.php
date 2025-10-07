@@ -18,7 +18,8 @@ class AssemblyProduct extends Model
         'assembly_id',
         'product_id',
         'quantity',
-        'serials'
+        'serials',
+        'product_unit'
     ];
 
     /**
@@ -35,5 +36,28 @@ class AssemblyProduct extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the product_unit attribute as array.
+     */
+    public function getProductUnitAttribute($value)
+    {
+        if (is_string($value) && str_starts_with($value, '[')) {
+            return json_decode($value, true);
+        }
+        return $value;
+    }
+
+    /**
+     * Set the product_unit attribute.
+     */
+    public function setProductUnitAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['product_unit'] = json_encode($value);
+        } else {
+            $this->attributes['product_unit'] = $value;
+        }
     }
 } 

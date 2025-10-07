@@ -88,11 +88,15 @@ class AssemblyController extends Controller
         if (is_array($rawSerials)) {
             return array_values(array_filter(array_map(function ($s) {
                 return is_string($s) ? trim($s) : (string)$s;
-            }, $rawSerials), function ($s) { return $s !== ''; }));
+            }, $rawSerials), function ($s) {
+                return $s !== '';
+            }));
         }
         if (is_string($rawSerials)) {
             $parts = array_map('trim', explode(',', $rawSerials));
-            return array_values(array_filter($parts, function ($s) { return $s !== ''; }));
+            return array_values(array_filter($parts, function ($s) {
+                return $s !== '';
+            }));
         }
         return [];
     }
@@ -106,7 +110,9 @@ class AssemblyController extends Controller
         if (is_array($rawSerialIds)) {
             foreach ($rawSerialIds as $id) {
                 $nid = $this->normalizeSerialId($id);
-                if ($nid) { $result[] = $nid; }
+                if ($nid) {
+                    $result[] = $nid;
+                }
             }
             return $result;
         }
@@ -114,7 +120,9 @@ class AssemblyController extends Controller
             $parts = array_map('trim', explode(',', $rawSerialIds));
             foreach ($parts as $p) {
                 $nid = $this->normalizeSerialId($p);
-                if ($nid) { $result[] = $nid; }
+                if ($nid) {
+                    $result[] = $nid;
+                }
             }
             return $result;
         }
@@ -253,10 +261,19 @@ class AssemblyController extends Controller
      */
     public function store(Request $request)
     {
-        // Filter out non-material component rows (e.g., product-sourced placeholder without warehouse)
-        if ($request->has('components') && is_array($request->components)) {
+        // dd($request->all());
+        // Normalize components: accept either classic inputs or optimized JSON
+        if ($request->has('components_json')) {
+            $componentsData = json_decode($request->input('components_json'), true);
+            if (is_array($componentsData)) {
+                $filteredComponents = array_values(array_filter($componentsData, function ($component) {
+                    return isset($component['id']) && $component['id'] && isset($component['warehouse_id']) && $component['warehouse_id'];
+                }));
+                $request->merge(['components' => $filteredComponents]);
+            }
+        } elseif ($request->has('components') && is_array($request->components)) {
+            // Filter out non-material component rows (e.g., placeholders without warehouse)
             $filteredComponents = array_values(array_filter($request->components, function ($component) {
-                // Keep only components that have a material id and a warehouse_id
                 return isset($component['id']) && $component['id'] && isset($component['warehouse_id']) && $component['warehouse_id'];
             }));
             $request->merge(['components' => $filteredComponents]);
@@ -279,6 +296,7 @@ class AssemblyController extends Controller
             'products' => 'required|array|min:1',
             'products.*.id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|integer|min:1',
+            'products.*.product_unit' => 'nullable|integer|min:0',
             'components' => 'required|array|min:1',
             'components.*.id' => 'required|exists:materials,id',
             'components.*.quantity' => 'required|integer|min:1',
@@ -397,12 +415,19 @@ class AssemblyController extends Controller
                 $filteredSerials = array_values(array_unique($this->normalizeSerials($rawProductSerials)));
                 $productSerialsStr = !empty($filteredSerials) ? implode(',', $filteredSerials) : null;
 
-                // Create assembly product record
+                // Create array of product units [0, 1, 2, ...] based on quantity
+                $productUnits = [];
+                for ($i = 0; $i < $productQty; $i++) {
+                    $productUnits[] = $i;
+                }
+
+                // Create assembly product record with all serials and product_unit array
                 AssemblyProduct::create([
                     'assembly_id' => $assembly->id,
                     'product_id' => $productData['id'],
                     'quantity' => $productQty,
                     'serials' => $productSerialsStr,
+                    'product_unit' => $productUnits, // Model will automatically convert to JSON
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
@@ -413,7 +438,7 @@ class AssemblyController extends Controller
                     $targetWarehouseId = $assembly->warehouse_id;
                 }
 
-                // Create serial records for product serials
+                // Create serial records for product serials (only if we have serials)
                 if (!empty($filteredSerials) && $targetWarehouseId) {
                     $this->createSerialRecords($filteredSerials, (int)$productData['id'], $assembly->id, (int)$targetWarehouseId);
                 }
@@ -547,10 +572,10 @@ class AssemblyController extends Controller
         // Luôn ưu tiên phiếu xuất kho vật tư sinh ra từ phiếu lắp ráp này
         // Tiêu chí: dispatch_note chứa mã phiếu và không gắn project (project_id NULL)
         $dispatch = \App\Models\Dispatch::where(function ($q) use ($assembly) {
-                $q->where('dispatch_note', 'like', '%Sinh từ phiếu lắp ráp: ' . $assembly->code . '%')
-                  ->orWhere('dispatch_note', 'like', '%Sinh ra từ phiếu lắp ráp ' . $assembly->code . '%')
-                  ->orWhere('dispatch_note', 'like', '%Từ phiếu lắp ráp ' . $assembly->code . '%');
-            })
+            $q->where('dispatch_note', 'like', '%Sinh từ phiếu lắp ráp: ' . $assembly->code . '%')
+                ->orWhere('dispatch_note', 'like', '%Sinh ra từ phiếu lắp ráp ' . $assembly->code . '%')
+                ->orWhere('dispatch_note', 'like', '%Từ phiếu lắp ráp ' . $assembly->code . '%');
+        })
             ->whereNull('project_id')
             ->orderByDesc('created_at')
             ->first();
@@ -824,17 +849,17 @@ class AssemblyController extends Controller
                 // First, collect all serials by material_id to check for cross-component duplicates
                 $allSerialsByMaterial = [];
                 $materialNames = [];
-                
+
                 foreach ($request->components as $componentIndex => $component) {
                     $materialId = $component['material_id'] ?? $component['id'] ?? null;
                     if (!$materialId) continue;
-                    
+
                     // Get material name for error messages
                     if (!isset($materialNames[$materialId])) {
                         $material = Material::find($materialId);
                         $materialNames[$materialId] = $material ? $material->name : 'Unknown';
                     }
-                    
+
                     // Collect serials for this component
                     $componentSerials = [];
                     if (isset($component['serials']) && is_array($component['serials'])) {
@@ -842,7 +867,7 @@ class AssemblyController extends Controller
                     } elseif (!empty($component['serial'])) {
                         $componentSerials = [$component['serial']];
                     }
-                    
+
                     // Add to material's serial list
                     if (!empty($componentSerials)) {
                         if (!isset($allSerialsByMaterial[$materialId])) {
@@ -851,7 +876,7 @@ class AssemblyController extends Controller
                         $allSerialsByMaterial[$materialId] = array_merge($allSerialsByMaterial[$materialId], $componentSerials);
                     }
                 }
-                
+
                 // Check for duplicate serials across different components for the same material
                 foreach ($allSerialsByMaterial as $materialId => $allSerials) {
                     $uniqueSerials = array_unique($allSerials);
@@ -862,7 +887,7 @@ class AssemblyController extends Controller
                         throw new \Exception("Phát hiện serial trùng lặp cho linh kiện '{$materialName}': {$duplicateList}. Mỗi serial chỉ có thể sử dụng một lần trong phiếu lắp ráp.");
                     }
                 }
-                
+
                 // Then check individual component validation
                 foreach ($request->components as $componentIndex => $component) {
                     // Check for duplicate serials within the same component
@@ -927,47 +952,79 @@ class AssemblyController extends Controller
                     }
                 }
 
-                // Upsert products from request
+                // Get existing products to compare with new ones
+                $existingProducts = AssemblyProduct::where('assembly_id', $assembly->id)->get();
+                $existingProductUnits = [];
+                foreach ($existingProducts as $existingProduct) {
+                    $productId = $existingProduct->product_id;
+                    $productUnits = $existingProduct->product_unit;
+                    if (is_string($productUnits) && str_starts_with($productUnits, '[')) {
+                        $productUnits = json_decode($productUnits, true);
+                    }
+                    if (is_array($productUnits)) {
+                        foreach ($productUnits as $unit) {
+                            $existingProductUnits[] = $productId . '_' . $unit;
+                        }
+                    } else {
+                        $existingProductUnits[] = $productId . '_' . ($productUnits ?? 0);
+                    }
+                }
+
+                // Delete existing products for this assembly first
+                AssemblyProduct::where('assembly_id', $assembly->id)->delete();
+
+                // Create new assembly products for each product
+                $newProductUnits = [];
                 foreach ($request->products as $productIndex => $productData) {
                     $productId = (int) $productData['id'];
                     $productQty = isset($productData['quantity']) ? (int) $productData['quantity'] : 1;
+                    $rawProductSerials = $productData['serials'] ?? [];
+                    $filteredSerials = array_values(array_unique($this->normalizeSerials($rawProductSerials)));
+                    $productSerialsStr = !empty($filteredSerials) ? implode(',', $filteredSerials) : null;
 
-                    $assemblyProduct = AssemblyProduct::firstOrNew([
+                    // Always create product units based on current quantity
+                    // This ensures product_unit array matches the actual quantity
+                    $productUnits = [];
+                    for ($i = 0; $i < $productQty; $i++) {
+                        $productUnits[] = $i;
+                    }
+
+                    AssemblyProduct::create([
                         'assembly_id' => $assembly->id,
                         'product_id' => $productId,
+                        'quantity' => $productQty,
+                        'serials' => $productSerialsStr,
+                        'product_unit' => $productUnits, // Model will automatically convert to JSON
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
-                    // Capture previous quantity before updating
-                    $previousQty = (int) ($assemblyProduct->quantity ?? 0);
-
-                    $assemblyProduct->quantity = $productQty > 0 ? $productQty : 1;
-
-                    if (isset($productData['serials']) && is_array($productData['serials'])) {
-                        $filteredSerials = array_filter($productData['serials']);
-                        $assemblyProduct->serials = !empty($filteredSerials) ? implode(',', $filteredSerials) : null;
-                    }
-                    $assemblyProduct->save();
-
-                    // If product quantity decreased, remove extra unit components for this product
-                    if ($previousQty > 0 && $productQty < $previousQty) {
-                        // Delete components for units >= new quantity (keep 0..newQty-1)
-                        $deleteQuery = AssemblyMaterial::where('assembly_id', $assembly->id)
-                            ->where('target_product_id', $productId)
-                            ->whereNotNull('product_unit')
-                            ->where('product_unit', '>=', $productQty);
-                        $deleted = $deleteQuery->delete();
-
-                        // Fallback for legacy rows tied to first product with NULL target_product_id
-                        if ($deleted === 0) {
-                            AssemblyMaterial::where('assembly_id', $assembly->id)
-                                ->whereNull('target_product_id')
-                                ->whereNotNull('product_unit')
-                                ->where('product_unit', '>=', $productQty)
-                                ->delete();
-                        }
+                    // Track new product units for cleanup comparison
+                    foreach ($productUnits as $unit) {
+                        $newProductUnits[] = $productId . '_' . $unit;
                     }
 
                     // Maintain serial records (recreate all for this assembly once below)
+                }
+
+                // Clean up materials for removed product units
+                $removedProductUnits = array_diff($existingProductUnits, $newProductUnits);
+                if (!empty($removedProductUnits)) {
+                    foreach ($removedProductUnits as $removedUnit) {
+                        list($removedProductId, $removedUnitIndex) = explode('_', $removedUnit);
+
+                        // Delete materials for this specific product unit
+                        \App\Models\AssemblyMaterial::where('assembly_id', $assembly->id)
+                            ->where('target_product_id', $removedProductId)
+                            ->where('product_unit', $removedUnitIndex)
+                            ->delete();
+
+                        Log::info('Cleaned up materials for removed product unit', [
+                            'assembly_id' => $assembly->id,
+                            'product_id' => $removedProductId,
+                            'product_unit' => $removedUnitIndex
+                        ]);
+                    }
                 }
 
                 // Recreate product serial records for this assembly
@@ -1711,92 +1768,46 @@ class AssemblyController extends Controller
                     ->where('material_id', $materialId)
                     ->first();
 
-                if ($assemblyMaterial && $assemblyMaterial->serials) {
-                    $existingSerials = array_map('trim', explode(',', $assemblyMaterial->serials));
-                }
-            }
-
-            // Lấy danh sách serial của material trong warehouse cụ thể
-            // Serial phải có type = 'material' và warehouse_id = warehouse_id
-            $query = Serial::where('product_id', $materialId)
-                ->where('type', 'material')
-                ->where('warehouse_id', $warehouseId)
-                ->where('status', 'active');
-
-            // If editing an existing assembly, include serials that are:
-            // 1. Not used (notes is null)
-            // 2. Used by this assembly (notes contains this assembly ID)
-            // 3. Currently assigned to this material in this assembly (in existingSerials)
-            // For new assemblies (no assemblyId), do not restrict by notes to avoid excluding valid serials
-            if ($assemblyId) {
-                $query->where(function ($q) use ($assemblyId, $existingSerials) {
-                    $q->whereNull('notes')
-                        ->orWhere('notes', 'like', '%Assembly ID: ' . $assemblyId . '%')
-                        ->orWhereIn('serial_number', $existingSerials);
-                });
-            }
-
-            // Loại trừ serial đang được sử dụng trong các phiếu lắp ráp khác ở trạng thái in_progress hoặc completed
-            $usedSerialsInOtherAssemblies = AssemblyMaterial::where('material_id', $materialId)
-                ->where(function ($query) {
-                    $query->whereNotNull('serial')
-                        ->orWhereNotNull('serial_id');
-                })
-                ->whereHas('assembly', function ($query) use ($assemblyId) {
-                    $query->whereIn('status', ['in_progress', 'completed'])
-                        ->where('id', '!=', $assemblyId);
-                })
-                ->get()
-                ->flatMap(function ($assemblyMaterial) {
-                    $serials = [];
-                    if ($assemblyMaterial->serial) {
-                        $serials = array_merge($serials, array_map('trim', explode(',', $assemblyMaterial->serial)));
-                    }
-                    if ($assemblyMaterial->serial_id) {
-                        $serial = Serial::find($assemblyMaterial->serial_id);
-                        if ($serial) {
-                            $serials[] = $serial->serial_number;
+                if ($assemblyMaterial) {
+                    if (!empty($assemblyMaterial->serial)) {
+                        $existingSerials = array_map('trim', explode(',', $assemblyMaterial->serial));
+                    } elseif (!empty($assemblyMaterial->serial_id)) {
+                        $s = Serial::find($assemblyMaterial->serial_id);
+                        if ($s) {
+                            $existingSerials = [trim($s->serial_number)];
                         }
                     }
-                    return $serials;
-                })
-                ->filter()
-                ->unique()
-                ->toArray();
-
-            if (!empty($usedSerialsInOtherAssemblies)) {
-                $query->whereNotIn('serial_number', $usedSerialsInOtherAssemblies);
-            }
-
-            // Filter out serials already used in this assembly for other units
-            if ($productUnit !== null && $assemblyId) {
-                // Get serials already used for this material in this assembly but for different units
-                $usedSerials = AssemblyMaterial::where('assembly_id', $assemblyId)
-                    ->where('material_id', $materialId)
-                    ->where('product_unit', '!=', $productUnit)
-                    ->whereNotNull('serial')
-                    ->pluck('serial')
-                    ->flatMap(function ($serial) {
-                        return array_map('trim', explode(',', $serial));
-                    })
-                    ->filter()
-                    ->toArray();
-
-                if (!empty($usedSerials)) {
-                    $query->whereNotIn('serial_number', $usedSerials);
                 }
             }
 
-            $serials = $query->orderBy('serial_number')
-                ->get(['id', 'serial_number']);
+            // Only use warehouse_materials.serial_number JSON (source of truth by warehouse/material)
+            $wmSerialJsonList = WarehouseMaterial::where('warehouse_id', $warehouseId)
+                ->where('material_id', $materialId)
+                ->where('item_type', 'material')
+                ->whereNotNull('serial_number')
+                ->pluck('serial_number');
+            $extraSerials = [];
+            foreach ($wmSerialJsonList as $serialJson) {
+                $arr = json_decode($serialJson, true);
+                if (is_array($arr)) {
+                    foreach ($arr as $sn) {
+                        $sn = trim($sn);
+                        if ($sn !== '') {
+                            $extraSerials[$sn] = true;
+                        }
+                    }
+                }
+            }
+            $jsonSerials = array_keys($extraSerials);
+            $serials = collect($jsonSerials)
+                ->sort()
+                ->map(function ($sn) { return (object)['id' => null, 'serial_number' => $sn]; })
+                ->toBase();
 
-            // Add existing serials that might not be in the warehouse anymore
+            // Ensure currently selected serials appear in dropdown even if not in warehouse JSON now
             foreach ($existingSerials as $existingSerial) {
                 if (!$serials->contains('serial_number', $existingSerial)) {
-                    $serials->push((object)[
-                        'id' => null,
-                        'serial_number' => $existingSerial
-                    ]);
+                    $serials->push((object)['id' => null, 'serial_number' => $existingSerial]);
                 }
             }
 
@@ -1953,6 +1964,9 @@ class AssemblyController extends Controller
                 $serialNumbers = array_filter(explode(',', $assemblyProduct->serials));
             }
 
+            // Use product_unit as array for JSON storage in dispatch_items
+            $productUnit = $assemblyProduct->product_unit;
+
             DispatchItem::create([
                 'dispatch_id' => $dispatch->id,
                 'item_type' => 'product',
@@ -1961,14 +1975,12 @@ class AssemblyController extends Controller
                 'warehouse_id' => $sourceWarehouseId,
                 'category' => 'contract',
                 'serial_numbers' => !empty($serialNumbers) ? $serialNumbers : null,
+                'assembly_id' => $assemblyProduct->assembly_id,
+                'product_unit' => $productUnit,
                 'notes' => 'Từ phiếu lắp ráp ' . $assembly->code,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-
-            // For assembly with purpose=project, we don't need to decrement stock
-            // because the product was just assembled and will be dispatched directly
-            // without being stored in the warehouse first
         }
 
         // Ghi nhật ký tạo mới phiếu xuất
@@ -2028,18 +2040,18 @@ class AssemblyController extends Controller
         // Lấy danh sách vật tư đã sử dụng trong lắp ráp
         $assemblyMaterials = \App\Models\AssemblyMaterial::where('assembly_id', $assembly->id)->get();
 
-       
+
 
         foreach ($assemblyMaterials as $am) {
             if ($am->material) {
-               
+
 
                 // Xử lý serial_numbers - chuyển thành array
                 $serialNumbers = null;
                 if ($am->serial) {
                     $serialArray = explode(',', $am->serial);
                     $serialNumbers = $serialArray; // Không cần json_encode vì model đã cast thành array
-                   
+
                 }
 
                 // Tạo item trong phiếu xuất kho
@@ -2736,52 +2748,9 @@ class AssemblyController extends Controller
             return ['conflict' => false, 'message' => ''];
         }
 
-        // Kiểm tra trùng với các phiếu khác
-        foreach ($currentSerialsByMaterialId as $materialId => $serialList) {
-            if (empty($serialList)) continue;
-
-            // Tìm các assembly_material khác (không phải phiếu hiện tại) có chứa bất kỳ serial nào, và phiếu ở trạng thái đang thực hiện/hoàn thành
-            $others = AssemblyMaterial::where('material_id', $materialId)
-                ->where('assembly_id', '!=', $assembly->id)
-                ->where(function ($q) {
-                    $q->whereNotNull('serial')->orWhereNotNull('serial_id');
-                })
-                ->whereHas('assembly', function ($q) {
-                    $q->whereIn('status', ['in_progress', 'completed']);
-                })
-                ->with(['assembly', 'material'])
-                ->get();
-
-            if ($others->isEmpty()) continue;
-
-            // Đối sánh chính xác theo từng serial (tách chuỗi)
-            foreach ($others as $row) {
-                $otherSerials = [];
-                if (!empty($row->serial)) {
-                    $otherSerials = array_filter(array_map('trim', explode(',', $row->serial)));
-                } elseif (!empty($row->serial_id)) {
-                    $s = Serial::find($row->serial_id);
-                    if ($s) {
-                        $otherSerials = [trim($s->serial_number)];
-                    }
-                }
-
-                if (empty($otherSerials)) continue;
-
-                // Tìm giao nhau
-                $conflicted = array_values(array_intersect($serialList, $otherSerials));
-                if (!empty($conflicted)) {
-                    $materialName = $row->material->name ?? ('#' . $materialId);
-                    $serialStr = implode(', ', $conflicted);
-                    $otherAssemblyCode = $row->assembly->code ?? ('ID ' . $row->assembly_id);
-                    return [
-                        'conflict' => true,
-                        'message' => "Serial {$serialStr} của vật tư '{$materialName}' đã được sử dụng ở phiếu lắp ráp {$otherAssemblyCode}."
-                    ];
-                }
-            }
-        }
-
+        // Cho phép tái sử dụng serial đã xuất hiện ở phiếu khác: bỏ chặn khi duyệt
+        // Kiểm tra trùng với các phiếu khác (DISABLED)
+        // Always allow: no conflict
         return ['conflict' => false, 'message' => ''];
     }
 
@@ -2861,46 +2830,17 @@ class AssemblyController extends Controller
             $totalSerializedInWarehouse = max($totalSerializedInWarehouseFromSerials, $serializedCountFromWarehouseJson);
 
             // Danh sách serial khả dụng để chọn (chưa bị giữ bởi assembly khác)
+            // Include all active serials in this warehouse (do not exclude based on other assemblies)
             $availableSerialNumbers = Serial::where('product_id', $material->id)
                 ->where('type', 'material')
                 ->where('warehouse_id', $warehouseId)
                 ->where('status', 'active')
-                ->where(function ($q) use ($assembly) {
-                    $q->whereNull('notes')
-                        ->orWhere('notes', 'like', '%Assembly ID: ' . $assembly->id . '%');
-                })
                 ->pluck('serial_number')
                 ->map(function ($s) {
                     return trim($s);
                 })
                 ->filter()
                 ->values()
-                ->toArray();
-
-            // Bổ sung serial khả dụng từ JSON serial_number (nếu tồn tại) trừ đi các serial đang bị giữ bởi assembly khác
-            $usedSerialsOther = AssemblyMaterial::where('material_id', $material->id)
-                ->where('assembly_id', '!=', $assembly->id)
-                ->where(function ($q) {
-                    $q->whereNotNull('serial')->orWhereNotNull('serial_id');
-                })
-                ->whereHas('assembly', function ($q) {
-                    $q->whereIn('status', ['in_progress', 'completed']);
-                })
-                ->get()
-                ->flatMap(function ($am) {
-                    $list = [];
-                    if (!empty($am->serial)) {
-                        $list = array_merge($list, array_filter(array_map('trim', explode(',', $am->serial))));
-                    }
-                    if (!empty($am->serial_id)) {
-                        $s = Serial::find($am->serial_id);
-                        if ($s) {
-                            $list[] = trim($s->serial_number);
-                        }
-                    }
-                    return $list;
-                })
-                ->unique()
                 ->toArray();
 
             $wmSerialJsonList = WarehouseMaterial::where('warehouse_id', $warehouseId)
@@ -2914,7 +2854,8 @@ class AssemblyController extends Controller
                     foreach ($arr as $sn) {
                         $sn = trim($sn);
                         if ($sn === '') continue;
-                        if (!in_array($sn, $usedSerialsOther, true) && !in_array($sn, $availableSerialNumbers, true)) {
+                        // Do not exclude serials used in other assemblies; show all present in warehouse
+                        if (!in_array($sn, $availableSerialNumbers, true)) {
                             $availableSerialNumbers[] = $sn;
                         }
                     }
@@ -3092,7 +3033,7 @@ class AssemblyController extends Controller
     {
         try {
             $productIds = $request->input('product_ids', []);
-            
+
             if (empty($productIds)) {
                 return response()->json([
                     'success' => true,
@@ -3114,9 +3055,9 @@ class AssemblyController extends Controller
                 // Lấy serial vật tư từ assembly_materials
                 $assemblyMaterials = DB::table('assembly_materials')
                     ->join('assemblies', 'assembly_materials.assembly_id', '=', 'assemblies.id')
-                    ->join('assembly_products', function($join) use ($productId) {
+                    ->join('assembly_products', function ($join) use ($productId) {
                         $join->on('assembly_products.assembly_id', '=', 'assemblies.id')
-                             ->where('assembly_products.product_id', '=', $productId);
+                            ->where('assembly_products.product_id', '=', $productId);
                     })
                     ->where('assembly_materials.target_product_id', $productId)
                     ->whereNotNull('assembly_materials.serial')
@@ -3133,7 +3074,6 @@ class AssemblyController extends Controller
                 'success' => true,
                 'serial_components' => $serialComponents
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

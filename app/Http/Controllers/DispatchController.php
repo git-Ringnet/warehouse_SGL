@@ -771,6 +771,8 @@ class DispatchController extends Controller
                         'warehouse_id' => $itemData['warehouse_id'],
                         'category' => $itemData['category'] ?? 'contract',
                         'serial_numbers' => $serialNumbers,
+                        'assembly_id' => $itemData['assembly_id'] ?? null,
+                        'product_unit' => $itemData['product_unit'] ?? null,
                     ];
                 }
             }
@@ -804,6 +806,8 @@ class DispatchController extends Controller
                         'warehouse_id' => $itemData['warehouse_id'],
                         'category' => $itemData['category'] ?? 'general',
                         'serial_numbers' => $serialNumbers,
+                        'assembly_id' => $itemData['assembly_id'] ?? null,
+                        'product_unit' => $itemData['product_unit'] ?? null,
                     ];
                 }
             }
@@ -827,6 +831,8 @@ class DispatchController extends Controller
                         'warehouse_id' => $itemData['warehouse_id'],
                         'category' => $itemData['category'] ?? 'backup',
                         'serial_numbers' => $serialNumbers,
+                        'assembly_id' => $itemData['assembly_id'] ?? null,
+                        'product_unit' => $itemData['product_unit'] ?? null,
                     ];
                 }
             }
@@ -850,6 +856,8 @@ class DispatchController extends Controller
                         'warehouse_id' => $itemData['warehouse_id'],
                         'category' => $itemData['category'] ?? 'general',
                         'serial_numbers' => $serialNumbers,
+                        'assembly_id' => $itemData['assembly_id'] ?? null,
+                        'product_unit' => $itemData['product_unit'] ?? null,
                     ];
                 }
             }
@@ -881,6 +889,8 @@ class DispatchController extends Controller
                 'warehouse_id' => $item['warehouse_id'],
                 'category' => $item['category'],
                 'serial_numbers' => $item['serial_numbers'],
+                'assembly_id' => $item['assembly_id'] ?? null,
+                'product_unit' => $item['product_unit'] ?? null,
             ]);
         }
     }
@@ -2108,28 +2118,41 @@ class DispatchController extends Controller
                 ->whereHas('assembly', function($q) use ($projectId) {
                     $q->where('project_id', $projectId);
                 })
-                ->orderBy('id')
+                ->whereNotNull('product_unit')
+                ->orderBy('product_unit')
                 ->first();
             
             if ($projectAssembly) {
-                $availableUnit = $this->findAvailableUnitInAssemblyForDispatch($projectAssembly->assembly_id, $productId);
-                if ($availableUnit !== null) {
+                // Check if this specific unit is available (not dispatched yet)
+                $isDispatched = \App\Models\DispatchItem::where('assembly_id', $projectAssembly->assembly_id)
+                    ->where('item_type', 'product')
+                    ->where('item_id', $productId)
+                    ->where('product_unit', $projectAssembly->product_unit)
+                    ->exists();
+                
+                if (!$isDispatched) {
                     return [
                         'assembly_id' => $projectAssembly->assembly_id,
-                        'product_unit' => $availableUnit
+                        'product_unit' => $projectAssembly->product_unit
                     ];
                 }
             }
         }
 
-        // Fallback: tìm assembly khác theo thứ tự ID
-        $assemblies = $query->orderBy('id')->get();
+        // Fallback: tìm assembly khác theo thứ tự product_unit
+        $assemblies = $query->whereNotNull('product_unit')->orderBy('product_unit')->get();
         foreach ($assemblies as $assembly) {
-            $availableUnit = $this->findAvailableUnitInAssemblyForDispatch($assembly->assembly_id, $productId);
-            if ($availableUnit !== null) {
+            // Check if this specific unit is available (not dispatched yet)
+            $isDispatched = \App\Models\DispatchItem::where('assembly_id', $assembly->assembly_id)
+                ->where('item_type', 'product')
+                ->where('item_id', $productId)
+                ->where('product_unit', $assembly->product_unit)
+                ->exists();
+            
+            if (!$isDispatched) {
                 return [
                     'assembly_id' => $assembly->assembly_id,
-                    'product_unit' => $availableUnit
+                    'product_unit' => $assembly->product_unit
                 ];
             }
         }
@@ -2150,9 +2173,9 @@ class DispatchController extends Controller
             ->pluck('product_unit')
             ->toArray();
 
-        // Lấy tất cả product_unit có trong assembly này
-        $availableUnits = \App\Models\AssemblyMaterial::where('assembly_id', $assemblyId)
-            ->where('target_product_id', $productId)
+        // Lấy tất cả product_unit có trong assembly này từ assembly_products
+        $availableUnits = \App\Models\AssemblyProduct::where('assembly_id', $assemblyId)
+            ->where('product_id', $productId)
             ->whereNotNull('product_unit')
             ->pluck('product_unit')
             ->unique()
@@ -2202,17 +2225,18 @@ class DispatchController extends Controller
                     ->first();
 
                 if ($ap) {
-                    // Derive product_unit if present in assembly_materials for this assembly/product
-                    $unit = \App\Models\AssemblyMaterial::where('assembly_id', $ap->assembly_id)
-                        ->where('target_product_id', $productId)
-                        ->whereNotNull('product_unit')
-                        ->orderBy('product_unit')
-                        ->value('product_unit');
+                    Log::info('resolveAssemblyForProduct: Found assembly_products match', [
+                        'product_id' => $productId,
+                        'serial' => $serial,
+                        'assembly_id' => $ap->assembly_id,
+                        'product_unit' => $ap->product_unit,
+                        'assembly_products_data' => $ap
+                    ]);
 
                     return response()->json([
                         'success' => true,
                         'assembly_id' => (int) $ap->assembly_id,
-                        'product_unit' => $unit !== null ? (int) $unit : null
+                        'product_unit' => $ap->product_unit !== null ? (int) $ap->product_unit : null
                     ]);
                 }
 
@@ -2376,13 +2400,41 @@ class DispatchController extends Controller
                 // Remove duplicates and empty values
                 $serials = array_values(array_unique(array_filter($serials)));
             } else {
-                // For other types (product, material), use Serial table
-                $serials = \App\Models\Serial::where('type', $itemType)
-                    ->where('product_id', $itemId)
-                    ->where('warehouse_id', $warehouseId)
-                    ->where('status', 'active')
-                    ->pluck('serial_number')
-                    ->toArray();
+                // For products and materials, prioritize warehouse-scoped source of truth
+                // PRODUCTS: read from warehouse_materials only (ensures correct warehouse filtering)
+                if ($itemType === 'product') {
+                    $serials = [];
+                    $warehouseMaterials = \App\Models\WarehouseMaterial::where('warehouse_id', $warehouseId)
+                        ->where('material_id', $itemId)
+                        ->where('item_type', 'product')
+                        ->where('quantity', '>', 0)
+                        ->whereNotNull('serial_number')
+                        ->get();
+
+                    foreach ($warehouseMaterials as $wm) {
+                        if ($wm->serial_number) {
+                            if (is_string($wm->serial_number) && strpos($wm->serial_number, '[') === 0) {
+                                $decodedSerials = json_decode($wm->serial_number, true);
+                                if (is_array($decodedSerials)) {
+                                    $serials = array_merge($serials, array_filter($decodedSerials));
+                                }
+                            } else {
+                                $serials[] = $wm->serial_number;
+                            }
+                        }
+                    }
+
+                    // Remove duplicates and empty values
+                    $serials = array_values(array_unique(array_filter($serials)));
+                } else {
+                    // MATERIALS: use Serial table (keeps existing behavior)
+                    $serials = \App\Models\Serial::where('type', $itemType)
+                        ->where('product_id', $itemId)
+                        ->where('warehouse_id', $warehouseId)
+                        ->where('status', 'active')
+                        ->pluck('serial_number')
+                        ->toArray();
+                }
             }
 
             // Debug: Log raw serials found

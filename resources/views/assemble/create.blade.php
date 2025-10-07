@@ -791,7 +791,8 @@
                     name: productName,
                     quantity: quantity,
                     originalQuantity: quantity, // Store original quantity for comparison
-                    serials: Array(quantity).fill('')
+                    serials: Array(quantity).fill(''),
+                    product_unit: 0 // Default product unit
                 };
 
                 selectedProducts.push(newProduct);
@@ -1099,6 +1100,76 @@
                         if (data.success) {
                             const components = data.materials;
 
+                            // Early limit evaluation before pushing components for this product quantity
+                            try {
+                                const MAX_INPUT_VARS = 10000; // match php.ini
+                                const HEADER_FIELDS = 20;      // safety buffer
+                                const MAX_COMPONENTS = Math.floor((MAX_INPUT_VARS - HEADER_FIELDS) * 0.25); // effective cap 25%
+                                const WARNING_PCT = 0.6;      // warn from 60% of effective cap
+                                const WARNING_THRESHOLD = Math.floor(MAX_COMPONENTS * WARNING_PCT);
+
+                                const currentCount = (window.selectedComponents && Array.isArray(window.selectedComponents))
+                                    ? window.selectedComponents.length : 0;
+                                const productObj = (window.selectedProducts || []).find(p => p.uniqueId === productUniqueId);
+                                const qty = productObj && (parseInt(productObj.quantity) || parseInt(productObj.originalQuantity)) ?
+                                    (parseInt(productObj.quantity) || parseInt(productObj.originalQuantity)) : 1;
+                                const projected = currentCount + (components.length * qty);
+
+                                if (projected > MAX_COMPONENTS) {
+                                    if (typeof Swal !== 'undefined') {
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Vượt quá giới hạn',
+                                            html: `Đang cố thêm <b>${qty}</b> thành phẩm với <b>${components.length}</b> vật tư mỗi cái.<br>` +
+                                                  `Tổng sau khi thêm sẽ là <b>${projected}</b>/<b>${MAX_COMPONENTS}</b> vật tư, vượt giới hạn cho phép.`,
+                                            confirmButtonText: 'Đã hiểu',
+                                            confirmButtonColor: '#dc2626'
+                                        });
+                                    }
+                                    
+                                    // Remove the product that was just added
+                                    const productIndex = selectedProducts.findIndex(p => p.uniqueId === productUniqueId);
+                                    if (productIndex !== -1) {
+                                        selectedProducts.splice(productIndex, 1);
+                                        updateProductList();
+                                        
+                                        // Remove the component block
+                                        const componentBlock = document.getElementById('component_block_' + productUniqueId);
+                                        if (componentBlock) {
+                                            componentBlock.remove();
+                                        }
+                                        
+                                        // Show empty state if no products left
+                                        if (selectedProducts.length === 0) {
+                                            const noProductsComponents = document.getElementById('no_products_components');
+                                            if (noProductsComponents) {
+                                                noProductsComponents.style.display = '';
+                                            }
+                                        }
+                                        
+                                        // Update product dropdown and button state
+                                        updateComponentProductDropdown();
+                                        updateAddProductButtonState();
+                                    }
+                                    
+                                    return; // block adding this product's components
+                                }
+
+                                if (projected >= WARNING_THRESHOLD && projected <= MAX_COMPONENTS) {
+                                    if (typeof Swal !== 'undefined') {
+                                        // Show once per add click, not auto-close so user can see it
+                                        Swal.fire({
+                                            icon: 'warning',
+                                            title: 'Gần đạt giới hạn',
+                                            html: `Sau khi thêm sẽ có khoảng <b>${projected}</b>/<b>${MAX_COMPONENTS}</b> vật tư ` +
+                                                  `(≈ ${Math.round(projected / MAX_COMPONENTS * 100)}%).`,
+                                            confirmButtonText: 'Đã hiểu',
+                                            confirmButtonColor: '#f59e0b'
+                                        });
+                                    }
+                                }
+                            } catch (_) { /* no-op */ }
+
                             if (components.length === 0) {
                                 // Show info message if no components
                                 const infoMessage = document.createElement('div');
@@ -1149,7 +1220,10 @@
                                                 ''
                                         };
 
-                                        selectedComponents.push(componentData);
+                    selectedComponents.push(componentData);
+                    if (typeof window.evaluateAssemblyLimits === 'function') {
+                        window.evaluateAssemblyLimits();
+                    }
                                     });
                                 }
 
@@ -1737,6 +1811,54 @@
                             this.value = '1';
                         }
 
+                        // Check limit before updating quantity
+                        try {
+                            const MAX_INPUT_VARS = 10000; // match php.ini
+                            const HEADER_FIELDS = 20;      // safety buffer
+                            const MAX_COMPONENTS = Math.floor((MAX_INPUT_VARS - HEADER_FIELDS) * 0.25); // effective cap 25%
+                            
+                            // Get current components count (excluding this product's components)
+                            const currentCount = selectedComponents.filter(c => c.productId !== product.uniqueId).length;
+                            
+                            // Get this product's BOM size (estimate from existing components)
+                            const existingComponents = selectedComponents.filter(c => c.productId === product.uniqueId);
+                            const componentsForFirstUnit = existingComponents.filter(c => c.productUnit === 0);
+                            const bomSize = componentsForFirstUnit.length;
+                            
+                            // Calculate projected total
+                            const projected = currentCount + (bomSize * newQty);
+                            
+                            if (projected > MAX_COMPONENTS) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Vượt quá giới hạn',
+                                        html: `Không thể thay đổi số lượng thành <b>${newQty}</b>.<br>` +
+                                              `Tổng vật tư sẽ là <b>${projected}</b>/<b>${MAX_COMPONENTS}</b>, vượt giới hạn cho phép.`,
+                                        confirmButtonText: 'Đã hiểu',
+                                        confirmButtonColor: '#dc2626'
+                                    });
+                                }
+                                
+                                // Revert the input value and exit early
+                                this.value = product.quantity;
+                                return; // Exit early, don't update anything
+                            }
+                            
+                            if (projected >= Math.floor(MAX_COMPONENTS * 0.6)) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Gần đạt giới hạn',
+                                        html: `Sau khi thay đổi sẽ có <b>${projected}</b>/<b>${MAX_COMPONENTS}</b> vật tư ` +
+                                              `(≈ ${Math.round(projected / MAX_COMPONENTS * 100)}%).`,
+                                        confirmButtonText: 'Đã hiểu',
+                                        confirmButtonColor: '#f59e0b'
+                                    });
+                                }
+                            }
+                        } catch (_) { /* no-op */ }
+
                         // Clear validation styling
                         this.setCustomValidity('');
                         this.classList.remove('border-red-500');
@@ -2273,6 +2395,9 @@
                                 };
 
                                 selectedComponents.push(newComponent);
+                                if (typeof window.evaluateAssemblyLimits === 'function') {
+                                    window.evaluateAssemblyLimits();
+                                }
                             });
                             }
                         }
@@ -2299,7 +2424,10 @@
                         console.log(
                             `Re-adding component "${component.name}" (ID: ${component.id}) to unit ${component.productUnit} only`
                             );
-                        selectedComponents.push(newComponent);
+                                selectedComponents.push(newComponent);
+                                if (typeof window.evaluateAssemblyLimits === 'function') {
+                                    window.evaluateAssemblyLimits();
+                                }
                     }
                 });
 
@@ -2326,6 +2454,9 @@
                             `Re-adding existing product component "${component.name}" (ID: ${component.id}) to unit ${component.productUnit} only`
                             );
                         selectedComponents.push(newComponent);
+                        if (typeof window.evaluateAssemblyLimits === 'function') {
+                            window.evaluateAssemblyLimits();
+                        }
                     }
                 });
 
@@ -2756,6 +2887,13 @@
                     productQuantityInput.name = 'products[' + index + '][quantity]';
                     productQuantityInput.value = product.quantity;
                     form.appendChild(productQuantityInput);
+
+                    // Product Unit
+                    const productUnitInput = document.createElement('input');
+                    productUnitInput.type = 'hidden';
+                    productUnitInput.name = 'products[' + index + '][product_unit]';
+                    productUnitInput.value = product.product_unit || 0;
+                    form.appendChild(productUnitInput);
 
                     // Do NOT create hidden product serial inputs here.
                     // Visible serial inputs already have proper names: products[index][serials][]
@@ -3642,6 +3780,9 @@
                                     warehouseId: defaultWarehouseId || base.warehouseId || ''
                                 };
                                 selectedComponents.push(cloned);
+                                if (typeof window.evaluateAssemblyLimits === 'function') {
+                                    window.evaluateAssemblyLimits();
+                                }
                                 console.log('Added component:', {
                                     id: cloned.id,
                                     name: cloned.name,
@@ -4054,6 +4195,108 @@
                         window.prepareComponentSerialHiddenInputs();
                     }
 
+                    // Build components_json to avoid hitting max_input_vars and ensure headers are preserved
+                    const canProceed = (function buildComponentsJson() {
+                        const hidden = document.getElementById('hidden_form_data');
+                        if (!hidden) return;
+
+                        // Collect all inputs/selects belonging to components[*][field]
+                        const fields = document.querySelectorAll('input[name^="components["], select[name^="components["]');
+                        const byIndex = {};
+                        const nameRe = /^components\[(\d+)\]\[([^\]]+)\]$/;
+
+                        fields.forEach(el => {
+                            const m = el.name.match(nameRe);
+                            if (!m) return;
+                            const idx = m[1];
+                            const key = m[2];
+                            if (!byIndex[idx]) byIndex[idx] = {};
+                            byIndex[idx][key] = (el.tagName === 'SELECT') ? el.value : el.value;
+                        });
+
+                        const components = Object.values(byIndex)
+                            .filter(c => c.id && c.product_id)
+                            .map(c => ({
+                                id: c.id,
+                                product_id: c.product_id,
+                                quantity: parseInt(c.quantity || '1', 10),
+                                warehouse_id: c.warehouse_id || '',
+                                note: c.note || '',
+                                product_unit: c.product_unit || '0',
+                                serial: c.serial || '',
+                                serial_id: c.serial_id || ''
+                            }));
+
+                        // Calculate limits (based on server max_input_vars)
+                        const MAX_INPUT_VARS = 10000; // match php.ini
+                        const HEADER_FIELDS = 20;      // assembly_code/date/assigned_to/... safety buffer
+                        // Apply effective cap at 25% to avoid UI lag with huge payloads
+                        const MAX_COMPONENTS = Math.floor((MAX_INPUT_VARS - HEADER_FIELDS) * 0.25);
+                        const WARNING_PCT = 0.6;       // warn from 60% of effective cap
+                        const WARNING_THRESHOLD = Math.floor(MAX_COMPONENTS * WARNING_PCT);
+
+                        if (components.length > MAX_COMPONENTS) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Vượt quá giới hạn thành phần',
+                                html: `Bạn đang có <b>${components.length}</b> thành phần. Giới hạn tối đa là <b>${MAX_COMPONENTS}</b>.\n<br>Vui lòng bớt bớt vật tư/thành phẩm trước khi lưu.`,
+                                confirmButtonText: 'Đã hiểu',
+                                confirmButtonColor: '#dc2626'
+                            });
+                            return false; // block submit
+                        }
+
+                        // Soft warning by component count percentage
+                        if (components.length >= WARNING_THRESHOLD) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Gần đạt giới hạn',
+                                html: `Số thành phần hiện tại: <b>${components.length}</b>/<b>${MAX_COMPONENTS}</b> (≈ ${Math.round(components.length / MAX_COMPONENTS * 100)}%).`,
+                                confirmButtonText: 'Đã hiểu',
+                                confirmButtonColor: '#f59e0b'
+                            });
+                        }
+
+                        // Optional product-count based heads-up (useful since mỗi thành phẩm ≈ nhiều vật tư)
+                        try {
+                            const productCount = Array.from(document.querySelectorAll('[data-product-block]')).length
+                                || (window.selectedProducts ? window.selectedProducts.length : 0);
+                            if (productCount >= 100) {
+                                Swal.fire({
+                                    icon: 'info',
+                                    title: 'Bạn đã thêm rất nhiều thành phẩm',
+                                    html: `Hiện có <b>${productCount}</b> thành phẩm. Hệ thống vẫn cho phép lưu, nhưng hãy cân nhắc tách phiếu để dễ kiểm soát.`,
+                                    timer: 4000,
+                                    timerProgressBar: true
+                                });
+                            }
+                        } catch (_) { /* no-op */ }
+
+                        // Remove old hidden if any
+                        Array.from(hidden.querySelectorAll('input[name="components_json"]')).forEach(e => e.remove());
+
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'components_json';
+                        input.value = JSON.stringify(components);
+                        hidden.appendChild(input);
+
+                        // To minimize input vars, temporarily remove name from component fields (they still keep values for UX)
+                        fields.forEach(el => {
+                            if (!el.hasAttribute('data-original-name')) {
+                                el.setAttribute('data-original-name', el.name);
+                            }
+                            el.removeAttribute('name');
+                        });
+                        return true;
+                    })();
+
+                    if (!canProceed) {
+                        // Unblock submit flag so user can try again after reducing items
+                        window._assemblySubmitting = false;
+                        return;
+                    }
+
                     const form = document.getElementById('assembly_form');
                     form.submit();
                 } finally {
@@ -4067,6 +4310,9 @@
                 setTimeout(() => {
                     updateComponentProductDropdown();
                     updateAddProductButtonState();
+                    if (typeof window.evaluateAssemblyLimits === 'function') {
+                        window.evaluateAssemblyLimits();
+                    }
                 }, 0);
             });
 
@@ -4075,6 +4321,43 @@
             
             // Initialize add product button state
             updateAddProductButtonState();
+
+            // Lightweight runtime limit evaluator (warn early while adding)
+            window._assemblyLimitWarnedAt = 0;
+            window.evaluateAssemblyLimits = function() {
+                try {
+                    const MAX_INPUT_VARS = 10000; // match php.ini
+                    const HEADER_FIELDS = 20;      // buffer for headers
+                    const MAX_COMPONENTS = Math.floor((MAX_INPUT_VARS - HEADER_FIELDS) * 0.25); // effective cap 25%
+                    const WARNING_PCT = 0.6;       // warn from 60%
+                    const WARNING_THRESHOLD = Math.floor(MAX_COMPONENTS * WARNING_PCT);
+
+                    const componentCount = (window.selectedComponents && Array.isArray(window.selectedComponents))
+                        ? window.selectedComponents.length
+                        : 0;
+
+                    if (componentCount >= WARNING_THRESHOLD && componentCount <= MAX_COMPONENTS) {
+                        const now = Date.now();
+                        if (!window._assemblyLimitWarnedAt || (now - window._assemblyLimitWarnedAt) > 5000) {
+                            window._assemblyLimitWarnedAt = now;
+                            if (typeof Swal !== 'undefined') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: 'Gần đạt giới hạn',
+                                    html: `Số thành phần hiện tại: <b>${componentCount}</b>/<b>${MAX_COMPONENTS}</b> (≈ ${Math.round(componentCount / MAX_COMPONENTS * 100)}%).`,
+                                    confirmButtonText: 'Đã hiểu',
+                                    confirmButtonColor: '#f59e0b'
+                                });
+                            }
+                        }
+                    }
+                } catch (e) { /* no-op */ }
+            };
+
+            // Initial evaluation
+            if (typeof window.evaluateAssemblyLimits === 'function') {
+                window.evaluateAssemblyLimits();
+            }
 
             // Event delegation for delete product buttons
             document.addEventListener('click', function(e) {
@@ -4138,6 +4421,10 @@
 
                     // Update add product button state
                     updateAddProductButtonState();
+
+                    if (typeof window.evaluateAssemblyLimits === 'function') {
+                        window.evaluateAssemblyLimits();
+                    }
 
                     // Update the component list to reflect changes
                     // Call updateProductComponentList for each remaining product to recreate the full structure
@@ -4862,6 +5149,56 @@
 
                     if (product) {
                         const oldQuantity = product.quantity;
+                        
+                        // Check limit before updating quantity
+                        try {
+                            const MAX_INPUT_VARS = 10000; // match php.ini
+                            const HEADER_FIELDS = 20;      // safety buffer
+                            const MAX_COMPONENTS = Math.floor((MAX_INPUT_VARS - HEADER_FIELDS) * 0.25); // effective cap 25%
+                            
+                            // Get current components count (excluding this product's components)
+                            const currentCount = selectedComponents.filter(c => c.productId !== productId).length;
+                            
+                            // Get this product's BOM size (estimate from existing components)
+                            const existingComponents = selectedComponents.filter(c => c.productId === productId);
+                            const componentsForFirstUnit = existingComponents.filter(c => c.productUnit === 0);
+                            const bomSize = componentsForFirstUnit.length;
+                            
+                            // Calculate projected total
+                            const projected = currentCount + (bomSize * quantity);
+                            
+                            if (projected > MAX_COMPONENTS) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Vượt quá giới hạn',
+                                        html: `Không thể thay đổi số lượng thành <b>${quantity}</b>.<br>` +
+                                              `Tổng vật tư sẽ là <b>${projected}</b>/<b>${MAX_COMPONENTS}</b>, vượt giới hạn cho phép.`,
+                                        confirmButtonText: 'Đã hiểu',
+                                        confirmButtonColor: '#dc2626'
+                                    });
+                                }
+                                
+                                // Revert the input value and exit early
+                                e.target.value = oldQuantity;
+                                return; // Exit early, don't update anything
+                            }
+                            
+                            if (projected >= Math.floor(MAX_COMPONENTS * 0.6)) {
+                                if (typeof Swal !== 'undefined') {
+                                    Swal.fire({
+                                        icon: 'warning',
+                                        title: 'Gần đạt giới hạn',
+                                        html: `Sau khi thay đổi sẽ có <b>${projected}</b>/<b>${MAX_COMPONENTS}</b> vật tư ` +
+                                              `(≈ ${Math.round(projected / MAX_COMPONENTS * 100)}%).`,
+                                        confirmButtonText: 'Đã hiểu',
+                                        confirmButtonColor: '#f59e0b'
+                                    });
+                                }
+                            }
+                        } catch (_) { /* no-op */ }
+                        
+                        // Only update if we passed the limit check
                         // Update product quantity in our data model
                         product.quantity = quantity;
 
