@@ -4657,11 +4657,14 @@
                             });
 
                         // Add serial options
+                        let availableSerials = [];
                         serials.forEach(serial => {
                             // Skip this serial if it's already selected in another dropdown
                             if (allSelectedSerials.has(serial.serial_number)) {
                                 return; // Skip this serial
                             }
+
+                            availableSerials.push(serial);
 
                             const option = document.createElement('option');
                             option.value = serial.serial_number;
@@ -4684,6 +4687,25 @@
 
                             selectElement.appendChild(option);
                         });
+
+                        // Auto-select if only one serial is available and none is currently selected for this index
+                        if (availableSerials.length === 1 && 
+                            (!component.serials || !component.serials[serialIndex]) && 
+                            (!component.serial_ids || !component.serial_ids[serialIndex])) {
+                            const firstSerial = availableSerials[0];
+                            selectElement.value = firstSerial.serial_number;
+                            if (!component.serials) component.serials = [];
+                            if (!component.serial_ids) component.serial_ids = [];
+                            component.serials[serialIndex] = firstSerial.serial_number;
+                            component.serial_ids[serialIndex] = firstSerial.id;
+                            serialIdInput.value = firstSerial.id;
+                            
+                            // Update the option to be selected
+                            const option = selectElement.querySelector(`option[value="${firstSerial.serial_number}"]`);
+                            if (option) {
+                                option.selected = true;
+                            }
+                        }
                     } else {
                         const noSerialOption = document.createElement('option');
                         noSerialOption.textContent = 'Không có serial khả dụng';
@@ -4724,11 +4746,14 @@
                             });
 
                         // Add serial options
+                        let availableSerials = [];
                         serials.forEach(serial => {
                             // Skip this serial if it's already selected in another dropdown
                             if (allSelectedSerials.has(serial.serial_number)) {
                                 return; // Skip this serial
                             }
+
+                            availableSerials.push(serial);
 
                             const option = document.createElement('option');
                             option.value = serial.serial_number;
@@ -4747,6 +4772,21 @@
 
                             selectElement.appendChild(option);
                         });
+
+                        // Auto-select if only one serial is available and none is currently selected
+                        if (availableSerials.length === 1 && !component.serial && !component.serial_id) {
+                            const firstSerial = availableSerials[0];
+                            selectElement.value = firstSerial.serial_number;
+                            component.serial = firstSerial.serial_number;
+                            component.serial_id = firstSerial.id;
+                            serialIdInput.value = firstSerial.id;
+                            
+                            // Update the option to be selected
+                            const option = selectElement.querySelector(`option[value="${firstSerial.serial_number}"]`);
+                            if (option) {
+                                option.selected = true;
+                            }
+                        }
                     } else {
                         const noSerialOption = document.createElement('option');
                         noSerialOption.textContent = 'Không có serial khả dụng';

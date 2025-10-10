@@ -331,14 +331,14 @@ class AssemblyController extends Controller
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                        // Check in the serials table (exact match, case-insensitive)
-                        $existingSerial = Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($serial)])
-                            ->where('product_id', $productData['id'])
-                            ->where('type', 'product') // Only check for type='product'
+                            // Check in warehouse_materials table (JSON array format)
+                        $existingWarehouseMaterial = WarehouseMaterial::where('material_id', $productData['id'])
+                            ->where('item_type', 'product')
+                            ->whereRaw('JSON_SEARCH(LOWER(serial_number), "one", LOWER(?)) IS NOT NULL', [strtolower($serial)])
                             ->first();
 
-                        if ($existingSerial) {
-                            throw new \Exception("Serial '{$serial}' đã tồn tại trong cơ sở dữ liệu.");
+                        if ($existingWarehouseMaterial) {
+                            throw new \Exception("Serial '{$serial}' đã tồn tại trong tồn kho.");
                         }
                     }
                 }
@@ -438,10 +438,7 @@ class AssemblyController extends Controller
                     $targetWarehouseId = $assembly->warehouse_id;
                 }
 
-                // Create serial records for product serials (only if we have serials)
-                if (!empty($filteredSerials) && $targetWarehouseId) {
-                    $this->createSerialRecords($filteredSerials, (int)$productData['id'], $assembly->id, (int)$targetWarehouseId);
-                }
+                // Serial records will be created only after testing completion
             }
 
             // Create assembly materials and update stock levels    
@@ -827,17 +824,21 @@ class AssemblyController extends Controller
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                        // Check in serials table (exact match, case-insensitive)
-                        $existingSerial = Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($serial)])
-                            ->where('product_id', $productData['id'])
-                            ->where('type', 'product') // Only check for type='product'
-                            ->first();
+                        // Check in warehouse_materials table (JSON array format), case-insensitive
+                        $existsInWarehouse = WarehouseMaterial::where('material_id', $productData['id'])
+                            ->where('item_type', 'product')
+                            ->whereRaw('JSON_SEARCH(LOWER(serial_number), "one", LOWER(?)) IS NOT NULL', [strtolower($serial)])
+                            ->exists();
 
-                        // If serial exists, check if it belongs to current assembly
-                        if ($existingSerial) {
-                            $expectedNote = 'Assembly ID: ' . $assembly->id;
-                            if ($existingSerial->notes !== $expectedNote) {
-                                throw new \Exception("Serial '{$serial}' đã tồn tại trong cơ sở dữ liệu.");
+                        if ($existsInWarehouse) {
+                            // Allow if this serial already belongs to current assembly record being edited
+                            $belongsToCurrentAssembly = \App\Models\AssemblyProduct::where('assembly_id', $assembly->id)
+                                ->where('product_id', $productData['id'])
+                                ->whereRaw('FIND_IN_SET(?, serials)', [$serial])
+                                ->exists();
+
+                            if (!$belongsToCurrentAssembly) {
+                                throw new \Exception("Serial '{$serial}' đã tồn tại trong tồn kho.");
                             }
                         }
                     }
@@ -1027,19 +1028,7 @@ class AssemblyController extends Controller
                     }
                 }
 
-                // Recreate product serial records for this assembly
-                $this->deleteSerialRecords($assembly->id);
-                foreach ($request->products as $productIndex => $productData) {
-                    if (isset($productData['serials']) && is_array($productData['serials'])) {
-                        $filteredSerials = array_filter($productData['serials']);
-                        if (!empty($filteredSerials)) {
-                            $targetWarehouseId = $assembly->target_warehouse_id ?: $assembly->warehouse_id;
-                            if ($targetWarehouseId) {
-                                $this->createSerialRecords($filteredSerials, (int)$productData['id'], $assembly->id, $targetWarehouseId);
-                            }
-                        }
-                    }
-                }
+                // Serial records will be created only after testing completion
             }
 
             // 5. Delete selected components (pending only)
@@ -1533,48 +1522,7 @@ class AssemblyController extends Controller
         }
     }
 
-    /**
-     * Create serial records for each product serial
-     */
-    private function createSerialRecords(array $serials, int $productId, int $assemblyId, int $warehouseId)
-    {
-        if (empty($serials)) return;
-
-        foreach ($serials as $serial) {
-            if (empty($serial)) continue;
-
-            Serial::create([
-                'serial_number' => $serial,
-                'product_id' => $productId,
-                'status' => 'active',
-                'notes' => 'Assembly ID: ' . $assemblyId,
-                'type' => 'product',
-                'warehouse_id' => $warehouseId
-            ]);
-        }
-    }
-
-    /**
-     * Update serial records for a particular assembly
-     */
-    private function updateSerialRecords(array $newSerials, int $productId, int $assemblyId, int $warehouseId)
-    {
-        // Delete existing serials for this assembly
-        $this->deleteSerialRecords($assemblyId);
-
-        // Create new serials
-        $this->createSerialRecords($newSerials, $productId, $assemblyId, $warehouseId);
-    }
-
-    /**
-     * Delete serial records for a particular assembly
-     */
-    private function deleteSerialRecords(int $assemblyId)
-    {
-        Serial::where('notes', 'like', '%Assembly ID: ' . $assemblyId . '%')
-            ->where('type', 'product')
-            ->delete();
-    }
+    // Serial records are now managed only during testing completion process
 
     /**
      * Check if a serial exists in a comma-separated string (case-insensitive)
@@ -1603,18 +1551,22 @@ class AssemblyController extends Controller
         $assemblyId = $request->assembly_id;
 
         try {
-            // Check in serials table (exact match, case-insensitive)
-            // Only check serials with type='product' since we're validating product serials
-            $existingSerial = Serial::whereRaw('LOWER(serial_number) = ?', [strtolower($serial)])
-                ->where('product_id', $productId)
-                ->where('type', 'product') // Add type check to only match product serials
+            // Check in warehouse_materials table (JSON array format)
+            $existingWarehouseMaterial = WarehouseMaterial::where('material_id', $productId)
+                ->where('item_type', 'product')
+                ->whereRaw('JSON_SEARCH(LOWER(serial_number), "one", LOWER(?)) IS NOT NULL', [strtolower($serial)])
                 ->first();
 
-            if ($existingSerial) {
+            if ($existingWarehouseMaterial) {
                 // If editing assembly, check if this serial belongs to current assembly
-                if ($assemblyId && $existingSerial->notes) {
-                    $expectedNote = 'Assembly ID: ' . $assemblyId;
-                    if ($existingSerial->notes === $expectedNote) {
+                if ($assemblyId) {
+                    // Check if this serial is already used in current assembly
+                    $assemblyProduct = \App\Models\AssemblyProduct::where('assembly_id', $assemblyId)
+                        ->where('product_id', $productId)
+                        ->whereRaw('FIND_IN_SET(?, serials)', [$serial])
+                        ->first();
+                    
+                    if ($assemblyProduct) {
                         // This serial belongs to current assembly, so it's valid
                         return response()->json([
                             'exists' => false,
@@ -1624,7 +1576,7 @@ class AssemblyController extends Controller
                 }
 
                 // Serial exists and doesn't belong to current assembly (or not editing)
-                $errorMessage = "Serial đã tồn tại trong cơ sở dữ liệu";
+                $errorMessage = "Serial đã tồn tại trong tồn kho";
 
                 return response()->json([
                     'exists' => true,
@@ -1785,6 +1737,8 @@ class AssemblyController extends Controller
                 ->where('material_id', $materialId)
                 ->where('item_type', 'material')
                 ->whereNotNull('serial_number')
+                ->where('serial_number', '!=', '[]')
+                ->where('serial_number', '!=', 'null')
                 ->pluck('serial_number');
             $extraSerials = [];
             foreach ($wmSerialJsonList as $serialJson) {
@@ -1802,7 +1756,7 @@ class AssemblyController extends Controller
             $serials = collect($jsonSerials)
                 ->sort()
                 ->map(function ($sn) { return (object)['id' => null, 'serial_number' => $sn]; })
-                ->toBase();
+                ->values();
 
             // Ensure currently selected serials appear in dropdown even if not in warehouse JSON now
             foreach ($existingSerials as $existingSerial) {
@@ -1810,6 +1764,8 @@ class AssemblyController extends Controller
                     $serials->push((object)['id' => null, 'serial_number' => $existingSerial]);
                 }
             }
+
+            $serials = $serials->toArray();
 
             return response()->json([
                 'success' => true,
@@ -2847,6 +2803,8 @@ class AssemblyController extends Controller
                 ->where('material_id', $material->id)
                 ->where('item_type', 'material')
                 ->whereNotNull('serial_number')
+                ->where('serial_number', '!=', '[]')
+                ->where('serial_number', '!=', 'null')
                 ->pluck('serial_number');
             foreach ($wmSerialJsonList as $serialJson) {
                 $arr = json_decode($serialJson, true);

@@ -2241,22 +2241,49 @@
                                     select.removeChild(select.lastChild);
                                 }
 
-                                // Add serial options from API (dedup)
+                                // Add serial options from API (dedup) - ẩn serial cũ nếu có serial đổi tên
                                 const seen = new Set();
                                 data.serials.forEach(serial => {
                                     if (seen.has(serial)) return;
                                     seen.add(serial);
+                                    
+                                    // Nếu có serial đổi tên, ẩn serial gốc khỏi danh sách
+                                    if (mappedDesired && mappedDesired !== serial) {
+                                        // Kiểm tra xem serial này có phải là serial gốc của serial đã đổi tên không
+                                        const isOriginalSerial = originalSerial === serial;
+                                        if (isOriginalSerial) {
+                                            return; // Bỏ qua serial gốc, không thêm vào options
+                                        }
+                                    }
+                                    
                                     const option = document.createElement('option');
                                     option.value = serial;
                                     option.textContent = serial;
                                     select.appendChild(option);
                                 });
+                                
+                                // Nếu có serial đổi tên và chưa có trong options, thêm vào
+                                if (mappedDesired && !seen.has(mappedDesired)) {
+                                    const option = document.createElement('option');
+                                    option.value = mappedDesired;
+                                    option.textContent = mappedDesired;
+                                    select.appendChild(option);
+                                    seen.add(mappedDesired); // Thêm vào seen để tránh duplicate
+                                }
 
                                 // Set preserved value only if still valid in current warehouse or allowed by status
                                 const isLocked = (select.getAttribute('data-lock-selected') === 'true');
                                 if (valueToPreserve) {
-                                    // Only set if it exists in the options (strict by warehouse)
-                                    if (data.serials.includes(valueToPreserve)) {
+                                    // Kiểm tra xem valueToPreserve có tồn tại trong options đã được thêm vào select không
+                                    const optionExists = Array.from(select.options).some(option => option.value === valueToPreserve);
+                                    console.log('Setting serial value:', {
+                                        valueToPreserve,
+                                        optionExists,
+                                        mappedDesired,
+                                        originalSerial,
+                                        availableOptions: Array.from(select.options).map(opt => opt.value)
+                                    });
+                                    if (optionExists) {
                                         select.value = valueToPreserve;
                                         select.setAttribute('data-selected-serial', valueToPreserve);
                                         if (isLocked) select.setAttribute('data-mapped-serial', valueToPreserve);
@@ -4263,6 +4290,97 @@
                 return materials;
             }
 
+            // Helper function to get materials details for a product by serial
+            function getProductMaterialsCountBySerial(productId, serial) {
+                const productData = window.productMaterialsCount?.[productId] || {};
+                // Nếu productData là object với key là serial, lấy theo serial (kể cả key rỗng '')
+                if (typeof productData === 'object' && !Array.isArray(productData)) {
+                    return productData.hasOwnProperty(serial) ? (productData[serial] || []) : [];
+                }
+                // Nếu productData là array (fallback), trả về array đó
+                return Array.isArray(productData) ? productData : [];
+            }
+
+            // Concurrency-safe cursor để phân bổ vật tư theo dòng N/A, tránh lặp lại cùng bộ vật tư
+            window.__materialsCursorByProduct = window.__materialsCursorByProduct || {};
+
+            // Helper: lấy materials cho 1 dòng theo ưu tiên: theo cặp assembly_id:product_unit -> serial -> theo index
+            function getMaterialsForRow(productId, serial, rowIndex, assemblyIdForRow, productUnitForRow) {
+                const data = window.productMaterialsCount?.[productId];
+
+                // 0) Tra theo cặp assembly_id:product_unit nếu backend có cung cấp
+                if (data && typeof data === 'object' && !Array.isArray(data) && assemblyIdForRow !== undefined && productUnitForRow !== undefined) {
+                    const pairKeyCandidates = [
+                        `${assemblyIdForRow}:${productUnitForRow}`,
+                        `${assemblyIdForRow}|${productUnitForRow}`,
+                        `A${assemblyIdForRow}_U${productUnitForRow}`
+                    ];
+                    for (const pk of pairKeyCandidates) {
+                        if (Object.prototype.hasOwnProperty.call(data, pk) && Array.isArray(data[pk]) && data[pk].length > 0) {
+                            return data[pk];
+                        }
+                    }
+                    if (data.__by_pair__ && typeof data.__by_pair__ === 'object') {
+                        const v = data.__by_pair__[`$${assemblyIdForRow}:${productUnitForRow}`] || data.__by_pair__[`$${assemblyIdForRow}|${productUnitForRow}`];
+                        if (Array.isArray(v) && v.length > 0) return v;
+                    }
+                }
+
+                // 1) Tra theo serial (kể cả rỗng)
+                let materials = getProductMaterialsCountBySerial(productId, serial);
+                if (Array.isArray(materials) && materials.length > 0) return materials;
+
+                // 2) Thử các key đặc biệt mà backend có thể cung cấp cho N/A theo index
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    const candidateKeys = [
+                        `__NA__${rowIndex}`,
+                        `NA_${rowIndex}`,
+                        `__INDEX__${rowIndex}`,
+                        `INDEX_${rowIndex}`,
+                        `${rowIndex}`,
+                        '',
+                        'null',
+                        'NULL',
+                        'undefined'
+                    ];
+                    for (const k of candidateKeys) {
+                        if (Object.prototype.hasOwnProperty.call(data, k)) {
+                            const v = data[k];
+                            if (Array.isArray(v) && v.length > 0) return v;
+                        }
+                    }
+                    // Các cấu trúc đặc biệt theo index
+                    if (Array.isArray(data.__by_index__)) {
+                        if (Array.isArray(data.__by_index__[rowIndex])) return data.__by_index__[rowIndex];
+                    }
+                    if (Array.isArray(data.by_index)) {
+                        if (Array.isArray(data.by_index[rowIndex])) return data.by_index[rowIndex];
+                    }
+                }
+
+                // 3) Nếu là mảng theo từng dòng, ưu tiên đúng index
+                if (Array.isArray(data)) {
+                    if (Array.isArray(data[rowIndex])) return data[rowIndex];
+                    return Array.isArray(data[0]) ? data[0] : [];
+                }
+
+                // 4) Cuối cùng: dùng Object.values theo đúng index dòng để tránh lấy nhầm dòng 0
+                if (data && typeof data === 'object') {
+                    const values = Object.values(data);
+                    if (Array.isArray(values[rowIndex])) return values[rowIndex];
+                    // Nếu serial rỗng (N/A), phân bổ round-robin qua các bộ vật tư để tránh trùng lặp
+                    if (!serial && values.length > 0) {
+                        const key = String(productId);
+                        const cursor = (window.__materialsCursorByProduct[key] || 0) % values.length;
+                        window.__materialsCursorByProduct[key] = cursor + 1;
+                        return Array.isArray(values[cursor]) ? values[cursor] : (Array.isArray(values[0]) ? values[0] : []);
+                    }
+                    return Array.isArray(values[0]) ? values[0] : [];
+                }
+
+                return [];
+            }
+
             // Run autofill for all rows in the device code table
             function runAutofillForAllRows() {
                 const tbody = document.getElementById('device-code-tbody');
@@ -4285,18 +4403,35 @@
                     const existingFilled = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]')).some(inp => (inp.value || '').trim());
                     if (existingFilled) return;
 
-                    // Lấy serial chính từ input
+                    // Lấy serial chính từ input (có thể rỗng nếu là N/A)
                     const mainSerialInput = rowEl.querySelector('input[name*="serial_main"]');
-                    if (!mainSerialInput || !mainSerialInput.value.trim()) return;
-                    
-                    const mainSerial = mainSerialInput.value.trim();
+                    const mainSerial = (mainSerialInput && mainSerialInput.value) ? mainSerialInput.value.trim() : '';
                     const productId = rowEl.getAttribute('data-product-id') || '';
-                    const materials = getProductMaterialsCount(parseInt(productId, 10) || 0);
                     
-                    if (!Array.isArray(materials) || materials.length === 0) return;
+                    // Tìm serial gốc từ productInfo để lấy materials đúng
+                    const currentType = getCurrentModalType();
+                    let originalSerial = mainSerial;
+                    if (currentType === 'contract') {
+                        const productInfo = selectedContractProducts.find(p => p.id == productId);
+                        if (productInfo && Array.isArray(productInfo.serial_numbers)) {
+                            const rowIndex = parseInt(rowEl.getAttribute('data-row-index') || '0');
+                            originalSerial = productInfo.serial_numbers[rowIndex] || mainSerial;
+                        }
+                    } else if (currentType === 'backup') {
+                        const productInfo = selectedBackupProducts.find(p => p.id == productId);
+                        if (productInfo && Array.isArray(productInfo.serial_numbers)) {
+                            const rowIndex = parseInt(rowEl.getAttribute('data-row-index') || '0');
+                            originalSerial = productInfo.serial_numbers[rowIndex] || mainSerial;
+                        }
+                    }
+                    
+                    const materials = getProductMaterialsCountBySerial(parseInt(productId, 10) || 0, originalSerial);
+                    
+                    if (!Array.isArray(materials) || materials.length === 0) {
+                        return; // Không có vật tư để fill
+                    }
                     
                     // Thử lấy serial vật tư từ device_codes trước
-                    const currentType = getCurrentModalType();
                     const deviceCodes = window.deviceCodesData?.[currentType] || [];
                     const productDeviceCodes = deviceCodes.filter(dc => dc.product_id == productId);
                     const rowIndex = parseInt(rowEl.getAttribute('data-row-index') || '0');
@@ -4317,31 +4452,36 @@
                         if (Array.isArray(componentSerials) && componentSerials.length > 0) {
                             const componentInputs = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]'));
                             componentInputs.forEach((input, index) => {
-                                if (!input.value && componentSerials[index]) {
-                                    input.value = componentSerials[index];
+                                // Ưu tiên hiển thị serial đổi tên (device_codes) > serial gốc (prefill)
+                                const renamed = componentSerials[index];
+                                if (renamed && input.value !== renamed) {
+                                    input.value = renamed;
+                                    input.removeAttribute('data-prefill');
                                 }
                             });
                             return; // Đã fill xong, không cần gọi API
                         }
                     }
                     
-                    // Nếu không có trong device_codes, gọi API
-                    const warehouseId = document.querySelector('select[name="warehouse_id"]')?.value;
-                    if (!warehouseId) return;
-                    
-                    const response = await fetch(`/api/device-info/${encodeURIComponent(mainSerial)}?product_id=${productId}&expected_count=${materials.length}&warehouse_id=${warehouseId}`);
-                    const data = await response.json();
-                    
-                    if (data.success && data.data && data.data.componentSerials) {
-                        const componentSerials = data.data.componentSerials;
-                        const componentInputs = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]'));
+                    // Nếu không có trong device_codes, chỉ gọi API khi có mainSerial (serial chính)
+                    if (mainSerial) {
+                        const warehouseId = document.querySelector('select[name="warehouse_id"]')?.value;
+                        if (!warehouseId) return;
                         
-                        // Fill serial vật tư vào inputs theo thứ tự
-                        componentInputs.forEach((input, index) => {
-                            if (!input.value && componentSerials[index]) {
-                                input.value = componentSerials[index];
-                            }
-                        });
+                        const response = await fetch(`/api/device-info/${encodeURIComponent(mainSerial)}?product_id=${productId}&expected_count=${materials.length}&warehouse_id=${warehouseId}`);
+                        const data = await response.json();
+                        
+                        if (data.success && data.data && data.data.componentSerials) {
+                            const componentSerials = data.data.componentSerials;
+                            const componentInputs = Array.from(rowEl.querySelectorAll('input[name*="serial_components"]'));
+                            
+                            // Fill serial vật tư vào inputs theo thứ tự
+                            componentInputs.forEach((input, index) => {
+                                if (!input.value && componentSerials[index]) {
+                                    input.value = componentSerials[index];
+                                }
+                            });
+                        }
                     }
                 } catch (e) {
                     console.warn('fetchAndFillComponentSerials error', e);
@@ -4490,11 +4630,56 @@
 
                         // Create component serial fields only if product has materials
                         let componentSerialsHtml = '';
-                        const materials = getProductMaterialsCount(productId);
+                        // Lấy materials theo serial cụ thể thay vì theo productId
+                        // Nếu có device_codes (serial đã đổi tên), dùng serial gốc để tìm materials
+                        const originalSerialValue = Array.isArray(productInfo.serial_numbers) ? (productInfo.serial_numbers[i] ?? '') : '';
+                        const currentSerialValue = (deviceCode && deviceCode.serial_main) ? deviceCode.serial_main : originalSerialValue;
+                        // Lấy cặp assembly_id và product_unit đúng theo index để map vật tư
+                        const assemblyIdsArr = String(productInfo.assembly_id || '').split(',').map(s => s.trim());
+                        const productUnitsArr = String(productInfo.product_unit || '').split(',').map(s => s.trim());
+                        const assemblyIdForRow = assemblyIdsArr[i] !== undefined ? assemblyIdsArr[i] : '';
+                        const productUnitForRow = productUnitsArr[i] !== undefined ? productUnitsArr[i] : '';
+                        // Ưu tiên tra theo cặp assembly_id:product_unit, sau đó theo serial/index
+                        const materials = getMaterialsForRow(productId, originalSerialValue, i, assemblyIdForRow, productUnitForRow);
                         if (productInfo.type === 'product' && materials && materials.length > 0) {
-                            // Luôn để trống; sẽ được fill bằng fetchAndFillComponentSerials từ assembly_materials
+                            // Ưu tiên serial đổi tên từ device_codes nếu có cho đúng index
+                            let renamedComponentSerials = [];
+                            if (deviceCode && deviceCode.serial_components) {
+                                try {
+                                    if (typeof deviceCode.serial_components === 'string') {
+                                        // Handle possible double-encoded JSON
+                                        let first = JSON.parse(deviceCode.serial_components);
+                                        if (typeof first === 'string') {
+                                            renamedComponentSerials = JSON.parse(first) || [];
+                                        } else if (Array.isArray(first)) {
+                                            renamedComponentSerials = first;
+                                        }
+                                    } else if (Array.isArray(deviceCode.serial_components)) {
+                                        renamedComponentSerials = deviceCode.serial_components;
+                                    }
+                                } catch (e) {
+                                    console.warn('render parse serial_components failed', e);
+                                    renamedComponentSerials = [];
+                                }
+                            }
+
                             componentSerialsHtml = materials.map((material, j) => {
-                                const serialValue = '';
+                                let serialValue = '';
+                                // 1) Dùng serial đổi tên nếu có
+                                if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
+                                    serialValue = renamedComponentSerials[j];
+                                } else {
+                                    // 2) Fallback: tách serial gốc theo nhiều ký tự phân tách
+                                    if (material.serial && material.serial !== 'null') {
+                                        const parts = String(material.serial)
+                                            .split(/[\s,;|\/]+/)
+                                            .map(s => s.trim())
+                                            .filter(Boolean);
+                                        const partIndex = (parseInt(material.index, 10) || (j + 1)) - 1;
+                                        serialValue = parts[partIndex] || parts[0] || '';
+                                    }
+                                }
+                                const prefillAttr = serialValue && !(Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) ? 'data-prefill="1"' : '';
                                 return `
                                 <div class="mb-1">
                                     <label class="text-xs text-gray-600 mb-1">${material.material_code} - ${material.material_name} (${material.index})</label>
@@ -4502,6 +4687,7 @@
                                         name="${type}_serial_components[${productId}][${i}][${j}]" 
                                         placeholder="Seri vật tư"
                                         value="${serialValue}"
+                                        ${prefillAttr}
                                         data-material-id="${material.material_id}"
                                         data-material-index="${material.index}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
@@ -4636,12 +4822,15 @@
                                 return;
                             }
 
-                            // Get component serials
+                            // Get component serials - giữ lại thứ tự và bao gồm cả giá trị trống
                             const componentSerialInputs = row.querySelectorAll(
                                 'input[name*="serial_components"]');
                             const componentSerials = Array.from(componentSerialInputs)
-                                .map(input => input.value.trim())
-                                .filter(value => value && value !== '' && value !== '[');
+                                .map(input => {
+                                    const value = input.value.trim();
+                                    // Chỉ loại bỏ giá trị '[' (invalid), giữ lại chuỗi trống
+                                    return value === '[' ? '' : value;
+                                });
 
                             // Convert componentSerials to JSON string for database storage
                             const componentSerialsJson = componentSerials.length > 0 ? JSON.stringify(componentSerials) : null;

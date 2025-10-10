@@ -1560,6 +1560,9 @@ class TestingController extends Controller
                 'completed_at' => now(),
             ]);
 
+            // Tạo serial records cho các thành phẩm đạt (pass)
+            $this->createSerialRecordsForPassedProducts($testing);
+
             // Đồng bộ trạng thái với Assembly nếu có
             if ($testing->assembly_id) {
                 $assembly = Assembly::find($testing->assembly_id);
@@ -4292,6 +4295,97 @@ class TestingController extends Controller
                 'unit_results' => $unitResults,
                 'new_serial_results' => $newSerialResults,
                 'total_units' => count($productUnits)
+            ]);
+        }
+    }
+
+    /**
+     * Tạo serial records cho các thành phẩm đạt (pass) sau khi hoàn thành kiểm thử
+     */
+    private function createSerialRecordsForPassedProducts(Testing $testing)
+    {
+        try {
+            Log::info('Bắt đầu tạo serial records cho thành phẩm đạt', [
+                'testing_id' => $testing->id,
+                'test_code' => $testing->test_code
+            ]);
+
+            foreach ($testing->items as $item) {
+                // Chỉ xử lý thành phẩm có kết quả pass và có serial_number
+                if ($item->item_type !== 'product' || $item->result !== 'pass' || empty($item->serial_number)) {
+                    continue;
+                }
+
+                // Lấy danh sách serial numbers từ item
+                $serialArray = explode(',', $item->serial_number);
+                $serialArray = array_map('trim', $serialArray);
+                $serialArray = array_filter($serialArray);
+
+                if (empty($serialArray)) {
+                    continue;
+                }
+
+                // Xác định warehouse_id từ assembly hoặc testing
+                $warehouseId = null;
+                if ($testing->assembly_id) {
+                    $assembly = \App\Models\Assembly::find($testing->assembly_id);
+                    if ($assembly) {
+                        $warehouseId = $assembly->target_warehouse_id ?: $assembly->warehouse_id;
+                    }
+                }
+
+                if (!$warehouseId) {
+                    Log::warning('Không tìm thấy warehouse_id cho testing item', [
+                        'testing_id' => $testing->id,
+                        'item_id' => $item->id,
+                        'assembly_id' => $testing->assembly_id
+                    ]);
+                    continue;
+                }
+
+                // Tạo serial records cho các serial đạt
+                $createdCount = 0;
+                foreach ($serialArray as $serial) {
+                    if (empty($serial)) continue;
+
+                    // Kiểm tra xem serial đã tồn tại chưa
+                    $existingSerial = \App\Models\Serial::where('serial_number', $serial)
+                        ->where('product_id', $item->product_id)
+                        ->where('type', 'product')
+                        ->first();
+
+                    if (!$existingSerial) {
+                        \App\Models\Serial::create([
+                            'serial_number' => $serial,
+                            'product_id' => $item->product_id,
+                            'status' => 'active',
+                            'notes' => 'Testing ID: ' . $testing->id,
+                            'type' => 'product',
+                            'warehouse_id' => $warehouseId
+                        ]);
+                        $createdCount++;
+                    }
+                }
+
+                Log::info('Đã tạo serial records cho thành phẩm đạt', [
+                    'testing_id' => $testing->id,
+                    'item_id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'serial_numbers' => $serialArray,
+                    'created_count' => $createdCount,
+                    'warehouse_id' => $warehouseId
+                ]);
+            }
+
+            Log::info('Hoàn thành tạo serial records cho thành phẩm đạt', [
+                'testing_id' => $testing->id
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi tạo serial records cho thành phẩm đạt', [
+                'testing_id' => $testing->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
         }
     }

@@ -59,6 +59,8 @@ class MaterialController extends Controller
                 ->where('warehouse_id', $warehouse->id)
                 ->where('quantity', '>', 0)
                 ->whereNotNull('serial_number')
+                ->where('serial_number', '!=', '[]')
+                ->where('serial_number', '!=', 'null')
                 ->pluck('serial_number')
                 ->toArray();
 
