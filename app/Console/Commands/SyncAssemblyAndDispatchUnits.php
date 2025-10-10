@@ -75,10 +75,16 @@ class SyncAssemblyAndDispatchUnits extends Command
             ->orderBy('id')
             ->get();
 
-        // Group by product_id only to calculate global product_unit
-        $groupedItems = $items->groupBy('item_id');
+        // Group by dispatch_id and product_id to calculate product_unit per dispatch
+        // Bỏ qua assembly_id cũ vì có thể bị sai, tìm lại từ assembly_products
+        $groupedItems = $items->groupBy(function($item) {
+            return $item->dispatch_id . '_' . $item->item_id;
+        });
 
-        foreach ($groupedItems as $productId => $groupItems) {
+        foreach ($groupedItems as $groupKey => $groupItems) {
+            // Extract product_id from group key "dispatch_id_product_id"
+            $productId = (int) explode('_', $groupKey)[1];
+            
             // Collect all serials from all dispatch_items in this group
             $allSerials = [];
             foreach ($groupItems as $item) {
@@ -97,7 +103,7 @@ class SyncAssemblyAndDispatchUnits extends Command
 
             // Compute global mapping for all items in this group
             [$assemblyIdStr, $productUnitStr] = $this->computeAssemblyMapping(
-                (int) $productId,
+                $productId,
                 $allSerials,
                 $totalQuantity
             );
@@ -120,14 +126,6 @@ class SyncAssemblyAndDispatchUnits extends Command
                 // Convert to strings
                 $assemblyIdStr = implode(',', array_map(fn($v) => $v !== null ? $v : '', $itemAssemblyIds));
                 $productUnitStr = implode(',', array_map(fn($v) => $v !== null ? $v : 0, $itemProductUnits));
-
-                // Skip if unchanged
-                $currentAssembly = (string) ($item->assembly_id ?? '');
-                $currentUnits = (string) ($item->product_unit ?? '');
-                
-                if ($assemblyIdStr === $currentAssembly && $productUnitStr === $currentUnits) {
-                    continue;
-                }
 
                 $this->line("dispatch_item={$item->id} product={$item->item_id} -> assembly_id='{$assemblyIdStr}' product_unit='{$productUnitStr}'");
 
@@ -160,8 +158,7 @@ class SyncAssemblyAndDispatchUnits extends Command
         $productUnits = [];
 
         // 1) Map serials to assemblies (where assembly_products.serials contains the serial)
-        $unitCounter = 0; // Counter để tạo 0,1,2,3...
-        foreach ($serialNumbers as $serialIndex => $serial) {
+        foreach ($serialNumbers as $serial) {
             if ($serial === null || $serial === '' || strtoupper($serial) === 'N/A' || strtoupper($serial) === 'NA') {
                 continue;
             }
@@ -177,7 +174,20 @@ class SyncAssemblyAndDispatchUnits extends Command
                 ->first();
 
             $assemblyId = $row->assembly_id ?? null;
-            $unitValue = $unitCounter++; // product_unit cho serials: 0,1,2,3... theo thứ tự
+            
+            // Lấy product_unit từ assembly_products dựa trên vị trí serial trong serials
+            $unitValue = 0; // Default
+            if ($row && $row->product_unit) {
+                $productUnitArray = is_string($row->product_unit) ? json_decode($row->product_unit, true) : $row->product_unit;
+                if (is_array($productUnitArray)) {
+                    // Tìm vị trí của serial trong serials string
+                    $serialsArray = explode(',', $row->serials);
+                    $serialIndex = array_search(trim($serial), array_map('trim', $serialsArray));
+                    if ($serialIndex !== false && isset($productUnitArray[$serialIndex])) {
+                        $unitValue = (int) $productUnitArray[$serialIndex];
+                    }
+                }
+            }
 
             $assemblyIds[] = $assemblyId;
             $productUnits[] = $unitValue;
@@ -198,18 +208,21 @@ class SyncAssemblyAndDispatchUnits extends Command
                 ->orderBy('assembly_id')
                 ->get();
 
+            // Tính max product_unit hiện tại để bắt đầu từ đó cho N/A
+            $maxUnit = !empty($productUnits) ? max($productUnits) : -1;
+            
             $assemblyIndex = 0;
             for ($i = 0; $i < $naQuantity; $i++) {
                 if (!isset($availableAssemblies[$assemblyIndex])) {
                     $assemblyIds[] = null;
-                    $productUnits[] = $unitCounter++; // Tiếp tục counter
+                    $productUnits[] = ++$maxUnit;
                     continue;
                 }
 
                 $assembly = $availableAssemblies[$assemblyIndex];
 
                 $assemblyIds[] = $assembly->assembly_id;
-                $productUnits[] = $unitCounter++; // Tiếp tục counter: 0,1,2,3...
+                $productUnits[] = ++$maxUnit;
 
                 // advance to next assembly when units consumed
                 $assemblyIndex++;
