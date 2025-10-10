@@ -2134,6 +2134,13 @@
 
             // Hàm load available serial numbers cho tất cả serial selects
             async function loadAvailableSerials() {
+                // Tránh gọi nhiều lần không cần thiết
+                if (window.isLoadingSerials) {
+                    console.log('loadAvailableSerials already in progress, skipping...');
+                    return;
+                }
+                window.isLoadingSerials = true;
+                
                 const serialSelects = document.querySelectorAll('select[name*="serial_numbers"]');
 
                 for (const select of serialSelects) {
@@ -2295,16 +2302,30 @@
                                     }
                                 }
                             } else {
-                                // If no serials available from API, clear all options and selections
+                                // If no serials available from API, preserve current selection if exists
+                                const currentValue = select.value;
+                                const selectedSerial = select.getAttribute('data-selected-serial');
+                                const valueToPreserve = currentValue || selectedSerial;
                                 
                                 // Clear ALL existing options except default
                                 while (select.children.length > 1) {
                                     select.removeChild(select.lastChild);
                                 }
                                 
-                                // For pending: do NOT preserve serial when the new warehouse has none
+                                // Preserve serial if it was already selected
+                                if (valueToPreserve && valueToPreserve.trim() !== '') {
+                                    // Add the preserved serial as an option
+                                    const option = document.createElement('option');
+                                    option.value = valueToPreserve;
+                                    option.textContent = valueToPreserve;
+                                    select.appendChild(option);
+                                    select.value = valueToPreserve;
+                                    select.setAttribute('data-selected-serial', valueToPreserve);
+                                } else {
+                                    // Only clear if no serial was previously selected
                                     select.value = '';
                                     select.setAttribute('data-selected-serial', '');
+                                }
 
                                 // Add change event listener for validation
                                 if (!select.hasAttribute('data-validation-listener')) {
@@ -2316,10 +2337,10 @@
                     } catch (error) {
                         console.error('Error loading serials:', error);
 
-                        // If API call fails, clear all options and selections to avoid showing invalid serials
+                        // If API call fails, preserve current selection if exists
                         const valueToPreserve = currentValue || selectedSerial;
                         if (valueToPreserve) {
-                            console.log(`API error - Clearing value "${valueToPreserve}" for ${itemType} ${itemId} to avoid showing potentially invalid serials`);
+                            console.log(`API error - Preserving value "${valueToPreserve}" for ${itemType} ${itemId}`);
                         }
                         
                         // Clear ALL existing options except default
@@ -2327,9 +2348,20 @@
                             select.removeChild(select.lastChild);
                         }
                         
-                        // Clear selection
-                        select.value = '';
-                        select.setAttribute('data-selected-serial', '');
+                        // Preserve serial if it was already selected
+                        if (valueToPreserve && valueToPreserve.trim() !== '') {
+                            // Add the preserved serial as an option
+                            const option = document.createElement('option');
+                            option.value = valueToPreserve;
+                            option.textContent = valueToPreserve;
+                            select.appendChild(option);
+                            select.value = valueToPreserve;
+                            select.setAttribute('data-selected-serial', valueToPreserve);
+                        } else {
+                            // Only clear if no serial was previously selected
+                            select.value = '';
+                            select.setAttribute('data-selected-serial', '');
+                        }
 
                         // Add change event listener for validation even on error
                         if (!select.hasAttribute('data-validation-listener')) {
@@ -2343,6 +2375,9 @@
                         select.disabled = false;
                     }
                 }
+                
+                // Reset flag khi hoàn thành
+                window.isLoadingSerials = false;
             }
 
             // Populate product dropdowns: now handled by search dropdowns, keep as no-op for compatibility
@@ -4636,7 +4671,14 @@
                         const currentSerialValue = (deviceCode && deviceCode.serial_main) ? deviceCode.serial_main : originalSerialValue;
                         // Lấy cặp assembly_id và product_unit đúng theo index để map vật tư
                         const assemblyIdsArr = String(productInfo.assembly_id || '').split(',').map(s => s.trim());
-                        const productUnitsArr = String(productInfo.product_unit || '').split(',').map(s => s.trim());
+                        // product_unit lưu dạng JSON string "[0,1,2,3]", cần parse
+                        let productUnitsArr = [];
+                        try {
+                            productUnitsArr = Array.isArray(productInfo.product_unit) ? productInfo.product_unit : JSON.parse(productInfo.product_unit || '[]');
+                        } catch (e) {
+                            // Fallback: nếu không phải JSON thì split như cũ
+                            productUnitsArr = String(productInfo.product_unit || '').split(',').map(s => s.trim());
+                        }
                         const assemblyIdForRow = assemblyIdsArr[i] !== undefined ? assemblyIdsArr[i] : '';
                         const productUnitForRow = productUnitsArr[i] !== undefined ? productUnitsArr[i] : '';
                         // Ưu tiên tra theo cặp assembly_id:product_unit, sau đó theo serial/index

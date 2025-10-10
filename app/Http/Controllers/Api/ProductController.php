@@ -262,9 +262,15 @@ class ProductController extends Controller
                 $productUnits = $item->product_unit;
                 $serialNumbers = $item->serial_numbers;
                 
-                // Parse assembly_id và product_unit nếu là chuỗi phân tách bằng dấu phẩy
+                // Parse assembly_id (chuỗi) và product_unit (JSON string)
                 $assemblyIdArray = is_string($assemblyIds) ? explode(',', $assemblyIds) : [$assemblyIds];
-                $productUnitArray = is_string($productUnits) ? explode(',', $productUnits) : [$productUnits];
+                // product_unit lưu dạng JSON string "[0,1,2,3]"
+                if (is_string($productUnits)) {
+                    $decoded = json_decode($productUnits, true);
+                    $productUnitArray = is_array($decoded) ? $decoded : explode(',', $productUnits);
+                } else {
+                    $productUnitArray = is_array($productUnits) ? $productUnits : [$productUnits];
+                }
                 
                 // Parse serial_numbers nếu là JSON string
                 $serialNumbersArray = is_string($serialNumbers) ? json_decode($serialNumbers, true) : $serialNumbers;
