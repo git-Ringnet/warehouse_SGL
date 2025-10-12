@@ -58,7 +58,8 @@ Route::prefix('inventory-imports')->group(function () {
 }); 
 
 Route::get('/materials/{material}/warehouses', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableWarehouses']);
-Route::get('/materials/{material}/serials/{warehouse}', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableSerials']); 
+Route::get('/materials/{material}/serials/{warehouse}', [App\Http\Controllers\Api\MaterialController::class, 'getAvailableSerials']);
+Route::post('/materials/batch-serials', [App\Http\Controllers\Api\MaterialController::class, 'getBatchSerials']); 
 
 
 

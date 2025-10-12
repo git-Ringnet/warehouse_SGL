@@ -1522,6 +1522,54 @@ class AssemblyController extends Controller
         }
     }
 
+    /**
+     * Delete serial records for this assembly and restore material serials
+     */
+    private function deleteSerialRecords($assemblyId)
+    {
+        try {
+            Log::info('Bắt đầu xóa serial records cho assembly', [
+                'assembly_id' => $assemblyId
+            ]);
+
+            // Find all testing records for this assembly
+            $testings = \App\Models\Testing::where('assembly_id', $assemblyId)->get();
+            
+            foreach ($testings as $testing) {
+                // Delete serial records created during testing completion
+                foreach ($testing->items as $item) {
+                    if ($item->item_type === 'product' && $item->result === 'pass' && !empty($item->serial_number)) {
+                        $serialArray = explode(',', $item->serial_number);
+                        $serialArray = array_map('trim', $serialArray);
+                        $serialArray = array_filter($serialArray);
+
+                        foreach ($serialArray as $serial) {
+                            if (empty($serial)) continue;
+
+                            // Delete the serial record created during testing
+                            \App\Models\Serial::where('serial_number', $serial)
+                                ->where('product_id', $item->product_id)
+                                ->where('type', 'product')
+                                ->where('notes', 'like', '%Testing ID: ' . $testing->id . '%')
+                                ->delete();
+                        }
+                    }
+                }
+            }
+
+            Log::info('Hoàn thành xóa serial records cho assembly', [
+                'assembly_id' => $assemblyId
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi xóa serial records cho assembly', [
+                'assembly_id' => $assemblyId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
+    }
+
     // Serial records are now managed only during testing completion process
 
     /**

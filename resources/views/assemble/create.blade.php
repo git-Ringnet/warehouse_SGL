@@ -4606,10 +4606,10 @@
                             option.textContent = serial.serial_number;
                             option.dataset.serialId = serial.id;
 
-                            // Restore selected value if it matches
-                            if (currentValue === serial.serial_number) {
-                                option.selected = true;
-                            }
+                            // Không tự động chọn serial, để người dùng tự chọn
+                            // if (currentValue === serial.serial_number) {
+                            //     option.selected = true;
+                            // }
 
                             selectElement.appendChild(option);
                         });
@@ -4671,41 +4671,41 @@
                             option.textContent = serial.serial_number;
                             option.dataset.serialId = serial.id;
 
-                            // Select this option if it matches component's current serial for this index
-                            if ((component.serials && component.serials[serialIndex] === serial
-                                    .serial_number) ||
-                                (component.serial_ids && component.serial_ids[serialIndex] == serial.id)
-                            ) {
-                                option.selected = true;
-                                selectElement.value = serial.serial_number;
-                                if (!component.serials) component.serials = [];
-                                if (!component.serial_ids) component.serial_ids = [];
-                                component.serials[serialIndex] = serial.serial_number;
-                                component.serial_ids[serialIndex] = serial.id;
-                                serialIdInput.value = serial.id;
-                            }
+                            // Không tự động chọn serial, để người dùng tự chọn
+                            // if ((component.serials && component.serials[serialIndex] === serial
+                            //         .serial_number) ||
+                            //     (component.serial_ids && component.serial_ids[serialIndex] == serial.id)
+                            // ) {
+                            //     option.selected = true;
+                            //     selectElement.value = serial.serial_number;
+                            //     if (!component.serials) component.serials = [];
+                            //     if (!component.serial_ids) component.serial_ids = [];
+                            //     component.serials[serialIndex] = serial.serial_number;
+                            //     component.serial_ids[serialIndex] = serial.id;
+                            //     serialIdInput.value = serial.id;
+                            // }
 
                             selectElement.appendChild(option);
                         });
 
-                        // Auto-select if only one serial is available and none is currently selected for this index
-                        if (availableSerials.length === 1 && 
-                            (!component.serials || !component.serials[serialIndex]) && 
-                            (!component.serial_ids || !component.serial_ids[serialIndex])) {
-                            const firstSerial = availableSerials[0];
-                            selectElement.value = firstSerial.serial_number;
-                            if (!component.serials) component.serials = [];
-                            if (!component.serial_ids) component.serial_ids = [];
-                            component.serials[serialIndex] = firstSerial.serial_number;
-                            component.serial_ids[serialIndex] = firstSerial.id;
-                            serialIdInput.value = firstSerial.id;
+                        // Không tự động chọn serial, để người dùng tự chọn
+                        // if (availableSerials.length === 1 && 
+                        //     (!component.serials || !component.serials[serialIndex]) && 
+                        //     (!component.serial_ids || !component.serial_ids[serialIndex])) {
+                        //     const firstSerial = availableSerials[0];
+                        //     selectElement.value = firstSerial.serial_number;
+                        //     if (!component.serials) component.serials = [];
+                        //     if (!component.serial_ids) component.serial_ids = [];
+                        //     component.serials[serialIndex] = firstSerial.serial_number;
+                        //     component.serial_ids[serialIndex] = firstSerial.id;
+                        //     serialIdInput.value = firstSerial.id;
                             
-                            // Update the option to be selected
-                            const option = selectElement.querySelector(`option[value="${firstSerial.serial_number}"]`);
-                            if (option) {
-                                option.selected = true;
-                            }
-                        }
+                        //     // Update the option to be selected
+                        //     const option = selectElement.querySelector(`option[value="${firstSerial.serial_number}"]`);
+                        //     if (option) {
+                        //         option.selected = true;
+                        //     }
+                        // }
                     } else {
                         const noSerialOption = document.createElement('option');
                         noSerialOption.textContent = 'Không có serial khả dụng';
@@ -4760,33 +4760,33 @@
                             option.textContent = serial.serial_number;
                             option.dataset.serialId = serial.id;
 
-                            // Select this option if it matches component's current serial
-                            if (component.serial === serial.serial_number || component.serial_id ==
-                                serial.id) {
-                                option.selected = true;
-                                selectElement.value = serial.serial_number;
-                                component.serial = serial.serial_number;
-                                component.serial_id = serial.id;
-                                serialIdInput.value = serial.id;
-                            }
+                            // Không tự động chọn serial, để người dùng tự chọn
+                            // if (component.serial === serial.serial_number || component.serial_id ==
+                            //     serial.id) {
+                            //     option.selected = true;
+                            //     selectElement.value = serial.serial_number;
+                            //     component.serial = serial.serial_number;
+                            //     component.serial_id = serial.id;
+                            //     serialIdInput.value = serial.id;
+                            // }
 
                             selectElement.appendChild(option);
                         });
 
-                        // Auto-select if only one serial is available and none is currently selected
-                        if (availableSerials.length === 1 && !component.serial && !component.serial_id) {
-                            const firstSerial = availableSerials[0];
-                            selectElement.value = firstSerial.serial_number;
-                            component.serial = firstSerial.serial_number;
-                            component.serial_id = firstSerial.id;
-                            serialIdInput.value = firstSerial.id;
-                            
-                            // Update the option to be selected
-                            const option = selectElement.querySelector(`option[value="${firstSerial.serial_number}"]`);
-                            if (option) {
-                                option.selected = true;
-                            }
-                        }
+                        // Không tự động chọn serial, để người dùng tự chọn
+                        // if (availableSerials.length === 1 && !component.serial && !component.serial_id) {
+                        //     const firstSerial = availableSerials[0];
+                        //     selectElement.value = firstSerial.serial_number;
+                        //     component.serial = firstSerial.serial_number;
+                        //     component.serial_id = firstSerial.id;
+                        //     serialIdInput.value = firstSerial.id;
+
+                        //     // Update the option to be selected
+                        //     const option = selectElement.querySelector(`option[value="${firstSerial.serial_number}"]`);
+                        //     if (option) {
+                        //         option.selected = true;
+                        //     }
+                        // }
                     } else {
                         const noSerialOption = document.createElement('option');
                         noSerialOption.textContent = 'Không có serial khả dụng';
