@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\UserLog;
 use App\Helpers\DateHelper;
+use App\Helpers\SerialDisplayHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -522,11 +523,19 @@ class ProjectController extends Controller
                         }
                     }
                     
+                    // Sử dụng SerialDisplayHelper để lấy serial hiển thị
+                    $displaySerials = SerialDisplayHelper::getDisplaySerials(
+                        $dispatch->id,
+                        $item->item_id,
+                        $item->item_type,
+                        $serialNumbersArray
+                    );
+
                     return [
                         'id' => $item->product->id, // Sử dụng ID của Product thay vì DispatchItem
                         'type' => 'product',
                         'name' => $item->product->name,
-                        'serial_numbers' => $serialNumbersArray,
+                        'serial_numbers' => $displaySerials,
                         'description' => $item->product->description,
                         'project_name' => $dispatch->project_name,
                         'dispatch_code' => $dispatch->dispatch_code,
@@ -558,11 +567,19 @@ class ProjectController extends Controller
                         }
                     }
                     
+                    // Sử dụng SerialDisplayHelper để lấy serial hiển thị
+                    $displaySerials = SerialDisplayHelper::getDisplaySerials(
+                        $dispatch->id,
+                        $item->item_id,
+                        $item->item_type,
+                        $serialNumbersArray
+                    );
+
                     return [
                         'id' => $item->good->id, // Sử dụng ID của Good thay vì DispatchItem
                         'type' => 'good',
                         'name' => $item->good->name,
-                        'serial_numbers' => $serialNumbersArray,
+                        'serial_numbers' => $displaySerials,
                         'description' => $item->good->description,
                         'project_name' => $dispatch->project_name,
                         'dispatch_code' => $dispatch->dispatch_code,

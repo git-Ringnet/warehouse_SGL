@@ -8,6 +8,7 @@ use App\Models\Employee;
 use App\Models\UserLog;
 use App\Models\Notification;
 use App\Helpers\DateHelper;
+use App\Helpers\SerialDisplayHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -490,7 +491,7 @@ class RentalController extends Controller
                 ->where('item_type', 'product')
                 ->where('category', 'contract')
                 ->get()
-                ->map(function ($item) use ($rental) {
+                ->map(function ($item) use ($rental, $dispatch) {
                     // Xử lý serial numbers từ JSON array
                     $serialNumbers = $item->serial_numbers ?? [];
                     $serialNumbersArray = [];
@@ -508,11 +509,19 @@ class RentalController extends Controller
                         }
                     }
                     
+                    // Sử dụng SerialDisplayHelper để lấy serial hiển thị
+                    $displaySerials = SerialDisplayHelper::getDisplaySerials(
+                        $dispatch->id,
+                        $item->item_id,
+                        $item->item_type,
+                        $serialNumbersArray
+                    );
+
                     return [
                         'id' => $item->product->id, // Sử dụng ID của Product thay vì DispatchItem
                         'type' => 'product',
                         'name' => $item->product->name,
-                        'serial_numbers' => $serialNumbersArray,
+                        'serial_numbers' => $displaySerials,
                         'description' => $item->product->description,
                         'rental_code' => $rental->rental_code,
                         'quantity' => $item->quantity
@@ -525,7 +534,7 @@ class RentalController extends Controller
                 ->where('item_type', 'good')
                 ->where('category', 'contract')
                 ->get()
-                ->map(function ($item) use ($rental) {
+                ->map(function ($item) use ($rental, $dispatch) {
                     // Xử lý serial numbers từ JSON array
                     $serialNumbers = $item->serial_numbers ?? [];
                     $serialNumbersArray = [];
@@ -543,11 +552,19 @@ class RentalController extends Controller
                         }
                     }
                     
+                    // Sử dụng SerialDisplayHelper để lấy serial hiển thị
+                    $displaySerials = SerialDisplayHelper::getDisplaySerials(
+                        $dispatch->id,
+                        $item->item_id,
+                        $item->item_type,
+                        $serialNumbersArray
+                    );
+
                     return [
                         'id' => $item->good->id, // Sử dụng ID của Good thay vì DispatchItem
                         'type' => 'good',
                         'name' => $item->good->name,
-                        'serial_numbers' => $serialNumbersArray,
+                        'serial_numbers' => $displaySerials,
                         'description' => $item->good->description,
                         'rental_code' => $rental->rental_code,
                         'quantity' => $item->quantity

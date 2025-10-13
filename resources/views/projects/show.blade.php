@@ -261,31 +261,39 @@
             $item = $itemData['dispatch_item'];
             $dispatch = $itemData['dispatch'];
             $serialIndex = $itemData['serial_index'];
-            $serialNumber = $itemData['serial_number'];
+            $originalSerial = $itemData['serial_number'];
+            
+            // Lấy serial hiển thị (ưu tiên serial đổi tên từ device_codes)
+            $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                $dispatch->id,
+                $item->item_id,
+                $item->item_type,
+                $originalSerial
+            );
             
             // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng project
-            $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $serialNumber)
+            $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
                 ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })->exists();
-            $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $serialNumber)
+            $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
                 ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })->exists();
             $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                ->where('serial_number', $serialNumber)
+                ->where('serial_number', $originalSerial)
                 ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })->exists();
             
             // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
-            $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $serialNumber)
+            $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
                 ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
                     $q->where('project_id', $project->id);
                 })->exists();
                 
             // Debug: Hiển thị thông tin chi tiết
-            $debugInfo = "ItemID: {$item->id}, Serial: {$serialNumber}, isReplaced: " . ($isReplaced ? 'true' : 'false') . ", isReplacementSerial: " . ($isReplacementSerial ? 'true' : 'false');
+            $debugInfo = "ItemID: {$item->id}, OriginalSerial: {$originalSerial}, DisplaySerial: {$displaySerial}, isReplaced: " . ($isReplaced ? 'true' : 'false') . ", isReplacementSerial: " . ($isReplacementSerial ? 'true' : 'false');
         @endphp
         <tr class="hover:bg-gray-50">
             <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -312,8 +320,8 @@
                 @endif
             </td>
             <td class="py-2 px-4 border-b">
-                @if($serialNumber)
-                    {{ $serialNumber }}
+                @if(!empty($displaySerial))
+                    {{ $displaySerial }}
                 @else
                     N/A
                 @endif
@@ -323,7 +331,7 @@
                     <span class="px-2 py-1 bg-gray-200 text-gray-700 rounded-full text-xs">Đã thu hồi</span>
                 @else
                     @if($isReplaced || $isReplacementSerial)
-                        <button data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
+                        <button data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" class="history-btn px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs hover:bg-orange-200 flex items-center justify-center space-x-1">
                             <i class="fas fa-exchange-alt"></i>
                             <span>Đã thay thế</span>
                         </button>
@@ -340,7 +348,7 @@
                 </a>
             </td>
             <td class="py-2 px-4 border-b">
-                <button type="button" data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
+                <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $item->item_type == 'material' && $item->material ? $item->material->code : ($item->item_type == 'product' && $item->product ? $item->product->code : ($item->item_type == 'good' && $item->good ? $item->good->code : 'N/A')) }}" class="warranty-btn text-blue-500 hover:text-blue-700">
                     <i class="fas fa-tools mr-1"></i> Bảo hành/Thay thế
                 </button>
             </td>
@@ -405,19 +413,27 @@
                                     $item = $itemData['dispatch_item'];
                                     $dispatch = $itemData['dispatch'];
                                     $serialIndex = $itemData['serial_index'];
-                                    $serialNumber = $itemData['serial_number'];
+                                    $originalSerial = $itemData['serial_number'];
+                                    
+                                    // Lấy serial hiển thị (ưu tiên serial đổi tên từ device_codes)
+                                    $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                                        $dispatch->id,
+                                        $item->item_id,
+                                        $item->item_type,
+                                        $originalSerial
+                                    );
                                     
                                     // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng project
-                                    $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $serialNumber)
+                                    $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
                                         ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
                                             $q->where('project_id', $project->id);
                                         })->exists();
-                                    $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $serialNumber)
+                                    $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
                                         ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
                                             $q->where('project_id', $project->id);
                                         })->exists();
                                     $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                        ->where('serial_number', $serialNumber)
+                                        ->where('serial_number', $originalSerial)
                                         ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
                                             $q->where('project_id', $project->id);
                                         })->exists();
@@ -447,8 +463,8 @@
                                         @endif
                                     </td>
                                     <td class="py-2 px-4 border-b">
-                                        @if($serialNumber)
-                                            {{ $serialNumber }}
+                                        @if(!empty($displaySerial))
+                                            {{ $displaySerial }}
                                         @else
                                             N/A
                                         @endif
@@ -484,7 +500,7 @@
                                                 $itemCode = 'N/A';
                                             }
                                         @endphp
-                                        <button type="button" data-id="{{ $item->id }}" data-serial="{{ $serialNumber }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
+                                        <button type="button" data-id="{{ $item->id }}" data-serial="{{ $originalSerial }}" data-code="{{ $itemCode }}" class="return-btn text-red-500 hover:text-red-700">
                                             <i class="fas fa-undo-alt mr-1"></i> Thu hồi
                                         </button>
                                         @endif

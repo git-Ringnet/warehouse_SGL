@@ -348,6 +348,57 @@ class DeviceCodeController extends Controller
                     }
                 }
 
+                // Nếu không có old_serial, lấy từ dispatch_items
+                $oldSerial = $deviceCode['old_serial'] ?? null;
+                if (empty($oldSerial)) {
+                    // Lấy tất cả dispatch_items cho product này
+                    $dispatchItems = DB::table('dispatch_items')
+                        ->where('dispatch_id', $dispatch_id)
+                        ->where('item_id', $deviceCode['item_id'] ?? $deviceCode['product_id'])
+                        ->where('item_type', $deviceCode['item_type'] ?? 'product')
+                        ->orderBy('id')
+                        ->get();
+                    
+                    if ($dispatchItems->isNotEmpty()) {
+                        // Logic xác định old_serial dựa trên type và vị trí
+                        if ($type === 'backup') {
+                            // Cho backup, lấy serial đầu tiên từ dispatch_item cuối cùng
+                            $lastItem = $dispatchItems->last();
+                            if ($lastItem && $lastItem->serial_numbers) {
+                                $serialNumbers = json_decode($lastItem->serial_numbers, true);
+                                if (is_array($serialNumbers) && !empty($serialNumbers)) {
+                                    $oldSerial = $serialNumbers[0];
+                                }
+                            }
+                        } else {
+                            // Cho contract, cần xác định vị trí của serial_main trong danh sách
+                            $firstItem = $dispatchItems->first();
+                            if ($firstItem && $firstItem->serial_numbers) {
+                                $serialNumbers = json_decode($firstItem->serial_numbers, true);
+                                if (is_array($serialNumbers) && !empty($serialNumbers)) {
+                                    // Tìm vị trí của serial_main trong danh sách serial gốc
+                                    $serialMain = $deviceCode['serial_main'] ?? '';
+                                    
+                                    // Nếu serial_main khớp với một serial trong danh sách, dùng serial đó
+                                    if (in_array($serialMain, $serialNumbers)) {
+                                        $oldSerial = $serialMain;
+                                    } else {
+                                        // Fallback: sử dụng vị trí trong danh sách device_codes
+                                        // Lấy vị trí của device_code này trong danh sách
+                                        $deviceCodeIndex = array_search($deviceCode, $device_codes);
+                                        if ($deviceCodeIndex !== false && isset($serialNumbers[$deviceCodeIndex])) {
+                                            $oldSerial = $serialNumbers[$deviceCodeIndex];
+                                        } else {
+                                            // Fallback cuối cùng: lấy serial đầu tiên
+                                            $oldSerial = $serialNumbers[0];
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 DeviceCode::create([
                     'dispatch_id' => $dispatch_id,
                     'product_id' => $deviceCode['product_id'],
@@ -360,7 +411,7 @@ class DeviceCodeController extends Controller
                     'iot_id' => $deviceCode['iot_id'] ?? null,
                     'mac_4g' => $deviceCode['mac_4g'] ?? null,
                     'note' => $deviceCode['note'] ?? null,
-                    'old_serial' => $deviceCode['old_serial'] ?? null,
+                    'old_serial' => $oldSerial,
                     'type' => $type
                 ]);
             }

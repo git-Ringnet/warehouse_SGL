@@ -311,8 +311,50 @@ class EquipmentServiceController extends Controller
             $originalSerials = array_map(function ($s) { return trim((string) $s); }, $originalSerialsRaw);
             $replacementSerials = array_map(function ($s) { return trim((string) $s); }, $replacementSerialsRaw);
 
-            $requestedOriginalSerial = trim((string) $validatedData['equipment_serial']);
-            $requestedReplacementSerial = trim((string) $validatedData['replacement_serial']);
+            $requestedOriginalSerialInput = trim((string) $validatedData['equipment_serial']);
+            $requestedReplacementSerialInput = trim((string) $validatedData['replacement_serial']);
+
+            // Hỗ trợ nhận serial đã đổi tên từ UI: map về serial gốc nếu cần
+            $resolveToOriginal = function (int $dispatchId, int $itemId, string $itemType, string $inputSerial, array $serialsInItem): string {
+                // Nếu serial đã có trong item thì giữ nguyên
+                if (in_array($inputSerial, $serialsInItem, true)) {
+                    return $inputSerial;
+                }
+                // Thử tìm trong device_codes (ưu tiên theo dispatch hiện tại)
+                $dc = DB::table('device_codes')
+                    ->where('dispatch_id', $dispatchId)
+                    ->where('item_id', $itemId)
+                    ->where('item_type', $itemType)
+                    ->where('serial_main', $inputSerial)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                if ($dc && !empty($dc->old_serial)) {
+                    return trim((string) $dc->old_serial);
+                }
+                // Fallback: tìm theo item, không ràng buộc dispatch
+                $dc = DB::table('device_codes')
+                    ->where('item_id', $itemId)
+                    ->where('item_type', $itemType)
+                    ->where('serial_main', $inputSerial)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                if ($dc && !empty($dc->old_serial)) {
+                    return trim((string) $dc->old_serial);
+                }
+                // Fallback cuối: tìm toàn cục theo serial_main (không ràng buộc item)
+                $dc = DB::table('device_codes')
+                    ->where('serial_main', $inputSerial)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                if ($dc && !empty($dc->old_serial)) {
+                    return trim((string) $dc->old_serial);
+                }
+                // Không tìm thấy mapping, trả về input
+                return $inputSerial;
+            };
+
+            $requestedOriginalSerial = $resolveToOriginal($originalItem->dispatch_id, $originalItem->item_id, $originalItem->item_type, $requestedOriginalSerialInput, $originalSerials);
+            $requestedReplacementSerial = $resolveToOriginal($replacementItem->dispatch_id, $replacementItem->item_id, $replacementItem->item_type, $requestedReplacementSerialInput, $replacementSerials);
 
             if (!in_array($requestedOriginalSerial, $originalSerials, true)) {
                 return redirect()->back()->with('error', 'Serial thiết bị hợp đồng không hợp lệ.');
@@ -801,7 +843,7 @@ class EquipmentServiceController extends Controller
                     ->where('category', 'backup')
                     ->with(['material', 'product', 'good'])
                     ->get()
-                    ->map(function ($item) use ($usedSerialsGlobal) {
+                    ->map(function ($item) use ($usedSerialsGlobal, $dispatch) {
                         // Lấy danh sách serial đã được sử dụng làm replacement
                         $replacementSerials = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
                             ->pluck('replacement_serial')
@@ -814,18 +856,31 @@ class EquipmentServiceController extends Controller
                         // Lọc danh sách serial_numbers để chỉ giữ serial chưa sử dụng
                         $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
                         $serials = array_filter(array_map(function ($s) { return trim((string) $s); }, $serials));
-                        $item->serial_numbers = array_values(array_filter($serials, function ($serial) use ($item, $usedSerialsGlobal) {
+                        
+                        // Sử dụng SerialDisplayHelper để lấy serial đổi tên
+                        $displaySerials = \App\Helpers\SerialDisplayHelper::getDisplaySerials(
+                            $dispatch->id,
+                            $item->item_id,
+                            $item->item_type,
+                            $serials
+                        );
+                        
+                        $item->serial_numbers = array_values(array_filter($displaySerials, function ($serial) use ($item, $usedSerialsGlobal) {
                             return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
                         }));
                         
                         return $item;
+                    })
+                    ->filter(function ($item) {
+                        // Chỉ giữ lại items có serial_numbers không rỗng
+                        return !empty($item->serial_numbers);
                     });
                 $backupItems = $backupItems->concat($items);
             }
             
             return response()->json([
                 'success' => true,
-                'backupItems' => $backupItems,
+                'backupItems' => $backupItems->values(), // Reset array keys
                 'usedSerialsGlobal' => $usedSerialsGlobal,
             ]);
         } catch (\Exception $e) {
@@ -874,7 +929,7 @@ class EquipmentServiceController extends Controller
                     ->where('category', 'backup')
                     ->with(['material', 'product', 'good'])
                     ->get()
-                    ->map(function ($item) use ($usedSerialsGlobal) {
+                    ->map(function ($item) use ($usedSerialsGlobal, $dispatch) {
                         // Lấy danh sách serial đã được sử dụng làm replacement
                         $replacementSerials = \App\Models\DispatchReplacement::where('replacement_dispatch_item_id', $item->id)
                             ->pluck('replacement_serial')
@@ -887,18 +942,31 @@ class EquipmentServiceController extends Controller
                         // Lọc danh sách serial_numbers để chỉ giữ serial chưa sử dụng
                         $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
                         $serials = array_filter(array_map(function ($s) { return trim((string) $s); }, $serials));
-                        $item->serial_numbers = array_values(array_filter($serials, function ($serial) use ($item, $usedSerialsGlobal) {
+                        
+                        // Sử dụng SerialDisplayHelper để lấy serial đổi tên
+                        $displaySerials = \App\Helpers\SerialDisplayHelper::getDisplaySerials(
+                            $dispatch->id,
+                            $item->item_id,
+                            $item->item_type,
+                            $serials
+                        );
+                        
+                        $item->serial_numbers = array_values(array_filter($displaySerials, function ($serial) use ($item, $usedSerialsGlobal) {
                             return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
                         }));
                         
                         return $item;
+                    })
+                    ->filter(function ($item) {
+                        // Chỉ giữ lại items có serial_numbers không rỗng
+                        return !empty($item->serial_numbers);
                     });
                 $backupItems = $backupItems->concat($items);
             }
             
             return response()->json([
                 'success' => true,
-                'backupItems' => $backupItems,
+                'backupItems' => $backupItems->values(), // Reset array keys
                 'usedSerialsGlobal' => $usedSerialsGlobal,
             ]);
         } catch (\Exception $e) {

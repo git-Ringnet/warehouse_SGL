@@ -4748,6 +4748,7 @@
                                         placeholder="Seri chính ${i + 1}"
                                         value="${mainSerialValue}"
                                         data-sync-index="${i}"
+                                        data-original-serial="${originalSerialValue}"
                                         class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
                                 </td>
                                 <td class="px-2 py-2 border border-gray-200">
@@ -4888,12 +4889,38 @@
                                 '';
                             const note = row.querySelector('input[name*="note"]')?.value || '';
 
+                            // Lấy old_serial từ data attribute hoặc tính toán
+                            let oldSerial = row.getAttribute('data-old-serial');
+                            if (!oldSerial) {
+                                // Fallback: lấy từ data-original-serial của input
+                                const originalSerialAttr = mainSerialInput.getAttribute('data-original-serial');
+                                if (originalSerialAttr) {
+                                    oldSerial = originalSerialAttr;
+                                } else {
+                                    // Fallback cuối cùng: lấy từ productInfo dựa trên row index
+                                    const rowIndex = parseInt(row.getAttribute('data-row-index') || '0');
+                                    const currentType = getCurrentModalType();
+                                    if (currentType === 'contract') {
+                                        const productInfo = selectedContractProducts.find(p => p.id == productId);
+                                        if (productInfo && Array.isArray(productInfo.serial_numbers)) {
+                                            oldSerial = productInfo.serial_numbers[rowIndex] || '';
+                                        }
+                                    } else if (currentType === 'backup') {
+                                        const productInfo = selectedBackupProducts.find(p => p.id == productId);
+                                        if (productInfo && Array.isArray(productInfo.serial_numbers)) {
+                                            oldSerial = productInfo.serial_numbers[rowIndex] || '';
+                                        }
+                                    }
+                                }
+                            }
+
                             // Create device code entry
                             deviceCodes.push({
                                 id: deviceCodeId,
                                 dispatch_id: dispatchId,
                                 product_id: productId,
                                 serial_main: mainSerialInput.value,
+                                old_serial: oldSerial,
                                 serial_components: componentSerialsJson,
                                 serial_sim: simSerial,
                                 access_code: accessCode,
