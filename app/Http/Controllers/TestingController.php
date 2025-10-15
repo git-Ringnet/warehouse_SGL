@@ -4345,8 +4345,32 @@ class TestingController extends Controller
 
                 // Tạo serial records cho các serial đạt
                 $createdCount = 0;
-                foreach ($serialArray as $serial) {
+                foreach ($serialArray as $index => $serial) {
                     if (empty($serial)) continue;
+
+                    // Kiểm tra kết quả của serial cụ thể từ serial_results
+                    $serialResult = 'pass'; // Default
+                    if (!empty($item->serial_results)) {
+                        $serialResults = json_decode($item->serial_results, true);
+                        if (is_array($serialResults)) {
+                            // Convert index to letter (A=0, B=1, ..., Z=25, [=26, etc.)
+                            $resultKey = chr(65 + $index); // A=65, B=66, etc.
+                            if (isset($serialResults[$resultKey])) {
+                                $serialResult = $serialResults[$resultKey];
+                            }
+                        }
+                    }
+
+                    // Chỉ tạo serial nếu kết quả là 'pass'
+                    if ($serialResult !== 'pass') {
+                        Log::info('Bỏ qua serial không đạt', [
+                            'testing_id' => $testing->id,
+                            'serial' => $serial,
+                            'result' => $serialResult,
+                            'index' => $index
+                        ]);
+                        continue;
+                    }
 
                     // Kiểm tra xem serial đã tồn tại chưa
                     $existingSerial = \App\Models\Serial::where('serial_number', $serial)
@@ -4364,6 +4388,12 @@ class TestingController extends Controller
                             'warehouse_id' => $warehouseId
                         ]);
                         $createdCount++;
+                    } else if ($existingSerial->status !== 'active') {
+                        // Nếu trước đó serial bị inactive (do fail), khi pass lại thì kích hoạt lại
+                        $existingSerial->update([
+                            'status' => 'active',
+                            'notes' => 'Testing ID: ' . $testing->id . ' (Re-activated after pass)'
+                        ]);
                     }
                 }
 

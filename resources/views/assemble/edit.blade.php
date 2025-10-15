@@ -1827,7 +1827,7 @@
                 @if ($assembly->products && $assembly->products->count() > 0)
                     @foreach ($assembly->products as $productIndex => $assemblyProduct)
                         const productSerialInputs{{ $productIndex }} = document.querySelectorAll(
-                            'input[name*="products[${productIndex}][serials]"]');
+                            'input[name^="products[{{ $productIndex }}][serials]"]');
                         productSerialInputs{{ $productIndex }}.forEach(input => {
                             addProductSerialValidation(input, {{ $assemblyProduct->product_id }});
 

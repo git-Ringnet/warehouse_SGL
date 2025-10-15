@@ -2665,167 +2665,79 @@
 
             // Update hidden component list for form submission
             function updateHiddenComponentList() {
-                // Get the old component list (hidden but needed for form submission)
-                const oldComponentList = document.getElementById('component_list');
-                const noComponentsRow = document.getElementById('no_components_row');
+                const hidden = document.getElementById('hidden_form_data');
+                if (!hidden) return;
 
-                // Kiểm tra oldComponentList có tồn tại không
-                if (!oldComponentList) {
-                    console.warn('Component list not found');
+                // Remove any existing hidden component inputs
+                const existing = hidden.querySelectorAll('input[name^="components["]');
+                existing.forEach(el => el.remove());
+
+                // If no components, stop here so backend will catch with friendly message
+                if (!Array.isArray(selectedComponents) || selectedComponents.length === 0) {
                     return;
                 }
-
-                // Remove all rows except the no_components_row
-                Array.from(oldComponentList.children).forEach(child => {
-                    if (child.id !== 'no_components_row') {
-                        oldComponentList.removeChild(child);
-                    }
-                });
-
-                // Show/hide no components message
-                if (noComponentsRow) {
-                    if (selectedComponents.length === 0) {
-                        noComponentsRow.style.display = '';
-                        return;
-                    } else {
-                        noComponentsRow.style.display = 'none';
-                    }
-                }
-
-                // Debug: Log selectedComponents before creating form fields
-                console.log('updateHiddenComponentList - selectedComponents:', {
-                    total: selectedComponents.length,
-                    components: selectedComponents.map(c => ({
-                        id: c.id,
-                        name: c.name,
-                        productId: c.productId,
-                        productUnit: c.productUnit,
-                        isFromProduct: c.isFromProduct
-                    }))
-                });
 
                 // Build a map from uniqueId -> real product id for reliable mapping
                 const uidToRealId = {};
                 selectedProducts.forEach(p => { uidToRealId[p.uniqueId] = p.id; });
 
-                // Add all components to the hidden list with proper form fields
+                // Serialize each component into hidden inputs under hidden_form_data
                 selectedComponents.forEach((component, index) => {
-                    const globalIndex = index; // Ensure names align with selectedComponents order
-                    // Debug: Log the component and available products
-                    console.log('Processing component for hidden input:', {
-                        componentId: component.id,
-                        componentProductId: component.productId,
-                        componentActualProductId: component.actualProductId,
-                        selectedProducts: selectedProducts.map(p => ({ id: p.id, uniqueId: p.uniqueId })),
-                        componentIndex: index
-                    });
-
-                    // Resolve product_id and product_index for this component in multi-product mode
+                    // Resolve product_id for this component in multi-product mode
                     let resolvedProductId = '';
-                    let resolvedProductIndex = -1;
-                    // Prefer explicit real id set on component
                     if (!resolvedProductId && component.productRealId) {
                         resolvedProductId = component.productRealId;
-                        resolvedProductIndex = selectedProducts.findIndex(p => p.id == component.productRealId);
                     }
-                    // Then by uniqueId
                     if (!resolvedProductId && component.productId && uidToRealId[component.productId]) {
                         resolvedProductId = uidToRealId[component.productId];
-                        resolvedProductIndex = selectedProducts.findIndex(p => p.uniqueId === component.productId);
                     }
-                    // Fallback to actualProductId
                     if (!resolvedProductId && component.actualProductId) {
                         resolvedProductId = component.actualProductId;
-                        resolvedProductIndex = selectedProducts.findIndex(p => p.id == component.actualProductId);
                     }
-                    // Try parse pattern product_N
-                    if (!resolvedProductId && typeof component.productId === 'string') {
-                        const m = component.productId.match(/^product_(\d+)$/);
-                        if (m) {
-                            const idx = Math.max(0, parseInt(m[1], 10) - 1);
-                            if (selectedProducts[idx]) {
-                                resolvedProductId = selectedProducts[idx].id;
-                                resolvedProductIndex = idx;
-                            }
-                        }
-                    }
-                    // Last fallback
                     if (!resolvedProductId && selectedProducts[0]) {
                         resolvedProductId = selectedProducts[0].id;
-                        resolvedProductIndex = 0;
                     }
 
-                    console.log('Component mapping:', {
-                        componentId: component.id,
-                        compProductId: component.productId,
-                        compActualProductId: component.actualProductId,
-                        resolvedProductId,
-                        resolvedProductIndex
+                    const pairs = {
+                        id: component.id,
+                        product_id: resolvedProductId,
+                        quantity: component.quantity,
+                        warehouse_id: component.warehouseId || component.warehouse_id || '',
+                        product_unit: component.productUnit || 0,
+                        note: component.note || ''
+                    };
+
+                    Object.keys(pairs).forEach(key => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = `components[${index}][${key}]`;
+                        input.value = pairs[key] == null ? '' : String(pairs[key]);
+                        hidden.appendChild(input);
                     });
 
-                    console.log('Resolved product_id for component:', {
-                        componentId: component.id,
-                        resolvedProductId: resolvedProductId,
-                        selectedProductsFirstId: selectedProducts[0] ? selectedProducts[0].id : 'undefined'
+                    // Serialize component serials if present (as multiple inputs)
+                    const serials = Array.isArray(component.serials) ? component.serials : [];
+                    serials.forEach(s => {
+                        const si = document.createElement('input');
+                        si.type = 'hidden';
+                        si.name = `components[${index}][serials][]`;
+                        si.value = s || '';
+                        hidden.appendChild(si);
                     });
-                    const row = document.createElement('tr');
-                    row.style.display = 'none'; // Hide row but keep form fields
 
-                    // Handle serials
-                    let serialHtml = '';
-                    if (component.serials && component.serials.length > 0) {
-                        // Multiple serials
-                        component.serials.forEach((serial, serialIndex) => {
-                            serialHtml += '<input type="hidden" name="components[' + index +
-                                '][serials][]" value="' + (serial || '') + '">';
-                        });
-                        // Multiple serial_ids
-                        if (component.serial_ids && component.serial_ids.length > 0) {
-                            component.serial_ids.forEach((serialId, serialIndex) => {
-                                serialHtml += '<input type="hidden" name="components[' + index +
-                                    '][serial_id][]" value="' + (serialId || '') + '">';
-                            });
-                        }
-                    } else {
-                        // Single serial
-                        serialHtml = '<input type="hidden" name="components[' + index +
-                            '][serial]" value="' + (component.serial || '') + '">';
-                        // Add serial_id if available
-                        if (component.serial_id) {
-                            serialHtml += '<input type="hidden" name="components[' + index +
-                                '][serial_id]" value="' + component.serial_id + '">';
-                        }
-                    }
-
-                    row.innerHTML =
-                        '<td>' +
-                        '<input type="hidden" name="components[' + globalIndex + '][id]" value="' + component.id +
-                        '">' +
-                        '<input type="hidden" name="components[' + globalIndex + '][product_id]" value="' +
-                        resolvedProductId + '">' +
-                        '<input type="hidden" name="components[' + globalIndex + '][product_index]" value="' +
-                        resolvedProductIndex + '">' +
-                        // ensure warehouse_id is present for backend validation
-                        '<input type="hidden" name="components[' + globalIndex + '][warehouse_id]" value="' +
-                        (component.warehouseId || getWarehouseId() || '') + '">' +
-                        '<input type="hidden" name="components[' + globalIndex + '][quantity]" value="' + (
-                            component
-                            .quantity || 1) + '">' +
-                        '<input type="hidden" name="components[' + globalIndex + '][product_unit]" value="' + (
-                            component.productUnit || 0) + '">' +
-                        serialHtml +
-                        '<input type="hidden" name="components[' + globalIndex + '][note]" value="' + (component
-                            .note || '') +
-                        '">' +
-                        '</td>';
-
-                    // Đảm bảo noComponentsRow vẫn tồn tại trước khi insert
-                    if (noComponentsRow && noComponentsRow.parentNode) {
-                        oldComponentList.insertBefore(row, noComponentsRow);
-                    } else {
-                        oldComponentList.appendChild(row);
+                    if (component.serial_id) {
+                        const sid = document.createElement('input');
+                        sid.type = 'hidden';
+                        sid.name = `components[${index}][serial_id]`;
+                        sid.value = component.serial_id;
+                        hidden.appendChild(sid);
                     }
                 });
+
+                // Debug
+                console.log('Hidden component inputs rebuilt:', hidden.querySelectorAll('input[name^="components["]').length);
+
+                // legacy DOM table path removed
             }
 
             // Update hidden product list for form submission
@@ -4946,10 +4858,12 @@
 
             // Function to add serial validation to product serial inputs
             function addProductSerialValidation(input, productId) {
+                console.log('Adding serial validation for product:', productId);
                 let validationTimeout;
 
                 input.addEventListener('input', function() {
                     const serial = this.value.trim();
+                    console.log('Serial input changed:', serial);
 
                     // Clear previous timeout
                     clearTimeout(validationTimeout);
@@ -4972,7 +4886,9 @@
 
                     // Debounce validation
                     validationTimeout = setTimeout(async () => {
+                        console.log('Checking serial:', serial, 'for product:', productId);
                         const result = await checkSerialExists(serial, productId);
+                        console.log('Serial check result:', result);
 
                         this.classList.remove('border-blue-300');
 

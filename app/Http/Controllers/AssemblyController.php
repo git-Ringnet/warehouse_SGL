@@ -331,13 +331,12 @@ class AssemblyController extends Controller
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                            // Check in warehouse_materials table (JSON array format)
-                        $existingWarehouseMaterial = WarehouseMaterial::where('material_id', $productData['id'])
-                            ->where('item_type', 'product')
-                            ->whereRaw('JSON_SEARCH(LOWER(serial_number), "one", LOWER(?)) IS NOT NULL', [strtolower($serial)])
+                        // Check in serials table with type = product
+                        $existingSerial = \App\Models\Serial::where('serial_number', $serial)
+                            ->where('type', 'product')
                             ->first();
 
-                        if ($existingWarehouseMaterial) {
+                        if ($existingSerial && $existingSerial->status === 'active') {
                             throw new \Exception("Serial '{$serial}' đã tồn tại trong tồn kho.");
                         }
                     }
@@ -824,13 +823,12 @@ class AssemblyController extends Controller
                     foreach ($filteredSerials as $serial) {
                         if (empty($serial)) continue;
 
-                        // Check in warehouse_materials table (JSON array format), case-insensitive
-                        $existsInWarehouse = WarehouseMaterial::where('material_id', $productData['id'])
-                            ->where('item_type', 'product')
-                            ->whereRaw('JSON_SEARCH(LOWER(serial_number), "one", LOWER(?)) IS NOT NULL', [strtolower($serial)])
-                            ->exists();
+                        // Check in serials table with type = product
+                        $existingSerial = \App\Models\Serial::where('serial_number', $serial)
+                            ->where('type', 'product')
+                            ->first();
 
-                        if ($existsInWarehouse) {
+                        if ($existingSerial && $existingSerial->status === 'active') {
                             // Allow if this serial already belongs to current assembly record being edited
                             $belongsToCurrentAssembly = \App\Models\AssemblyProduct::where('assembly_id', $assembly->id)
                                 ->where('product_id', $productData['id'])
@@ -1599,48 +1597,58 @@ class AssemblyController extends Controller
         $assemblyId = $request->assembly_id;
 
         try {
-            // Check in warehouse_materials table (JSON array format)
-            $existingWarehouseMaterial = WarehouseMaterial::where('material_id', $productId)
-                ->where('item_type', 'product')
-                ->whereRaw('JSON_SEARCH(LOWER(serial_number), "one", LOWER(?)) IS NOT NULL', [strtolower($serial)])
+            // Kiểm tra serial có tồn tại và active không
+            $existingSerial = \App\Models\Serial::where('serial_number', $serial)
+                ->where('type', 'product')
                 ->first();
 
-            if ($existingWarehouseMaterial) {
-                // If editing assembly, check if this serial belongs to current assembly
-                if ($assemblyId) {
-                    // Check if this serial is already used in current assembly
-                    $assemblyProduct = \App\Models\AssemblyProduct::where('assembly_id', $assemblyId)
-                        ->where('product_id', $productId)
-                        ->whereRaw('FIND_IN_SET(?, serials)', [$serial])
-                        ->first();
-                    
-                    if ($assemblyProduct) {
-                        // This serial belongs to current assembly, so it's valid
-                        return response()->json([
-                            'exists' => false,
-                            'message' => "Serial hợp lệ (thuộc assembly hiện tại)"
-                        ]);
+            if ($existingSerial) {
+                if ($existingSerial->status === 'active') {
+                    // Kiểm tra xem serial có thuộc về assembly hiện tại không (khi edit)
+                    if ($assemblyId) {
+                        $belongsToCurrentAssembly = \App\Models\AssemblyProduct::where('assembly_id', $assemblyId)
+                            ->where('product_id', $productId)
+                            ->whereRaw('FIND_IN_SET(?, serials)', [$serial])
+                            ->exists();
+
+                        if ($belongsToCurrentAssembly) {
+                            return response()->json([
+                                'exists' => false,
+                                'message' => 'Serial hợp lệ'
+                            ]);
+                        }
                     }
+
+                    return response()->json([
+                        'exists' => true,
+                        'message' => "Serial '{$serial}' đã tồn tại và đang hoạt động trong tồn kho",
+                        'type' => 'serial'
+                    ]);
+                } else {
+                    // Serial tồn tại nhưng inactive - có thể tái sử dụng
+                    return response()->json([
+                        'exists' => false,
+                        'message' => 'Serial hợp lệ (tái sử dụng từ serial không đạt)'
+                    ]);
                 }
-
-                // Serial exists and doesn't belong to current assembly (or not editing)
-                $errorMessage = "Serial đã tồn tại trong tồn kho";
-
-                return response()->json([
-                    'exists' => true,
-                    'message' => $errorMessage,
-                    'type' => 'serial'
-                ]);
             }
 
+            // Serial không tồn tại - hợp lệ
             return response()->json([
                 'exists' => false,
-                'message' => "Serial hợp lệ"
+                'message' => 'Serial hợp lệ'
             ]);
+
         } catch (\Exception $e) {
+            Log::error('Lỗi khi kiểm tra serial', [
+                'serial' => $serial,
+                'product_id' => $productId,
+                'error' => $e->getMessage()
+            ]);
+
             return response()->json([
                 'error' => true,
-                'message' => 'Lỗi kiểm tra serial: ' . $e->getMessage()
+                'message' => 'Có lỗi xảy ra khi kiểm tra serial'
             ], 500);
         }
     }
@@ -2600,6 +2608,16 @@ class AssemblyController extends Controller
                 return back()->withErrors(['error' => $serialConflict['message']])->withInput();
             }
 
+            // Kiểm tra serial thành phẩm hợp lệ
+            $productSerialValidation = $this->validateProductSerialsForApproval($assembly);
+            if (!$productSerialValidation['valid']) {
+                DB::rollBack();
+                if (request()->expectsJson()) {
+                    return response()->json(['error' => $productSerialValidation['message']], 400);
+                }
+                return back()->withErrors(['error' => $productSerialValidation['message']])->withInput();
+            }
+
             // Check if assembly is already approved
             if ($assembly->status === 'approved') {
                 if (request()->expectsJson()) {
@@ -2781,6 +2799,56 @@ class AssemblyController extends Controller
         }
         // Redirect về trang gọi (danh sách hoặc chi tiết)
         return back()->with('success', 'Đã huỷ phiếu lắp ráp thành công!');
+    }
+
+    /**
+     * Kiểm tra serial thành phẩm hợp lệ khi duyệt phiếu lắp ráp
+     */
+    private function validateProductSerialsForApproval(Assembly $assembly)
+    {
+        try {
+            foreach ($assembly->products as $assemblyProduct) {
+                if (empty($assemblyProduct->serials)) {
+                    continue;
+                }
+
+                $serialArray = explode(',', $assemblyProduct->serials);
+                $serialArray = array_map('trim', $serialArray);
+                $serialArray = array_filter($serialArray);
+
+                foreach ($serialArray as $serial) {
+                    if (empty($serial)) continue;
+
+                    // Kiểm tra serial có tồn tại và active không
+                    $existingSerial = \App\Models\Serial::where('serial_number', $serial)
+                        ->where('type', 'product')
+                        ->first();
+
+                    if ($existingSerial) {
+                        if ($existingSerial->status === 'active') {
+                            return [
+                                'valid' => false,
+                                'message' => "Serial '{$serial}' đã tồn tại và đang hoạt động trong tồn kho."
+                            ];
+                        }
+                        // Nếu serial tồn tại nhưng inactive thì cho phép (có thể tái sử dụng)
+                    }
+                }
+            }
+
+            return ['valid' => true, 'message' => 'Tất cả serial thành phẩm đều hợp lệ.'];
+
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi kiểm tra serial thành phẩm cho duyệt', [
+                'assembly_id' => $assembly->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return [
+                'valid' => false,
+                'message' => 'Có lỗi xảy ra khi kiểm tra serial thành phẩm: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**
