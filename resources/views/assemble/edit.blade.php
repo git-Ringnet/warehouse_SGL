@@ -25,6 +25,54 @@
         console.log('IS_IN_PROGRESS:', IS_IN_PROGRESS);
         console.log('IS_PENDING:', IS_PENDING);
 
+        // Maximum allowed product quantity to prevent performance issues
+        const MAX_PRODUCT_QUANTITY = 50;
+        
+        // Function to validate and limit product quantity
+        function validateProductQuantity(input) {
+            const value = parseInt(input.value);
+            const maxQuantity = parseInt(input.getAttribute('max')) || MAX_PRODUCT_QUANTITY;
+            
+            if (value > MAX_PRODUCT_QUANTITY) {
+                input.value = MAX_PRODUCT_QUANTITY;
+                showQuantityLimitWarning();
+                return MAX_PRODUCT_QUANTITY;
+            }
+            
+            return value;
+        }
+        
+        // Function to show quantity limit warning
+        function showQuantityLimitWarning() {
+            // Remove existing warning
+            const existingWarning = document.querySelector('.quantity-limit-warning');
+            if (existingWarning) {
+                existingWarning.remove();
+            }
+            
+            // Create warning message
+            const warning = document.createElement('div');
+            warning.className = 'quantity-limit-warning fixed top-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded z-50';
+            warning.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <span>Số lượng thành phẩm tối đa là ${MAX_PRODUCT_QUANTITY} để đảm bảo hiệu suất hệ thống.</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-yellow-600 hover:text-yellow-800">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(warning);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (warning.parentElement) {
+                    warning.remove();
+                }
+            }, 5000);
+        }
+
         // Debounce function to limit the rate of function calls
         function debounce(func, wait) {
             let timeout;
@@ -446,7 +494,7 @@
                                 <input type="hidden" id="product_id">
                             </div>
                             <div class="w-24">
-                                <input type="number" id="product_add_quantity" min="1" step="1"
+                                <input type="number" id="product_add_quantity" min="1" max="50" step="1"
                                     value="1"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
@@ -509,7 +557,7 @@
                                                 @if ($assembly->status === 'pending')
                                                     <input type="number"
                                                         name="products[{{ $index }}][quantity]"
-                                                        value="{{ $assemblyProduct->quantity }}" min="1"
+                                                        value="{{ $assemblyProduct->quantity }}" min="1" max="50"
                                                         class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 product-qty-input"
                                                         data-index="{{ $index }}">
                                                 @else
@@ -2412,6 +2460,13 @@
                 console.log('Container:', container);
                 console.log('New quantity:', newQuantity);
 
+                // Limit quantity to prevent performance issues
+                if (newQuantity > MAX_PRODUCT_QUANTITY) {
+                    console.warn(`Quantity ${newQuantity} exceeds maximum ${MAX_PRODUCT_QUANTITY}, limiting...`);
+                    newQuantity = MAX_PRODUCT_QUANTITY;
+                    showQuantityLimitWarning();
+                }
+
                 // Lấy template trước khi xóa
                 let template = container.querySelector('.material-serial-select');
 
@@ -3536,6 +3591,14 @@
                         previousValues = []) {
                         const container = getOrCreateSerialContainer(row);
                         if (!container) return;
+                        
+                        // Limit quantity to prevent performance issues
+                        if (quantity > MAX_PRODUCT_QUANTITY) {
+                            console.warn(`Quantity ${quantity} exceeds maximum ${MAX_PRODUCT_QUANTITY}, limiting...`);
+                            quantity = MAX_PRODUCT_QUANTITY;
+                            showQuantityLimitWarning();
+                        }
+                        
                         // preserve existing values if not provided
                         if (!previousValues.length) {
                             const existing = Array.from(container.querySelectorAll('input[type="text"]'));
@@ -3575,6 +3638,9 @@
                                     newQty = 1;
                                     this.value = '1';
                                 }
+                                
+                                // Validate and limit quantity
+                                newQty = validateProductQuantity(this);
                                 const row = this.closest('tr');
                                 const idxMatch = (this.getAttribute('name') || '').match(
                                     /products\[(\d+)\]\[quantity\]/);
@@ -3711,7 +3777,11 @@
                     bindQtyChangeHandlers();
                     addProductBtn.addEventListener('click', function() {
                         const pid = productHidden && productHidden.value;
-                        const qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : '1');
+                        let qty = parseInt(qtyInput && qtyInput.value ? qtyInput.value : '1');
+                        
+                        // Validate and limit quantity
+                        qty = validateProductQuantity(qtyInput);
+                        
                         if (!pid) {
                             alert('Vui lòng chọn thành phẩm');
                             return;
@@ -3737,7 +3807,7 @@
                             <input type="hidden" name="products[${index}][product_unit]" value="0">
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${name}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><input type="number" name="products[${index}][quantity]" value="${qty}" min="1" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 product-qty-input" data-index="${index}"></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"><input type="number" name="products[${index}][quantity]" value="${qty}" min="1" max="50" class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 product-qty-input" data-index="${index}"></td>
                         <td class="px-6 py-4 text-sm text-gray-700"><div class="space-y-2"></div></td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium"><button type="button" class="text-red-500 hover:text-red-700 delete-product-btn" data-product-id="${pid}"><i class="fas fa-trash"></i></button></td>`;
                         productList.appendChild(tr);
@@ -3890,6 +3960,9 @@
                                     newQty = 1;
                                     this.value = '1';
                                 }
+                                
+                                // Validate and limit quantity
+                                newQty = validateProductQuantity(this);
                                 generateProductSerialInputs(tr, index, pid, newQty);
 
                                 // Cập nhật button "Tạo thành phẩm mới" sau khi thay đổi số lượng thành phẩm mới

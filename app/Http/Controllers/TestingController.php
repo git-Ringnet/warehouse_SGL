@@ -2739,8 +2739,14 @@ class TestingController extends Controller
             $importCode = $this->generateInventoryImportCode();
             
             // Tạo phiếu nhập kho
+            // Lấy supplier hợp lệ thay vì gán cứng 1
+            $supplierId = \App\Models\Supplier::orderBy('id')->value('id');
+            if (!$supplierId) {
+                throw new \Exception('Không tìm thấy nhà cung cấp nào để gán cho phiếu nhập kho');
+            }
+
             $inventoryImport = \App\Models\InventoryImport::create([
-                'supplier_id' => 1, // Supplier mặc định
+                'supplier_id' => $supplierId,
                 'warehouse_id' => $warehouseId,
                 'import_code' => $importCode,
                 'import_date' => now(),

@@ -151,7 +151,7 @@
                                     <input type="hidden" id="product_id" name="product_id">
                                 </div>
                                 <div class="w-24">
-                                    <input type="number" id="product_add_quantity" min="1" step="1"
+                                    <input type="number" id="product_add_quantity" min="1" max="20" step="1"
                                         value="1"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         placeholder="Số lượng">
@@ -743,6 +743,10 @@
                 if (value === '' || isNaN(numValue) || numValue < 1) {
                     this.setCustomValidity('Số lượng phải là số nguyên dương (≥ 1)');
                     this.classList.add('border-red-500');
+                } else if (numValue > 20) {
+                    this.setCustomValidity('Số lượng tối đa là 20 để đảm bảo hiệu suất hệ thống');
+                    this.classList.add('border-red-500');
+                    this.value = 20;
                 } else {
                     this.setCustomValidity('');
                     this.classList.remove('border-red-500');
@@ -1761,7 +1765,7 @@
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' + product.name +
                         '</td>' +
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
-                        '<input type="number" min="1" step="1" value="' + (
+                        '<input type="number" min="1" max="20" step="1" value="' + (
                             product.quantity || 1) + '"' +
                         ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-quantity-input"' +
                         ' data-index="' + index + '">' +
@@ -1795,6 +1799,10 @@
                         if (value === '' || isNaN(numValue) || numValue < 1) {
                             this.setCustomValidity('Số lượng phải là số nguyên dương (≥ 1)');
                             this.classList.add('border-red-500');
+                        } else if (numValue > 20) {
+                            this.setCustomValidity('Số lượng tối đa là 20 để đảm bảo hiệu suất hệ thống');
+                            this.classList.add('border-red-500');
+                            this.value = 20;
                         } else {
                             this.setCustomValidity('');
                             this.classList.remove('border-red-500');
@@ -1809,6 +1817,9 @@
                         if (value === '' || isNaN(newQty) || newQty < 1) {
                             newQty = 1;
                             this.value = '1';
+                        } else if (newQty > 20) {
+                            newQty = 20;
+                            this.value = '20';
                         }
 
                         // Check limit before updating quantity
@@ -5330,29 +5341,57 @@
 
             // DUPLICATE FUNCTION REMOVED - This logic is already handled above
 
-            // Function to fetch serials from server
+            // Simple cache and in-flight dedup for serial fetching on create page
+            const serialCacheCreate = new Map(); // key: `${materialId}_${warehouseId}` => serials array
+            const serialInflightCreate = new Map(); // key => Promise resolving to serials
+
+            // Function to fetch serials from server with cache and de-duplication
             async function fetchMaterialSerials(materialId, warehouseId) {
-                try {
-                    const response = await fetch(`{{ route('assemblies.material-serials') }}?` +
-                        new URLSearchParams({
-                            material_id: materialId,
-                            warehouse_id: warehouseId
-                        }));
+                const key = `${materialId}_${warehouseId}`;
 
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-
-                    const data = await response.json();
-                    if (!data.success) {
-                        throw new Error(data.message || 'Lỗi khi tải serial');
-                    }
-
-                    return data.serials || [];
-                } catch (error) {
-                    console.error('Error fetching serials:', error);
-                    throw error;
+                // Return cached result if available
+                if (serialCacheCreate.has(key)) {
+                    return serialCacheCreate.get(key);
                 }
+
+                // If a request is already in-flight for this key, reuse it
+                if (serialInflightCreate.has(key)) {
+                    return await serialInflightCreate.get(key);
+                }
+
+                // Otherwise, start a new request and store the promise
+                const controller = new AbortController();
+                // Safety timeout to prevent hanging requests
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+                const requestPromise = (async () => {
+                    try {
+                        const response = await fetch(`{{ route('assemblies.material-serials') }}?` +
+                            new URLSearchParams({
+                                material_id: materialId,
+                                warehouse_id: warehouseId
+                            }), { signal: controller.signal });
+
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+
+                        const data = await response.json();
+                        if (!data.success) {
+                            throw new Error(data.message || 'Lỗi khi tải serial');
+                        }
+
+                        const serials = data.serials || [];
+                        serialCacheCreate.set(key, serials);
+                        return serials;
+                    } finally {
+                        clearTimeout(timeoutId);
+                        serialInflightCreate.delete(key);
+                    }
+                })();
+
+                serialInflightCreate.set(key, requestPromise);
+                return await requestPromise;
             }
 
 

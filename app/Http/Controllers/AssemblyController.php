@@ -2144,7 +2144,7 @@ class AssemblyController extends Controller
                                 ->where('warehouse_id', $am->warehouse_id)
                                 ->whereIn('serial_number', $serialNumbers)
                                 ->update([
-                                    'status' => 'used',
+                                    'status' => 'inactive',
                                     'notes' => 'Used in Assembly ID: ' . $assembly->id,
                                 ]);
                         }
