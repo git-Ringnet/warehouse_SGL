@@ -360,7 +360,15 @@ class DispatchController extends Controller
             // Create dispatch items
             Log::info('Creating dispatch items...');
             $firstDispatchItem = null;
-            foreach ($request->items as $index => $item) {
+            
+            // Sắp xếp items: contract trước, backup sau để virtual serial được tạo đúng thứ tự
+            $sortedItems = collect($request->items)->sortBy(function($item) {
+                $category = $item['category'] ?? 'general';
+                // contract = 0, backup = 1, general = 2
+                return $category === 'contract' ? 0 : ($category === 'backup' ? 1 : 2);
+            })->values()->toArray();
+            
+            foreach ($sortedItems as $index => $item) {
                 Log::info("Creating dispatch item $index:", $item);
                 Log::info("Raw serial_numbers for item $index:", [
                     'serial_numbers' => $item['serial_numbers'] ?? 'not set',
@@ -386,7 +394,18 @@ class DispatchController extends Controller
                     $serialNumbers = array_filter($serialNumbers, function ($serial) {
                         return !empty(trim($serial));
                     });
+                    // Re-index array after filtering
+                    $serialNumbers = array_values($serialNumbers);
                 }
+                
+                // Nếu quantity > số serial, nghĩa là có thiết bị không có serial
+                // Không cần thêm gì vào serial_numbers, chỉ cần giữ nguyên quantity
+                // Logic hiển thị sẽ dựa vào quantity để tạo đúng số bản ghi
+                Log::info("Serial numbers processed for item $index:", [
+                    'quantity' => $item['quantity'],
+                    'serial_count' => count($serialNumbers),
+                    'has_no_serial_items' => (int)$item['quantity'] > count($serialNumbers)
+                ]);
 
                 // Xử lý assembly_id và product_unit cho sản phẩm
                 $assemblyId = null;
@@ -710,6 +729,66 @@ class DispatchController extends Controller
                     }
                 }
 
+                // Tạo virtual serial cho thiết bị không có serial
+                $quantity = (int)$item['quantity'];
+                $serialCount = count($serialNumbers);
+                
+                if ($quantity > $serialCount) {
+                    // Cần tạo virtual serial
+                    // Lấy virtual serial counter hiện tại của project/rental
+                    $virtualCounter = 0;
+                    
+                    if ($dispatch->dispatch_type === 'project' && $dispatch->project_id) {
+                        // Lấy tất cả virtual serial đã tồn tại trong project
+                        $existingVirtuals = DispatchItem::whereHas('dispatch', function($q) use ($dispatch) {
+                            $q->where('dispatch_type', 'project')
+                              ->where('project_id', $dispatch->project_id);
+                        })->get()
+                          ->pluck('serial_numbers')
+                          ->flatten()
+                          ->filter(function($s) {
+                              return is_string($s) && strpos($s, 'N/A-') === 0;
+                          })
+                          ->map(function($s) {
+                              return (int)str_replace('N/A-', '', $s);
+                          })
+                          ->toArray();
+                        
+                        $virtualCounter = !empty($existingVirtuals) ? max($existingVirtuals) + 1 : 0;
+                    } elseif ($dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
+                        // Lấy tất cả virtual serial đã tồn tại trong rental
+                        $existingVirtuals = DispatchItem::whereHas('dispatch', function($q) use ($dispatch) {
+                            $q->where('dispatch_type', 'rental')
+                              ->where('project_id', $dispatch->project_id);
+                        })->get()
+                          ->pluck('serial_numbers')
+                          ->flatten()
+                          ->filter(function($s) {
+                              return is_string($s) && strpos($s, 'N/A-') === 0;
+                          })
+                          ->map(function($s) {
+                              return (int)str_replace('N/A-', '', $s);
+                          })
+                          ->toArray();
+                        
+                        $virtualCounter = !empty($existingVirtuals) ? max($existingVirtuals) + 1 : 0;
+                    }
+                    
+                    // Thêm virtual serial vào mảng
+                    $needCount = $quantity - $serialCount;
+                    for ($i = 0; $i < $needCount; $i++) {
+                        $serialNumbers[] = "N/A-{$virtualCounter}";
+                        $virtualCounter++;
+                    }
+                    
+                    Log::info("Added virtual serials for item $index:", [
+                        'quantity' => $quantity,
+                        'real_serial_count' => $serialCount,
+                        'virtual_serial_count' => $needCount,
+                        'final_serials' => $serialNumbers
+                    ]);
+                }
+                
                 $dispatchItemData = [
                     'dispatch_id' => $dispatch->id,
                     'item_type' => $item['item_type'],
@@ -3040,6 +3119,7 @@ class DispatchController extends Controller
 
     /**
      * Check for duplicate serial numbers with already approved dispatches
+     * Only check real serials, skip virtual serials (N/A-0, N/A-1...)
      */
     private function checkDuplicateSerials(Dispatch $dispatch)
     {
@@ -3052,6 +3132,11 @@ class DispatchController extends Controller
 
             foreach ($dispatchItem->serial_numbers as $serial) {
                 if (empty(trim($serial))) continue;
+                
+                // Skip virtual serials (N/A-0, N/A-1, etc.) - only check real serials
+                if (strpos(trim($serial), 'N/A-') === 0) {
+                    continue;
+                }
 
                 // Check if this serial exists in any approved dispatch (excluding current one)
                 $existingItem = DispatchItem::whereHas('dispatch', function ($query) use ($dispatch) {

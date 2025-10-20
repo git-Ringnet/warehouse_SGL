@@ -174,43 +174,110 @@ class RentalController extends Controller
         $rental = Rental::with(['customer'])->findOrFail($id);
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
         
-        // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế
-        $backupItems = collect();
+        // Biến đếm virtual serial chung cho toàn bộ rental
+        $virtualSerialCounter = 0;
+        
+        // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị (ƯU TIÊN TRƯỚC)
+        $contractItems = collect();
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'rental')
             ->whereIn('status', ['approved', 'completed'])
             ->where('project_id', $rental->id) // Tìm theo project_id = rental_id
             ->get();
             
         foreach ($dispatches as $dispatch) {
-            $items = $dispatch->items()->where('category', 'backup')->get();
+            $items = $dispatch->items()->where('category', 'contract')->get();
             
             foreach ($items as $item) {
-                // Tạo nhiều bản ghi tương ứng với quantity
-                for ($i = 0; $i < $item->quantity; $i++) {
-                    $backupItems->push([
-                        'dispatch_item' => $item,
-                        'dispatch' => $dispatch,
-                        'serial_index' => $i,
-                        'serial_number' => isset($item->serial_numbers[$i]) ? $item->serial_numbers[$i] : null
-                    ]);
+                $serialNumbers = $item->serial_numbers ?? [];
+                $quantity = (int)$item->quantity;
+                
+                // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
+                foreach ($serialNumbers as $i => $serial) {
+                    $serial = trim($serial);
+                    if (!empty($serial)) {
+                        $isVirtual = strpos($serial, 'N/A-') === 0;
+                        
+                        $contractItems->push([
+                            'dispatch_item' => $item,
+                            'dispatch' => $dispatch,
+                            'serial_index' => $i,
+                            'serial_number' => $serial,
+                            'has_serial' => !$isVirtual
+                        ]);
+                        
+                        // Cập nhật counter nếu là virtual serial
+                        if ($isVirtual) {
+                            $counter = (int)str_replace('N/A-', '', $serial);
+                            $virtualSerialCounter = max($virtualSerialCounter, $counter + 1);
+                        }
+                    }
+                }
+                
+                // Nếu quantity > số serial trong DB → tạo virtual serial mới
+                $currentSerialCount = count($serialNumbers);
+                if ($quantity > $currentSerialCount) {
+                    $needNewVirtuals = $quantity - $currentSerialCount;
+                    
+                    for ($i = 0; $i < $needNewVirtuals; $i++) {
+                        $contractItems->push([
+                            'dispatch_item' => $item,
+                            'dispatch' => $dispatch,
+                            'serial_index' => $currentSerialCount + $i,
+                            'serial_number' => "N/A-{$virtualSerialCounter}",
+                            'has_serial' => false
+                        ]);
+                        $virtualSerialCounter++;
+                    }
                 }
             }
         }
 
-        // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
-        $contractItems = collect();
+        // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế (SAU HỢP ĐỒNG)
+        $backupItems = collect();
         foreach ($dispatches as $dispatch) {
-            $items = $dispatch->items()->where('category', 'contract')->get();
+            $items = $dispatch->items()->where('category', 'backup')->get();
             
             foreach ($items as $item) {
-                // Tạo nhiều bản ghi tương ứng với quantity
-                for ($i = 0; $i < $item->quantity; $i++) {
-                    $contractItems->push([
-                        'dispatch_item' => $item,
-                        'dispatch' => $dispatch,
-                        'serial_index' => $i,
-                        'serial_number' => isset($item->serial_numbers[$i]) ? $item->serial_numbers[$i] : null
-                    ]);
+                $serialNumbers = $item->serial_numbers ?? [];
+                $quantity = (int)$item->quantity;
+                
+                // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
+                foreach ($serialNumbers as $i => $serial) {
+                    $serial = trim($serial);
+                    if (!empty($serial)) {
+                        $isVirtual = strpos($serial, 'N/A-') === 0;
+                        
+                        $backupItems->push([
+                            'dispatch_item' => $item,
+                            'dispatch' => $dispatch,
+                            'serial_index' => $i,
+                            'serial_number' => $serial,
+                            'has_serial' => !$isVirtual
+                        ]);
+                        
+                        // Cập nhật counter nếu là virtual serial
+                        if ($isVirtual) {
+                            $counter = (int)str_replace('N/A-', '', $serial);
+                            $virtualSerialCounter = max($virtualSerialCounter, $counter + 1);
+                        }
+                    }
+                }
+                
+                // Nếu quantity > số serial trong DB → tạo virtual serial mới
+                $currentSerialCount = count($serialNumbers);
+                if ($quantity > $currentSerialCount) {
+                    $needNewVirtuals = $quantity - $currentSerialCount;
+                    
+                    for ($i = 0; $i < $needNewVirtuals; $i++) {
+                        $backupItems->push([
+                            'dispatch_item' => $item,
+                            'dispatch' => $dispatch,
+                            'serial_index' => $currentSerialCount + $i,
+                            'serial_number' => "N/A-{$virtualSerialCounter}",
+                            'has_serial' => false
+                        ]);
+                        $virtualSerialCounter++;
+                    }
                 }
             }
         }

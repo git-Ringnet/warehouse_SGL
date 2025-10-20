@@ -189,38 +189,72 @@
                                             $serialIndex = $itemData['serial_index'];
                                             $originalSerial = $itemData['serial_number'];
                                             
-                                            // Lấy serial hiển thị (ưu tiên serial đổi tên từ device_codes)
-                                            $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
-                                                $dispatch->id,
-                                                $item->item_id,
-                                                $item->item_type,
-                                                $originalSerial
-                                            );
+                                            // Lấy serial hiển thị - chỉ gọi helper nếu có serial
+                                            $displaySerial = null;
+                                            if (!empty($originalSerial)) {
+                                                $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                                                    $dispatch->id,
+                                                    $item->item_id,
+                                                    $item->item_type,
+                                                    $originalSerial
+                                                );
+                                            }
                                             
                                             // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng rental
-                                            $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
-                                                ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
-                                            $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                                                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
-                                            $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                                ->where('serial_number', $originalSerial)
-                                                ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
+                                            $isReplaced = false;
+                                            $isUsed = false;
+                                            $isReturned = false;
+                                            $isReplacementSerial = false;
                                             
-                                            // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
-                                            $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                                                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
+                                            if (!empty($originalSerial)) {
+                                                // Có serial: kiểm tra theo original_serial
+                                                $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
+                                                    ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                                $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
+                                                    ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                                    ->where('serial_number', $originalSerial)
+                                                    ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                                
+                                                // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
+                                                $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
+                                                    ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                            } else {
+                                                // No serial: kiểm tra theo replacement_serial = 'N/A' (Serial → No Serial)
+                                                // Hoặc original_serial = 'N/A' (No Serial → Serial)
+                                                $isReplaced = \App\Models\DispatchReplacement::where(function($q) use ($item) {
+                                                        // Trường hợp 1: Serial → No Serial (no serial này là replacement)
+                                                        $q->where('original_dispatch_item_id', $item->id)
+                                                          ->where('replacement_serial', 'N/A');
+                                                    })
+                                                    ->orWhere(function($q) use ($item) {
+                                                        // Trường hợp 2: No Serial → Serial (no serial này là original)
+                                                        $q->where('original_dispatch_item_id', $item->id)
+                                                          ->where('original_serial', 'N/A');
+                                                    })
+                                                    ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                                    ->whereNull('serial_number')
+                                                    ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                            }
                                         @endphp
                                         <tr class="hover:bg-gray-50">
                                             <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -249,6 +283,8 @@
                                             <td class="py-2 px-4 border-b">
                                                 @if(!empty($displaySerial))
                                                     {{ $displaySerial }}
+                                                @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
+                                                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) + 1 }}</span>
                                                 @else
                                                     N/A
                                                 @endif
@@ -369,31 +405,40 @@
                                             $serialIndex = $itemData['serial_index'];
                                             $originalSerial = $itemData['serial_number'];
                                             
-                                            // Lấy serial hiển thị (ưu tiên serial đổi tên từ device_codes)
-                                            $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
-                                                $dispatch->id,
-                                                $item->item_id,
-                                                $item->item_type,
-                                                $originalSerial
-                                            );
+                                            // Lấy serial hiển thị - chỉ gọi helper nếu có serial
+                                            $displaySerial = null;
+                                            if (!empty($originalSerial)) {
+                                                $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                                                    $dispatch->id,
+                                                    $item->item_id,
+                                                    $item->item_type,
+                                                    $originalSerial
+                                                );
+                                            }
                                             
                                             // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng rental
-                                            $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                                                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
-                                            $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
-                                                ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
-                                            $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                                ->where('serial_number', $originalSerial)
-                                                ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
-                                                    $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
-                                                      ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
-                                                })->exists();
+                                            $isUsed = false;
+                                            $isOriginalReplaced = false;
+                                            $isReturned = false;
+                                            
+                                            if (!empty($originalSerial)) {
+                                                $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
+                                                    ->whereHas('replacementDispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                                $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
+                                                    ->whereHas('originalDispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                                    ->where('serial_number', $originalSerial)
+                                                    ->whereHas('dispatchItem.dispatch', function($q) use ($rental) {
+                                                        $q->where('dispatch_note', 'LIKE', "%{$rental->rental_code}%")
+                                                          ->orWhere('project_receiver', 'LIKE', "%{$rental->rental_code}%");
+                                                    })->exists();
+                                            }
                                         @endphp
                                         <tr class="hover:bg-gray-50">
                                             <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -422,6 +467,8 @@
                                             <td class="py-2 px-4 border-b">
                                                 @if(!empty($displaySerial))
                                                     {{ $displaySerial }}
+                                                @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
+                                                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) + 1 }}</span>
                                                 @else
                                                     N/A
                                                 @endif
@@ -874,6 +921,10 @@
             const replacementDeviceSelect = document.getElementById('replacement_device_id');
             const currentEquipmentId = document.getElementById('warranty-equipment-id').value;
             const currentEquipmentCode = document.getElementById('warranty-equipment-code').textContent;
+            const currentEquipmentSerial = document.getElementById('warranty-equipment-serial').value;
+            
+            // Kiểm tra thiết bị hiện tại có serial không
+            const currentHasSerial = currentEquipmentSerial && currentEquipmentSerial !== 'null' && currentEquipmentSerial.trim() !== '';
             
             replacementDeviceSelect.innerHTML = '<option value="">-- Đang tải dữ liệu... --</option>';
             
@@ -925,31 +976,42 @@
                                 itemCode = item.good.code;
                             }
                             
-                            // Lấy serial numbers
-                            if (item.serial_numbers && item.serial_numbers.length > 0) {
-                                serialNumbers = item.serial_numbers;
-                            }
+                            // Xử lý TẤT CẢ serial (bao gồm cả virtual serial từ DB)
+                            serialNumbers = item.serial_numbers || [];
                             
-                            // Chuẩn hóa danh sách serial đã sử dụng thành Set để so sánh an toàn (kể cả đã dùng ở item khác trong cùng rental)
+                            // Chuẩn hóa danh sách serial đã sử dụng thành Set để so sánh an toàn
                             const usedSerialSet = new Set([
                                 ...((item.replacement_serials || []).map(s => String(s).trim())),
                                 ...((item.used_serials_global || []).map(s => String(s).trim())),
                                 ...usedGlobalFromApi
                             ]);
                             
-                            // Tạo option riêng cho từng serial và kiểm tra trạng thái từng serial
-                            serialNumbers.forEach(serialNumber => {
+                            // Tạo option riêng cho từng serial (bao gồm cả virtual serial)
+                            serialNumbers.forEach((serialNumber, index) => {
                                 const serialStr = String(serialNumber).trim();
                                 if (!serialStr) return; // Bỏ qua serial rỗng
                                 
                                 // Chỉ hiển thị serial chưa được sử dụng
                                 if (!usedSerialSet.has(serialStr)) {
+                                    const isVirtual = serialStr.startsWith('N/A-');
+                                    let displayText;
+                                    
+                                    if (isVirtual) {
+                                        // Virtual serial: hiển thị "Không có Serial #X"
+                                        const virtualIndex = parseInt(serialStr.replace('N/A-', ''));
+                                        displayText = `${itemCode} - ${itemName} - Không có Serial #${virtualIndex + 1}`;
+                                    } else {
+                                        // Serial thật
+                                        displayText = `${itemCode} - ${itemName} - Serial ${serialStr}`;
+                                    }
+                                    
                                     serialOptions.push({
                                         itemId: item.id,
                                         serialNumber: serialStr,
                                         itemCode: itemCode,
                                         itemName: itemName,
-                                        displayText: `${itemCode} - ${itemName} - Serial ${serialStr}`
+                                        hasSerial: !isVirtual,
+                                        displayText: displayText
                                     });
                                 }
                             });

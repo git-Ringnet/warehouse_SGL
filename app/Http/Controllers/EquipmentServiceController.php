@@ -12,6 +12,7 @@ use App\Models\Material;
 use App\Models\Product;
 use App\Models\Good;
 use App\Helpers\ChangeLogHelper;
+use App\Helpers\SerialHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -131,20 +132,20 @@ class EquipmentServiceController extends Controller
                 'serial_number' => $serialToReturn, // Lưu serial được thu hồi
             ]);
 
-            // Cập nhật số lượng trong kho (chỉ cập nhật 1 serial)
+            // Cập nhật số lượng và serial trong kho (chỉ cập nhật 1 serial)
             $item = null;
             switch ($dispatchItem->item_type) {
                 case 'material':
                     $item = Material::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantity('material', $item->id, $warehouse->id, 1); // Chỉ cập nhật 1
+                    $this->updateWarehouseQuantityWithSerial('material', $item->id, $warehouse->id, 1, $serialToReturn);
                     break;
                 case 'product':
                     $item = Product::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantity('product', $item->id, $warehouse->id, 1); // Chỉ cập nhật 1
+                    $this->updateWarehouseQuantityWithSerial('product', $item->id, $warehouse->id, 1, $serialToReturn);
                     break;
                 case 'good':
                     $item = Good::findOrFail($dispatchItem->item_id);
-                    $this->updateWarehouseQuantity('good', $item->id, $warehouse->id, 1); // Chỉ cập nhật 1
+                    $this->updateWarehouseQuantityWithSerial('good', $item->id, $warehouse->id, 1, $serialToReturn);
                     break;
             }
 
@@ -304,12 +305,18 @@ class EquipmentServiceController extends Controller
                     ->with('error', 'Thiết bị thay thế phải có cùng mã thiết bị với thiết bị cần thay thế.');
             }
 
-            // Kiểm tra serial tồn tại trong từng item (so sánh sau khi trim)
+            // ============ SỬ DỤNG SERIALHELPER ĐỂ TẠO VIRTUAL SERIAL ============
+            // Lấy serial thực tế từ DB
             $originalSerialsRaw = is_array($originalItem->serial_numbers) ? $originalItem->serial_numbers : [];
             $replacementSerialsRaw = is_array($replacementItem->serial_numbers) ? $replacementItem->serial_numbers : [];
 
-            $originalSerials = array_map(function ($s) { return trim((string) $s); }, $originalSerialsRaw);
-            $replacementSerials = array_map(function ($s) { return trim((string) $s); }, $replacementSerialsRaw);
+            $originalSerialsReal = array_map(function ($s) { return trim((string) $s); }, $originalSerialsRaw);
+            $replacementSerialsReal = array_map(function ($s) { return trim((string) $s); }, $replacementSerialsRaw);
+
+            // Tạo virtual serial động (chỉ trong memory, không lưu DB)
+            $originalSerials = SerialHelper::expandSerials($originalSerialsReal, (int)$originalItem->quantity);
+            $replacementSerials = SerialHelper::expandSerials($replacementSerialsReal, (int)$replacementItem->quantity);
+            // =====================================================================
 
             $requestedOriginalSerialInput = trim((string) $validatedData['equipment_serial']);
             $requestedReplacementSerialInput = trim((string) $validatedData['replacement_serial']);
@@ -356,6 +363,7 @@ class EquipmentServiceController extends Controller
             $requestedOriginalSerial = $resolveToOriginal($originalItem->dispatch_id, $originalItem->item_id, $originalItem->item_type, $requestedOriginalSerialInput, $originalSerials);
             $requestedReplacementSerial = $resolveToOriginal($replacementItem->dispatch_id, $replacementItem->item_id, $replacementItem->item_type, $requestedReplacementSerialInput, $replacementSerials);
 
+            // Validate serial tồn tại (bao gồm cả virtual serial)
             if (!in_array($requestedOriginalSerial, $originalSerials, true)) {
                 return redirect()->back()->with('error', 'Serial thiết bị hợp đồng không hợp lệ.');
             }
@@ -363,68 +371,84 @@ class EquipmentServiceController extends Controller
                 return redirect()->back()->with('error', 'Serial thiết bị dự phòng không hợp lệ.');
             }
 
-            // Không cho phép dùng lại serial dự phòng đã sử dụng trước đó
-            // 1) Kiểm tra theo item cụ thể
-            $isReplacementSerialUsed = DispatchReplacement::where('replacement_dispatch_item_id', $replacementItem->id)
-                ->where('replacement_serial', $requestedReplacementSerial)
-                ->exists();
-            if ($isReplacementSerialUsed) {
-                return redirect()->back()->with('error', 'Serial thiết bị dự phòng đã được sử dụng để thay thế trước đó. Vui lòng chọn serial khác.');
-            }
+            // Không cho phép dùng lại serial dự phòng đã sử dụng trước đó (chỉ kiểm tra serial thật)
+            if (!SerialHelper::isVirtualSerial($requestedReplacementSerial)) {
+                // 1) Kiểm tra theo item cụ thể
+                $isReplacementSerialUsed = DispatchReplacement::where('replacement_dispatch_item_id', $replacementItem->id)
+                    ->where('replacement_serial', $requestedReplacementSerial)
+                    ->exists();
+                if ($isReplacementSerialUsed) {
+                    return redirect()->back()->with('error', 'Serial thiết bị dự phòng đã được sử dụng để thay thế trước đó. Vui lòng chọn serial khác.');
+                }
 
-            // 2) Kiểm tra trong cùng phạm vi (project/rental) bất kể item nào
-            $isSerialUsedInScope = DispatchReplacement::where(function($q) use ($requestedReplacementSerial) {
-                    $q->where('replacement_serial', $requestedReplacementSerial)
-                      ->orWhere('original_serial', $requestedReplacementSerial);
-                })
-                ->whereHas('replacementDispatchItem.dispatch', function ($q) use ($originalItem) {
-                    if ($originalItem->dispatch->dispatch_type === 'rental') {
-                        $rentalCode = $originalItem->dispatch->project_receiver; // thường chứa rental_code
-                        $projectId = $originalItem->dispatch->project_id; // đôi khi được dùng làm rental_id
-                        $q->where('dispatch_type', 'rental')
-                          ->where(function ($qq) use ($rentalCode, $projectId) {
-                              $qq->where('project_id', $projectId)
-                                 ->orWhere('dispatch_note', 'LIKE', "%{$rentalCode}%")
-                                 ->orWhere('project_receiver', 'LIKE', "%{$rentalCode}%");
-                          });
-                    } else {
-                        $q->where('dispatch_type', 'project')
-                          ->where('project_id', $originalItem->dispatch->project_id);
-                    }
-                })
-                ->exists();
-            if ($isSerialUsedInScope) {
-                return redirect()->back()->with('error', 'Serial này đã được sử dụng trong phạm vi dự án/phiếu tương ứng. Vui lòng chọn serial khác.');
+                // 2) Kiểm tra trong cùng phạm vi (project/rental) bất kể item nào
+                $isSerialUsedInScope = DispatchReplacement::where(function($q) use ($requestedReplacementSerial) {
+                        $q->where('replacement_serial', $requestedReplacementSerial)
+                          ->orWhere('original_serial', $requestedReplacementSerial);
+                    })
+                    ->whereHas('replacementDispatchItem.dispatch', function ($q) use ($originalItem) {
+                        if ($originalItem->dispatch->dispatch_type === 'rental') {
+                            $rentalCode = $originalItem->dispatch->project_receiver;
+                            $projectId = $originalItem->dispatch->project_id;
+                            $q->where('dispatch_type', 'rental')
+                              ->where(function ($qq) use ($rentalCode, $projectId) {
+                                  $qq->where('project_id', $projectId)
+                                     ->orWhere('dispatch_note', 'LIKE', "%{$rentalCode}%")
+                                     ->orWhere('project_receiver', 'LIKE', "%{$rentalCode}%");
+                              });
+                        } else {
+                            $q->where('dispatch_type', 'project')
+                              ->where('project_id', $originalItem->dispatch->project_id);
+                        }
+                    })
+                    ->exists();
+                if ($isSerialUsedInScope) {
+                    return redirect()->back()->with('error', 'Serial này đã được sử dụng trong phạm vi dự án/phiếu tương ứng. Vui lòng chọn serial khác.');
+                }
             }
             
-            // Chỉ xóa serial được chọn khỏi mỗi item
+            // ============ LOGIC SWAP ĐƠN GIẢN - TẤT CẢ GIỐNG NHAU ============
+            // Tất cả đều swap như Serial ↔ Serial (vì đã có virtual serial)
             $originalSerials = array_values(array_diff($originalSerials, [$requestedOriginalSerial]));
             $replacementSerials = array_values(array_diff($replacementSerials, [$requestedReplacementSerial]));
+            
+            $originalSerials[] = $requestedReplacementSerial;
+            $replacementSerials[] = $requestedOriginalSerial;
+            
+            // ============ LƯU VÀO DB - GIỮ NGUYÊN VIRTUAL SERIAL ============
+            // LƯU CẢ VIRTUAL SERIAL để giữ nguyên thứ tự
+            // LOẠI BỎ DUPLICATE trước khi lưu
+            $originalItem->serial_numbers = array_values(array_unique($originalSerials));
+            $replacementItem->serial_numbers = array_values(array_unique($replacementSerials));
+            
+            // Quantity = tổng số serial (thật + ảo) sau khi loại bỏ duplicate
+            $originalItem->quantity = count($originalItem->serial_numbers);
+            $replacementItem->quantity = count($replacementItem->serial_numbers);
+            // =================================================================
 
-            // Thêm serial mới vào từng item (swap chỉ 1 serial)
-            $originalSerials[] = $requestedReplacementSerial; // Thiết bị hợp đồng nhận serial dự phòng
-            $replacementSerials[] = $requestedOriginalSerial; // Thiết bị dự phòng nhận serial hợp đồng
-
-            // Cập nhật serial_numbers cho từng item
-            $originalItem->serial_numbers = $originalSerials;
-            $replacementItem->serial_numbers = $replacementSerials;
-
-            // Không đổi category, chỉ cập nhật ghi chú cho serial được swap
+            // Cập nhật ghi chú (sử dụng SerialHelper để format)
+            $originalSerialText = SerialHelper::isVirtualSerial($requestedOriginalSerial) 
+                ? SerialHelper::formatSerialForDisplay($requestedOriginalSerial)
+                : "Serial {$requestedOriginalSerial}";
+            $replacementSerialText = SerialHelper::isVirtualSerial($requestedReplacementSerial) 
+                ? SerialHelper::formatSerialForDisplay($requestedReplacementSerial)
+                : "Serial {$requestedReplacementSerial}";
+            
             $originalItem->notes = ($originalItem->notes ? $originalItem->notes . "\n" : "") .
-                "Serial {$requestedOriginalSerial} đã được thay thế bằng serial {$requestedReplacementSerial} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+                "{$originalSerialText} đã được thay thế bằng {$replacementSerialText} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
             $replacementItem->notes = ($replacementItem->notes ? $replacementItem->notes . "\n" : "") .
-                "Serial {$requestedReplacementSerial} đã thay thế cho serial {$requestedOriginalSerial} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
+                "{$replacementSerialText} đã thay thế cho {$originalSerialText} ngày " . Carbon::now()->format('d/m/Y H:i') . ". Lý do: " . $validatedData['reason'];
 
             $originalItem->save();
             $replacementItem->save();
 
-            // Tạo phiếu thay thế
+            // Tạo phiếu thay thế (lưu cả virtual serial để theo dõi)
             $replacement = DispatchReplacement::create([
                 'replacement_code' => DispatchReplacement::generateReplacementCode(),
                 'original_dispatch_item_id' => $originalItem->id,
                 'replacement_dispatch_item_id' => $replacementItem->id,
-                'original_serial' => $requestedOriginalSerial,
-                'replacement_serial' => $requestedReplacementSerial,
+                'original_serial' => $requestedOriginalSerial, // Giữ nguyên N/A-0, N/A-1... để theo dõi
+                'replacement_serial' => $requestedReplacementSerial, // Giữ nguyên N/A-0, N/A-1... để theo dõi
                 // dispatch_replacements.user_id FK -> users.id, nên dùng user web; nếu không có, fallback 1
                 'user_id' => $this->getAuditUserId(),
                 'replacement_date' => Carbon::now(),
@@ -690,6 +714,53 @@ class EquipmentServiceController extends Controller
     }
 
     /**
+     * Helper: Cập nhật số lượng và serial trong kho (dành cho thu hồi thiết bị)
+     */
+    private function updateWarehouseQuantityWithSerial($itemType, $itemId, $warehouseId, $quantity, $serialNumber)
+    {
+        // Kiểm tra xem đã có bản ghi trong warehouse_materials chưa
+        $warehouseMaterial = DB::table('warehouse_materials')
+            ->where('item_type', $itemType)
+            ->where('material_id', $itemId)
+            ->where('warehouse_id', $warehouseId)
+            ->first();
+
+        if ($warehouseMaterial) {
+            // Lấy serial numbers hiện tại
+            $currentSerials = [];
+            if (!empty($warehouseMaterial->serial_number)) {
+                $currentSerials = json_decode($warehouseMaterial->serial_number, true) ?: [];
+            }
+            
+            // Thêm serial mới vào danh sách
+            if (!in_array($serialNumber, $currentSerials)) {
+                $currentSerials[] = $serialNumber;
+            }
+            
+            // Cập nhật số lượng và serial numbers
+            DB::table('warehouse_materials')
+                ->where('id', $warehouseMaterial->id)
+                ->update([
+                    'quantity' => $warehouseMaterial->quantity + $quantity,
+                    'serial_number' => json_encode($currentSerials),
+                    'updated_at' => now()
+                ]);
+        } else {
+            // Tạo bản ghi mới với serial number
+            DB::table('warehouse_materials')
+                ->insert([
+                    'warehouse_id' => $warehouseId,
+                    'item_type' => $itemType,
+                    'material_id' => $itemId,
+                    'quantity' => $quantity,
+                    'serial_number' => json_encode([$serialNumber]),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+        }
+    }
+
+    /**
      * Helper: Tạo phiếu bảo hành mới
      */
     private function createWarranty($originalItem, $replacementItem, $reason)
@@ -851,36 +922,48 @@ class EquipmentServiceController extends Controller
                         
                         // Thêm thông tin replacement_serials vào item
                         $item->replacement_serials = array_map(function ($s) { return trim((string) $s); }, $replacementSerials);
-                        $item->used_serials_global = $usedSerialsGlobal; // cung cấp thêm danh sách đã dùng trong phạm vi project
+                        $item->used_serials_global = $usedSerialsGlobal;
                         
                         // Lọc danh sách serial_numbers để chỉ giữ serial chưa sử dụng
                         $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
                         $serials = array_filter(array_map(function ($s) { return trim((string) $s); }, $serials));
+                        $quantity = (int)$item->quantity;
                         
-                        // Sử dụng SerialDisplayHelper để lấy serial đổi tên
-                        $displaySerials = \App\Helpers\SerialDisplayHelper::getDisplaySerials(
+                        // Tách serial thật và virtual serial
+                        $realSerials = array_filter($serials, function($s) {
+                            return strpos($s, 'N/A-') !== 0;
+                        });
+                        $virtualSerials = array_filter($serials, function($s) {
+                            return strpos($s, 'N/A-') === 0;
+                        });
+                        
+                        // Sử dụng SerialDisplayHelper để lấy serial thật đã đổi tên
+                        $displayRealSerials = \App\Helpers\SerialDisplayHelper::getDisplaySerials(
                             $dispatch->id,
                             $item->item_id,
                             $item->item_type,
-                            $serials
+                            $realSerials
                         );
                         
-                        $item->serial_numbers = array_values(array_filter($displaySerials, function ($serial) use ($item, $usedSerialsGlobal) {
+                        // Gộp serial thật và virtual serial
+                        $allSerials = array_merge($displayRealSerials, array_values($virtualSerials));
+                        
+                        // Lọc serial đã sử dụng
+                        $availableSerials = array_values(array_filter($allSerials, function ($serial) use ($item, $usedSerialsGlobal) {
                             return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
                         }));
                         
+                        $item->serial_numbers = $availableSerials;
+                        $item->available_quantity = 0; // Không cần nữa vì đã có virtual serial trong DB
+                        
                         return $item;
-                    })
-                    ->filter(function ($item) {
-                        // Chỉ giữ lại items có serial_numbers không rỗng
-                        return !empty($item->serial_numbers);
                     });
                 $backupItems = $backupItems->concat($items);
             }
             
             return response()->json([
                 'success' => true,
-                'backupItems' => $backupItems->values(), // Reset array keys
+                'backupItems' => $backupItems->values(),
                 'usedSerialsGlobal' => $usedSerialsGlobal,
             ]);
         } catch (\Exception $e) {
@@ -937,36 +1020,48 @@ class EquipmentServiceController extends Controller
                         
                         // Thêm thông tin replacement_serials vào item
                         $item->replacement_serials = array_map(function ($s) { return trim((string) $s); }, $replacementSerials);
-                        $item->used_serials_global = $usedSerialsGlobal; // cung cấp thêm danh sách đã dùng trong phạm vi rental
+                        $item->used_serials_global = $usedSerialsGlobal;
                         
                         // Lọc danh sách serial_numbers để chỉ giữ serial chưa sử dụng
                         $serials = is_array($item->serial_numbers) ? $item->serial_numbers : [];
                         $serials = array_filter(array_map(function ($s) { return trim((string) $s); }, $serials));
+                        $quantity = (int)$item->quantity;
                         
-                        // Sử dụng SerialDisplayHelper để lấy serial đổi tên
-                        $displaySerials = \App\Helpers\SerialDisplayHelper::getDisplaySerials(
+                        // Tách serial thật và virtual serial
+                        $realSerials = array_filter($serials, function($s) {
+                            return strpos($s, 'N/A-') !== 0;
+                        });
+                        $virtualSerials = array_filter($serials, function($s) {
+                            return strpos($s, 'N/A-') === 0;
+                        });
+                        
+                        // Sử dụng SerialDisplayHelper để lấy serial thật đã đổi tên
+                        $displayRealSerials = \App\Helpers\SerialDisplayHelper::getDisplaySerials(
                             $dispatch->id,
                             $item->item_id,
                             $item->item_type,
-                            $serials
+                            $realSerials
                         );
                         
-                        $item->serial_numbers = array_values(array_filter($displaySerials, function ($serial) use ($item, $usedSerialsGlobal) {
+                        // Gộp serial thật và virtual serial
+                        $allSerials = array_merge($displayRealSerials, array_values($virtualSerials));
+                        
+                        // Lọc serial đã sử dụng
+                        $availableSerials = array_values(array_filter($allSerials, function ($serial) use ($item, $usedSerialsGlobal) {
                             return !in_array($serial, $item->replacement_serials, true) && !in_array($serial, $usedSerialsGlobal, true);
                         }));
                         
+                        $item->serial_numbers = $availableSerials;
+                        $item->available_quantity = 0; // Không cần nữa vì đã có virtual serial trong DB
+                        
                         return $item;
-                    })
-                    ->filter(function ($item) {
-                        // Chỉ giữ lại items có serial_numbers không rỗng
-                        return !empty($item->serial_numbers);
                     });
                 $backupItems = $backupItems->concat($items);
             }
             
             return response()->json([
                 'success' => true,
-                'backupItems' => $backupItems->values(), // Reset array keys
+                'backupItems' => $backupItems->values(),
                 'usedSerialsGlobal' => $usedSerialsGlobal,
             ]);
         } catch (\Exception $e) {

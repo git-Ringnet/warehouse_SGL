@@ -263,37 +263,64 @@
             $serialIndex = $itemData['serial_index'];
             $originalSerial = $itemData['serial_number'];
             
-            // Lấy serial hiển thị (ưu tiên serial đổi tên từ device_codes)
-            $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
-                $dispatch->id,
-                $item->item_id,
-                $item->item_type,
-                $originalSerial
-            );
+            // Lấy serial hiển thị - chỉ gọi helper nếu có serial
+            $displaySerial = null;
+            if (!empty($originalSerial)) {
+                $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                    $dispatch->id,
+                    $item->item_id,
+                    $item->item_type,
+                    $originalSerial
+                );
+            }
             
             // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng project
-            $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
-                ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
-                    $q->where('project_id', $project->id);
-                })->exists();
-            $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
-                    $q->where('project_id', $project->id);
-                })->exists();
-            $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                ->where('serial_number', $originalSerial)
-                ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
-                    $q->where('project_id', $project->id);
-                })->exists();
+            $isReplaced = false;
+            $isUsed = false;
+            $isReturned = false;
+            $isReplacementSerial = false;
             
-            // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
-            $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
-                    $q->where('project_id', $project->id);
-                })->exists();
+            if (!empty($originalSerial)) {
+                // Có serial: kiểm tra theo original_serial
+                $isReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
+                    ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })->exists();
+                $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
+                    ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })->exists();
+                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                    ->where('serial_number', $originalSerial)
+                    ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })->exists();
                 
-            // Debug: Hiển thị thông tin chi tiết
-            $debugInfo = "ItemID: {$item->id}, OriginalSerial: {$originalSerial}, DisplaySerial: {$displaySerial}, isReplaced: " . ($isReplaced ? 'true' : 'false') . ", isReplacementSerial: " . ($isReplacementSerial ? 'true' : 'false');
+                // Serial được sử dụng để thay thế cũng phải hiển thị "Đã thay thế"
+                $isReplacementSerial = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
+                    ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })->exists();
+            } else {
+                // No serial (virtual serial N/A-0, N/A-1...): Kiểm tra theo virtual serial cụ thể
+                $isReplaced = \App\Models\DispatchReplacement::where(function($q) use ($originalSerial) {
+                        // Trường hợp 1: Serial → No Serial (no serial này là replacement)
+                        $q->where('replacement_serial', $originalSerial);
+                    })
+                    ->orWhere(function($q) use ($originalSerial) {
+                        // Trường hợp 2: No Serial → Serial (no serial này là original)
+                        $q->where('original_serial', $originalSerial);
+                    })
+                    ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })->exists();
+                
+                $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                    ->whereNull('serial_number')
+                    ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
+                        $q->where('project_id', $project->id);
+                    })->exists();
+            }
         @endphp
         <tr class="hover:bg-gray-50">
             <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -322,6 +349,8 @@
             <td class="py-2 px-4 border-b">
                 @if(!empty($displaySerial))
                     {{ $displaySerial }}
+                @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
+                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) + 1 }}</span>
                 @else
                     N/A
                 @endif
@@ -339,8 +368,6 @@
                         <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">Chưa thay thế</span>
                     @endif
                 @endif
-                <!-- Debug info -->
-                <!-- <div class="text-xs text-gray-500 mt-1">{{ $debugInfo }}</div> -->
             </td>
             <td class="py-2 px-4 border-b">
                 <a href="{{ route('inventory.dispatch.show', $item->dispatch_id) }}" class="text-blue-500 hover:text-blue-700">
@@ -415,28 +442,37 @@
                                     $serialIndex = $itemData['serial_index'];
                                     $originalSerial = $itemData['serial_number'];
                                     
-                                    // Lấy serial hiển thị (ưu tiên serial đổi tên từ device_codes)
-                                    $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
-                                        $dispatch->id,
-                                        $item->item_id,
-                                        $item->item_type,
-                                        $originalSerial
-                                    );
+                                    // Lấy serial hiển thị - chỉ gọi helper nếu có serial
+                                    $displaySerial = null;
+                                    if (!empty($originalSerial)) {
+                                        $displaySerial = \App\Helpers\SerialDisplayHelper::getDisplaySerial(
+                                            $dispatch->id,
+                                            $item->item_id,
+                                            $item->item_type,
+                                            $originalSerial
+                                        );
+                                    }
                                     
                                     // Kiểm tra trạng thái ở cấp serial cụ thể - chỉ xem xét records từ cùng project
-                                    $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
-                                        ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
-                                            $q->where('project_id', $project->id);
-                                        })->exists();
-                                    $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
-                                        ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
-                                            $q->where('project_id', $project->id);
-                                        })->exists();
-                                    $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
-                                        ->where('serial_number', $originalSerial)
-                                        ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
-                                            $q->where('project_id', $project->id);
-                                        })->exists();
+                                    $isUsed = false;
+                                    $isOriginalReplaced = false;
+                                    $isReturned = false;
+                                    
+                                    if (!empty($originalSerial)) {
+                                        $isUsed = \App\Models\DispatchReplacement::where('replacement_serial', $originalSerial)
+                                            ->whereHas('replacementDispatchItem.dispatch', function($q) use ($project) {
+                                                $q->where('project_id', $project->id);
+                                            })->exists();
+                                        $isOriginalReplaced = \App\Models\DispatchReplacement::where('original_serial', $originalSerial)
+                                            ->whereHas('originalDispatchItem.dispatch', function($q) use ($project) {
+                                                $q->where('project_id', $project->id);
+                                            })->exists();
+                                        $isReturned = \App\Models\DispatchReturn::where('dispatch_item_id', $item->id)
+                                            ->where('serial_number', $originalSerial)
+                                            ->whereHas('dispatchItem.dispatch', function($q) use ($project) {
+                                                $q->where('project_id', $project->id);
+                                            })->exists();
+                                    }
                                 @endphp
                                 <tr class="hover:bg-gray-50">
                                     <td class="py-2 px-4 border-b">{{ $index + 1 }}</td>
@@ -768,15 +804,24 @@
             const replacementDeviceSelect = document.getElementById('replacement_device_id');
             const currentEquipmentId = document.getElementById('warranty-equipment-id').value;
             const currentEquipmentCode = document.getElementById('warranty-equipment-code').textContent;
+            const currentEquipmentSerial = document.getElementById('warranty-equipment-serial').value;
+            
+            // Kiểm tra thiết bị hiện tại có serial không
+            const currentHasSerial = currentEquipmentSerial && currentEquipmentSerial !== 'null' && currentEquipmentSerial.trim() !== '';
             
             replacementDeviceSelect.innerHTML = '<option value="">-- Đang tải dữ liệu... --</option>';
             
             fetch(`/equipment-service/backup-items/project/{{ $project->id }}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('API Response:', data);
                     if (data.success) {
                         const backupItems = data.backupItems;
                         const usedGlobalFromApi = Array.isArray(data.usedSerialsGlobal) ? data.usedSerialsGlobal.map(s => String(s).trim()) : [];
+                        
+                        console.log('Backup Items:', backupItems);
+                        console.log('Current Equipment Code:', currentEquipmentCode);
+                        console.log('Current Has Serial:', currentHasSerial);
                         
                         // Xóa tất cả options hiện tại
                         replacementDeviceSelect.innerHTML = '<option value="">-- Chọn thiết bị --</option>';
@@ -819,35 +864,56 @@
                                 itemCode = item.good.code;
                             }
                             
-                            // Lấy serial numbers
-                            if (item.serial_numbers && item.serial_numbers.length > 0) {
-                                serialNumbers = item.serial_numbers;
-                            }
+                            console.log('Processing item:', {
+                                id: item.id,
+                                code: itemCode,
+                                serial_numbers: item.serial_numbers,
+                                available_quantity: item.available_quantity,
+                                quantity: item.quantity
+                            });
                             
-                            // Chuẩn hóa danh sách serial đã sử dụng thành Set để so sánh an toàn (kể cả đã dùng ở item khác trong cùng phạm vi)
+                            // Xử lý TẤT CẢ serial (bao gồm cả virtual serial từ DB)
+                            serialNumbers = item.serial_numbers || [];
+                            
+                            // Chuẩn hóa danh sách serial đã sử dụng thành Set để so sánh an toàn
                             const usedSerialSet = new Set([
                                 ...((item.replacement_serials || []).map(s => String(s).trim())),
                                 ...((item.used_serials_global || []).map(s => String(s).trim())),
                                 ...usedGlobalFromApi
                             ]);
                             
-                            // Tạo option riêng cho từng serial và kiểm tra trạng thái từng serial
-                            serialNumbers.forEach(serialNumber => {
+                            // Tạo option riêng cho từng serial (bao gồm cả virtual serial)
+                            serialNumbers.forEach((serialNumber, index) => {
                                 const serialStr = String(serialNumber).trim();
                                 if (!serialStr) return; // Bỏ qua serial rỗng
                                 
                                 // Chỉ hiển thị serial chưa được sử dụng
                                 if (!usedSerialSet.has(serialStr)) {
+                                    const isVirtual = serialStr.startsWith('N/A-');
+                                    let displayText;
+                                    
+                                    if (isVirtual) {
+                                        // Virtual serial: hiển thị "Không có Serial #X"
+                                        const virtualIndex = parseInt(serialStr.replace('N/A-', ''));
+                                        displayText = `${itemCode} - ${itemName} - Không có Serial #${virtualIndex + 1}`;
+                                    } else {
+                                        // Serial thật
+                                        displayText = `${itemCode} - ${itemName} - Serial ${serialStr}`;
+                                    }
+                                    
                                     serialOptions.push({
                                         itemId: item.id,
                                         serialNumber: serialStr,
                                         itemCode: itemCode,
                                         itemName: itemName,
-                                        displayText: `${itemCode} - ${itemName} - Serial ${serialStr}`
+                                        hasSerial: !isVirtual,
+                                        displayText: displayText
                                     });
                                 }
                             });
                         });
+                        
+                        console.log('Final serial options:', serialOptions);
                         
                         // Thêm các options mới với format "Mã - Tên - Serial X"
                         serialOptions.forEach(option => {
