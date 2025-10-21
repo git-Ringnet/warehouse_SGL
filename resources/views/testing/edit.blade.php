@@ -509,12 +509,31 @@
                                             $apForProduct = $testing->assembly->products ? $testing->assembly->products->firstWhere('product_id', $productIdForView) : null;
                                             if ($apForProduct) {
                                                 if (!empty($apForProduct->serials)) {
-                                                    // Tách serial theo từng đơn vị thành phẩm và hỗ trợ cả key 0-based lẫn 1-based
-                                                    $allSerials = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+                                                    // Tách serial theo từng đơn vị thành phẩm - KHÔNG filter để giữ nguyên thứ tự và N/A
+                                                    $allSerials = array_map('trim', explode(',', $apForProduct->serials));
                                                     $productSerialsForUnits = [];
-                                                    foreach ($allSerials as $idx => $sn) {
-                                                        $productSerialsForUnits[$idx] = $sn;       // 0-based
-                                                        $productSerialsForUnits[$idx + 1] = $sn;   // 1-based
+                                                    
+                                                    // Nếu có product_unit, sử dụng nó để map serial đúng với unit
+                                                    $productUnits = $apForProduct->product_unit;
+                                                    if (is_array($productUnits)) {
+                                                        // Map serial theo product_unit
+                                                        foreach ($allSerials as $idx => $sn) {
+                                                            if (isset($productUnits[$idx])) {
+                                                                $unitIdx = $productUnits[$idx];
+                                                                // Chỉ gán serial có giá trị (không phải N/A hoặc rỗng)
+                                                                if (!empty($sn) && strtoupper($sn) !== 'N/A') {
+                                                                    $productSerialsForUnits[$unitIdx] = $sn;
+                                                                }
+                                                            }
+                                                        }
+                                                    } else {
+                                                        // Fallback: phân bổ serial theo thứ tự (bỏ qua N/A và rỗng)
+                                                        $validSerials = array_filter($allSerials, function($s) {
+                                                            return !empty($s) && strtoupper($s) !== 'N/A';
+                                                        });
+                                                        foreach (array_values($validSerials) as $idx => $sn) {
+                                                            $productSerialsForUnits[$idx + 1] = $sn;
+                                                        }
                                                     }
                                                 }
                                                 // Lấy tên thành phẩm để hiển thị trên header đơn vị
@@ -552,7 +571,7 @@
                                             <div class="mb-4 rounded-lg overflow-hidden border {{ $isFailUnit ? 'border-yellow-200' : 'border-green-200' }}">
                                                 <div class="px-3 py-2 flex items-center justify-between border-b {{ $isFailUnit ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200' }}">
                                                     <div class="text-sm font-medium {{ $isFailUnit ? 'text-yellow-800' : 'text-green-800' }}">
-                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }}
+                                                        <i class="fas fa-box-open mr-2"></i> Đơn vị thành phẩm {{ $displayUnitIndex }} - {{ $unitProductName ?? 'Thành phẩm' }} - Serial {{ isset($productSerialsForUnits[$unitIdx]) ? $productSerialsForUnits[$unitIdx] : 'N/A' }}
                                                     </div>
                                                     <div class="text-xs {{ $isFailUnit ? 'text-yellow-700' : 'text-green-700' }}">{{ count($unitMaterials) }} vật tư</div>
                                                 </div>

@@ -595,15 +595,31 @@
 
     if ($apForProduct) {
     if (!empty($apForProduct->serials)) {
-        // Tách serial theo từng đơn vị thành phẩm
-        $allSerials = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+        // Tách serial theo từng đơn vị thành phẩm - KHÔNG filter để giữ nguyên thứ tự và N/A
+        $allSerials = array_map('trim', explode(',', $apForProduct->serials));
         $productSerialsForUnits = [];
         
-        // Phân bổ serial cho từng đơn vị thành phẩm
-        foreach ($allSerials as $index => $serial) {
-            // Gán cho cả key 0-based và 1-based để tương thích dữ liệu product_unit
-            $productSerialsForUnits[$index] = $serial;      // 0,1,2,...
-            $productSerialsForUnits[$index + 1] = $serial;  // 1,2,3,...
+        // Nếu có product_unit, sử dụng nó để map serial đúng với unit
+        $productUnits = $apForProduct->product_unit;
+        if (is_array($productUnits)) {
+            // Map serial theo product_unit
+            foreach ($allSerials as $index => $serial) {
+                if (isset($productUnits[$index])) {
+                    $unitIdx = $productUnits[$index];
+                    // Chỉ gán serial có giá trị (không phải N/A hoặc rỗng)
+                    if (!empty($serial) && strtoupper($serial) !== 'N/A') {
+                        $productSerialsForUnits[$unitIdx] = $serial;
+                    }
+                }
+            }
+        } else {
+            // Fallback: phân bổ serial theo thứ tự (bỏ qua N/A và rỗng)
+            $validSerials = array_filter($allSerials, function($s) {
+                return !empty($s) && strtoupper($s) !== 'N/A';
+            });
+            foreach (array_values($validSerials) as $index => $serial) {
+                $productSerialsForUnits[$index + 1] = $serial;
+            }
         }
     }
     $unitProductName = $apForProduct->product->name ?? ($apForProduct->product->code ?? 'Thành phẩm');
@@ -611,11 +627,14 @@
 
     if (empty($productSerialsForUnits) && !empty($item->serial_number)) {
         // Fallback: nếu không có assembly, dùng serial từ testing item
-        $allSerials = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+        $allSerials = array_map('trim', explode(',', $item->serial_number));
         $productSerialsForUnits = [];
         
-        foreach ($allSerials as $index => $serial) {
-            $productSerialsForUnits[$index] = $serial;      // 0-based
+        // Chỉ lấy serial có giá trị (không phải N/A hoặc rỗng)
+        $validSerials = array_filter($allSerials, function($s) {
+            return !empty($s) && strtoupper($s) !== 'N/A';
+        });
+        foreach (array_values($validSerials) as $index => $serial) {
             $productSerialsForUnits[$index + 1] = $serial;  // 1-based
         }
     }
@@ -1047,14 +1066,31 @@
                 if ($apForProduct) {
                 // Lấy serial list theo từng đơn vị từ phiếu lắp ráp
                 if (!empty($apForProduct->serials)) {
-                    // Tách serial theo từng đơn vị thành phẩm
-                    $allSerials = array_values(array_filter(array_map('trim', explode(',', $apForProduct->serials))));
+                    // Tách serial theo từng đơn vị thành phẩm - KHÔNG filter để giữ nguyên thứ tự và N/A
+                    $allSerials = array_map('trim', explode(',', $apForProduct->serials));
                     $productSerialsForUnits = [];
                     
-                    // Phân bổ serial cho từng đơn vị thành phẩm
-                    foreach ($allSerials as $index => $serial) {
-                        $unitIndex = $index + 1; // Đơn vị thành phẩm bắt đầu từ 1
-                        $productSerialsForUnits[$unitIndex] = $serial;
+                    // Nếu có product_unit, sử dụng nó để map serial đúng với unit
+                    $productUnits = $apForProduct->product_unit;
+                    if (is_array($productUnits)) {
+                        // Map serial theo product_unit
+                        foreach ($allSerials as $index => $serial) {
+                            if (isset($productUnits[$index])) {
+                                $unitIdx = $productUnits[$index];
+                                // Chỉ gán serial có giá trị (không phải N/A hoặc rỗng)
+                                if (!empty($serial) && strtoupper($serial) !== 'N/A') {
+                                    $productSerialsForUnits[$unitIdx] = $serial;
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback: phân bổ serial theo thứ tự (bỏ qua N/A và rỗng)
+                        $validSerials = array_filter($allSerials, function($s) {
+                            return !empty($s) && strtoupper($s) !== 'N/A';
+                        });
+                        foreach (array_values($validSerials) as $index => $serial) {
+                            $productSerialsForUnits[$index + 1] = $serial;
+                        }
                     }
                 }
                 // Lấy tên thành phẩm để hiển thị trên header đơn vị
@@ -1064,12 +1100,15 @@
                 // Fallback: Nếu không tìm thấy từ assembly_products, lấy từ testing_items
                 if (empty($productSerialsForUnits) && !empty($item->serial_number)) {
                     // Fallback: nếu không có assembly, dùng serial từ testing item
-                    $allSerials = array_values(array_filter(array_map('trim', explode(',', $item->serial_number))));
+                    $allSerials = array_map('trim', explode(',', $item->serial_number));
                     $productSerialsForUnits = [];
                     
-                    foreach ($allSerials as $index => $serial) {
-                        $unitIndex = $index + 1; // Đơn vị thành phẩm bắt đầu từ 1
-                        $productSerialsForUnits[$unitIndex] = $serial;
+                    // Chỉ lấy serial có giá trị (không phải N/A hoặc rỗng)
+                    $validSerials = array_filter($allSerials, function($s) {
+                        return !empty($s) && strtoupper($s) !== 'N/A';
+                    });
+                    foreach (array_values($validSerials) as $index => $serial) {
+                        $productSerialsForUnits[$index + 1] = $serial;
                     }
                 }
                 foreach ($testing->assembly->materials as $asmMaterial) {
