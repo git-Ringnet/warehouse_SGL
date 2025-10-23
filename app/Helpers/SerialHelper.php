@@ -73,7 +73,7 @@ class SerialHelper
         if (self::isVirtualSerial($serial)) {
             // Lấy số thứ tự từ N/A-0, N/A-1...
             $index = (int)str_replace('N/A-', '', $serial);
-            return "Không có Serial #" . ($index + 1);
+            return "Không có Serial #" . $index;
         }
         
         return $serial;

@@ -284,7 +284,7 @@
                                                 @if(!empty($displaySerial))
                                                     {{ $displaySerial }}
                                                 @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
-                                                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) + 1 }}</span>
+                                                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) }}</span>
                                                 @else
                                                     N/A
                                                 @endif
@@ -468,7 +468,7 @@
                                                 @if(!empty($displaySerial))
                                                     {{ $displaySerial }}
                                                 @elseif(!empty($originalSerial) && strpos($originalSerial, 'N/A-') === 0)
-                                                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) + 1 }}</span>
+                                                    <span class="text-gray-500 italic">Không có Serial #{{ substr($originalSerial, 4) }}</span>
                                                 @else
                                                     N/A
                                                 @endif
@@ -999,7 +999,7 @@
                                     if (isVirtual) {
                                         // Virtual serial: hiển thị "Không có Serial #X"
                                         const virtualIndex = parseInt(serialStr.replace('N/A-', ''));
-                                        displayText = `${itemCode} - ${itemName} - Không có Serial #${virtualIndex + 1}`;
+                                        displayText = `${itemCode} - ${itemName} - Không có Serial #${virtualIndex}`;
                                     } else {
                                         // Serial thật
                                         displayText = `${itemCode} - ${itemName} - Serial ${serialStr}`;
