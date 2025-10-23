@@ -1491,13 +1491,19 @@ class DispatchController extends Controller
                     ];
                 }
                 $groupedItems[$key]['total_quantity'] += $item->quantity;
-                // Đếm số serial đã chọn cho item này (nếu có)
+                // Đếm số serial THẬT đã chọn cho item này (loại trừ virtual serial N/A-*)
                 if (is_array($item->serial_numbers)) {
-                    $groupedItems[$key]['serial_selected'] += count(array_filter($item->serial_numbers));
+                    $realSerials = array_filter($item->serial_numbers, function($s) {
+                        return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
+                    });
+                    $groupedItems[$key]['serial_selected'] += count($realSerials);
                 } elseif (is_string($item->serial_numbers) && !empty($item->serial_numbers)) {
                     $decodedSerials = json_decode($item->serial_numbers, true);
                     if (is_array($decodedSerials)) {
-                        $groupedItems[$key]['serial_selected'] += count(array_filter($decodedSerials));
+                        $realSerials = array_filter($decodedSerials, function($s) {
+                            return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
+                        });
+                        $groupedItems[$key]['serial_selected'] += count($realSerials);
                     }
                 }
                 $groupedItems[$key]['categories'][] = $item->category ?? 'general';
@@ -1532,39 +1538,35 @@ class DispatchController extends Controller
                         $availableSerialCount = is_array($currentSerials) ? count(array_filter($currentSerials)) : 0;
                     }
                     
-                    // Xác thực: số serial đã chọn không vượt quá số serial khả dụng
-                    if ((int)$groupedItem['serial_selected'] > $availableSerialCount) {
-                        $stockErrors[] = sprintf(
-                            'Mục %s (ID %d) tại kho %d chọn %d serial vượt quá số serial khả dụng (%d).',
-                            $groupedItem['item_type'],
-                            $groupedItem['item_id'],
-                            $groupedItem['warehouse_id'],
-                            (int)$groupedItem['serial_selected'],
-                            $availableSerialCount
-                        );
+                    // CHỈ kiểm tra serial nếu có serial được chọn (bỏ qua kiểm tra cho thiết bị no_serial)
+                    if ((int)$groupedItem['serial_selected'] > 0) {
+                        // Xác thực: số serial đã chọn không vượt quá số serial khả dụng
+                        if ((int)$groupedItem['serial_selected'] > $availableSerialCount) {
+                            $stockErrors[] = sprintf(
+                                'Mục %s (ID %d) tại kho %d chọn %d serial vượt quá số serial khả dụng (%d).',
+                                $groupedItem['item_type'],
+                                $groupedItem['item_id'],
+                                $groupedItem['warehouse_id'],
+                                (int)$groupedItem['serial_selected'],
+                                $availableSerialCount
+                            );
+                        }
                     }
 
-                    // Kiểm tra tồn kho không-serial nếu có yêu cầu
+                    // Kiểm tra tồn kho không-serial nếu có yêu cầu (CHỈ kiểm tra tổng quantity, không kiểm tra serial)
                     $noSerialRequired = $groupedItem['total_quantity'] - $groupedItem['serial_selected'];
                     if ($noSerialRequired > 0) {
-                        // Tổng tồn kho: ưu tiên số liệu thực tế từ warehouse_materials
-                        $totalInWarehouse = $currentTotalQuantity > 0 ? $currentTotalQuantity : ($stockCheck['current_stock'] ?? 0);
-
-                        // Không-serial khả dụng = tổng tồn - số serial đang có
-                        $serialInWarehouse = $availableSerialCount;
-                        $availableNoSerial = max($totalInWarehouse - $serialInWarehouse, 0);
-                        
-                        Log::info('Non-serial stock check:', [
+                        // Với thiết bị no_serial, chỉ cần kiểm tra tổng tồn kho đủ không
+                        // Không cần kiểm tra chi tiết serial nữa
+                        Log::info('No-serial stock check (quantity only):', [
                             'item' => $groupedItem['item_type'] . '_' . $groupedItem['item_id'],
-                            'totalInWarehouse' => $totalInWarehouse,
-                            'allSerials' => $serialInWarehouse,
-                            'dispatchedSerials' => null,
-                            'availableSerials' => $serialInWarehouse,
-                            'availableNoSerial' => $availableNoSerial,
-                            'noSerialRequired' => $noSerialRequired
+                            'totalInWarehouse' => $currentTotalQuantity,
+                            'noSerialRequired' => $noSerialRequired,
+                            'sufficient' => $currentTotalQuantity >= $noSerialRequired
                         ]);
                         
-                        if ($availableNoSerial < $noSerialRequired) {
+                        // Kiểm tra đơn giản: tổng tồn kho >= số lượng yêu cầu
+                        if ($currentTotalQuantity < $noSerialRequired) {
                             // Lấy tên item để hiển thị lỗi rõ ràng hơn
                             $itemName = 'Unknown';
                             if ($groupedItem['item_type'] === 'material') {
@@ -1578,7 +1580,7 @@ class DispatchController extends Controller
                                 $itemName = "{$item->code} - {$item->name}";
                             }
                             
-                            $stockErrors[] = "Không đủ thiết bị không có Serial cho {$itemName}. Yêu cầu {$noSerialRequired}, còn {$availableNoSerial}";
+                            $stockErrors[] = "Không đủ tồn kho cho {$itemName}. Yêu cầu {$noSerialRequired}, còn {$currentTotalQuantity}";
                         }
                     }
                 } catch (\Exception $stockException) {
@@ -1618,40 +1620,74 @@ class DispatchController extends Controller
                 }
             }
 
-            // Loại bỏ serial đã xuất khỏi warehouse_materials.serial_number
+            // Tạo virtual serial cho thiết bị không có serial và loại bỏ serial đã xuất khỏi warehouse_materials.serial_number
             try {
                 $dispatch->load('items');
+                
+                // Tính virtual serial counter cho dự án/rental này
+                $virtualSerialCounter = 0;
+                if ($dispatch->dispatch_type === 'project' && $dispatch->project_id) {
+                    $virtualSerialCounter = \App\Helpers\SerialHelper::getMaxVirtualSerialCounter($dispatch->project_id);
+                } elseif ($dispatch->dispatch_type === 'rental' && $dispatch->project_id) {
+                    // Với rental, sử dụng rental_id làm project_id
+                    $virtualSerialCounter = \App\Helpers\SerialHelper::getMaxVirtualSerialCounter($dispatch->project_id);
+                }
+                
                 foreach ($dispatch->items as $dispatchItem) {
-                    if (empty($dispatchItem->serial_numbers)) {
-                        continue;
+                    $serialNumbers = is_array($dispatchItem->serial_numbers) ? $dispatchItem->serial_numbers : [];
+                    $quantity = (int)$dispatchItem->quantity;
+                    
+                    // Nếu quantity > số serial thực tế → tạo virtual serial
+                    $currentSerialCount = count(array_filter($serialNumbers, function($s) { return !empty(trim($s)); }));
+                    if ($quantity > $currentSerialCount) {
+                        $needNewVirtuals = $quantity - $currentSerialCount;
+                        
+                        for ($i = 0; $i < $needNewVirtuals; $i++) {
+                            $serialNumbers[] = "N/A-{$virtualSerialCounter}";
+                            $virtualSerialCounter++;
+                        }
+                        
+                        // Lưu virtual serial vào DB
+                        $dispatchItem->serial_numbers = $serialNumbers;
+                        $dispatchItem->save();
+                        
+                        Log::info('Created virtual serials for dispatch item', [
+                            'dispatch_item_id' => $dispatchItem->id,
+                            'quantity' => $quantity,
+                            'real_serials' => $currentSerialCount,
+                            'virtual_serials' => $needNewVirtuals,
+                            'total_serials' => count($serialNumbers)
+                        ]);
                     }
+                    
+                    // Loại bỏ serial thật đã xuất khỏi warehouse_materials.serial_number
+                    $realSerials = array_filter($serialNumbers, function($s) {
+                        return !empty(trim($s)) && strpos($s, 'N/A-') !== 0;
+                    });
+                    
+                    if (!empty($realSerials)) {
+                        $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $dispatchItem->item_type)
+                            ->where('material_id', $dispatchItem->item_id)
+                            ->where('warehouse_id', $dispatchItem->warehouse_id)
+                            ->first();
 
-                    $selectedSerials = $this->normalizeSerialArray($dispatchItem->serial_numbers);
-                    if (empty($selectedSerials)) {
-                        continue;
-                    }
-
-                    $warehouseMaterial = \App\Models\WarehouseMaterial::where('item_type', $dispatchItem->item_type)
-                        ->where('material_id', $dispatchItem->item_id)
-                        ->where('warehouse_id', $dispatchItem->warehouse_id)
-                        ->first();
-
-                    if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
-                        $currentSerials = $this->normalizeSerialArray($warehouseMaterial->serial_number);
-                        if (!empty($currentSerials)) {
-                            $remainingSerials = array_values(array_udiff(
-                                $currentSerials,
-                                $selectedSerials,
-                                function ($a, $b) { return strcasecmp(trim($a), trim($b)); }
-                            ));
-                            $warehouseMaterial->serial_number = json_encode($remainingSerials);
-                            $warehouseMaterial->save();
+                        if ($warehouseMaterial && !empty($warehouseMaterial->serial_number)) {
+                            $currentSerials = $this->normalizeSerialArray($warehouseMaterial->serial_number);
+                            if (!empty($currentSerials)) {
+                                $remainingSerials = array_values(array_udiff(
+                                    $currentSerials,
+                                    $realSerials,
+                                    function ($a, $b) { return strcasecmp(trim($a), trim($b)); }
+                                ));
+                                $warehouseMaterial->serial_number = json_encode($remainingSerials);
+                                $warehouseMaterial->save();
+                            }
                         }
                     }
                 }
-                Log::info('Removed dispatched serials from warehouse_materials.serial_number');
+                Log::info('Created virtual serials and removed dispatched serials from warehouse_materials.serial_number');
             } catch (\Exception $serialUpdateEx) {
-                Log::error('Error updating warehouse_materials serial_number on approval', [
+                Log::error('Error updating serials on approval', [
                     'dispatch_id' => $dispatch->id,
                     'error' => $serialUpdateEx->getMessage()
                 ]);

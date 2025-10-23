@@ -196,10 +196,7 @@ class ProjectController extends Controller
         $project = Project::with('customer')->findOrFail($id);
         $warehouses = \App\Models\Warehouse::where('status', 'active')->get();
 
-        // Biến đếm virtual serial chung cho toàn bộ dự án
-        $virtualSerialCounter = 0;
-
-        // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị (ƯU TIÊN TRƯỚC)
+        // Lấy danh sách thiết bị theo hợp đồng với chi tiết từng thiết bị
         $contractItems = collect();
         $dispatches = \App\Models\Dispatch::where('dispatch_type', 'project')
             ->where('project_id', $project->id)
@@ -211,7 +208,6 @@ class ProjectController extends Controller
             
             foreach ($items as $item) {
                 $serialNumbers = $item->serial_numbers ?? [];
-                $quantity = (int)$item->quantity;
                 
                 // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
                 foreach ($serialNumbers as $i => $serial) {
@@ -226,42 +222,18 @@ class ProjectController extends Controller
                             'serial_number' => $serial,
                             'has_serial' => !$isVirtual
                         ]);
-                        
-                        // Cập nhật counter nếu là virtual serial
-                        if ($isVirtual) {
-                            $counter = (int)str_replace('N/A-', '', $serial);
-                            $virtualSerialCounter = max($virtualSerialCounter, $counter + 1);
-                        }
-                    }
-                }
-                
-                // Nếu quantity > số serial trong DB → tạo virtual serial mới
-                $currentSerialCount = count($serialNumbers);
-                if ($quantity > $currentSerialCount) {
-                    $needNewVirtuals = $quantity - $currentSerialCount;
-                    
-                    for ($i = 0; $i < $needNewVirtuals; $i++) {
-                        $contractItems->push([
-                            'dispatch_item' => $item,
-                            'dispatch' => $dispatch,
-                            'serial_index' => $currentSerialCount + $i,
-                            'serial_number' => "N/A-{$virtualSerialCounter}",
-                            'has_serial' => false
-                        ]);
-                        $virtualSerialCounter++;
                     }
                 }
             }
         }
 
-        // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế (SAU HỢP ĐỒNG)
+        // Lấy danh sách thiết bị dự phòng cho bảo hành/thay thế
         $backupItems = collect();
         foreach ($dispatches as $dispatch) {
             $items = $dispatch->items()->where('category', 'backup')->get();
             
             foreach ($items as $item) {
                 $serialNumbers = $item->serial_numbers ?? [];
-                $quantity = (int)$item->quantity;
                 
                 // Tạo bản ghi cho TẤT CẢ serial (bao gồm cả virtual serial đã lưu trong DB)
                 foreach ($serialNumbers as $i => $serial) {
@@ -276,29 +248,6 @@ class ProjectController extends Controller
                             'serial_number' => $serial,
                             'has_serial' => !$isVirtual
                         ]);
-                        
-                        // Cập nhật counter nếu là virtual serial
-                        if ($isVirtual) {
-                            $counter = (int)str_replace('N/A-', '', $serial);
-                            $virtualSerialCounter = max($virtualSerialCounter, $counter + 1);
-                        }
-                    }
-                }
-                
-                // Nếu quantity > số serial trong DB → tạo virtual serial mới
-                $currentSerialCount = count($serialNumbers);
-                if ($quantity > $currentSerialCount) {
-                    $needNewVirtuals = $quantity - $currentSerialCount;
-                    
-                    for ($i = 0; $i < $needNewVirtuals; $i++) {
-                        $backupItems->push([
-                            'dispatch_item' => $item,
-                            'dispatch' => $dispatch,
-                            'serial_index' => $currentSerialCount + $i,
-                            'serial_number' => "N/A-{$virtualSerialCounter}",
-                            'has_serial' => false
-                        ]);
-                        $virtualSerialCounter++;
                     }
                 }
             }
