@@ -151,7 +151,7 @@
                                     <input type="hidden" id="product_id" name="product_id">
                                 </div>
                                 <div class="w-24">
-                                    <input type="number" id="product_add_quantity" min="1" max="20" step="1"
+                                    <input type="number" id="product_add_quantity" min="1" step="1"
                                         value="1"
                                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         placeholder="Số lượng">
@@ -743,13 +743,11 @@
                 if (value === '' || isNaN(numValue) || numValue < 1) {
                     this.setCustomValidity('Số lượng phải là số nguyên dương (≥ 1)');
                     this.classList.add('border-red-500');
-                } else if (numValue > 20) {
-                    this.setCustomValidity('Số lượng tối đa là 20 để đảm bảo hiệu suất hệ thống');
-                    this.classList.add('border-red-500');
-                    this.value = 20;
                 } else {
                     this.setCustomValidity('');
                     this.classList.remove('border-red-500');
+                    // Check total limits after individual validation passes
+                    validateTotalLimits();
                 }
             });
 
@@ -780,11 +778,15 @@
                     return;
                 }
 
-                // Kiểm tra số lượng thành phẩm đã thêm (chỉ cho phép 1 thành phẩm)
-                // if (selectedProducts.length >= 1) {
-                //     alert('Chỉ có thể thêm 1 thành phẩm cho mỗi phiếu lắp ráp!');
-                //     return;
-                // }
+                // Kiểm tra tổng số lượng thành phẩm và vật tư trước khi thêm
+                const currentTotalProducts = selectedProducts.reduce((sum, product) => sum + (product.quantity || 1), 0);
+                if (currentTotalProducts + quantity > 50) {
+                    alert(`Tổng số lượng thành phẩm sẽ vượt quá giới hạn 50! Hiện tại: ${currentTotalProducts}, Thêm: ${quantity}, Tổng: ${currentTotalProducts + quantity}`);
+                    return;
+                }
+                
+                // Kiểm tra tổng vật tư dự kiến (cần load BOM trước)
+                // Tạm thời cho phép thêm và kiểm tra sau khi load BOM
 
                 productCounter++;
 
@@ -1765,7 +1767,7 @@
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' + product.name +
                         '</td>' +
                         '<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">' +
-                        '<input type="number" min="1" max="20" step="1" value="' + (
+                        '<input type="number" min="1" step="1" value="' + (
                             product.quantity || 1) + '"' +
                         ' class="w-20 border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 product-quantity-input"' +
                         ' data-index="' + index + '">' +
@@ -1799,13 +1801,11 @@
                         if (value === '' || isNaN(numValue) || numValue < 1) {
                             this.setCustomValidity('Số lượng phải là số nguyên dương (≥ 1)');
                             this.classList.add('border-red-500');
-                        } else if (numValue > 20) {
-                            this.setCustomValidity('Số lượng tối đa là 20 để đảm bảo hiệu suất hệ thống');
-                            this.classList.add('border-red-500');
-                            this.value = 20;
                         } else {
                             this.setCustomValidity('');
                             this.classList.remove('border-red-500');
+                            // Check total limits after individual validation passes
+                            validateTotalLimits();
                         }
                     });
 
@@ -1817,58 +1817,39 @@
                         if (value === '' || isNaN(newQty) || newQty < 1) {
                             newQty = 1;
                             this.value = '1';
-                        } else if (newQty > 20) {
-                            newQty = 20;
-                            this.value = '20';
                         }
 
-                        // Check limit before updating quantity
-                        try {
-                            const MAX_INPUT_VARS = 10000; // match php.ini
-                            const HEADER_FIELDS = 20;      // safety buffer
-                            const MAX_COMPONENTS = Math.floor((MAX_INPUT_VARS - HEADER_FIELDS) * 0.25); // effective cap 25%
-                            
-                            // Get current components count (excluding this product's components)
-                            const currentCount = selectedComponents.filter(c => c.productId !== product.uniqueId).length;
-                            
-                            // Get this product's BOM size (estimate from existing components)
-                            const existingComponents = selectedComponents.filter(c => c.productId === product.uniqueId);
-                            const componentsForFirstUnit = existingComponents.filter(c => c.productUnit === 0);
-                            const bomSize = componentsForFirstUnit.length;
-                            
-                            // Calculate projected total
-                            const projected = currentCount + (bomSize * newQty);
-                            
-                            if (projected > MAX_COMPONENTS) {
-                                if (typeof Swal !== 'undefined') {
-                                    Swal.fire({
-                                        icon: 'error',
-                                        title: 'Vượt quá giới hạn',
-                                        html: `Không thể thay đổi số lượng thành <b>${newQty}</b>.<br>` +
-                                              `Tổng vật tư sẽ là <b>${projected}</b>/<b>${MAX_COMPONENTS}</b>, vượt giới hạn cho phép.`,
-                                        confirmButtonText: 'Đã hiểu',
-                                        confirmButtonColor: '#dc2626'
-                                    });
+                        // Check projected limits before updating quantity
+                        let projectedTotalProducts = 0;
+                        let projectedTotalMaterials = 0;
+                        
+                        // Calculate projected totals
+                        selectedProducts.forEach(p => {
+                            if (p.uniqueId === product.uniqueId) {
+                                projectedTotalProducts += newQty;
+                                if (p.originalComponents && p.originalComponents.length > 0) {
+                                    projectedTotalMaterials += p.originalComponents.length * newQty;
                                 }
-                                
-                                // Revert the input value and exit early
-                                this.value = product.quantity;
-                                return; // Exit early, don't update anything
-                            }
-                            
-                            if (projected >= Math.floor(MAX_COMPONENTS * 0.6)) {
-                                if (typeof Swal !== 'undefined') {
-                                    Swal.fire({
-                                        icon: 'warning',
-                                        title: 'Gần đạt giới hạn',
-                                        html: `Sau khi thay đổi sẽ có <b>${projected}</b>/<b>${MAX_COMPONENTS}</b> vật tư ` +
-                                              `(≈ ${Math.round(projected / MAX_COMPONENTS * 100)}%).`,
-                                        confirmButtonText: 'Đã hiểu',
-                                        confirmButtonColor: '#f59e0b'
-                                    });
+                            } else {
+                                projectedTotalProducts += p.quantity || 1;
+                                if (p.originalComponents && p.originalComponents.length > 0) {
+                                    projectedTotalMaterials += p.originalComponents.length * (p.quantity || 1);
                                 }
                             }
-                        } catch (_) { /* no-op */ }
+                        });
+                        
+                        // Check limits
+                        if (projectedTotalProducts > 50) {
+                            alert(`Tổng số lượng thành phẩm sẽ vượt quá giới hạn 50! Hiện tại: ${projectedTotalProducts}`);
+                            this.value = product.quantity; // Revert to original value
+                            return;
+                        }
+                        
+                        if (projectedTotalMaterials > 1000) {
+                            alert(`Tổng số lượng vật tư sẽ vượt quá giới hạn 1000! Dự kiến: ${projectedTotalMaterials}`);
+                            this.value = product.quantity; // Revert to original value
+                            return;
+                        }
 
                         // Clear validation styling
                         this.setCustomValidity('');
@@ -2289,6 +2270,43 @@
 
             // Update component quantities based on product quantity
             function updateComponentQuantities() {
+                // Check total limits before processing to prevent heavy loading
+                let projectedTotalMaterials = 0;
+                selectedProducts.forEach(product => {
+                    if (product.originalComponents && product.originalComponents.length > 0) {
+                        projectedTotalMaterials += product.originalComponents.length * product.quantity;
+                    }
+                });
+                
+                if (projectedTotalMaterials > 1000) {
+                    // Show warning and prevent loading
+                    const warning = document.createElement('div');
+                    warning.id = 'projected-limit-warning';
+                    warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                    warning.innerHTML = `
+                        <strong>Cảnh báo:</strong> Tổng số lượng vật tư dự kiến (${projectedTotalMaterials}) vượt quá giới hạn 1000. 
+                        Vui lòng giảm số lượng thành phẩm để có thể tiếp tục.
+                    `;
+                    
+                    // Remove existing warning
+                    const existingWarning = document.getElementById('projected-limit-warning');
+                    if (existingWarning) {
+                        existingWarning.remove();
+                    }
+                    
+                    // Insert warning before product list
+                    document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
+                    
+                    console.log('Blocked updateComponentQuantities due to projected limit:', projectedTotalMaterials);
+                    return; // Exit early, don't process components
+                }
+                
+                // Remove warning if within limits
+                const existingWarning = document.getElementById('projected-limit-warning');
+                if (existingWarning) {
+                    existingWarning.remove();
+                }
+
                 // Store existing components that were manually added
                 const manuallyAddedComponents = selectedComponents.filter(c => !c.isFromProduct && !c.isFromExistingProduct);
                 // Store existing components from existing products
@@ -2515,6 +2533,9 @@
                 selectedProducts.forEach(product => {
                     updateProductComponentList(product.uniqueId);
                 });
+                
+                // Validate total material limits after updating quantities
+                validateTotalLimits();
 
                 // Add visual feedback for quantity changes
                 selectedProducts.forEach(product => {
@@ -2957,6 +2978,84 @@
                     serialContainer.appendChild(serialIdInput);
                     cell.appendChild(serialContainer);
                 } else {
+                    // Check if this material has size/weight units that should be consolidated
+                    const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                    const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
+                    const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
+                    const volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'];
+                    const consolidateUnits = [...lengthUnits, ...weightUnits, ...areaUnits, ...volumeUnits];
+                    const shouldConsolidate = component.unit && consolidateUnits.includes(component.unit);
+                    
+                    if (shouldConsolidate) {
+                        // For size/weight units, show consolidated serial dropdown
+                        const consolidatedDiv = document.createElement('div');
+                        consolidatedDiv.className = 'relative';
+                        
+                        // Create single dropdown for consolidated serial
+                        const selectElement = document.createElement('select');
+                        selectElement.name = 'components[' + index + '][serial]';
+                        selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                        selectElement.setAttribute('data-material-id', component.id);
+                        selectElement.setAttribute('data-component-index', index);
+                        selectElement.setAttribute('data-instance-id', componentInstanceId);
+                        selectElement.setAttribute('data-product-id', component.actualProductId);
+                        selectElement.setAttribute('data-product-unit', component.productUnit || 0);
+                        selectElement.id = componentInstanceId + '_consolidated_select';
+                        
+                        // Add default option
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '';
+                        defaultOption.textContent = 'Chọn serial gộp (tùy chọn)';
+                        selectElement.appendChild(defaultOption);
+                        
+                        // Hidden input for serial_id
+                        const serialIdInput = document.createElement('input');
+                        serialIdInput.type = 'hidden';
+                        serialIdInput.name = 'components[' + index + '][serial_id]';
+                        serialIdInput.value = component.serial_id || '';
+                        
+                        // Load serials when warehouse is selected
+                        loadSerialsForSelect(selectElement, serialIdInput, component, index);
+                        
+                        // Add event listener for select change
+                        selectElement.addEventListener('change', function() {
+                            const selectedOption = this.options[this.selectedIndex];
+                            const selectedSerial = this.value;
+                            
+                            component.serial = selectedSerial;
+                            
+                            if (selectedOption.dataset.serialId) {
+                                component.serial_id = selectedOption.dataset.serialId;
+                                serialIdInput.value = selectedOption.dataset.serialId;
+                            } else {
+                                component.serial_id = '';
+                                serialIdInput.value = '';
+                            }
+                        });
+                        
+                        // Add event listener for warehouse change
+                        const warehouseSelect = cell.parentElement.cells[4].querySelector('.warehouse-select');
+                        if (warehouseSelect) {
+                            const listener = function() {
+                                component.warehouseId = this.value;
+                                loadSerialsForSelect(selectElement, serialIdInput, component, index);
+                            };
+                            warehouseSelect.addEventListener('change', listener);
+                        }
+                        
+                        // Add note about consolidation
+                        const noteDiv = document.createElement('div');
+                        noteDiv.className = 'text-xs text-blue-600 mt-1';
+                        noteDiv.innerHTML = '<i class="fas fa-info-circle mr-1"></i>Serial gộp cho ' + quantity + ' ' + component.unit;
+                        
+                        consolidatedDiv.appendChild(selectElement);
+                        consolidatedDiv.appendChild(serialIdInput);
+                        consolidatedDiv.appendChild(noteDiv);
+                        cell.appendChild(consolidatedDiv);
+                        
+                        return; // Exit early for consolidated serials
+                    }
+                    
                     // If quantity > 1, show multiple serial dropdowns
                     // Ensure serials array exists and has correct length
                     if (!component.serials) component.serials = [];
@@ -3858,6 +3957,12 @@
             // Validation trước khi submit
             document.querySelector('form').addEventListener('submit', async function(e) {
                 e.preventDefault(); // Prevent default submission
+
+                // 0) Kiểm tra giới hạn tổng số lượng trước tiên
+                if (!validateTotalLimits()) {
+                    showValidationError('❌ Vui lòng điều chỉnh số lượng để không vượt quá giới hạn!', 'assembly_code');
+                    return;
+                }
 
                 // 1) Ưu tiên kiểm tra mã phiếu lắp ráp trước
                 const assemblyCode = document.getElementById('assembly_code').value.trim();
@@ -5340,6 +5445,86 @@
             }
 
             // DUPLICATE FUNCTION REMOVED - This logic is already handled above
+
+            // Function to validate total limits (products ≤ 50, materials ≤ 500)
+            function validateTotalLimits() {
+                const productRows = document.querySelectorAll('#product_list tbody tr');
+                let totalProducts = 0;
+                let totalMaterials = 0;
+                
+                // Calculate total products
+                productRows.forEach(row => {
+                    const qtyInput = row.querySelector('.product-quantity-input');
+                    if (qtyInput) {
+                        const qty = parseInt(qtyInput.value) || 0;
+                        totalProducts += qty;
+                    }
+                });
+                
+                // Calculate total materials from selectedComponents
+                if (window.selectedComponents && Array.isArray(window.selectedComponents)) {
+                    window.selectedComponents.forEach(component => {
+                        if (component.quantity) {
+                            totalMaterials += parseInt(component.quantity) || 0;                                                                                                       
+                        }
+                    });
+                }
+                
+                // Debug logging
+                console.log('validateTotalLimits - totalProducts:', totalProducts, 'totalMaterials:', totalMaterials);
+                
+                // Show/hide warning messages
+                const productWarning = document.getElementById('product-limit-warning');
+                const materialWarning = document.getElementById('material-limit-warning');
+                
+                if (totalProducts > 50) {
+                    if (!productWarning) {
+                        const warning = document.createElement('div');
+                        warning.id = 'product-limit-warning';
+                        warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                        warning.innerHTML = `
+                            <strong>Cảnh báo:</strong> Tổng số lượng thành phẩm (${totalProducts}) vượt quá giới hạn 50. 
+                            Vui lòng giảm số lượng để có thể tạo phiếu.
+                        `;
+                        document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
+                    } else {
+                        productWarning.innerHTML = `
+                            <strong>Cảnh báo:</strong> Tổng số lượng thành phẩm (${totalProducts}) vượt quá giới hạn 50. 
+                            Vui lòng giảm số lượng để có thể tạo phiếu.
+                        `;
+                    }
+                } else if (productWarning) {
+                    productWarning.remove();
+                }
+                
+                if (totalMaterials > 1000) {
+                    if (!materialWarning) {
+                        const warning = document.createElement('div');
+                        warning.id = 'material-limit-warning';
+                        warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                        warning.innerHTML = `
+                            <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn 1000. 
+                            Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+                        `;
+                        const productWarningEl = document.getElementById('product-limit-warning');
+                        if (productWarningEl) {
+                            productWarningEl.parentNode.insertBefore(warning, productWarningEl.nextSibling);
+                        } else {
+                            document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
+                        }
+                    } else {
+                        materialWarning.innerHTML = `
+                            <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn 1000. 
+                            Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+                        `;
+                    }
+                } else if (materialWarning) {
+                    materialWarning.remove();
+                }
+                
+                // Return validation result
+                return totalProducts <= 50 && totalMaterials <= 1000;
+            }
 
             // Simple cache and in-flight dedup for serial fetching on create page
             const serialCacheCreate = new Map(); // key: `${materialId}_${warehouseId}` => serials array

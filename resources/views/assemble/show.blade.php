@@ -439,33 +439,77 @@
                                                                     $quantity = is_object($material)
                                                                         ? $material->quantity
                                                                         : $material['quantity'];
+                                                                    
+                                                                    // Get material unit for consolidation check
+                                                                    $materialUnit = null;
+                                                                    if (is_object($material) && $material->material) {
+                                                                        $materialUnit = $material->material->unit;
+                                                                    } elseif (isset($material['material']) && isset($material['material']['unit'])) {
+                                                                        $materialUnit = $material['material']['unit'];
+                                                                    }
+                                                                    
+                                                                    // Check if this material should have consolidated serials
+                                                                    $shouldConsolidate = false;
+                                                                    if ($materialUnit) {
+                                                                        $lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                                                                        $weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
+                                                                        $areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
+                                                                        $volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'];
+                                                                        $consolidateUnits = array_merge($lengthUnits, $weightUnits, $areaUnits, $volumeUnits);
+                                                                        $shouldConsolidate = in_array($materialUnit, $consolidateUnits);
+                                                                    }
                                                                 @endphp
 
-                                                                @if ($serialValue && !empty(trim($serialValue)))
-                                                                    @php
-                                                                        $serials = array_filter(
-                                                                            explode(',', $serialValue),
-                                                                            'trim',
-                                                                        );
-                                                                        $serialCount = count($serials);
-                                                                    @endphp
-
-                                                                    @if ($serialCount > 0)
-                                                                        <div class="space-y-1">
-                                                                            @for ($i = 0; $i < $quantity; $i++)
-                                                                                @if ($i < $serialCount)
-                                                                                    <div
-                                                                                        class="bg-gray-50 px-2 py-1 rounded">
-                                                                                        {{ trim($serials[$i]) }}
-                                                                                    </div>
-                                                                                @else
-                                                                                    <div
-                                                                                        class="text-gray-400 px-2 py-1">
-                                                                                        N/A
-                                                                                    </div>
-                                                                                @endif
-                                                                            @endfor
+                                                                @if ($shouldConsolidate)
+                                                                    {{-- Show consolidated serial for size/weight units --}}
+                                                                    @if ($serialValue && !empty(trim($serialValue)))
+                                                                        <div class="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                                                                            <div class="text-sm font-medium text-blue-800">
+                                                                                {{ trim($serialValue) }}
+                                                                            </div>
+                                                                            <div class="text-xs text-blue-600 mt-1">
+                                                                                <i class="fas fa-info-circle mr-1"></i>Serial gộp cho {{ $quantity }} {{ $materialUnit }}
+                                                                            </div>
                                                                         </div>
+                                                                    @else
+                                                                        <div class="text-gray-400 px-2 py-1">
+                                                                            N/A
+                                                                        </div>
+                                                                    @endif
+                                                                @else
+                                                                    {{-- Show individual serials for other units --}}
+                                                                    @if ($serialValue && !empty(trim($serialValue)))
+                                                                        @php
+                                                                            $serials = array_filter(
+                                                                                explode(',', $serialValue),
+                                                                                'trim',
+                                                                            );
+                                                                            $serialCount = count($serials);
+                                                                        @endphp
+
+                                                                        @if ($serialCount > 0)
+                                                                            <div class="space-y-1">
+                                                                                @for ($i = 0; $i < $quantity; $i++)
+                                                                                    @if ($i < $serialCount)
+                                                                                        <div
+                                                                                            class="bg-gray-50 px-2 py-1 rounded">
+                                                                                            {{ trim($serials[$i]) }}
+                                                                                        </div>
+                                                                                    @else
+                                                                                        <div
+                                                                                            class="text-gray-400 px-2 py-1">
+                                                                                            N/A
+                                                                                        </div>
+                                                                                    @endif
+                                                                                @endfor
+                                                                            </div>
+                                                                        @else
+                                                                            @for ($i = 0; $i < $quantity; $i++)
+                                                                                <div class="text-gray-400 px-2 py-1">
+                                                                                    N/A
+                                                                                </div>
+                                                                            @endfor
+                                                                        @endif
                                                                     @else
                                                                         @for ($i = 0; $i < $quantity; $i++)
                                                                             <div class="text-gray-400 px-2 py-1">
@@ -473,12 +517,6 @@
                                                                             </div>
                                                                         @endfor
                                                                     @endif
-                                                                @else
-                                                                    @for ($i = 0; $i < $quantity; $i++)
-                                                                        <div class="text-gray-400 px-2 py-1">
-                                                                            N/A
-                                                                        </div>
-                                                                    @endfor
                                                                 @endif
                                                             </td>
                                                             <td

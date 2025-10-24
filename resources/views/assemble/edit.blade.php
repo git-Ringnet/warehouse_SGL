@@ -21,27 +21,99 @@
         // Counter for grouping deleted_components fields
         window.deletedComponentIdx = 0;
 
-        console.log('Assembly Status:', ASSEMBLY_STATUS);
-        console.log('IS_IN_PROGRESS:', IS_IN_PROGRESS);
-        console.log('IS_PENDING:', IS_PENDING);
-
-        // Maximum allowed product quantity to prevent performance issues
-        const MAX_PRODUCT_QUANTITY = 50;
+        // Maximum allowed total quantities to prevent performance issues
+        const MAX_TOTAL_PRODUCTS = 50;
+        const MAX_TOTAL_MATERIALS = 1000;
+        const MAX_PRODUCT_QUANTITY = 50; // Add missing constant
         
         // Function to validate and limit product quantity
         function validateProductQuantity(input) {
             const value = parseInt(input.value);
-            const maxQuantity = parseInt(input.getAttribute('max')) || MAX_PRODUCT_QUANTITY;
             
-            if (value > MAX_PRODUCT_QUANTITY) {
-                input.value = MAX_PRODUCT_QUANTITY;
+            if (value > MAX_TOTAL_PRODUCTS) {
+                input.value = MAX_TOTAL_PRODUCTS;
                 showQuantityLimitWarning();
-                return MAX_PRODUCT_QUANTITY;
+                return MAX_TOTAL_PRODUCTS;
             }
             
             return value;
         }
         
+        // Function to validate total limits (products ≤ 50, materials ≤ 1000)
+        function validateTotalLimits() {
+            let totalProducts = 0;
+            let totalMaterials = 0;
+            
+            // Calculate total products from product quantity inputs
+            document.querySelectorAll('input[name*="products"][name*="quantity"]').forEach(input => {
+                const qty = parseInt(input.value) || 0;
+                totalProducts += qty;
+            });
+            
+            // Calculate total materials from selectedComponents
+            if (window.selectedComponents && Array.isArray(window.selectedComponents)) {
+                window.selectedComponents.forEach(component => {
+                    if (component.quantity) {
+                        totalMaterials += parseInt(component.quantity) || 0;
+                    }
+                });
+            }
+            
+            // Show/hide warning messages
+            const productWarning = document.getElementById('product-limit-warning');
+            const materialWarning = document.getElementById('material-limit-warning');
+            
+            if (totalProducts > MAX_TOTAL_PRODUCTS) {
+                if (!productWarning) {
+                    const warning = document.createElement('div');
+                    warning.id = 'product-limit-warning';
+                    warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                    warning.innerHTML = `
+                        <strong>Cảnh báo:</strong> Tổng số lượng thành phẩm (${totalProducts}) vượt quá giới hạn ${MAX_TOTAL_PRODUCTS}. 
+                        Vui lòng giảm số lượng để có thể tạo phiếu.
+                    `;
+                    document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById(
+                        'product_list'));
+                } else {
+                    productWarning.innerHTML = `
+                        <strong>Cảnh báo:</strong> Tổng số lượng thành phẩm (${totalProducts}) vượt quá giới hạn ${MAX_TOTAL_PRODUCTS}. 
+                        Vui lòng giảm số lượng để có thể tạo phiếu.
+                    `;
+                }
+            } else if (productWarning) {
+                productWarning.remove();
+            }
+            
+            if (totalMaterials > MAX_TOTAL_MATERIALS) {
+                if (!materialWarning) {
+                    const warning = document.createElement('div');
+                    warning.id = 'material-limit-warning';
+                    warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                    warning.innerHTML = `
+                        <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn ${MAX_TOTAL_MATERIALS}. 
+                        Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+                    `;
+                    const productWarningEl = document.getElementById('product-limit-warning');
+                    if (productWarningEl) {
+                        productWarningEl.parentNode.insertBefore(warning, productWarningEl.nextSibling);
+                    } else {
+                        document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById(
+                            'product_list'));
+                    }
+                } else {
+                    materialWarning.innerHTML = `
+                        <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn ${MAX_TOTAL_MATERIALS}. 
+                        Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+                    `;
+                }
+            } else if (materialWarning) {
+                materialWarning.remove();
+            }
+            
+            // Return validation result
+            return totalProducts <= MAX_TOTAL_PRODUCTS && totalMaterials <= MAX_TOTAL_MATERIALS;
+        }
+
         // Function to show quantity limit warning
         function showQuantityLimitWarning() {
             // Remove existing warning
@@ -52,7 +124,8 @@
             
             // Create warning message
             const warning = document.createElement('div');
-            warning.className = 'quantity-limit-warning fixed top-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded z-50';
+            warning.className =
+                'quantity-limit-warning fixed top-4 right-4 bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded z-50';
             warning.innerHTML = `
                 <div class="flex items-center">
                     <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -110,12 +183,7 @@
             if (materialId) container.setAttribute('data-material-id', materialId);
             if (warehouseId) container.setAttribute('data-warehouse-id', warehouseId);
 
-            console.log('Material ID:', materialId, 'Warehouse ID:', warehouseId);
-            console.log('Container data attributes updated - material-id:', container.getAttribute('data-material-id'),
-                'warehouse-id:', container.getAttribute('data-warehouse-id'));
-
             if (!materialId || !warehouseId) {
-                console.log('Missing material ID or warehouse ID, clearing container');
                 container.innerHTML = '<div class="text-gray-500 text-sm">Vui lòng chọn kho để hiển thị serial</div>';
                 return;
             }
@@ -132,19 +200,81 @@
                 if (resp.ok) {
                     const data = await resp.json();
                     availableSerials = Array.isArray(data.serials) ? data.serials : [];
-                    console.log('Fetched available serials for new warehouse:', availableSerials);
                 }
             } catch (e) {
                 console.error('Error fetching serials:', e);
             }
 
+            // Check if this material should have consolidated serials
+            const rowUnit = row.dataset ? row.dataset.unit : '';
+            const consolidateUnits = [
+                'Mét', 'm', 'meter', 'meters',
+                'cm', 'centimeter', 'centimeters',
+                'mm', 'millimeter', 'millimeters',
+                'km', 'kilometer', 'kilometers',
+                'inch', 'inches', 'in',
+                'foot', 'feet', 'ft',
+                'yard', 'yards', 'yd',
+                'Kg', 'kg', 'kilogram', 'kilograms',
+                'gram', 'grams', 'g',
+                'mg', 'milligram', 'milligrams',
+                'ton', 'tons', 't',
+                'pound', 'pounds', 'lb', 'lbs',
+                'ounce', 'ounces', 'oz',
+                'm²', 'm2', 'square meter', 'square meters',
+                'cm²', 'cm2', 'square centimeter', 'square centimeters',
+                'km²', 'km2', 'square kilometer', 'square kilometers',
+                'inch²', 'in²', 'square inch', 'square inches',
+                'foot²', 'ft²', 'square foot', 'square feet',
+                'm³', 'm3', 'cubic meter', 'cubic meters',
+                'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters',
+                'liter', 'liters', 'l', 'L',
+                'ml', 'milliliter', 'milliliters',
+                'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'
+            ];
+            const shouldConsolidate = rowUnit && consolidateUnits.includes(rowUnit);
+
             // Clear the container completely
             container.innerHTML = '';
 
+            if (shouldConsolidate) {
+                // For consolidated serials, create single dropdown
+                const consolidatedDiv = document.createElement('div');
+                consolidatedDiv.className = 'mb-2';
+
+                const blueBox = document.createElement('div');
+                blueBox.className = 'bg-blue-50 border border-blue-200 rounded-lg p-3';
+
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'text-sm font-medium text-blue-800 mb-2';
+                titleDiv.textContent = 'Serial gộp';
+                blueBox.appendChild(titleDiv);
+
+                const selectElement = document.createElement('select');
+                selectElement.name = `components[${row.dataset.componentIndex || 0}][serial]`;
+                selectElement.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                selectElement.setAttribute('data-material-id', materialId);
+                selectElement.setAttribute('data-warehouse-id', warehouseId);
+
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- Chọn serial gộp --';
+                selectElement.appendChild(defaultOption);
+
+                // Add available serials as options
+                availableSerials.forEach(serial => {
+                    const option = document.createElement('option');
+                    option.value = serial.serial_number || serial;
+                    option.textContent = serial.serial_number || serial;
+                    selectElement.appendChild(option);
+                });
+
+                blueBox.appendChild(selectElement);
+                consolidatedDiv.appendChild(blueBox);
+                container.appendChild(consolidatedDiv);
+            } else {
             // Create fresh serial selects without any pre-selected values
             for (let i = 0; i < newQuantity; i++) {
-                console.log(`Creating fresh serial select for index ${i}`);
-
                 const newSelect = document.createElement('select');
                 newSelect.className =
                     'material-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 block mb-2';
@@ -167,23 +297,17 @@
                 defaultOption.textContent = '-- Chọn serial --';
                 newSelect.appendChild(defaultOption);
 
-                // Add available serials as options
-                const currentSerial = (row.querySelector('[data-current-serial]')?.getAttribute(
-                    'data-current-serial')) || '';
+                // Add available serials as options (don't pre-select when warehouse changes)
                 availableSerials.forEach(serial => {
                     const option = document.createElement('option');
                     option.value = serial.serial_number;
                     option.textContent = serial.serial_number;
-                    if (currentSerial && currentSerial === serial.serial_number) {
-                        option.selected = true;
-                    }
                     newSelect.appendChild(option);
                 });
 
                 container.appendChild(newSelect);
             }
-
-            console.log('Created fresh serial selects for warehouse change');
+            }
         }
     </script>
     <style>
@@ -494,8 +618,8 @@
                                 <input type="hidden" id="product_id">
                             </div>
                             <div class="w-24">
-                                <input type="number" id="product_add_quantity" min="1" max="50" step="1"
-                                    value="1"
+                                <input type="number" id="product_add_quantity" min="1" max="50"
+                                    step="1" value="1"
                                     class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
@@ -557,7 +681,8 @@
                                                 @if ($assembly->status === 'pending')
                                                     <input type="number"
                                                         name="products[{{ $index }}][quantity]"
-                                                        value="{{ $assemblyProduct->quantity }}" min="1" max="50"
+                                                        value="{{ $assemblyProduct->quantity }}" min="1"
+                                                        max="50"
                                                         class="w-20 border border-gray-300 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 product-qty-input"
                                                         data-index="{{ $index }}">
                                                 @else
@@ -927,7 +1052,8 @@
                                                                 </tr>
                                                                 @php $prevUnit = $unitIdx; @endphp
                                                             @endif
-                                                            <tr class="component-row bg-white hover:bg-gray-50">
+                                                            <tr class="component-row bg-white hover:bg-gray-50"
+                                                                data-unit="{{ $component['material']->material->unit ?? '' }}">
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                     <input type="hidden"
@@ -994,16 +1120,203 @@
                                                                 </td>
                                                                 <td
                                                                     class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                                    @php
+                                                                        // Check if this material should have consolidated serials
+                                                                        $materialUnit =
+                                                                            $component['material']->material->unit ??
+                                                                            '';
+
+                                                                        $lengthUnits = [
+                                                                            'Mét',
+                                                                            'm',
+                                                                            'meter',
+                                                                            'meters',
+                                                                            'cm',
+                                                                            'centimeter',
+                                                                            'centimeters',
+                                                                            'mm',
+                                                                            'millimeter',
+                                                                            'millimeters',
+                                                                            'km',
+                                                                            'kilometer',
+                                                                            'kilometers',
+                                                                            'inch',
+                                                                            'inches',
+                                                                            'in',
+                                                                            'foot',
+                                                                            'feet',
+                                                                            'ft',
+                                                                            'yard',
+                                                                            'yards',
+                                                                            'yd',
+                                                                        ];
+                                                                        $weightUnits = [
+                                                                            'Kg',
+                                                                            'kg',
+                                                                            'kilogram',
+                                                                            'kilograms',
+                                                                            'gram',
+                                                                            'grams',
+                                                                            'g',
+                                                                            'mg',
+                                                                            'milligram',
+                                                                            'milligrams',
+                                                                            'ton',
+                                                                            'tons',
+                                                                            't',
+                                                                            'pound',
+                                                                            'pounds',
+                                                                            'lb',
+                                                                            'lbs',
+                                                                            'ounce',
+                                                                            'ounces',
+                                                                            'oz',
+                                                                        ];
+                                                                        $areaUnits = [
+                                                                            'm²',
+                                                                            'm2',
+                                                                            'square meter',
+                                                                            'square meters',
+                                                                            'cm²',
+                                                                            'cm2',
+                                                                            'square centimeter',
+                                                                            'square centimeters',
+                                                                            'km²',
+                                                                            'km2',
+                                                                            'square kilometer',
+                                                                            'square kilometers',
+                                                                            'inch²',
+                                                                            'in²',
+                                                                            'square inch',
+                                                                            'square inches',
+                                                                            'foot²',
+                                                                            'ft²',
+                                                                            'square foot',
+                                                                            'square feet',
+                                                                        ];
+                                                                        $volumeUnits = [
+                                                                            'm³',
+                                                                            'm3',
+                                                                            'cubic meter',
+                                                                            'cubic meters',
+                                                                            'cm³',
+                                                                            'cm3',
+                                                                            'cubic centimeter',
+                                                                            'cubic centimeters',
+                                                                            'liter',
+                                                                            'liters',
+                                                                            'l',
+                                                                            'L',
+                                                                            'ml',
+                                                                            'milliliter',
+                                                                            'milliliters',
+                                                                            'gallon',
+                                                                            'gallons',
+                                                                            'gal',
+                                                                            'quart',
+                                                                            'quarts',
+                                                                            'qt',
+                                                                        ];
+                                                                        $consolidateUnits = array_merge(
+                                                                            $lengthUnits,
+                                                                            $weightUnits,
+                                                                            $areaUnits,
+                                                                            $volumeUnits,
+                                                                        );
+                                                                        $shouldConsolidate = in_array(
+                                                                            $materialUnit,
+                                                                            $consolidateUnits,
+                                                                        );
+                                                                    @endphp
+                                                                    @if ($shouldConsolidate)
+                                                                        {{-- Show consolidated serial for size/weight units --}}
+                                                                        <div class="mb-2">
+                                                                            <div
+                                                                                class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                                                                <div
+                                                                                    class="text-sm font-medium text-blue-800 mb-2">
+                                                                                    Serial gộp
+                                                                                </div>
+                                                                                @if (!empty($component['material']->serial))
+                                                                                    <div class="flex items-center">
+                                                                                        <div
+                                                                                            class="w-full border border-blue-200 bg-blue-50 rounded-lg px-2 py-1 text-sm text-blue-600">
+                                                                                            {{ $component['material']->serial }}
+                                                                                        </div>
+                                                                                        <input type="hidden"
+                                                                                            name="components[{{ $component['globalIndex'] }}][serial]"
+                                                                                            value="{{ $component['material']->serial }}">
+                                                                                    </div>
+                                                                                @else
+                                                                                    <select
+                                                                                        name="components[{{ $component['globalIndex'] }}][serial]"
+                                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select consolidated-serial-select"
+                                                                                        data-material-id="{{ $component['material']->material_id }}"
+                                                                                        data-warehouse-id="{{ $component['material']->warehouse_id }}"
+                                                                                        data-current-warehouse="{{ $component['material']->warehouse_id }}"
+                                                                                        data-product-id="{{ $component['material']->target_product_id }}"
+                                                                                        data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
+                                                                                        <option value="">-- Chọn
+                                                                                            serial gộp --</option>
+                                                                                        @php
+                                                                                            $materialId =
+                                                                                                $component['material']
+                                                                                                    ->material_id;
+                                                                                            $warehouseId =
+                                                                                                $component['material']
+                                                                                                    ->warehouse_id ?:
+                                                                                                $assembly->warehouse_id;
+                                                                                            $productUnit =
+                                                                                                $component['material']
+                                                                                                    ->product_unit ?? 0;
+                                                                                            $key =
+                                                                                                $materialId .
+                                                                                                '_' .
+                                                                                                $warehouseId .
+                                                                                                '_' .
+                                                                                                $productUnit;
+
+                                                                                            if (
+                                                                                                isset(
+                                                                                                    $materialSerials[
+                                                                                                        $key
+                                                                                                    ],
+                                                                                                )
+                                                                                            ) {
+                                                                                                $serials =
+                                                                                                    $materialSerials[
+                                                                                                        $key
+                                                                                                    ];
+                                                                                            } else {
+                                                                                                $serials = [];
+                                                                                            }
+                                                                                        @endphp
+                                                                                        @foreach ($serials as $serial)
+                                                                                            <option
+                                                                                                value="{{ $serial['serial_number'] }}"
+                                                                                                {{ $component['material']->serial == $serial['serial_number'] ? 'selected' : '' }}>
+                                                                                                {{ $serial['serial_number'] }}
+                                                                                            </option>
+                                                                                        @endforeach
+                                                                                    </select>
+                                                                                @endif
+                                                                            </div>
+                                                                        </div>
+                                                                    @else
+                                                                        {{-- Show individual serials for other materials --}}
                                                                     @if ($assembly->status === 'pending')
                                                                         <div class="space-y-2 material-serial-selects-container"
                                                                             data-product-id="{{ $component['material']->target_product_id }}"
                                                                             data-product-index="{{ $productIndex }}">
                                                                             @php
                                                                                 $serials = [];
-                                                                                if ($component['material']->serial) {
+                                                                                    if (
+                                                                                        $component['material']->serial
+                                                                                    ) {
                                                                                     $serials = explode(
                                                                                         ',',
-                                                                                        $component['material']->serial,
+                                                                                            $component['material']
+                                                                                                ->serial,
                                                                                     );
                                                                                 }
                                                                             @endphp
@@ -1018,20 +1331,26 @@
                                                                                         data-current-serial="{{ $serials[$i] ?? '' }}"
                                                                                         data-product-id="{{ $component['material']->target_product_id }}"
                                                                                         data-product-unit="{{ $component['material']->product_unit ?? 0 }}">
-                                                                                        <option value="">-- Chọn
-                                                                                            serial {{ $i + 1 }}
+                                                                                            <option value="">--
+                                                                                                Chọn
+                                                                                                serial
+                                                                                                {{ $i + 1 }}
                                                                                             --</option>
                                                                                         @php
                                                                                             $materialId =
-                                                                                                $component['material']
-                                                                                                    ->material_id;
+                                                                                                    $component[
+                                                                                                        'material'
+                                                                                                    ]->material_id;
                                                                                             $warehouseId =
-                                                                                                $component['material']
-                                                                                                    ->warehouse_id ?:
+                                                                                                    $component[
+                                                                                                        'material'
+                                                                                                    ]->warehouse_id ?:
                                                                                                 $assembly->warehouse_id;
                                                                                             $productUnit =
-                                                                                                $component['material']
-                                                                                                    ->product_unit ?? 0;
+                                                                                                    $component[
+                                                                                                        'material'
+                                                                                                    ]->product_unit ??
+                                                                                                    0;
                                                                                             $key =
                                                                                                 $materialId .
                                                                                                 '_' .
@@ -1056,7 +1375,7 @@
                                                                                 </div>
                                                                             @endfor
                                                                         </div>
-                                                                    @else
+                                                                        @endif
                                                                         @php
                                                                             $serials = [];
                                                                             if ($component['material']->serial) {
@@ -1144,10 +1463,6 @@
                                                                             </div>
                                                                         @else
                                                                             @for ($i = 0; $i < $component['material']->quantity; $i++)
-                                                                                <div
-                                                                                    class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                                                                    {{ $serials[$i] ?? '' }}
-                                                                                </div>
                                                                                 <input type="hidden"
                                                                                     name="components[{{ $component['globalIndex'] }}][serials][]"
                                                                                     value="{{ $serials[$i] ?? '' }}">
@@ -1237,7 +1552,8 @@
                                             <tbody class="bg-white divide-y divide-gray-200">
                                                 @if ($assembly->materials && $assembly->materials->count() > 0)
                                                     @foreach ($assembly->materials as $index => $material)
-                                                        <tr class="component-row bg-white hover:bg-gray-50">
+                                                        <tr class="component-row bg-white hover:bg-gray-50"
+                                                            data-unit="{{ $material->material->unit ?? '' }}">
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                                                 <input type="hidden"
@@ -1275,83 +1591,7 @@
                                                             </td>
                                                             <td
                                                                 class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                                                @if ($assembly->status === 'pending' || $assembly->status === 'in_progress')
-                                                                    <div class="space-y-2 material-serial-selects-container"
-                                                                        data-product-id="{{ $material->target_product_id }}"
-                                                                        data-product-index="0"
-                                                                        data-original-count="{{ count(array_filter($serials, fn($s) => !empty(trim($s)))) }}">
-                                                                        @php
-                                                                            // Ensure we properly handle all serial scenarios
-                                                                            $serials = [];
-                                                                            if ($material->serials) {
-                                                                                // Split by comma
-                                                                                $serials = explode(
-                                                                                    ',',
-                                                                                    $material->serials,
-                                                                                );
-                                                                            }
-                                                                        @endphp
-
-                                                                        @for ($i = 0; $i < $material->quantity; $i++)
-                                                                            @if (isset($serials[$i]) && !empty($serials[$i]))
-                                                                                <!-- Serial đã chọn trước đó - không cho sửa -->
-                                                                                <div class="flex items-center">
-                                                                                    <div
-                                                                                        class="w-full border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-sm text-gray-600">
-                                                                                        {{ $serials[$i] }}
-                                                                                    </div>
-                                                                                    <input type="hidden"
-                                                                                        name="components[{{ $index }}][serials][]"
-                                                                                        value="{{ $serials[$i] }}">
-                                                                                </div>
-                                                                            @else
-                                                                                <!-- Serial mới - cho phép chọn -->
-                                                                                <div class="mb-2">
-                                                                                    <select
-                                                                                        name="components[{{ $index }}][serials][]"
-                                                                                        class="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select"
-                                                                                        data-serial-index="{{ $i }}"
-                                                                                        data-material-id="{{ $material->material_id }}"
-                                                                                        data-warehouse-id="{{ $material->warehouse_id }}"
-                                                                                        data-current-serial="{{ $serials[$i] ?? '' }}"
-                                                                                        data-product-id="{{ $material->target_product_id }}"
-                                                                                        data-product-unit="{{ $material->product_unit ?? 0 }}">
-                                                                                        <option value="">-- Chọn
-                                                                                            serial
-                                                                                            {{ $i + 1 }} --
-                                                                                        </option>
-                                                                                        @php
-                                                                                            $materialId =
-                                                                                                $material->material_id;
-                                                                                            $warehouseId =
-                                                                                                $material->warehouse_id ?:
-                                                                                                $assembly->warehouse_id;
-                                                                                            $productUnit =
-                                                                                                $material->product_unit ??
-                                                                                                0;
-                                                                                            $key =
-                                                                                                $materialId .
-                                                                                                '_' .
-                                                                                                $warehouseId .
-                                                                                                '_' .
-                                                                                                $productUnit;
-                                                                                            $availableSerials =
-                                                                                                $materialSerials[
-                                                                                                    $key
-                                                                                                ] ?? [];
-                                                                                        @endphp
-                                                                                        @foreach ($availableSerials as $serial)
-                                                                                            <option
-                                                                                                value="{{ $serial['serial_number'] }}">
-                                                                                                {{ $serial['serial_number'] }}
-                                                                                            </option>
-                                                                                        @endforeach
-                                                                                    </select>
-                                                                                </div>
-                                                                            @endif
-                                                                        @endfor
-                                                                    </div>
-                                                                @else
+                                                                @if ($assembly->status === 'completed' || $assembly->status === 'cancelled')
                                                                     @php
                                                                         $serials = [];
                                                                         if ($material->serials) {
@@ -1359,10 +1599,6 @@
                                                                         }
                                                                     @endphp
                                                                     @for ($i = 0; $i < $material->quantity; $i++)
-                                                                        <div
-                                                                            class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                                                                            {{ $serials[$i] ?? '' }}
-                                                                        </div>
                                                                         <input type="hidden"
                                                                             name="components[{{ $index }}][serials][]"
                                                                             value="{{ $serials[$i] ?? '' }}">
@@ -1549,50 +1785,30 @@
             function attachMaterialQtyListeners() {
                 const quantityInputs = document.querySelectorAll(
                     '.component-row input[name^="components"][name*="quantity"]');
-                console.log('Found quantity inputs:', quantityInputs.length);
 
                 quantityInputs.forEach((inp, index) => {
-                    console.log(`Input ${index}:`, inp.name, 'value:', inp.value);
-
                     // tránh gán trùng listener
                     if (inp.dataset.listenerAttached) {
-                        console.log('Listener already attached for:', inp.name);
                         return;
                     }
                     inp.dataset.listenerAttached = 'true';
 
                     // Store original quantity for validation
                     inp.dataset.originalQuantity = inp.value;
-                    console.log('Stored original quantity for:', inp.name, '=', inp.value);
 
                     inp.addEventListener('change', function() {
-                        console.log('=== QUANTITY CHANGE EVENT TRIGGERED ===');
-                        console.log('Input name:', this.name);
-                        console.log('New value:', this.value);
-                        console.log('Original value:', this.dataset.originalQuantity);
-                        console.log('IS_IN_PROGRESS:', IS_IN_PROGRESS);
-
                         // If assembly is in progress, only allow increasing quantities
                         if (IS_IN_PROGRESS) {
                             const newQuantity = parseInt(this.value);
                             const originalQuantity = parseInt(this.dataset.originalQuantity || '0');
 
-                            console.log('Parsed values - new:', newQuantity, 'original:',
-                                originalQuantity);
-                            console.log('Comparison result:', newQuantity < originalQuantity);
-
                             if (newQuantity < originalQuantity) {
-                                console.log('PREVENTING DECREASE - showing alert');
                                 alert(
-                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                    );
                                 this.value = originalQuantity;
-                                console.log('Value restored to:', this.value);
                                 return;
-                            } else {
-                                console.log('Quantity change allowed');
                             }
-                        } else {
-                            console.log('Assembly not in progress - allowing all changes');
                         }
 
                         const row = this.closest('.component-row');
@@ -1613,7 +1829,6 @@
                 document.querySelectorAll('input[name*="components"][name*="quantity"]').forEach(input => {
                     if (!input.dataset.originalQuantity) {
                         input.dataset.originalQuantity = input.value;
-                        console.log('Initialized original quantity for:', input.name, '=', input.value);
                     }
                 });
             }
@@ -1624,14 +1839,9 @@
             // Global event listener for all quantity inputs (backup)
             document.addEventListener('change', function(e) {
                 if (e.target.matches('input[name*="components"][name*="quantity"]')) {
-                    console.log('Global quantity change detected:', e.target.name, 'value:', e.target.value,
-                        'IS_IN_PROGRESS:', IS_IN_PROGRESS);
-
                     // Ensure original quantity is stored
                     if (!e.target.dataset.originalQuantity) {
                         e.target.dataset.originalQuantity = e.target.value;
-                        console.log('Stored original quantity in global listener for:', e.target.name, '=',
-                            e.target.value);
                     }
 
                     // If assembly is in progress, only allow increasing quantities
@@ -1639,11 +1849,10 @@
                         const newQuantity = parseInt(e.target.value);
                         const originalQuantity = parseInt(e.target.dataset.originalQuantity || '0');
 
-                        console.log('Global check - new:', newQuantity, 'original:', originalQuantity);
-
                         if (newQuantity < originalQuantity) {
                             alert(
-                                'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                );
                             e.target.value = originalQuantity;
                             return;
                         }
@@ -1654,14 +1863,9 @@
             // Global event listener for input events (catches arrow button clicks)
             document.addEventListener('input', function(e) {
                 if (e.target.matches('input[name*="components"][name*="quantity"]')) {
-                    console.log('Global quantity input detected:', e.target.name, 'value:', e.target.value,
-                        'IS_IN_PROGRESS:', IS_IN_PROGRESS);
-
                     // Ensure original quantity is stored
                     if (!e.target.dataset.originalQuantity) {
                         e.target.dataset.originalQuantity = e.target.value;
-                        console.log('Stored original quantity in global input listener for:', e.target.name,
-                            '=', e.target.value);
                     }
 
                     // If assembly is in progress, only allow increasing quantities
@@ -1669,12 +1873,10 @@
                         const newQuantity = parseInt(e.target.value);
                         const originalQuantity = parseInt(e.target.dataset.originalQuantity || '0');
 
-                        console.log('Global input check - new:', newQuantity, 'original:',
-                        originalQuantity);
-
                         if (newQuantity < originalQuantity) {
                             alert(
-                                'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                );
                             e.target.value = originalQuantity;
                             return;
                         }
@@ -1922,23 +2124,6 @@
                     }
                 });
 
-                console.log('Checking for duplicate serials in real-time...');
-
-                // Debug: Log all serial elements found
-                console.log('=== DEBUG: All serial elements ===');
-                const allSerialElements = document.querySelectorAll(
-                    'input[name*="serials"], select[name*="serials"]');
-                console.log('Total serial elements found:', allSerialElements.length);
-                allSerialElements.forEach((el, index) => {
-                    console.log(`Serial element ${index}:`, {
-                        name: el.name,
-                        value: el.value,
-                        type: el.tagName,
-                        dataProductUnit: el.getAttribute('data-product-unit'),
-                        parentRow: el.closest('tr') ? 'found' : 'not found'
-                    });
-                });
-
                 // Check product serials for duplicates
                 const productSerialInputs = document.querySelectorAll('input[name*="products"][name*="serials"]');
                 const productSerials = {};
@@ -1978,7 +2163,6 @@
                     Object.keys(serialGroups).forEach(serial => {
                         const items = serialGroups[serial];
                         if (items.length > 1) {
-                            console.log(`Product ${productId} has duplicate serials:`, serial);
                             // Show error for all instances of this serial
                             items.forEach(item => {
                                 showSerialError(item.element,
@@ -1988,13 +2172,11 @@
                     });
                 });
 
-                // Check component serials for duplicates
+                // Check component serials for duplicates (exclude consolidated serial selects and hidden inputs)
                 const componentSerialSelects = document.querySelectorAll(
-                    'select[name*="components"][name*="serials"]');
+                    'select[name*="components"][name*="serials"]:not(.consolidated-serial-select)');
                 const componentSerialInputs = document.querySelectorAll(
-                    'input[name*="components"][name*="serials"]');
-                console.log('Found component serial selects:', componentSerialSelects.length);
-                console.log('Found component serial inputs:', componentSerialInputs.length);
+                    'input[name*="components"][name*="serials"]:not([type="hidden"])');
                 const componentSerials = {};
 
                 // Process select elements (editable serials)
@@ -2033,12 +2215,12 @@
                     }
                 });
 
-                // Check for duplicates within each component
+                // Check for duplicates within each component (same material)
                 Object.keys(componentSerials).forEach(componentIndex => {
                     const serials = componentSerials[componentIndex];
                     const serialGroups = {};
 
-                    // Group by serial value
+                    // Group by serial value within this component
                     serials.forEach(item => {
                         if (!serialGroups[item.serial]) {
                             serialGroups[item.serial] = [];
@@ -2046,16 +2228,14 @@
                         serialGroups[item.serial].push(item);
                     });
 
-                    // Check for duplicates
+                    // Check for duplicates within this component
                     Object.keys(serialGroups).forEach(serial => {
                         const items = serialGroups[serial];
                         if (items.length > 1) {
-                            console.log(`Component ${componentIndex} has duplicate serials:`,
-                                serial);
-                            // Show error for all instances of this serial
+                            // Show error for all instances of this serial within the same component
                             items.forEach(item => {
                                 showSerialError(item.element,
-                                    `Serial linh kiện trùng lặp: ${serial}`);
+                                    `Serial trùng lặp trong cùng vật tư: ${serial}`);
                             });
                         }
                     });
@@ -2073,19 +2253,13 @@
                             return;
                         }
                         const productUnit = select.getAttribute('data-product-unit') || '0';
-
-                        console.log('Serial select found:', {
-                            name: select.name,
-                            value: select.value,
-                            componentIndex: componentIndex,
-                            productUnit: productUnit,
-                            dataProductUnit: select.getAttribute('data-product-unit')
-                        });
+                        const materialId = select.getAttribute('data-material-id');
 
                         allComponentSerials.push({
                             serial: select.value.trim(),
                             componentIndex: componentIndex,
                             productUnit: productUnit,
+                            materialId: materialId,
                             element: select
                         });
                     }
@@ -2104,53 +2278,55 @@
                         const productUnitInput = row ? row.querySelector('input[name*="product_unit"]') :
                             null;
                         const productUnit = productUnitInput ? productUnitInput.value : '0';
-
-                        console.log('Serial input found:', {
-                            name: input.name,
-                            value: input.value,
-                            componentIndex: componentIndex,
-                            productUnit: productUnit
-                        });
+                        const materialId = input.getAttribute('data-material-id');
 
                         allComponentSerials.push({
                             serial: input.value.trim(),
                             componentIndex: componentIndex,
                             productUnit: productUnit,
+                            materialId: materialId,
                             element: input
                         });
                     }
                 });
 
                 // Group serials by serial value and check for duplicates across units
-                const serialGroups = {};
+                const unitSerialGroups = {};
                 allComponentSerials.forEach(item => {
-                    if (!serialGroups[item.serial]) {
-                        serialGroups[item.serial] = [];
+                    if (!unitSerialGroups[item.serial]) {
+                        unitSerialGroups[item.serial] = [];
                     }
-                    serialGroups[item.serial].push(item);
+                    unitSerialGroups[item.serial].push(item);
                 });
 
-                // Check for duplicates across different product units
-                Object.keys(serialGroups).forEach(serial => {
-                    const items = serialGroups[serial];
+                // Check for duplicates across different product units (same material)
+                Object.keys(unitSerialGroups).forEach(serial => {
+                    const items = unitSerialGroups[serial];
                     if (items.length > 1) {
-                        // Check if duplicates are in different product units
-                        const productUnits = [...new Set(items.map(item => item.productUnit))];
-                        console.log(`Checking serial ${serial}:`, {
-                            items: items,
-                            productUnits: productUnits,
-                            isDuplicate: productUnits.length > 1
+                        // Group by material ID
+                        const materialGroups = {};
+                        items.forEach(item => {
+                            if (!materialGroups[item.materialId]) {
+                                materialGroups[item.materialId] = [];
+                            }
+                            materialGroups[item.materialId].push(item);
                         });
 
+                        // Check for duplicates within each material across different product units
+                        Object.keys(materialGroups).forEach(materialId => {
+                            const materialItems = materialGroups[materialId];
+                            if (materialItems.length > 1) {
+                                const productUnits = [...new Set(materialItems.map(item => item.productUnit))];
                         if (productUnits.length > 1) {
-                            console.log(`Found duplicate serial ${serial} across units:`, productUnits);
                             // Show error for all instances of this serial
-                            items.forEach(item => {
+                                    materialItems.forEach(item => {
                                 showSerialError(item.element,
                                     `Serial trùng lặp (Đơn vị ${parseInt(item.productUnit) + 1})`
                                     );
                             });
                         }
+                            }
+                        });
                     }
                 });
 
@@ -2177,10 +2353,6 @@
                                 'Vật tư không xác định';
                         });
 
-                        console.log(
-                            `Found duplicate serial ${items[0].serial} within unit ${parseInt(items[0].productUnit) + 1}:`,
-                            materialNames);
-
                         // Show error for all instances of this serial
                         items.forEach(item => {
                             const otherMaterials = materialNames.filter((_, index) => index !==
@@ -2201,16 +2373,9 @@
                     existingError.remove();
                 }
 
-                // Create error indicator
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'serial-error-indicator text-red-500 text-xs mt-1 font-medium';
-                errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle mr-1"></i>${message}`;
-
-                // Add red border to element
+                // Only add red border to element, no text message
                 element.classList.add('border-red-500');
-
-                // Insert error message after element
-                element.parentNode.insertBefore(errorDiv, element.nextSibling);
+                element.title = message; // Show message on hover instead
 
                 // Add visual feedback to the element
                 element.style.backgroundColor = '#fef2f2';
@@ -2236,17 +2401,10 @@
                 quantityInputs.forEach(input => {
                     // Skip if already has listener attached
                     if (input.dataset.listenerAttached) {
-                        console.log('Skipping handleQuantityChange for:', input.name,
-                            '- already has listener');
                         return;
                     }
 
                     input.addEventListener('change', async function() {
-                        console.log('=== HANDLE QUANTITY CHANGE TRIGGERED ===');
-                        console.log('Input:', this.name, 'New value:', this.value,
-                            'IS_IN_PROGRESS:', IS_IN_PROGRESS, 'IS_PENDING:', IS_PENDING
-                            );
-
                         const newQuantity = parseInt(this.value);
 
                         // If assembly is in progress, only allow increasing quantities
@@ -2255,13 +2413,10 @@
                                 .originalQuantity || this.getAttribute('min') || this
                                 .defaultValue || '0');
 
-                            console.log('handleQuantityChange check - new:', newQuantity,
-                                'original:', originalQuantity);
-
                             if (newQuantity < originalQuantity) {
-                                console.log('handleQuantityChange PREVENTING DECREASE');
                                 alert(
-                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                    );
                                 this.value = originalQuantity;
                                 return;
                             }
@@ -2272,24 +2427,14 @@
                         const serialContainer = row.querySelector(
                             '.material-serial-selects-container');
 
-                        console.log('=== SERIAL CONTAINER DEBUG ===');
-                        console.log('Row found:', row);
-                        console.log('Serial container found:', serialContainer);
-                        console.log('Serial container class:', serialContainer ?
-                            serialContainer.className : 'null');
-
                         if (serialContainer) {
-                            console.log('Serial container exists, updating serials...');
                             // Update the number of serial selects based on new quantity
                             await updateSerialSelects(serialContainer, newQuantity);
                         } else {
-                            console.log('Serial container NOT found!');
                             // Try to find alternative serial container
                             const alternativeContainer = row.querySelector(
                                 'td:nth-child(6)'); // Serial column
                             if (alternativeContainer) {
-                                console.log('Found alternative container:',
-                                    alternativeContainer);
                                 // Create a wrapper container if needed
                                 let wrapper = alternativeContainer.querySelector(
                                     '.material-serial-selects-container');
@@ -2303,12 +2448,8 @@
                                     wrapper.setAttribute('data-product-index', '0');
                                     alternativeContainer.appendChild(wrapper);
                                 }
-                                console.log('Created/Found wrapper container:', wrapper);
                                 await updateSerialSelects(wrapper, newQuantity);
                             } else {
-                                console.log(
-                                    'No alternative container found, creating serial selects directly in row...'
-                                    );
                                 // Tạo serial selects trực tiếp trong row nếu cần
                                 const serialCell = row.querySelector(
                                 'td:nth-child(6)'); // Serial column
@@ -2325,9 +2466,6 @@
                                             'data-product-id') || '');
                                     newContainer.setAttribute('data-product-index', '0');
                                     serialCell.appendChild(newContainer);
-
-                                    console.log(
-                                        'Created new serial container directly in cell');
                                     await updateSerialSelects(newContainer, newQuantity);
                                 }
                             }
@@ -2337,12 +2475,7 @@
                         if ((IS_PENDING || IS_IN_PROGRESS) && serialContainer) {
                             const currentSerialElements = serialContainer.querySelectorAll(
                                 '.material-serial-select, .bg-gray-50');
-                            console.log('Current serial elements count:',
-                                currentSerialElements.length, 'New quantity:',
-                                newQuantity);
                             if (currentSerialElements.length !== newQuantity) {
-                                console.log(
-                                    'Updating serial selects due to count mismatch...');
                                 await updateSerialSelects(serialContainer, newQuantity);
                             }
                         }
@@ -2382,11 +2515,6 @@
 
                     // Add input event listener to catch arrow button clicks and real-time updates
                     input.addEventListener('input', async function() {
-                        console.log('=== HANDLE QUANTITY INPUT TRIGGERED ===');
-                        console.log('Input:', this.name, 'New value:', this.value,
-                            'IS_IN_PROGRESS:', IS_IN_PROGRESS, 'IS_PENDING:', IS_PENDING
-                            );
-
                         const newQuantity = parseInt(this.value);
 
                         // If assembly is in progress, only allow increasing quantities
@@ -2395,13 +2523,10 @@
                                 .originalQuantity || this.getAttribute('min') || this
                                 .defaultValue || '0');
 
-                            console.log('handleQuantityInput check - new:', newQuantity,
-                                'original:', originalQuantity);
-
                             if (newQuantity < originalQuantity) {
-                                console.log('handleQuantityInput PREVENTING DECREASE');
                                 alert(
-                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                    );
                                 this.value = originalQuantity;
                                 return;
                             }
@@ -2414,9 +2539,6 @@
                                 '.material-serial-selects-container');
 
                             if (serialContainer) {
-                                console.log(
-                                    `Real-time updating serial selects for ${IS_PENDING ? 'pending' : 'in_progress'} assembly...`
-                                    );
                                 // Use debounced update to avoid excessive calls
                                 const debouncedUpdate = debounce(async () => {
                                     await updateSerialSelects(serialContainer,
@@ -2456,13 +2578,24 @@
 
             // Function to update serial selects based on quantity
             async function updateSerialSelects(container, newQuantity) {
-                console.log('=== UPDATE SERIAL SELECTS DEBUG ===');
-                console.log('Container:', container);
-                console.log('New quantity:', newQuantity);
+                // Check if this material should have consolidated serials
+                const materialRow = container.closest('tr');
+                const rowUnit = materialRow && materialRow.dataset ? materialRow.dataset.unit : '';
+                const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
+                const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
+                const volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'];
+                const consolidateUnits = [...lengthUnits, ...weightUnits, ...areaUnits, ...volumeUnits];
+                const shouldConsolidate = rowUnit && consolidateUnits.includes(rowUnit);
+                
+                if (shouldConsolidate) {
+                    return; // Skip creating individual serials for consolidated materials
+                }
 
                 // Limit quantity to prevent performance issues
                 if (newQuantity > MAX_PRODUCT_QUANTITY) {
-                    console.warn(`Quantity ${newQuantity} exceeds maximum ${MAX_PRODUCT_QUANTITY}, limiting...`);
+                    console.warn(
+                    `Quantity ${newQuantity} exceeds maximum ${MAX_PRODUCT_QUANTITY}, limiting...`);
                     newQuantity = MAX_PRODUCT_QUANTITY;
                     showQuantityLimitWarning();
                 }
@@ -2472,7 +2605,6 @@
 
                 // Nếu không có template, tạo một template mới
                 if (!template) {
-                    console.log('No template found, creating new template...');
                     template = document.createElement('select');
                     template.className =
                         'material-serial-select w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 block mb-2';
@@ -2500,13 +2632,10 @@
                     defaultOption.value = '';
                     defaultOption.textContent = '-- Chọn serial --';
                     template.appendChild(defaultOption);
-
-                    console.log('Created template with product-id:', productId, 'product-index:', productIndex);
                 }
 
                 // Check if warehouse has changed - if so, don't preserve existing serials
                 const warehouseChanged = container.hasAttribute('data-warehouse-changed');
-                console.log('Warehouse changed flag:', warehouseChanged);
 
                 // Lưu lại các giá trị serial đã chọn trước đó (chỉ khi warehouse không đổi)
                 const existingSerials = [];
@@ -2541,25 +2670,15 @@
                         const value = input.value.trim();
                         if (value && !existingSerials.includes(value)) {
                             existingSerials.push(value);
-                            console.log('Added missing serial from hidden input:', value);
                         }
                     });
                 } else {
-                    console.log('Warehouse changed - clearing existing serials');
                     // Clear the flag after processing
                     container.removeAttribute('data-warehouse-changed');
                 }
 
-                // Debug: log các giá trị đã lưu
-                console.log('Existing serials before update:', existingSerials);
-                console.log('Original serials:', originalSerials);
-
                 // Số lượng serial gốc (server render) cần giữ read-only
                 const originalCount = parseInt(container.getAttribute('data-original-count') || '0');
-
-                console.log('Existing serials before update:', existingSerials);
-                console.log('Original serials:', originalSerials);
-                console.log('Original count:', originalCount);
 
                 // Lưu lại các data attributes cần thiết từ template
                 const dataAttributes = {};
@@ -2591,8 +2710,6 @@
                     }
                 }
 
-                console.log('Material ID:', materialId, 'Warehouse ID:', warehouseId);
-
                 // Fetch available serials if we have material and warehouse info
                 let availableSerials = [];
                 if (materialId && warehouseId) {
@@ -2605,20 +2722,14 @@
                         if (resp.ok) {
                             const data = await resp.json();
                             availableSerials = Array.isArray(data.serials) ? data.serials : [];
-                            console.log('Fetched available serials:', availableSerials);
                         }
                     } catch (e) {
                         console.error('Error fetching serials:', e);
                     }
-                } else {
-                    console.log('No material or warehouse info available, using empty serial list');
                 }
 
                 // Xóa toàn bộ container cũ
                 container.innerHTML = '';
-
-                console.log('Creating serial elements for quantity:', newQuantity);
-                console.log('Existing serials:', existingSerials);
 
                 for (let i = 0; i < newQuantity; i++) {
                     // Xác định giá trị serial cần giữ lại
@@ -2641,14 +2752,9 @@
                         }
                     }
 
-                    console.log(
-                        `Index ${i}: existingValue="${existingValue}", isOriginalSerial=${isOriginalSerial}`
-                        );
-
                     // Với trạng thái in_progress, chỉ serial gốc là read-only
                     if (IS_IN_PROGRESS && isOriginalSerial) {
                         // Vị trí thuộc serial gốc: giữ read-only (chỉ cho in_progress)
-                        console.log(`Creating read-only serial for original index ${i}:`, existingValue);
                         const serialDiv = document.createElement('div');
                         serialDiv.className = 'mb-2';
                         // Tạo name cho hidden input
@@ -2664,18 +2770,13 @@
                             }
                         }
 
-                        serialDiv.innerHTML = `
-                            <div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-2 py-1 text-sm text-gray-600">
-                                ${existingValue}
-                            </div>
-                            <input type="hidden" name="${hiddenName}" value="${existingValue}">
-                        `;
-                        container.appendChild(serialDiv);
+                        // Don't create hidden input for existing serials to avoid duplicate serial errors
+                        // serialDiv.innerHTML = `
+                        //     <input type="hidden" name="${hiddenName}" value="${existingValue}">
+                        // `;
+                        // container.appendChild(serialDiv);
                     } else {
                         // Vị trí ngoài originalCount hoặc trạng thái pending: luôn là select editable
-                        console.log(
-                            `Creating editable serial select for index ${i} (pending: ${IS_PENDING}, in_progress: ${IS_IN_PROGRESS})`
-                            );
                         const newSelect = template.cloneNode(true);
 
                         // Tạo name mới cho serial select
@@ -2700,10 +2801,6 @@
                                 }
                             }
                         }
-
-
-                        // Debug: log name creation
-                        console.log(`Creating serial select name for index ${i}: ${newName}`);
 
                         if (newName) {
                             newSelect.name = newName;
@@ -2742,21 +2839,15 @@
                         // Giữ lại giá trị người dùng đã chọn nếu có
                         if (existingValue !== '') {
                             newSelect.value = existingValue;
-                            console.log(`Setting existing value for index ${i}:`, existingValue);
                         } else {
                             newSelect.value = '';
                         }
 
-                        // Debug: log giá trị cuối cùng của serial select
-                        console.log(`Final serial select ${i} value:`, newSelect.value, 'name:', newSelect
-                        .name);
                         newSelect.removeEventListener('change', handleSerialChange);
                         newSelect.addEventListener('change', handleSerialChange);
 
                         // Also add a custom change event listener for better form data synchronization
                         newSelect.addEventListener('change', function() {
-                            console.log('Custom serial change event for index', i, 'value:', this
-                            .value);
                             // Force update form data
                             setTimeout(() => {
                                 if (typeof updateFormData === 'function') {
@@ -2767,7 +2858,6 @@
 
                         // Also add input event listener for real-time validation
                         newSelect.addEventListener('input', function() {
-                            console.log('Serial input event triggered for:', this.value);
                             checkDuplicateSerialsRealTime();
                             // Update form data when serial input changes
                             if (typeof updateFormData === 'function') {
@@ -2783,7 +2873,6 @@
 
                         // Also add change event listener for better form data synchronization
                         newSelect.addEventListener('change', function() {
-                            console.log('Serial change event triggered for:', this.value);
                             // Update form data when serial changes
                             if (typeof updateFormData === 'function') {
                                 updateFormData();
@@ -2804,8 +2893,6 @@
                     }
                 }
 
-                console.log('Finished creating serial elements. Total created:', container.children.length);
-
                 // Đảm bảo rằng tất cả serial cũ đều có hidden input
                 const row = container.closest('tr');
                 if (row && originalSerials.length > 0) {
@@ -2815,23 +2902,20 @@
                         if (idx) {
                             const componentIndex = idx;
 
-                            // Tạo hidden input cho tất cả serial gốc chưa được sử dụng
-                            originalSerials.forEach((serial, index) => {
-                                const hiddenName = `components[${componentIndex}][serials][${index}]`;
-                                let existingHidden = container.querySelector(
-                                    `input[name="${hiddenName}"]`);
+                            // Don't create hidden inputs for original serials to avoid duplicate serial errors
+                            // originalSerials.forEach((serial, index) => {
+                            //     const hiddenName = `components[${componentIndex}][serials][${index}]`;
+                            //     let existingHidden = container.querySelector(
+                            //         `input[name="${hiddenName}"]`);
 
-                                if (!existingHidden) {
-                                    existingHidden = document.createElement('input');
-                                    existingHidden.type = 'hidden';
-                                    existingHidden.name = hiddenName;
-                                    existingHidden.value = serial;
-                                    container.appendChild(existingHidden);
-                                    console.log(
-                                        `Created hidden input for original serial ${index}: ${serial}`
-                                        );
-                                }
-                            });
+                            //     if (!existingHidden) {
+                            //         existingHidden = document.createElement('input');
+                            //         existingHidden.type = 'hidden';
+                            //         existingHidden.name = hiddenName;
+                            //         existingHidden.value = serial;
+                            //         container.appendChild(existingHidden);
+                            //     }
+                            // });
                         }
                     }
                 }
@@ -2848,8 +2932,6 @@
             function handleSerialChange() {
                 const selectedSerial = this.value;
                 this.dataset.currentSerial = selectedSerial;
-
-                console.log('Serial changed:', selectedSerial, 'for element:', this);
 
                 // Check for duplicates in real-time
                 checkDuplicateSerialsRealTime();
@@ -2869,8 +2951,6 @@
 
             // Function to fix serial select names
             function fixSerialSelectNames() {
-                console.log('=== FIXING SERIAL SELECT NAMES ===');
-
                 document.querySelectorAll('.material-serial-selects-container').forEach(container => {
                     const row = container.closest('tr');
                     if (row) {
@@ -2885,9 +2965,6 @@
                                     const correctName =
                                         `components[${componentIndex}][serials][${index}]`;
                                     if (select.name !== correctName) {
-                                        console.log(
-                                            `Fixing serial select name: ${select.name} -> ${correctName}`
-                                            );
                                         select.name = correctName;
                                     }
                                 });
@@ -2895,14 +2972,10 @@
                         }
                     }
                 });
-
-                console.log('Serial select names fixed');
             }
 
             // Function to ensure quantity inputs have correct values
             function fixQuantityInputs() {
-                console.log('=== FIXING QUANTITY INPUTS ===');
-
                 document.querySelectorAll('input[name*="components"][name*="quantity"]').forEach(quantityInput => {
                     const row = quantityInput.closest('tr');
                     if (row) {
@@ -2921,22 +2994,15 @@
                                 const originalQty = parseInt(quantityInput.dataset.originalQuantity || '0');
                                 // Respect minimum/original quantity, especially for in_progress
                                 const newQty = Math.max(actualQuantity, minAttr, originalQty);
-                                console.log(
-                                    `Fixing quantity input: ${currentQuantity} -> ${newQty} (serials: ${actualQuantity}) for ${quantityInput.name}`
-                                    );
                                 quantityInput.value = newQty;
                             }
                         }
                     }
                 });
-
-                console.log('Quantity inputs fixed');
             }
 
             // Function to update form data with current serial selections
             function updateFormData() {
-                console.log('=== UPDATING FORM DATA ===');
-
                 // Fix serial select names first
                 if (typeof fixSerialSelectNames === 'function') {
                     fixSerialSelectNames();
@@ -2958,24 +3024,14 @@
                             const quantity = parseInt(quantityInput.value) || 0;
                             const materialId = materialIdInput.value;
 
-                            console.log(
-                                `Updating form data for material ${materialId}, quantity: ${quantity}`);
-
                             // Get all serial selects and hidden inputs in this container
                             const serialSelects = container.querySelectorAll('.material-serial-select');
                             const hiddenInputs = container.querySelectorAll('input[name*="[serials]"]');
-
-                            console.log(
-                                `Found ${serialSelects.length} serial selects and ${hiddenInputs.length} hidden inputs`
-                                );
 
                             // Update serial selects
                             serialSelects.forEach((select, index) => {
                                 if (index < quantity) {
                                     const serialValue = select.value;
-                                    console.log(
-                                        `Serial ${index}: ${serialValue}, name: ${select.name}`);
-
                                     // Always ensure the select has the correct name with proper index
                                     const componentMatch = quantityInput.name.match(
                                         /components\[(\d+)\]/);
@@ -2984,21 +3040,16 @@
                                             `components[${componentMatch[1]}][serials][${index}]`;
                                         if (select.name !== correctName) {
                                             select.name = correctName;
-                                            console.log(
-                                                `Fixed name for serial ${index}: ${select.name}`
-                                                );
                                         }
                                     }
 
-                                    // Also update the value to ensure it's current
-                                    if (select.value !== serialValue) {
+                                    // Only update value if it's actually selected (not empty)
+                                    if (serialValue && serialValue.trim() !== '') {
                                         select.value = serialValue;
+                                    } else {
+                                        // Clear the value if no serial is selected
+                                        select.value = '';
                                     }
-
-                                    // Debug: log final state
-                                    console.log(
-                                        `Final serial select ${index}: name="${select.name}", value="${select.value}"`
-                                        );
                                 }
                             });
 
@@ -3006,10 +3057,6 @@
                             hiddenInputs.forEach((input, index) => {
                                 if (index < quantity) {
                                     const serialValue = input.value;
-                                    console.log(
-                                        `Hidden Serial ${index}: ${serialValue}, name: ${input.name}`
-                                        );
-
                                     // Ensure the hidden input has the correct name
                                     if (!input.name || !input.name.includes('[serials]')) {
                                         const componentMatch = quantityInput.name.match(
@@ -3017,15 +3064,8 @@
                                         if (componentMatch) {
                                             input.name =
                                                 `components[${componentMatch[1]}][serials][${index}]`;
-                                            console.log(`Fixed name for hidden serial ${index}:`,
-                                                input.name);
                                         }
                                     }
-
-                                    // Debug: log final state
-                                    console.log(
-                                        `Final hidden input ${index}: name="${input.name}", value="${input.value}"`
-                                        );
                                 }
                             });
 
@@ -3033,8 +3073,6 @@
                             const currentQuantity = parseInt(quantityInput.value) || 0;
                             if (currentQuantity !== quantity) {
                                 quantityInput.value = quantity;
-                                console.log(
-                                `Updated quantity input from ${currentQuantity} to ${quantity}`);
                             }
                         }
                     }
@@ -3048,8 +3086,6 @@
                         console.log(`Product quantity updated: ${originalValue} -> ${currentValue}`);
                     }
                 });
-
-                console.log('Form data update completed');
             }
 
             // Function to create a new serial select
@@ -3107,7 +3143,6 @@
 
                 // Also add input event listener for real-time updates
                 newSelect.addEventListener('input', function() {
-                    console.log('Serial input event triggered for:', this.value);
                     checkDuplicateSerialsRealTime();
                     updateFormData();
                 });
@@ -3200,8 +3235,6 @@
             // Add event listeners for existing component quantity inputs
             document.addEventListener('change', function(e) {
                 if (e.target.matches('input[name*="components"][name*="quantity"]')) {
-                    console.log('Global quantity change detected:', e.target.value, 'IS_IN_PROGRESS:',
-                        IS_IN_PROGRESS);
 
                     // If assembly is in progress, only allow increasing quantities
                     if (IS_IN_PROGRESS) {
@@ -3210,7 +3243,8 @@
 
                         if (newQuantity < originalQuantity) {
                             alert(
-                                'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                );
                             e.target.value = originalQuantity;
                             return;
                         }
@@ -3244,6 +3278,8 @@
                                 if (typeof checkDuplicateSerialsRealTime === 'function') {
                                     checkDuplicateSerialsRealTime();
                                 }
+                                // Validate total limits after quantity change
+                                validateTotalLimits();
                             }, 100);
                         }
                     }
@@ -3514,6 +3550,10 @@
                         });
                         select.addEventListener('change', function() {
                             component.warehouseId = this.value;
+                            // Read unit from row dataset in case component.unit is missing
+                            const row = cell.closest('tr');
+                            const rowUnit = row && row.dataset ? row.dataset.unit : '';
+                            component.unit = component.unit || rowUnit || component.materialUnit || '';
                             const serialCell = cell.parentElement.cells[5];
                             if (serialCell) addSerialInputsToCell(serialCell, component, index);
                         });
@@ -3527,6 +3567,97 @@
                                 '<div class="text-sm text-gray-400">Chọn kho để tải serial</div>';
                             return;
                         }
+
+                        // Check if this material has size/weight units that should be consolidated
+                        const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter',
+                            'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer',
+                            'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards',
+                            'yd'
+                        ];
+                        const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g',
+                            'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds',
+                            'lb', 'lbs', 'ounce', 'ounces', 'oz'
+                        ];
+                        const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2',
+                            'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer',
+                            'square kilometers', 'inch²', 'in²', 'square inch', 'square inches',
+                            'foot²', 'ft²', 'square foot', 'square feet'
+                        ];
+                        const volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3',
+                            'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml',
+                            'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts',
+                            'qt'
+                        ];
+                        const consolidateUnits = [...lengthUnits, ...weightUnits, ...areaUnits, ...
+                            volumeUnits
+                        ];
+                        // Normalize unit value from multiple sources
+                        const row = cell.closest('tr');
+                        const rowUnit = row && row.dataset ? row.dataset.unit : '';
+                        const unit = (component.unit || rowUnit || component.materialUnit || '').trim();
+                        const shouldConsolidate = unit && consolidateUnits.includes(unit);
+
+                        if (shouldConsolidate) {
+                            // For size/weight units, show consolidated serial dropdown
+                            const consolidatedDiv = document.createElement('div');
+                            consolidatedDiv.className = 'mb-2';
+
+                            const blueBox = document.createElement('div');
+                            blueBox.className = 'bg-blue-50 border border-blue-200 rounded-lg p-3';
+
+                            const titleDiv = document.createElement('div');
+                            titleDiv.className = 'text-sm font-medium text-blue-800 mb-2';
+                            titleDiv.textContent = `Serial gộp`;
+                            blueBox.appendChild(titleDiv);
+
+                            // Create single dropdown for consolidated serial
+                            const selectElement = document.createElement('select');
+                            selectElement.name = `components[${index}][serial]`;
+                            selectElement.className =
+                                'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                            selectElement.setAttribute('data-material-id', component.id);
+                            selectElement.setAttribute('data-component-index', index);
+
+                            // Add default option
+                            const defaultOption = document.createElement('option');
+                            defaultOption.value = '';
+                            defaultOption.textContent = '-- Chọn serial gộp --';
+                            selectElement.appendChild(defaultOption);
+
+                            // Load serials from warehouse
+                            try {
+                                // Get warehouse ID from the row's warehouse select
+                                const warehouseSelect = row.querySelector('.warehouse-select');
+                                const warehouseId = warehouseSelect ? warehouseSelect.value : component.warehouseId;
+                                
+                                const serials = await fetchMaterialSerials(component.id, warehouseId);
+                                serials.forEach(s => {
+                                    const option = document.createElement('option');
+                                    option.value = s.serial_number || s;
+                                    option.textContent = (s.serial_number || s);
+                                    if (component.serial === (s.serial_number || s)) {
+                                        option.selected = true;
+                                    }
+                                    selectElement.appendChild(option);
+                                });
+                            } catch (e) {
+                                console.error('Error loading serials:', e);
+                            }
+
+                            // Add event listener for select change
+                            selectElement.addEventListener('change', function() {
+                                component.serial = this.value;
+                                if (typeof checkDuplicateSerialsRealTime === 'function')
+                                    checkDuplicateSerialsRealTime();
+                            });
+
+                            blueBox.appendChild(selectElement);
+                            consolidatedDiv.appendChild(blueBox);
+                            cell.appendChild(consolidatedDiv);
+
+                            return; // Exit early for consolidated serials
+                        }
+
                         try {
                             const serials = await fetchMaterialSerials(component.id, component.warehouseId);
                             for (let i = 0; i < q; i++) {
@@ -3594,7 +3725,8 @@
                         
                         // Limit quantity to prevent performance issues
                         if (quantity > MAX_PRODUCT_QUANTITY) {
-                            console.warn(`Quantity ${quantity} exceeds maximum ${MAX_PRODUCT_QUANTITY}, limiting...`);
+                            console.warn(
+                                `Quantity ${quantity} exceeds maximum ${MAX_PRODUCT_QUANTITY}, limiting...`);
                             quantity = MAX_PRODUCT_QUANTITY;
                             showQuantityLimitWarning();
                         }
@@ -3882,8 +4014,11 @@
                                                 const idx = Date.now() + '' + unitIndex +
                                                     Math.random().toString(36).slice(2, 7);
                                                 const row = document.createElement('tr');
-                                                row.className =
-                                                    'component-row bg-white hover:bg-gray-50';
+                                                row.className = 'component-row bg-white hover:bg-gray-50';
+                                                // set unit for dynamic rows
+                                                if (m.unit) {
+                                                    row.setAttribute('data-unit', m.unit);
+                                                }
                                                 row.innerHTML = `
                                                     <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">
                                                         <input type=\"hidden\" name=\"components[${idx}][id]\" value=\"${m.id}\"> 
@@ -4182,7 +4317,8 @@
                             // If material already exists in the product, don't add it
                             if (materialExistsInProduct) {
                                 alert(
-                                    `Vật tư "${selectedMaterial.name}" đã tồn tại trong thành phẩm này.`);
+                                    `Vật tư "${selectedMaterial.name}" đã tồn tại trong thành phẩm này.`
+                                    );
                                 return;
                             }
 
@@ -4191,6 +4327,10 @@
                                     .slice(2, 7);
                                 const tr = document.createElement('tr');
                                 tr.className = 'component-row bg-white hover:bg-gray-50';
+                                // set unit for manually selected material
+                                if (selectedMaterial.unit) {
+                                    tr.setAttribute('data-unit', selectedMaterial.unit);
+                                }
                                 tr.innerHTML = `
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         <input type="hidden" name="components[${idx}][id]" value="${selectedMaterial.id}">
@@ -4247,7 +4387,8 @@
 
                                             if (newQuantity < originalQuantity) {
                                                 alert(
-                                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.');
+                                                    'Không thể giảm số lượng vật tư khi phiếu lắp ráp đang thực hiện. Chỉ được phép tăng số lượng.'
+                                                    );
                                                 this.value = originalQuantity;
                                                 return;
                                             }
@@ -4262,6 +4403,26 @@
                                                 setTimeout(() => updateCreateNewProductButton(
                                                     productId), 100);
                                             }
+                                        }
+
+                                        // Update consolidated serial title if exists
+                                        const componentIndex = this.name.match(/components\[([^\]]+)\]/)[1];
+                                        if (window.consolidatedSerials && window.consolidatedSerials[componentIndex]) {
+                                            const consolidated = window.consolidatedSerials[componentIndex];
+                                            const newQty = parseInt(this.value);
+                                            consolidated.titleElement.textContent = `Serial gộp`;
+                                            consolidated.component.quantity = newQty;
+                                        }
+
+                                        // Update serial inputs
+                                        const serialCell = tr.cells[5];
+                                        if (serialCell) {
+                                            const component = {
+                                                id: tr.querySelector('input[name*="[material_id]"]').value,
+                                                quantity: parseInt(this.value),
+                                                warehouseId: tr.querySelector('select[name*="[warehouse_id]"]').value
+                                            };
+                                            addSerialInputsToCellForAdd(serialCell, component, componentIndex);
                                         }
                                     });
                                 }
@@ -4424,6 +4585,47 @@
 
         // Thêm event listener cho warehouse select và material input để cập nhật serial khi thay đổi
         document.addEventListener('DOMContentLoaded', function() {
+            // Remove all hidden input serials to avoid duplicate serial errors
+            document.querySelectorAll('input[type="hidden"][name*="[serials]"]').forEach(input => {
+                input.remove();
+            });
+            
+            // Populate consolidated serial selects on page load
+            document.querySelectorAll('.consolidated-serial-select').forEach(async function(select) {
+                const materialId = select.getAttribute('data-material-id');
+                const warehouseId = select.getAttribute('data-current-warehouse');
+                
+                if (materialId && warehouseId) {
+                    try {
+                        const url = `{{ route('assemblies.material-serials') }}?` + new URLSearchParams({
+                            material_id: materialId,
+                            warehouse_id: warehouseId,
+                            assembly_id: document.getElementById('assembly_id')?.value || ''
+                        });
+                        const resp = await fetch(url);
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            const serials = Array.isArray(data.serials) ? data.serials : [];
+                            
+                            // Clear existing options except the first one
+                            while (select.children.length > 1) {
+                                select.removeChild(select.lastChild);
+                            }
+                            
+                            // Add serial options
+                            serials.forEach(serial => {
+                                const option = document.createElement('option');
+                                option.value = serial.serial_number || serial;
+                                option.textContent = serial.serial_number || serial;
+                                select.appendChild(option);
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Error loading serials for consolidated select:', e);
+                    }
+                }
+            });
+
             // Update form data periodically for pending assemblies to ensure data consistency
             if (IS_PENDING) {
                 setInterval(() => {
@@ -4435,19 +4637,121 @@
             // Warehouse change event
             document.querySelectorAll('.warehouse-select').forEach(select => {
                 select.addEventListener('change', async function() {
-                    console.log('Warehouse changed:', this.value);
                     const row = this.closest('tr');
                     const serialContainer = row.querySelector(
                         '.material-serial-selects-container');
+                    
+                    // Check if this row has consolidated serial select
+                    const consolidatedSelect = row.querySelector('.consolidated-serial-select');
+                    if (consolidatedSelect) {
+                        const materialId = consolidatedSelect.getAttribute('data-material-id');
+                        const warehouseId = this.value;
+                        
+                        if (materialId && warehouseId) {
+                            try {
+                                const url = `{{ route('assemblies.material-serials') }}?` + new URLSearchParams({
+                                    material_id: materialId,
+                                    warehouse_id: warehouseId,
+                                    assembly_id: document.getElementById('assembly_id')?.value || ''
+                                });
+                                const resp = await fetch(url);
+                                if (resp.ok) {
+                                    const data = await resp.json();
+                                    const serials = Array.isArray(data.serials) ? data.serials : [];
+                                    
+                                    // Clear existing options except the first one
+                                    while (consolidatedSelect.children.length > 1) {
+                                        consolidatedSelect.removeChild(consolidatedSelect.lastChild);
+                                    }
+                                    
+                                    // Clear current serial selection when warehouse changes
+                                    consolidatedSelect.value = '';
+                                    
+                                    // Add serial options
+                                    serials.forEach(serial => {
+                                        const option = document.createElement('option');
+                                        option.value = serial.serial_number || serial;
+                                        option.textContent = serial.serial_number || serial;
+                                        consolidatedSelect.appendChild(option);
+                                    });
+                                    
+                                    // Update data-warehouse-id attribute
+                                    consolidatedSelect.setAttribute('data-warehouse-id', warehouseId);
+                                }
+                            } catch (e) {
+                                console.error('Error updating consolidated serial select:', e);
+                            }
+                        }
+                        return; // Exit early for consolidated serials
+                    }
+
+                    // Handle individual serial selects
+                    if (serialContainer) {
+                        const materialIdInput = row.querySelector('input[name*="[material_id]"]');
+                        const materialId = materialIdInput ? materialIdInput.value : null;
+                        const warehouseId = this.value;
+                        
+                        if (materialId && warehouseId) {
+                            try {
+                                const url = `{{ route('assemblies.material-serials') }}?` + new URLSearchParams({
+                                    material_id: materialId,
+                                    warehouse_id: warehouseId,
+                                    assembly_id: document.getElementById('assembly_id')?.value || ''
+                                });
+                                const resp = await fetch(url);
+                                if (resp.ok) {
+                                    const data = await resp.json();
+                                    const serials = Array.isArray(data.serials) ? data.serials : [];
+                                    
+                                    // Clear all existing serial selects
+                                    serialContainer.innerHTML = '';
+                                    
+                                    // Get quantity
+                                    const quantityInput = row.querySelector('input[name*="[quantity]"]');
+                                    const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
+                                    
+                                    // Create new serial selects
+                                    for (let i = 0; i < quantity; i++) {
+                                        const select = document.createElement('select');
+                                        select.name = `components[${row.dataset.componentIndex || 0}][serials][]`;
+                                        select.className = 'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                                        select.setAttribute('data-serial-index', i);
+                                        select.setAttribute('data-material-id', materialId);
+                                        select.setAttribute('data-warehouse-id', warehouseId);
+                                        
+                                        // Add default option
+                                        const defaultOption = document.createElement('option');
+                                        defaultOption.value = '';
+                                        defaultOption.textContent = `-- Chọn serial ${i + 1} --`;
+                                        select.appendChild(defaultOption);
+                                        
+                                        // Add serial options
+                                        serials.forEach(serial => {
+                                            const option = document.createElement('option');
+                                            option.value = serial.serial_number || serial;
+                                            option.textContent = serial.serial_number || serial;
+                                            select.appendChild(option);
+                                        });
+                                        
+                                        // Add to container
+                                        const div = document.createElement('div');
+                                        div.className = 'mb-2';
+                                        div.appendChild(select);
+                                        serialContainer.appendChild(div);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error updating individual serial selects:', e);
+                            }
+                        }
+                        return; // Exit early for individual serials
+                    }
 
                     if (serialContainer && (IS_PENDING || IS_IN_PROGRESS)) {
                         // Lấy số lượng hiện tại
                         const quantityInput = row.querySelector('input[name*="[quantity]"]');
                         const currentQuantity = quantityInput ? parseInt(quantityInput.value) :
                             1;
-
-                        console.log('Updating serials after warehouse change, quantity:',
-                            currentQuantity);
 
                         // IMPORTANT: Clear existing serials when warehouse changes
                         // This ensures we don't keep old serials from previous warehouse
@@ -4458,7 +4762,6 @@
                             'input[name*="[warehouse_id]"]');
                         if (warehouseIdInput) {
                             warehouseIdInput.value = this.value;
-                            console.log('Updated hidden warehouse_id input to:', this.value);
                         }
 
                         // Use debounced update to avoid excessive calls
@@ -4513,7 +4816,6 @@
             // Material change event (for dynamically added materials)
             document.addEventListener('change', async function(e) {
                 if (e.target.name && e.target.name.includes('[material_id]')) {
-                    console.log('Material changed:', e.target.value);
                     const row = e.target.closest('tr');
                     const serialContainer = row.querySelector('.material-serial-selects-container');
                     const warehouseSelect = row.querySelector('.warehouse-select');
@@ -4524,8 +4826,6 @@
                         const quantityInput = row.querySelector('input[name*="[quantity]"]');
                         const currentQuantity = quantityInput ? parseInt(quantityInput.value) : 1;
 
-                        console.log('Updating serials after material change, quantity:',
-                            currentQuantity);
                         // Use debounced update to avoid excessive calls
                         const debouncedUpdate = debounce(async () => {
                             await updateSerialSelects(serialContainer, currentQuantity);
@@ -4576,7 +4876,6 @@
 
         // Đồng bộ hóa đơn vị vật tư khi trang đã tải xong
         setTimeout(function() {
-            console.log('Đồng bộ hóa đơn vị vật tư sau khi trang đã tải xong...');
             document.querySelectorAll('.product-unit-select').forEach(select => {
                 // Trigger change event to update styling
                 const event = new Event('change', {
@@ -4620,7 +4919,6 @@
             document.addEventListener('change', function(e) {
                 if (e.target.name && (e.target.name.includes('[serials]') || e.target.name.includes(
                         '[quantity]'))) {
-                    console.log('Global change event detected:', e.target.name, 'value:', e.target.value);
                     // Update form data when any serial or quantity changes
                     setTimeout(() => {
                         if (typeof fixSerialSelectNames === 'function') {
@@ -4639,7 +4937,6 @@
             const form = document.getElementById('assembly-form');
             if (form) {
                 form.addEventListener('submit', function(e) {
-                    console.log('=== FORM SUBMIT TRIGGERED ===');
                     // Synchronously normalize names/quantities and refresh hidden inputs
                     if (typeof fixSerialSelectNames === 'function') fixSerialSelectNames();
                     if (typeof fixQuantityInputs === 'function') fixQuantityInputs();
@@ -4648,28 +4945,6 @@
                     if (typeof fixSerialSelectNames === 'function') fixSerialSelectNames();
                     if (typeof fixQuantityInputs === 'function') fixQuantityInputs();
                     if (typeof updateFormData === 'function') updateFormData();
-
-                    // Debug: Log the final form data before submit
-                    console.log('=== FINAL FORM DATA DEBUG ===');
-                    const formData = new FormData(form);
-                    for (let [key, value] of formData.entries()) {
-                        if (key.includes('components') && (key.includes('quantity') || key.includes(
-                                'serials'))) {
-                            console.log(`Form field: ${key} = ${value}`);
-                        }
-                    }
-
-                    // Also log all serial selects and their values
-                    document.querySelectorAll('.material-serial-select').forEach((select, index) => {
-                        console.log(
-                            `Serial select ${index}: name="${select.name}", value="${select.value}"`
-                            );
-                    });
-
-                    // Serial validation is now optional - no validation required
-                    console.log('Serial validation skipped - serials are optional');
-
-                    console.log('Form validation passed, submitting...');
                 });
             }
         });
@@ -4707,6 +4982,10 @@
             });
             select.addEventListener('change', function() {
                 component.warehouseId = this.value;
+                // Read unit from row dataset in case component.unit is missing
+                const row = cell.closest('tr');
+                const rowUnit = row && row.dataset ? row.dataset.unit : '';
+                component.unit = component.unit || rowUnit || component.materialUnit || '';
                 const serialCell = cell.parentElement.cells[5];
                 if (serialCell) addSerialInputsToCellForAdd(serialCell, component, index);
             });
@@ -4719,8 +4998,87 @@
                 cell.innerHTML = '<div class="text-sm text-gray-400">Chọn kho để tải serial</div>';
                 return;
             }
+
+            // Check if this material has size/weight units that should be consolidated
+            const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter',
+                'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft',
+                'yard', 'yards', 'yd'
+            ];
+            const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram',
+                'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'
+            ];
+            const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter',
+                'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²',
+                'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'
+            ];
+            const volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter',
+                'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon',
+                'gallons', 'gal', 'quart', 'quarts', 'qt'
+            ];
+            const consolidateUnits = [...lengthUnits, ...weightUnits, ...areaUnits, ...volumeUnits];
+            const row = cell.closest('tr');
+            const rowUnit = row && row.dataset ? row.dataset.unit : '';
+            const unit = (component.unit || rowUnit || component.materialUnit || '').trim();
+            const shouldConsolidate = unit && consolidateUnits.includes(unit);
+
             try {
-                const serials = await fetchMaterialSerialsForAdd(component.id, component.warehouseId);
+                // Get warehouse ID from the row's warehouse select
+                const warehouseSelect = row.querySelector('.warehouse-select');
+                const warehouseId = warehouseSelect ? warehouseSelect.value : component.warehouseId;
+                
+                const serials = await fetchMaterialSerialsForAdd(component.id, warehouseId);
+
+                if (shouldConsolidate) {
+                    // For size/weight units, show consolidated serial dropdown
+                    const consolidatedDiv = document.createElement('div');
+                    consolidatedDiv.className = 'mb-2';
+
+                    const blueBox = document.createElement('div');
+                    blueBox.className = 'bg-blue-50 border border-blue-200 rounded-lg p-3';
+
+                    const titleDiv = document.createElement('div');
+                    titleDiv.className = 'text-sm font-medium text-blue-800 mb-2';
+                    titleDiv.textContent = `Serial gộp`;
+                    titleDiv.id = `consolidated-title-${index}`;
+                    blueBox.appendChild(titleDiv);
+
+                    const selectElement = document.createElement('select');
+                    selectElement.name = `components[${index}][serial]`;
+                    selectElement.className =
+                        'w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 material-serial-select';
+                    selectElement.setAttribute('data-material-id', component.id);
+                    selectElement.setAttribute('data-warehouse-id', component.warehouseId);
+                    selectElement.setAttribute('data-product-id', component.productId || '');
+                    selectElement.setAttribute('data-product-unit', component.productUnit || 0);
+
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = '-- Chọn serial gộp --';
+                    selectElement.appendChild(defaultOption);
+
+                    serials.forEach(s => {
+                        const option = document.createElement('option');
+                        option.value = s.serial_number;
+                        option.textContent = s.serial_number;
+                        selectElement.appendChild(option);
+                    });
+
+                    blueBox.appendChild(selectElement);
+                    consolidatedDiv.appendChild(blueBox);
+                    cell.appendChild(consolidatedDiv);
+
+                    // Store reference for quantity updates
+                    window.consolidatedSerials = window.consolidatedSerials || {};
+                    window.consolidatedSerials[index] = {
+                        titleElement: titleDiv,
+                        unit: unit,
+                        component: component
+                    };
+
+                    return; // Exit early for consolidated serials
+                }
+
+                // Original logic for individual serials
                 for (let i = 0; i < q; i++) {
                     const wrap = document.createElement('div');
                     wrap.className = 'mb-2 last:mb-0';
@@ -4930,6 +5288,15 @@
                     if (sel.options.length <= 1) primeSelect(sel);
                 });
             });
+        });
+
+        // Form submit validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            if (!validateTotalLimits()) {
+                e.preventDefault();
+                alert('❌ Vui lòng điều chỉnh số lượng để không vượt quá giới hạn!');
+                return false;
+            }
         });
     </script>
 </body>

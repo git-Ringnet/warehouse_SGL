@@ -129,6 +129,108 @@ class AssemblyController extends Controller
         $nid = $this->normalizeSerialId($rawSerialIds);
         return $nid ? [$nid] : [];
     }
+    
+    /**
+     * Check if a material unit should have consolidated serials (for size/weight units)
+     */
+    private function shouldConsolidateSerials($unit)
+    {
+        // Đơn vị chiều dài
+        $lengthUnits = [
+            'Mét', 'm', 'meter', 'meters',
+            'cm', 'centimeter', 'centimeters', 
+            'mm', 'millimeter', 'millimeters',
+            'km', 'kilometer', 'kilometers',
+            'inch', 'inches', 'in',
+            'foot', 'feet', 'ft',
+            'yard', 'yards', 'yd'
+        ];
+        
+        // Đơn vị khối lượng
+        $weightUnits = [
+            'Kg', 'kg', 'kilogram', 'kilograms',
+            'gram', 'grams', 'g',
+            'mg', 'milligram', 'milligrams',
+            'ton', 'tons', 't',
+            'pound', 'pounds', 'lb', 'lbs',
+            'ounce', 'ounces', 'oz'
+        ];
+        
+        // Đơn vị diện tích (có thể cần gộp serial)
+        $areaUnits = [
+            'm²', 'm2', 'square meter', 'square meters',
+            'cm²', 'cm2', 'square centimeter', 'square centimeters',
+            'km²', 'km2', 'square kilometer', 'square kilometers',
+            'inch²', 'in²', 'square inch', 'square inches',
+            'foot²', 'ft²', 'square foot', 'square feet'
+        ];
+        
+        // Đơn vị thể tích (có thể cần gộp serial)
+        $volumeUnits = [
+            'm³', 'm3', 'cubic meter', 'cubic meters',
+            'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters',
+            'liter', 'liters', 'l', 'L',
+            'ml', 'milliliter', 'milliliters',
+            'gallon', 'gallons', 'gal',
+            'quart', 'quarts', 'qt'
+        ];
+        
+        $consolidateUnits = array_merge($lengthUnits, $weightUnits, $areaUnits, $volumeUnits);
+        
+        return in_array($unit, $consolidateUnits);
+    }
+
+    /**
+     * Consolidate serials for materials with size/weight units
+     * Keep the same structure but consolidate serials within each component
+     */
+    private function consolidateSerialsForSizeWeightMaterials($components, $products)
+    {
+        $consolidatedComponents = [];
+
+        foreach ($components as $component) {
+            // Support both 'material_id' (edit form existing) and 'id' (newly added like create form)
+            $materialId = $component['material_id'] ?? $component['id'] ?? null;
+            if (!$materialId) {
+                $consolidatedComponents[] = $component;
+                continue;
+            }
+            $material = Material::find($materialId);
+            
+            if ($material && $this->shouldConsolidateSerials($material->unit)) {
+                // For size/weight units, consolidate serials but keep the same structure
+                $consolidatedComponent = $component;
+                
+                // Consolidate serials: if there are multiple serials, use the first one or combine them
+                $serials = $this->normalizeSerials($component['serials'] ?? []);
+                if (empty($serials) && isset($component['serial']) && $component['serial'] !== '') {
+                    $serials = [$component['serial']];
+                }
+                
+                // For consolidated serials, use the first serial or combine them
+                if (!empty($serials)) {
+                    $consolidatedComponent['serial'] = $serials[0]; // Use first serial
+                    $consolidatedComponent['serials'] = []; // Clear multiple serials
+                }
+                
+                // Consolidate serial IDs: use the first one
+                $serialIds = $this->normalizeSerialIds($component['serial_ids'] ?? ($component['serial_id'] ?? []));
+                if (!empty($serialIds)) {
+                    $consolidatedComponent['serial_id'] = $serialIds[0]; // Use first serial ID
+                    $consolidatedComponent['serial_ids'] = []; // Clear multiple serial IDs
+                }
+                
+                $consolidatedComponent['is_consolidated'] = true;
+                $consolidatedComponents[] = $consolidatedComponent;
+            } else {
+                // Keep non-consolidated components as is
+                $consolidatedComponents[] = $component;
+            }
+        }
+
+        return $consolidatedComponents;
+    }
+
     /**
      * Display a listing of the assemblies.
      */
@@ -267,14 +369,16 @@ class AssemblyController extends Controller
             $componentsData = json_decode($request->input('components_json'), true);
             if (is_array($componentsData)) {
                 $filteredComponents = array_values(array_filter($componentsData, function ($component) {
-                    return isset($component['id']) && $component['id'] && isset($component['warehouse_id']) && $component['warehouse_id'];
+                    $materialId = $component['material_id'] ?? $component['id'] ?? null;
+                    return $materialId && isset($component['warehouse_id']) && $component['warehouse_id'];
                 }));
                 $request->merge(['components' => $filteredComponents]);
             }
         } elseif ($request->has('components') && is_array($request->components)) {
             // Filter out non-material component rows (e.g., placeholders without warehouse)
             $filteredComponents = array_values(array_filter($request->components, function ($component) {
-                return isset($component['id']) && $component['id'] && isset($component['warehouse_id']) && $component['warehouse_id'];
+                $materialId = $component['material_id'] ?? $component['id'] ?? null;
+                return $materialId && isset($component['warehouse_id']) && $component['warehouse_id'];
             }));
             $request->merge(['components' => $filteredComponents]);
         }
@@ -310,6 +414,9 @@ class AssemblyController extends Controller
         try {
             $products = $request->products;
             $components = $request->components;
+            
+            // Consolidate serials for materials with size/weight units (Mét, Kg)
+            $components = $this->consolidateSerialsForSizeWeightMaterials($components, $products);
 
             // Validate serial numbers for products (only if serials are provided)
             foreach ($products as $productIndex => $productData) {
@@ -345,7 +452,7 @@ class AssemblyController extends Controller
 
             // Validate stock levels for all components
             foreach ($components as $component) {
-                $materialId = $component['id'];
+                $materialId = $component['material_id'] ?? $component['id'] ?? null;
                 $componentQty = intval($component['quantity']);
 
                 // Find the product this component belongs to
@@ -496,7 +603,7 @@ class AssemblyController extends Controller
                 // Create assembly material record for this specific unit
                 $assemblyMaterialData = [
                     'assembly_id' => $assembly->id,
-                    'material_id' => $component['id'],
+                    'material_id' => $component['material_id'] ?? $component['id'],
                     'target_product_id' => $componentProductId, // Link component to specific product
                     'product_unit' => $productUnit, // Store product unit for multi-unit assemblies
                     'quantity' => $componentQty,
@@ -876,14 +983,40 @@ class AssemblyController extends Controller
                     }
                 }
 
-                // Check for duplicate serials across different components for the same material
+                // Check for duplicate serials across different components for the same material and product unit
                 foreach ($allSerialsByMaterial as $materialId => $allSerials) {
-                    $uniqueSerials = array_unique($allSerials);
-                    if (count($allSerials) !== count($uniqueSerials)) {
-                        $materialName = $materialNames[$materialId];
-                        $duplicates = array_diff_assoc($allSerials, $uniqueSerials);
-                        $duplicateList = implode(', ', array_unique($duplicates));
-                        throw new \Exception("Phát hiện serial trùng lặp cho linh kiện '{$materialName}': {$duplicateList}. Mỗi serial chỉ có thể sử dụng một lần trong phiếu lắp ráp.");
+                    // Group by product unit for this material
+                    $serialsByProductUnit = [];
+                    foreach ($request->components as $component) {
+                        $componentMaterialId = $component['material_id'] ?? $component['id'] ?? null;
+                        if ($componentMaterialId == $materialId) {
+                            $productUnit = $component['product_unit'] ?? 0;
+                            if (!isset($serialsByProductUnit[$productUnit])) {
+                                $serialsByProductUnit[$productUnit] = [];
+                            }
+                            
+                            // Add serials from this component
+                            if (isset($component['serials']) && is_array($component['serials'])) {
+                                $filteredSerials = array_filter($component['serials'], function($serial) {
+                                    return !is_null($serial) && $serial !== '';
+                                });
+                                $serialsByProductUnit[$productUnit] = array_merge($serialsByProductUnit[$productUnit], $filteredSerials);
+                            }
+                            if (!empty($component['serial'])) {
+                                $serialsByProductUnit[$productUnit][] = $component['serial'];
+                            }
+                        }
+                    }
+                    
+                    // Check for duplicates within each product unit
+                    foreach ($serialsByProductUnit as $productUnit => $serials) {
+                        $uniqueSerials = array_unique($serials);
+                        if (count($serials) !== count($uniqueSerials)) {
+                            $materialName = $materialNames[$materialId];
+                            $duplicates = array_diff_assoc($serials, $uniqueSerials);
+                            $duplicateList = implode(', ', array_unique($duplicates));
+                            throw new \Exception("Phát hiện serial trùng lặp cho linh kiện '{$materialName}' (Đơn vị " . ($productUnit + 1) . "): {$duplicateList}. Mỗi serial chỉ có thể sử dụng một lần trong cùng đơn vị thành phẩm.");
+                        }
                     }
                 }
 
@@ -904,13 +1037,13 @@ class AssemblyController extends Controller
                         $existingMaterial = AssemblyMaterial::whereHas('assembly', function ($query) use ($assembly) {
                             $query->where('id', '!=', $assembly->id);
                         })
-                            ->where('material_id', $component['id'])
+                            ->where('material_id', $component['material_id'] ?? $component['id'])
                             ->where('serial', $component['serial'])
                             ->first();
 
                         if ($existingMaterial) {
                             $existingAssembly = Assembly::find($existingMaterial->assembly_id);
-                            $materialName = Material::find($component['id'])->name ?? 'Unknown';
+                            $materialName = Material::find($component['material_id'] ?? $component['id'])->name ?? 'Unknown';
                             throw new \Exception("Serial '{$component['serial']}' của linh kiện '{$materialName}' đã được sử dụng trong phiếu lắp ráp #{$existingAssembly->code}.");
                         }
                     }
@@ -1088,6 +1221,8 @@ class AssemblyController extends Controller
 
             // 6. Update or create component materials
             if ($request->components) {
+                // Consolidate serials for materials with size/weight units (Mét, Kg)
+                $request->merge(['components' => $this->consolidateSerialsForSizeWeightMaterials($request->components, $request->products)]);
                 foreach ($request->components as $componentIndex => $component) {
                     // Support both 'material_id' (edit form existing) and 'id' (newly added like create form)
                     $materialId = $component['material_id'] ?? $component['id'] ?? null;
