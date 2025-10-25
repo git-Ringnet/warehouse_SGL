@@ -138,7 +138,7 @@ class AssemblyController extends Controller
         // Đơn vị chiều dài
         $lengthUnits = [
             'Mét', 'm', 'meter', 'meters',
-            'cm', 'centimeter', 'centimeters', 
+            'cm', 'Cm', 'centimeter', 'centimeters', 
             'mm', 'millimeter', 'millimeters',
             'km', 'kilometer', 'kilometers',
             'inch', 'inches', 'in',

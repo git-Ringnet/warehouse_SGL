@@ -209,7 +209,7 @@
             const rowUnit = row.dataset ? row.dataset.unit : '';
             const consolidateUnits = [
                 'Mét', 'm', 'meter', 'meters',
-                'cm', 'centimeter', 'centimeters',
+                'cm', 'Cm', 'centimeter', 'centimeters',
                 'mm', 'millimeter', 'millimeters',
                 'km', 'kilometer', 'kilometers',
                 'inch', 'inches', 'in',
@@ -1132,6 +1132,7 @@
                                                                             'meter',
                                                                             'meters',
                                                                             'cm',
+                                                                            'Cm',
                                                                             'centimeter',
                                                                             'centimeters',
                                                                             'mm',
@@ -2581,7 +2582,7 @@
                 // Check if this material should have consolidated serials
                 const materialRow = container.closest('tr');
                 const rowUnit = materialRow && materialRow.dataset ? materialRow.dataset.unit : '';
-                const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
                 const weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'mg', 'milligram', 'milligrams', 'ton', 'tons', 't', 'pound', 'pounds', 'lb', 'lbs', 'ounce', 'ounces', 'oz'];
                 const areaUnits = ['m²', 'm2', 'square meter', 'square meters', 'cm²', 'cm2', 'square centimeter', 'square centimeters', 'km²', 'km2', 'square kilometer', 'square kilometers', 'inch²', 'in²', 'square inch', 'square inches', 'foot²', 'ft²', 'square foot', 'square feet'];
                 const volumeUnits = ['m³', 'm3', 'cubic meter', 'cubic meters', 'cm³', 'cm3', 'cubic centimeter', 'cubic centimeters', 'liter', 'liters', 'l', 'L', 'ml', 'milliliter', 'milliliters', 'gallon', 'gallons', 'gal', 'quart', 'quarts', 'qt'];
@@ -3569,7 +3570,7 @@
                         }
 
                         // Check if this material has size/weight units that should be consolidated
-                        const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter',
+                        const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter',
                             'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer',
                             'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards',
                             'yd'
@@ -5000,7 +5001,7 @@
             }
 
             // Check if this material has size/weight units that should be consolidated
-            const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter',
+            const lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter', 'centimeters', 'mm', 'millimeter',
                 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft',
                 'yard', 'yards', 'yd'
             ];
