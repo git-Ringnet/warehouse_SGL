@@ -218,17 +218,6 @@ class DispatchController extends Controller
             throw $e;
         }
 
-        // Kiểm tra user đăng nhập
-        if (!Auth::check()) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Vui lòng đăng nhập để tạo phiếu xuất kho');
-        }
-        
-        // Lấy employee ID từ user đang đăng nhập
-        // Nếu đang dùng guard 'employee' thì lấy trực tiếp, nếu không thì fallback về user ID
-        $employeeId = Auth::guard('employee')->id() ?? Auth::id();
-
         DB::beginTransaction();
 
         try {
@@ -349,7 +338,7 @@ class DispatchController extends Controller
                 'company_representative_id' => $request->company_representative_id,
                 'dispatch_note' => $request->dispatch_note,
                 'status' => 'pending',
-                'created_by' => $employeeId, // Lấy từ employee đang đăng nhập
+                'created_by' => Auth::id() ?? 1, // Default to user ID 1 if not authenticated
             ];
             Log::info('Creating dispatch with data:', $dispatchData);
 
@@ -2438,7 +2427,7 @@ class DispatchController extends Controller
                     ($dispatch->project_id && $dispatch->dispatch_type !== 'rental' ? " - Dự án: {$dispatch->project->project_name}" : "") .
                     ($dispatch->dispatch_type === 'rental' ? " - Cho thuê ID: {$dispatch->project_id}" : "") .
                     "\nBao gồm các sản phẩm: " . implode(', ', $allItemsInfo),
-                'created_by' => Auth::id(),
+                'created_by' => Auth::id() ?? 1,
                 'activated_at' => now(),
             ]);
 
