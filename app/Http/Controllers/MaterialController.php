@@ -1160,7 +1160,7 @@ class MaterialController extends Controller
                 'inventory_import_materials.quantity',
                 'inventory_import_materials.warehouse_id',
                 'warehouses.name as warehouse_name',
-                DB::raw("'Hệ thống' as user_name"),
+                DB::raw("'Hệ thống (Nhập kho tự động)' as user_name"),
                 DB::raw("'Nhập' as type"),
                 DB::raw("CASE WHEN inventory_import_materials.quantity > 0 THEN CONCAT('+', inventory_import_materials.quantity) ELSE inventory_import_materials.quantity END as formatted_quantity")
             ]);
@@ -1178,7 +1178,7 @@ class MaterialController extends Controller
         // Query lịch sử xuất kho
         $exportsQuery = \App\Models\DispatchItem::join('dispatches', 'dispatch_items.dispatch_id', '=', 'dispatches.id')
             ->leftJoin('warehouses', 'dispatch_items.warehouse_id', '=', 'warehouses.id')
-            ->leftJoin('users', 'dispatches.created_by', '=', 'users.id')
+            ->leftJoin('employees', 'dispatches.created_by', '=', 'employees.id')
             ->where('dispatch_items.item_id', $id)
             ->where('dispatch_items.item_type', 'material')
             ->whereIn('dispatches.status', ['approved', 'completed'])
@@ -1187,7 +1187,7 @@ class MaterialController extends Controller
                 'dispatch_items.quantity',
                 'dispatch_items.warehouse_id',
                 'warehouses.name as warehouse_name',
-                'users.name as user_name',
+                'employees.name as user_name',
                 DB::raw("'Xuất' as type"),
                 DB::raw("CASE WHEN dispatch_items.quantity > 0 THEN CONCAT('-', dispatch_items.quantity) ELSE dispatch_items.quantity END as formatted_quantity")
             ]);
