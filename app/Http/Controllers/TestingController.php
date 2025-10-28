@@ -460,17 +460,6 @@ class TestingController extends Controller
                 'errors' => ['receiver_id' => ['Trường Người tiếp nhận kiểm thử đang bị khóa.']]
             ], 422);
         }
-
-        // Debug: Log request data
-        Log::info('Testing update request', [
-            'request_data' => $request->all(),
-            'has_tester_id' => $request->has('tester_id'),
-            'has_assigned_to' => $request->has('assigned_to'),
-            'has_receiver_id' => $request->has('receiver_id'),
-            'has_test_date' => $request->has('test_date'),
-            'tester_id_value' => $request->get('tester_id'),
-            'assigned_to_value' => $request->get('assigned_to'),
-        ]);
         
         // Kiểm tra xem có phải là auto-save request không
         // Auto-save chỉ có item_results, test_results, test_notes mà không có thông tin cơ bản
@@ -908,10 +897,9 @@ class TestingController extends Controller
                 ]);
                 
                 foreach ($request->serial_results as $itemId => $serialResults) {
-                    Log::info('DEBUG: Xử lý serial_results cho item', [
-                        'item_id' => $itemId,
-                        'serial_results' => $serialResults
-                    ]);
+                    Log::info('DEBUG: Xử lý serial_results cho item');
+                    Log::info('item_id: ' . $itemId);
+                    Log::info('serial_results: ' . json_encode($serialResults));
                     
                     // PHÂN BIỆT RÕ RÀNG giữa 2 loại:
                     // 1. Thành phẩm: serial_results[item_id][label] - tìm theo item->id
@@ -954,16 +942,71 @@ class TestingController extends Controller
                             'old_serial_results' => $item->serial_results
                         ]);
                         
-                        // Chuẩn hóa giá trị serial_results
                         // Lưu ý: chỉ tự động chuyển 'pending' => 'pass' cho Vật tư/Hàng hóa (phiếu loại material)
                         // Thành phẩm (phiếu finished_product) giữ nguyên 'pending'
                         $normalizedSerialResults = [];
                         $shouldAutoPassPending = ($item->item_type === 'material') || ($item->item_type === 'product' && $testing->test_type === 'material');
+                        
+                        // Debug: Log request data for consolidated units
+                        if (!empty($serialResults)) {
+                            foreach ($serialResults as $key => $value) {
+                                if (strpos($key, 'consolidated_unit_') === 0) {
+                                    Log::info('DEBUG: Consolidated unit request', [
+                                        'item_id' => $item->id,
+                                        'material_id' => $item->material_id,
+                                        'key' => $key,
+                                        'value' => $value,
+                                        'all_serial_results' => $serialResults
+                                    ]);
+                                }
+                            }
+                        }
+                        
+                        // Kiểm tra có consolidated_unit_ keys không
+                        $hasConsolidated = false;
                         foreach ($serialResults as $label => $value) {
-                            if ($shouldAutoPassPending) {
-                                $normalizedSerialResults[$label] = ($value === 'pending' || $value === null || $value === '') ? 'pass' : $value;
-                            } else {
-                                $normalizedSerialResults[$label] = ($value === null || $value === '') ? 'pending' : $value;
+                            if (strpos($label, 'consolidated_unit_') === 0) {
+                                $hasConsolidated = true;
+                                break;
+                            }
+                        }
+                        
+                        if ($hasConsolidated && $item->item_type === 'material') {
+                            // Xử lý serial gộp - tạo kết quả cho tất cả số lượng
+                            $material = $item->material;
+                            if ($material) {
+                                $quantity = (int)($item->quantity ?? 0);
+                                
+                                // Lấy giá trị từ consolidated_unit_X (chỉ lấy giá trị đầu tiên tìm thấy)
+                                $consolidatedValue = 'pending';
+                                foreach ($serialResults as $label => $value) {
+                                    if (strpos($label, 'consolidated_unit_') === 0) {
+                                        $consolidatedValue = ($value === null || $value === '') ? 'pending' : $value;
+                                        break; // Chỉ lấy giá trị đầu tiên
+                                    }
+                                }
+                                
+                                // Tạo kết quả cho tất cả số lượng với cùng một giá trị
+                                // KHÔNG áp dụng shouldAutoPassPending cho serial gộp
+                                for ($i = 0; $i < $quantity; $i++) {
+                                    $normalizedSerialResults[chr(65 + $i)] = $consolidatedValue;
+                                }
+                                
+                                Log::info('DEBUG: Xử lý consolidated_unit', [
+                                    'item_id' => $item->id,
+                                    'quantity' => $quantity,
+                                    'consolidated_value' => $consolidatedValue,
+                                    'normalized_serial_results' => $normalizedSerialResults
+                                ]);
+                            }
+                        } else {
+                            // Xử lý serial thường
+                            foreach ($serialResults as $label => $value) {
+                                if ($shouldAutoPassPending) {
+                                    $normalizedSerialResults[$label] = ($value === 'pending' || $value === null || $value === '') ? 'pass' : $value;
+                                } else {
+                                    $normalizedSerialResults[$label] = ($value === null || $value === '') ? 'pending' : $value;
+                                }
                             }
                         }
 
@@ -2658,9 +2701,25 @@ class TestingController extends Controller
      */
     private function hasFailMaterials($testing)
     {
-        // Chỉ kiểm tra nếu có thành phẩm không đạt
+        // Kiểm tra nếu có thành phẩm không đạt dựa trên serial_results
         $failedProducts = $testing->items->where('item_type', 'product')->filter(function($item) {
-            return ($item->fail_quantity ?? 0) > 0;
+            if (empty($item->serial_results)) {
+                return false;
+            }
+            
+            $serialResults = json_decode($item->serial_results, true);
+            if (!is_array($serialResults)) {
+                return false;
+            }
+            
+            // Kiểm tra có ít nhất 1 serial fail không
+            foreach ($serialResults as $result) {
+                if ($result === 'fail') {
+                    return true;
+                }
+            }
+            
+            return false;
         });
         
         if ($failedProducts->isEmpty()) {
@@ -2673,45 +2732,66 @@ class TestingController extends Controller
                 $targetProductId = $failedProduct->product_id ?? $failedProduct->good_id;
                 if (!$targetProductId) continue;
                 
+                Log::info('DEBUG: Checking failed product', [
+                    'product_id' => $targetProductId,
+                    'serial_results' => $failedProduct->serial_results
+                ]);
+                
                 // Lấy vật tư từ assembly cho thành phẩm này
                 $assemblyMaterials = $testing->assembly->materials->where('target_product_id', $targetProductId);
                 
-                foreach ($assemblyMaterials as $assemblyMaterial) {
-                    $materialId = $assemblyMaterial->material_id;
-                    $assemblySerial = $assemblyMaterial->serial;
+                Log::info('DEBUG: Assembly materials found', [
+                    'count' => $assemblyMaterials->count(),
+                    'materials' => $assemblyMaterials->pluck('material_id')->toArray()
+                ]);
+                
+                // Lấy tất cả testing items cho materials này
+                $allTestingItems = $testing->items->where('item_type', 'material')
+                    ->sortBy('id')
+                    ->values();
+                
+                // Kiểm tra tất cả testing items xem có fail không
+                foreach ($allTestingItems as $testingItem) {
+                    $hasFail = false;
                     
-                    // Tìm testing item tương ứng theo material_id và serial
-                    $testingItem = $testing->items->where('item_type', 'material')
-                        ->where('material_id', $materialId)
-                        ->where('serial_number', $assemblySerial)
-                        ->first();
+                    Log::info('DEBUG: Checking testing item', [
+                        'material_id' => $testingItem->material_id,
+                        'testing_item_id' => $testingItem->id,
+                        'serial_results' => $testingItem->serial_results
+                    ]);
                     
-                    if ($testingItem) {
-                        $hasFail = false;
-                        
-                        // SỬA LỖI: Chỉ kiểm tra vật tư thực sự có fail
-                        // Kiểm tra serial_results của vật tư
-                        if (!empty($testingItem->serial_results)) {
-                            $serialResults = json_decode($testingItem->serial_results, true);
-                            if (is_array($serialResults)) {
-                                foreach ($serialResults as $result) {
-                                    if ($result === 'fail') {
-                                        $hasFail = true;
-                                        break;
-                                    }
+                    // Kiểm tra serial_results của vật tư
+                    if (!empty($testingItem->serial_results)) {
+                        $serialResults = json_decode($testingItem->serial_results, true);
+                        if (is_array($serialResults)) {
+                            foreach ($serialResults as $result) {
+                                if ($result === 'fail') {
+                                    $hasFail = true;
+                                    Log::info('DEBUG: Found fail in serial_results', [
+                                        'material_id' => $testingItem->material_id,
+                                        'result' => $result
+                                    ]);
+                                    break;
                                 }
                             }
                         }
-                        
-                        // Kiểm tra no_serial_fail_quantity của vật tư
-                        if ((int)($testingItem->no_serial_fail_quantity ?? 0) > 0) {
-                            $hasFail = true;
-                        }
-                        
-                        // Nếu có vật tư không đạt, trả về true
-                        if ($hasFail) {
-                            return true;
-                        }
+                    }
+                    
+                    // Kiểm tra no_serial_fail_quantity của vật tư
+                    if ((int)($testingItem->no_serial_fail_quantity ?? 0) > 0) {
+                        $hasFail = true;
+                        Log::info('DEBUG: Found fail in no_serial_fail_quantity', [
+                            'material_id' => $testingItem->material_id,
+                            'no_serial_fail_quantity' => $testingItem->no_serial_fail_quantity
+                        ]);
+                    }
+                    
+                    // Nếu có vật tư không đạt, trả về true
+                    if ($hasFail) {
+                        Log::info('DEBUG: Returning true - has fail materials', [
+                            'material_id' => $testingItem->material_id
+                        ]);
+                        return true;
                     }
                 }
             }
@@ -2973,9 +3053,11 @@ class TestingController extends Controller
                     $serialArray = array_filter($serialArray);
                     
                     // Nếu có serial_results, lọc serial theo kết quả tương ứng: success→pass, fail→fail
+                    $hasResultsMap = false;
                     if (!empty($item->serial_results)) {
                         $serialResults = json_decode($item->serial_results, true);
                         if (is_array($serialResults)) {
+                            $hasResultsMap = true;
                             $selected = [];
                             foreach ($serialArray as $index => $serial) {
                                 $label = chr(65 + $index);
@@ -2990,11 +3072,12 @@ class TestingController extends Controller
                                 'all' => $serialArray,
                                 'results' => $serialResults
                             ]);
-                            if (!empty($selected)) { $serialNumbers = $selected; }
+                            // Khi có serial_results, KHÔNG fallback toàn bộ; dùng đúng danh sách đã chọn (có thể rỗng)
+                            $serialNumbers = $selected;
                         }
                     }
-                    // Fallback: nếu chưa chọn được thì dùng toàn bộ serial hiện có
-                    if ($serialNumbers === null && count($serialArray) > 0) { $serialNumbers = $serialArray; }
+                    // Fallback CHỈ khi không có serial_results hợp lệ: dùng toàn bộ serial hiện có
+                    if (!$hasResultsMap && $serialNumbers === null && count($serialArray) > 0) { $serialNumbers = $serialArray; }
                 }
 
                 \App\Models\InventoryImportMaterial::create([
@@ -4206,31 +4289,58 @@ class TestingController extends Controller
                 continue;
             }
             
-            // Lấy tất cả units của thành phẩm này
-            $productUnits = $testing->assembly->materials
+            // Lấy tất cả materials của thành phẩm này
+            $allMaterials = $testing->assembly->materials
                 ->where('target_product_id', $targetProductId)
-                ->groupBy('product_unit');
+                ->sortBy('id')
+                ->values();
             
+            // Phân chia materials theo unit (dựa trên product_unit hoặc thứ tự)
             $unitResults = [];
             $totalPass = 0;
             $totalFail = 0;
             
-            // Tính toán từng unit riêng biệt
-            foreach ($productUnits as $unitIndex => $unitMaterials) {
-                // Lấy testing items cho unit này
+            // Logic: lấy materials theo thứ tự ID, 3 đầu tiên = unit 1, 3 sau = unit 2
+            $materialsPerUnit = 3; // Số materials mỗi unit
+            $totalUnits = ceil($allMaterials->count() / $materialsPerUnit);
+            
+            for ($unitIndex = 0; $unitIndex < $totalUnits; $unitIndex++) {
                 $unitTestingMaterials = collect();
-                foreach ($unitMaterials as $assemblyMaterial) {
+                
+                // Lấy materials cho unit này
+                $startIndex = $unitIndex * $materialsPerUnit;
+                $endIndex = min($startIndex + $materialsPerUnit, $allMaterials->count());
+                
+                Log::info('DEBUG: Processing unit', [
+                    'unit_index' => $unitIndex,
+                    'start_index' => $startIndex,
+                    'end_index' => $endIndex,
+                    'materials_per_unit' => $materialsPerUnit
+                ]);
+                
+                for ($i = $startIndex; $i < $endIndex; $i++) {
+                    $assemblyMaterial = $allMaterials[$i];
                     $materialId = $assemblyMaterial->material_id;
-                    $assemblySerial = $assemblyMaterial->serial;
                     
-                    $testingItem = $testing->items()
+                    // Lấy testing items cho material này
+                    $testingItems = $testing->items()
                         ->where('item_type', 'material')
                         ->where('material_id', $materialId)
-                        ->where('serial_number', $assemblySerial)
-                        ->first();
+                        ->get()
+                        ->sortBy('id')
+                        ->values();
                     
-                    if ($testingItem) {
+                    // Lấy testing item cho unit này (theo unit index)
+                    if ($testingItems->count() > $unitIndex) {
+                        $testingItem = $testingItems[$unitIndex];
                         $unitTestingMaterials->push($testingItem);
+                        
+                        Log::info('DEBUG: Added material to unit', [
+                            'unit_index' => $unitIndex,
+                            'material_id' => $materialId,
+                            'testing_item_id' => $testingItem->id,
+                            'serial_results' => $testingItem->serial_results
+                        ]);
                     }
                 }
                 
@@ -4300,7 +4410,7 @@ class TestingController extends Controller
                 'total_fail' => $totalFail,
                 'unit_results' => $unitResults,
                 'new_serial_results' => $newSerialResults,
-                'total_units' => count($productUnits)
+                'total_units' => $totalUnits
             ]);
         }
     }

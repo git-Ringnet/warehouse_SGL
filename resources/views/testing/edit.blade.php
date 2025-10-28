@@ -313,10 +313,17 @@
                                                     <span class="text-gray-700 font-medium">KẾT QUẢ:</span>
                                                     <div class="inline-flex items-center gap-2 ml-2">
                                                         @php
-                                                        $passQuantity = (int)($item->pass_quantity ?? 0);
-                                                        $failQuantity = (int)($item->fail_quantity ?? 0);
-                                                        $totalQuantity = (int)($item->quantity ?? 0);
+                                                        // Tính pass/fail từ serial_results thay vì pass_quantity/fail_quantity
                                                         $serialResults = json_decode($item->serial_results ?? '{}', true);
+                                                        $passQuantity = 0;
+                                                        $failQuantity = 0;
+                                                        if (is_array($serialResults)) {
+                                                            foreach ($serialResults as $val) {
+                                                                if ($val === 'pass') $passQuantity++;
+                                                                elseif ($val === 'fail') $failQuantity++;
+                                                            }
+                                                        }
+                                                        $totalQuantity = (int)($item->quantity ?? 0);
                                                     @endphp
                                                         
                                                         @if($passQuantity > 0 && $failQuantity > 0)
@@ -594,15 +601,20 @@
                                                             @foreach($unitMaterials as $rowIdx => $asmMaterial)
                                                                 @php
                                                                     $m = $asmMaterial->material;
-                                                                    // Tìm đúng testing item theo material_id và serial khớp
-                                                                    $testingItemRow = null;
+                                                                    // Lấy tất cả items có material_id khớp, sắp xếp theo ID
+                                                                    $allItems = collect($testingMaterialMap)->where('material_id', $asmMaterial->material_id)->sortBy('id')->values();
                                                                     $serialsRow = $asmMaterial->serial ? array_values(array_filter(array_map('trim', explode(',', $asmMaterial->serial)))) : [];
-                                                                    foreach ($testingMaterialMap as $tItem) {
-                                                                        if ($tItem->material_id == $asmMaterial->material_id) {
-                                                                            if (!empty($tItem->serial_number) && !empty($asmMaterial->serial)) {
-                                                                                $itemSerials = array_values(array_filter(array_map('trim', explode(',', $tItem->serial_number))));
-                                                                                if (count(array_intersect($itemSerials, $serialsRow)) > 0) { $testingItemRow = $tItem; break; }
-                                                                            } else { $testingItemRow = $tItem; break; }
+                                                                    
+                                                                    if ($unitIdx == 0) {
+                                                                        // Đơn vị thành phẩm 1: Lấy item đầu tiên
+                                                                        $testingItemRow = $allItems->first();
+                                                                    } else {
+                                                                        // Đơn vị thành phẩm 2: Lấy item thứ hai hoặc tạo mới
+                                                                        if ($allItems->count() > 1) {
+                                                                            $testingItemRow = $allItems[1];
+                                                                        } else {
+                                                                            // Tạo ID khác cho đơn vị thành phẩm 2
+                                                                            $testingItemRow = (object)['id' => 'unit2_' . $asmMaterial->material_id, 'serial_results' => ''];
                                                                         }
                                                                     }
                                                                 @endphp
@@ -613,34 +625,60 @@
                                                                     <td class="px-3 py-2 text-sm font-medium text-gray-900">{{ $m->name }}</td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">{{ $asmMaterial->quantity }}</td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
-                                                                        @if(count($serialsRow) > 0)
-                                                                            @php
-                                                                                $quantity = $asmMaterial->quantity ?? 0;
-                                                                                $serialCount = count($serialsRow);
-                                                                                $noSerialCount = $quantity - $serialCount;
-                                                                            @endphp
-                                                                            <div class="text-xs text-gray-700">
-                                                                                @foreach($serialsRow as $s)
-                                                                                    <div class="mb-0.5">{{ $s }}</div>
-                                                                                @endforeach
-                                                                                @for($i = 0; $i < $noSerialCount; $i++)
-                                                                                    <div class="mb-0.5 text-gray-400">N/A</div>
-                                                                                @endfor
-                                                                                <div class="text-gray-400">{{ $serialCount }} serial{{ $serialCount > 1 ? 's' : '' }}{{ $noSerialCount > 0 ? ', ' . $noSerialCount . ' N/A' : '' }}</div>
+                                                                        @php
+                                                                            // Check if this material should have consolidated serials
+                                                                            $shouldConsolidate = false;
+                                                                            $materialUnit = $m->unit ?? null;
+                                                                            
+                                                                            if ($materialUnit) {
+                                                                                $lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                                                                                $weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'pound', 'pounds', 'lb', 'lbs', 'ton', 'tons', 't'];
+                                                                                
+                                                                                $shouldConsolidate = in_array($materialUnit, $lengthUnits) || in_array($materialUnit, $weightUnits);
+                                                                            }
+                                                                        @endphp
+                                                                        
+                                                                        @if ($shouldConsolidate)
+                                                                            {{-- Hiển thị N/A cho serial gộp --}}
+                                                                            <div class="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                                                                                <div class="text-sm font-medium text-blue-800">
+                                                                                    N/A
+                                                                                </div>
+                                                                                <div class="text-xs text-blue-600 mt-1">
+                                                                                    <i class="fas fa-info-circle mr-1"></i>Serial gộp cho {{ $asmMaterial->quantity }} {{ $materialUnit }}
+                                                                                </div>
                                                                             </div>
                                                                         @else
-                                                                            @php
-                                                                                $quantity = $asmMaterial->quantity ?? 0;
-                                                                            @endphp
-                                                                            @if($quantity > 0)
+                                                                            {{-- Hiển thị serial thường --}}
+                                                                            @if(count($serialsRow) > 0)
+                                                                                @php
+                                                                                    $quantity = $asmMaterial->quantity ?? 0;
+                                                                                    $serialCount = count($serialsRow);
+                                                                                    $noSerialCount = $quantity - $serialCount;
+                                                                                @endphp
                                                                                 <div class="text-xs text-gray-700">
-                                                                                    @for($i = 0; $i < $quantity; $i++)
+                                                                                    @foreach($serialsRow as $s)
+                                                                                        <div class="mb-0.5">{{ $s }}</div>
+                                                                                    @endforeach
+                                                                                    @for($i = 0; $i < $noSerialCount; $i++)
                                                                                         <div class="mb-0.5 text-gray-400">N/A</div>
                                                                                     @endfor
-                                                                                    <div class="text-gray-400">{{ $quantity }} N/A</div>
+                                                                                    <div class="text-gray-400">{{ $serialCount }} serial{{ $serialCount > 1 ? 's' : '' }}{{ $noSerialCount > 0 ? ', ' . $noSerialCount . ' N/A' : '' }}</div>
                                                                                 </div>
                                                                             @else
-                                                                                N/A
+                                                                                @php
+                                                                                    $quantity = $asmMaterial->quantity ?? 0;
+                                                                                @endphp
+                                                                                @if($quantity > 0)
+                                                                                    <div class="text-xs text-gray-700">
+                                                                                        @for($i = 0; $i < $quantity; $i++)
+                                                                                            <div class="mb-0.5 text-gray-400">N/A</div>
+                                                                                        @endfor
+                                                                                        <div class="text-gray-400">{{ $quantity }} N/A</div>
+                                                                                    </div>
+                                                                                @else
+                                                                                    N/A
+                                                                                @endif
                                                                             @endif
                                                                         @endif
                                                                     </td>
@@ -653,41 +691,61 @@
                                                                     </td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
                                                                         @if($testing->status == 'in_progress')
-                                                                            <textarea name="item_notes[{{ $testingItemRow->id ?? $asmMaterial->material_id ?? 'unknown_' . $loop->index }}]" rows="1" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho vật tư này">{{ $testingItemRow->notes ?? ($asmMaterial->note ?? '') }}</textarea>
+                                                                            <textarea name="item_notes[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}]" rows="1" class="w-full border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" placeholder="Ghi chú cho vật tư này">{{ $testingItemRow->notes ?? ($asmMaterial->note ?? '') }}</textarea>
                                                                         @else
                                                                             {{ $asmMaterial->note ?? ($testingItemRow->notes ?? '') }}
                                                                         @endif
                                                                     </td>
                                                                     <td class="px-3 py-2 text-sm text-gray-700">
                                                                         @if($testing->status == 'in_progress')
-                                                                            @php
-                                                                                $quantity = $asmMaterial->quantity ?? 0;
-                                                                                $serialCount = count($serialsRow);
-                                                                                $noSerialCount = $quantity - $serialCount;
-                                                                            @endphp
-                                                                            @if($quantity > 0)
-                                                                                @php $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : []; @endphp
-                                                                                <div class="space-y-1">
-                                                                                    @for($i = 0; $i < $quantity; $i++)
-                                                                                        @php $label = chr(65 + $i); @endphp
-                                                                                        @if($i < $serialCount)
-                                                                                                <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
-                                                                                                <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                                                                                <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                                                                                <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                                                                                            </select>
-                                                                                        @else
-                                                                                            {{-- Thay N/A bằng dropdown Đạt/Không đạt cho vật tư trống Serial --}}
-                                                                                            <select name="serial_results[{{ $testingItemRow->id }}][{{ $label }}]" class="w-full h-8 border border-yellow-300 rounded px-2 text-xs bg-yellow-50">
-                                                                                                <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
-                                                                                                <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
-                                                                                                <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
-                                                                                            </select>
-                                                                                        @endif
-                                                                                    @endfor
+                                                                            @if ($shouldConsolidate)
+                                                                                {{-- Serial gộp cho materials có đơn vị length/weight --}}
+                                                                                @php 
+                                                                                    $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : [];
+                                                                                    // Cho serial gộp, lấy giá trị đầu tiên (A) vì tất cả đều có cùng giá trị
+                                                                                    $currentValue = $resultMapRow['A'] ?? 'pending';
+                                                                                @endphp
+                                                                                <div class="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                                                                                    <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][consolidated_unit_{{ $unitIdx }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                                        <option value="pending" {{ $currentValue == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                                        <option value="pass" {{ $currentValue == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                                        <option value="fail" {{ $currentValue == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                                                    </select>
+                                                                                    <div class="text-xs text-blue-600 mt-1">
+                                                                                        <i class="fas fa-info-circle mr-1"></i>Thao tác gộp cho {{ $asmMaterial->quantity }} {{ $materialUnit }}
+                                                                                    </div>
                                                                                 </div>
                                                                             @else
-                                                                                {{-- KHÔNG CẦN INPUT "SỐ LƯỢNG ĐẠT" CHO VẬT TƯ TRỐNG SERIAL NỮA --}}
+                                                                                {{-- Serial thường cho materials khác --}}
+                                                                                @php
+                                                                                    $quantity = $asmMaterial->quantity ?? 0;
+                                                                                    $serialCount = count($serialsRow);
+                                                                                    $noSerialCount = $quantity - $serialCount;
+                                                                                @endphp
+                                                                                @if($quantity > 0)
+                                                                                    @php $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : []; @endphp
+                                                                                    <div class="space-y-1">
+                                                                                        @for($i = 0; $i < $quantity; $i++)
+                                                                                            @php $label = chr(65 + $i); @endphp
+                                                                                            @if($i < $serialCount)
+                                                                                                    <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][{{ $label }}]" class="w-full h-8 border border-gray-300 rounded px-2 text-xs bg-white">
+                                                                                                    <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                                                    <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                                                    <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                                                                </select>
+                                                                                            @else
+                                                                                                {{-- Thay N/A bằng dropdown Đạt/Không đạt cho vật tư trống Serial --}}
+                                                                                                <select name="serial_results[{{ $testingItemRow ? $testingItemRow->id : ($asmMaterial->material_id ?? 'unknown_' . $loop->index) }}][{{ $label }}]" class="w-full h-8 border border-yellow-300 rounded px-2 text-xs bg-yellow-50">
+                                                                                                    <option value="pending" {{ ($resultMapRow[$label] ?? 'pending') == 'pending' ? 'selected' : '' }}>Chưa có</option>
+                                                                                                    <option value="pass" {{ ($resultMapRow[$label] ?? '') == 'pass' ? 'selected' : '' }}>Đạt</option>
+                                                                                                    <option value="fail" {{ ($resultMapRow[$label] ?? '') == 'fail' ? 'selected' : '' }}>Không đạt</option>
+                                                                                                </select>
+                                                                                            @endif
+                                                                                        @endfor
+                                                                                    </div>
+                                                                                @else
+                                                                                    {{-- KHÔNG CẦN INPUT "SỐ LƯỢNG ĐẠT" CHO VẬT TƯ TRỐNG SERIAL NỮA --}}
+                                                                                @endif
                                                                             @endif
                                                                         @else
                                                                             <span class="text-gray-400 text-xs">Chưa tiếp nhận</span>
@@ -1021,14 +1079,21 @@
                 }, 2000);
             }
 
-            // Attach event listeners to all relevant input fields for auto-save
-            form.querySelectorAll('input, select, textarea').forEach(element => {
-                element.addEventListener('input', triggerAutoSave);
-                element.addEventListener('change', triggerAutoSave); // For select elements
-            });
+            // TEMPORARILY DISABLE ALL AUTO-SAVE TO DEBUG CONSOLIDATED SERIAL ISSUE
+            // form.querySelectorAll('input, select, textarea').forEach(element => {
+            //     // Skip consolidated serial dropdowns to avoid overwriting correct values
+            //     if (element.name && element.name.includes('consolidated_unit_')) {
+            //         return; // Skip auto-save for consolidated serials
+            //     }
+            //     element.addEventListener('input', triggerAutoSave);
+            //     element.addEventListener('change', triggerAutoSave); // For select elements
+            // });
 
             // Initial call if form is already populated
             // triggerAutoSave(); // Maybe not needed on page load, only on changes
+            
+            // TEMPORARILY DISABLE AUTO-SAVE TO DEBUG CONSOLIDATED SERIAL ISSUE
+            console.log('Auto-save temporarily disabled for debugging');
         });
 
         function addTestItemForItem(itemId) {
@@ -1079,6 +1144,10 @@
 
                     // Re-attach event listeners for auto-save to new inputs
                     newItemDiv.querySelectorAll('input, select, textarea').forEach(element => {
+                        // Skip consolidated serial dropdowns to avoid overwriting correct values
+                        if (element.name && element.name.includes('consolidated_unit_')) {
+                            return; // Skip auto-save for consolidated serials
+                        }
                         element.addEventListener('input', triggerAutoSave);
                         element.addEventListener('change', triggerAutoSave);
                     });
