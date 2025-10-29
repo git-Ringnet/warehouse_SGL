@@ -631,7 +631,7 @@
                                                                             $materialUnit = $m->unit ?? null;
                                                                             
                                                                             if ($materialUnit) {
-                                                                                $lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
+                                                                                $lengthUnits = ['Mét', 'm', 'meter', 'meters', 'cm', 'Cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'km', 'Km', 'kilometer', 'kilometers', 'inch', 'inches', 'in', 'foot', 'feet', 'ft', 'yard', 'yards', 'yd'];
                                                                                 $weightUnits = ['Kg', 'kg', 'kilogram', 'kilograms', 'gram', 'grams', 'g', 'pound', 'pounds', 'lb', 'lbs', 'ton', 'tons', 't'];
                                                                                 
                                                                                 $shouldConsolidate = in_array($materialUnit, $lengthUnits) || in_array($materialUnit, $weightUnits);
