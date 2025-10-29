@@ -592,14 +592,27 @@ class TestingController extends Controller
                     
                     if ($testingItem) {
                         $quantity = (int)($testingItem->quantity ?? 0);
-                        $validSerialResults = array_filter($serialResults, function($result) {
-                            return !empty($result) && $result !== 'pending';
-                        });
-                        
-                        if (count($validSerialResults) > $quantity) {
+                        // Nếu có consolidated_unit_, đếm tối đa 1 mục cho consolidated và bỏ qua key consolidated khi đếm thường
+                        $hasConsolidated = false;
+                        foreach ($serialResults as $k => $v) {
+                            if (strpos($k, 'consolidated_unit_') === 0) { $hasConsolidated = true; break; }
+                        }
+
+                        $count = 0;
+                        if ($hasConsolidated) {
+                            foreach ($serialResults as $k => $v) {
+                                if (strpos($k, 'consolidated_unit_') === 0 && !empty($v) && $v !== 'pending') { $count = 1; break; }
+                            }
+                        } else {
+                            foreach ($serialResults as $k => $v) {
+                                if (!empty($v) && $v !== 'pending') { $count++; }
+                            }
+                        }
+
+                        if ($count > $quantity) {
                             $validator->errors()->add(
                                 "serial_results.{$itemId}", 
-                                "Số lượng serial có kết quả (" . count($validSerialResults) . ") không được vượt quá số lượng kiểm thử ({$quantity})"
+                                "Số lượng serial có kết quả (" . $count . ") không được vượt quá số lượng kiểm thử ({$quantity})"
                             );
                         }
                     }
