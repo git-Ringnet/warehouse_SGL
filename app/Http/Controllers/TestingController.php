@@ -4343,93 +4343,69 @@ class TestingController extends Controller
                 ->sortBy('id')
                 ->values();
             
-            // Phân chia materials theo unit (dựa trên product_unit hoặc thứ tự)
+            // Phân chia materials theo unit (ưu tiên product_unit, nếu thiếu thì round-robin theo productQuantity)
             $unitResults = [];
             $totalPass = 0;
             $totalFail = 0;
-            
-            // Logic: lấy materials theo thứ tự ID, 3 đầu tiên = unit 1, 3 sau = unit 2
-            $materialsPerUnit = 3; // Số materials mỗi unit
-            $totalUnits = ceil($allMaterials->count() / $materialsPerUnit);
-            
+            $totalUnits = max(1, (int)$productQuantity);
+
+            // Xây map unit -> danh sách AssemblyMaterial
+            $hasExplicitUnit = $allMaterials->contains(function($am){ return $am->product_unit !== null; });
+            $unitToAssemblyMaterials = array_fill(0, $totalUnits, collect());
+            if ($hasExplicitUnit) {
+                foreach ($allMaterials as $am) {
+                    $u = (int)($am->product_unit ?? 0);
+                    if ($u < 0) { $u = 0; }
+                    if ($u >= $totalUnits) { $u = $totalUnits - 1; }
+                    $unitToAssemblyMaterials[$u]->push($am);
+                }
+            } else {
+                $cursor = 0;
+                foreach ($allMaterials as $am) {
+                    $u = $cursor % $totalUnits; // round-robin
+                    $unitToAssemblyMaterials[$u]->push($am);
+                    $cursor++;
+                }
+            }
+
+            // Với từng unit, gom TestingItem tương ứng rồi quyết định pass/fail
             for ($unitIndex = 0; $unitIndex < $totalUnits; $unitIndex++) {
-                $unitTestingMaterials = collect();
-                
-                // Lấy materials cho unit này
-                $startIndex = $unitIndex * $materialsPerUnit;
-                $endIndex = min($startIndex + $materialsPerUnit, $allMaterials->count());
-                
-                Log::info('DEBUG: Processing unit', [
-                    'unit_index' => $unitIndex,
-                    'start_index' => $startIndex,
-                    'end_index' => $endIndex,
-                    'materials_per_unit' => $materialsPerUnit
-                ]);
-                
-                for ($i = $startIndex; $i < $endIndex; $i++) {
-                    $assemblyMaterial = $allMaterials[$i];
+                $assemblyList = $unitToAssemblyMaterials[$unitIndex];
+                if ($assemblyList->isEmpty()) { $unitResults[$unitIndex] = 'pass'; $totalPass++; continue; }
+
+                $unitHasFail = false;
+                foreach ($assemblyList as $assemblyMaterial) {
                     $materialId = $assemblyMaterial->material_id;
-                    
-                    // Lấy testing items cho material này
+                    // Lấy testing items cho material này, theo thứ tự tạo
                     $testingItems = $testing->items()
                         ->where('item_type', 'material')
                         ->where('material_id', $materialId)
+                        ->orderBy('id')
                         ->get()
-                        ->sortBy('id')
                         ->values();
-                    
-                    // Lấy testing item cho unit này (theo unit index)
-                    if ($testingItems->count() > $unitIndex) {
-                        $testingItem = $testingItems[$unitIndex];
-                        $unitTestingMaterials->push($testingItem);
-                        
-                        Log::info('DEBUG: Added material to unit', [
-                            'unit_index' => $unitIndex,
-                            'material_id' => $materialId,
-                            'testing_item_id' => $testingItem->id,
-                            'serial_results' => $testingItem->serial_results
-                        ]);
-                    }
-                }
-                
-                if ($unitTestingMaterials->isEmpty()) {
-                    continue;
-                }
-                
-                // Kiểm tra xem có vật tư nào không đạt trong unit này không
-                $unitHasFail = false;
-                
-                foreach ($unitTestingMaterials as $material) {
-                    // Kiểm tra serial_results của vật tư
-                    if (!empty($material->serial_results)) {
-                        $materialSerialResults = json_decode($material->serial_results, true);
+
+                    if ($testingItems->isEmpty()) { continue; }
+
+                    // Chọn item tương ứng unit (nếu thiếu thì lấy cuối cùng)
+                    $ti = $testingItems->get($unitIndex, $testingItems->last());
+
+                    if (!empty($ti->serial_results)) {
+                        $materialSerialResults = json_decode($ti->serial_results, true);
                         if (is_array($materialSerialResults)) {
-                            foreach ($materialSerialResults as $result) {
-                                if ($result === 'fail') {
-                                    $unitHasFail = true;
-                                    break 2; // Break cả 2 vòng lặp
-                                }
+                            foreach ($materialSerialResults as $res) {
+                                if ($res === 'fail') { $unitHasFail = true; break; }
                             }
                         }
                     }
-                    
-                    // Kiểm tra no_serial quantities của vật tư
-                    $noSerialFail = (int)($material->no_serial_fail_quantity ?? 0);
-                    if ($noSerialFail > 0) {
-                        $unitHasFail = true;
-                        break;
+                    if (!$unitHasFail) {
+                        $noSerialFail = (int)($ti->no_serial_fail_quantity ?? 0);
+                        if ($noSerialFail > 0) { $unitHasFail = true; }
                     }
+                    if ($unitHasFail) { break; }
                 }
-                
-                // Kết quả cho unit này
-                $unitResult = $unitHasFail ? 'fail' : 'pass';
-                $unitResults[$unitIndex] = $unitResult;
-                
-                if ($unitHasFail) {
-                    $totalFail++;
-                } else {
-                    $totalPass++;
-                }
+
+                $unitResults[$unitIndex] = $unitHasFail ? 'fail' : 'pass';
+                if ($unitHasFail) { $totalFail++; } else { $totalPass++; }
             }
             
             // Tạo serial_results mới dựa trên kết quả từng unit
