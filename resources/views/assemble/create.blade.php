@@ -1845,11 +1845,12 @@
                             return;
                         }
                         
-                        if (projectedTotalMaterials > 1000) {
-                            alert(`Tổng số lượng vật tư sẽ vượt quá giới hạn 1000! Dự kiến: ${projectedTotalMaterials}`);
-                            this.value = product.quantity; // Revert to original value
-                            return;
-                        }
+                        // Removed materials quantity limit check
+                        // if (projectedTotalMaterials > 1000) {
+                        //     alert(`Tổng số lượng vật tư sẽ vượt quá giới hạn 1000! Dự kiến: ${projectedTotalMaterials}`);
+                        //     this.value = product.quantity; // Revert to original value
+                        //     return;
+                        // }
 
                         // Clear validation styling
                         this.setCustomValidity('');
@@ -2278,28 +2279,29 @@
                     }
                 });
                 
-                if (projectedTotalMaterials > 1000) {
-                    // Show warning and prevent loading
-                    const warning = document.createElement('div');
-                    warning.id = 'projected-limit-warning';
-                    warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
-                    warning.innerHTML = `
-                        <strong>Cảnh báo:</strong> Tổng số lượng vật tư dự kiến (${projectedTotalMaterials}) vượt quá giới hạn 1000. 
-                        Vui lòng giảm số lượng thành phẩm để có thể tiếp tục.
-                    `;
-                    
-                    // Remove existing warning
-                    const existingWarning = document.getElementById('projected-limit-warning');
-                    if (existingWarning) {
-                        existingWarning.remove();
-                    }
-                    
-                    // Insert warning before product list
-                    document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
-                    
-                    console.log('Blocked updateComponentQuantities due to projected limit:', projectedTotalMaterials);
-                    return; // Exit early, don't process components
-                }
+                // Removed materials quantity limit check
+                // if (projectedTotalMaterials > 1000) {
+                //     // Show warning and prevent loading
+                //     const warning = document.createElement('div');
+                //     warning.id = 'projected-limit-warning';
+                //     warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                //     warning.innerHTML = `
+                //         <strong>Cảnh báo:</strong> Tổng số lượng vật tư dự kiến (${projectedTotalMaterials}) vượt quá giới hạn 1000. 
+                //         Vui lòng giảm số lượng thành phẩm để có thể tiếp tục.
+                //     `;
+                //     
+                //     // Remove existing warning
+                //     const existingWarning = document.getElementById('projected-limit-warning');
+                //     if (existingWarning) {
+                //         existingWarning.remove();
+                //     }
+                //     
+                //     // Insert warning before product list
+                //     document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
+                //     
+                //     console.log('Blocked updateComponentQuantities due to projected limit:', projectedTotalMaterials);
+                //     return; // Exit early, don't process components
+                // }
                 
                 // Remove warning if within limits
                 const existingWarning = document.getElementById('projected-limit-warning');
@@ -5497,33 +5499,34 @@
                     productWarning.remove();
                 }
                 
-                if (totalMaterials > 1000) {
-                    if (!materialWarning) {
-                        const warning = document.createElement('div');
-                        warning.id = 'material-limit-warning';
-                        warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
-                        warning.innerHTML = `
-                            <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn 1000. 
-                            Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
-                        `;
-                        const productWarningEl = document.getElementById('product-limit-warning');
-                        if (productWarningEl) {
-                            productWarningEl.parentNode.insertBefore(warning, productWarningEl.nextSibling);
-                        } else {
-                            document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
-                        }
-                    } else {
-                        materialWarning.innerHTML = `
-                            <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn 1000. 
-                            Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
-                        `;
-                    }
-                } else if (materialWarning) {
-                    materialWarning.remove();
-                }
+                // Materials quantity limit check removed - no longer enforcing 1000 limit
+                // if (totalMaterials > 1000) {
+                //     if (!materialWarning) {
+                //         const warning = document.createElement('div');
+                //         warning.id = 'material-limit-warning';
+                //         warning.className = stone bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+                //         warning.innerHTML = `
+                //             <strong>Cảnh báo:</strong> Tổng số lượng vật tư Assurance(${AcrossMaterials}) vượt quá giới hạn 1000. 
+                //             Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+                //         `;
+                //         const productWarningEl = document.getElementById('product-limit-warning');
+                //         if (productWarningEl) {
+                //             productWarningEl.parentNode.insertBefore(warning, productWarningEl.nextSibling);
+                //         } else {
+                //             document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById('product_list'));
+                //         }
+                //     } else {
+                //         materialWarning.innerHTML = `
+                //             <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn 1000. 
+                //             Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+                //         `;
+                //     }
+                // } else if (materialWarning) {
+                //     materialWarning.remove();
+                // }
                 
-                // Return validation result
-                return totalProducts <= 50 && totalMaterials <= 1000;
+                // Return validation result (removed materials limit check)
+                return totalProducts <= 50;
             }
 
             // Simple cache and in-flight dedup for serial fetching on create page

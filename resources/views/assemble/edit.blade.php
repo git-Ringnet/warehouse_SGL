@@ -23,7 +23,7 @@
 
         // Maximum allowed total quantities to prevent performance issues
         const MAX_TOTAL_PRODUCTS = 50;
-        const MAX_TOTAL_MATERIALS = 1000;
+        const MAX_TOTAL_MATERIALS = Number.MAX_SAFE_INTEGER; // No limit on materials quantity
         const MAX_PRODUCT_QUANTITY = 50; // Add missing constant
         
         // Function to validate and limit product quantity
@@ -39,7 +39,7 @@
             return value;
         }
         
-        // Function to validate total limits (products ≤ 50, materials ≤ 1000)
+        // Function to validate total limits (products ≤ 50, no limit on materials)
         function validateTotalLimits() {
             let totalProducts = 0;
             let totalMaterials = 0;
@@ -84,34 +84,35 @@
                 productWarning.remove();
             }
             
-            if (totalMaterials > MAX_TOTAL_MATERIALS) {
-                if (!materialWarning) {
-                    const warning = document.createElement('div');
-                    warning.id = 'material-limit-warning';
-                    warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
-                    warning.innerHTML = `
-                        <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn ${MAX_TOTAL_MATERIALS}. 
-                        Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
-                    `;
-                    const productWarningEl = document.getElementById('product-limit-warning');
-                    if (productWarningEl) {
-                        productWarningEl.parentNode.insertBefore(warning, productWarningEl.nextSibling);
-                    } else {
-                        document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById(
-                            'product_list'));
-                    }
-                } else {
-                    materialWarning.innerHTML = `
-                        <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn ${MAX_TOTAL_MATERIALS}. 
-                        Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
-                    `;
-                }
-            } else if (materialWarning) {
-                materialWarning.remove();
-            }
+            // Materials quantity limit check removed - no longer enforcing limit
+            // if (totalMaterials > MAX_TOTAL_MATERIALS) {
+            //     if (!materialWarning) {
+            //         const warning = document.createElement('div');
+            //         warning.id = 'material-limit-warning';
+            //         warning.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4';
+            //         warning.innerHTML = `
+            //             <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn ${MAX_TOTAL_MATERIALS}. 
+            //             Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+            //         `;
+            //         const productWarningEl = document.getElementById('product-limit-warning');
+            //         if (productWarningEl) {
+            //             productWarningEl.parentNode.insertBefore(warning, productWarningEl.nextSibling);
+            //         } else {
+            //             document.getElementById('product_list').parentNode.insertBefore(warning, document.getElementById(
+            //                 'product_list'));
+            //         }
+            //     } else {
+            //         materialWarning.innerHTML = `
+            //             <strong>Cảnh báo:</strong> Tổng số lượng vật tư (${totalMaterials}) vượt quá giới hạn ${MAX_TOTAL_MATERIALS}. 
+            //             Vui lòng giảm số lượng thành phẩm để có thể tạo phiếu.
+            //         `;
+            //     }
+            // } else if (materialWarning) {
+            //     materialWarning.remove();
+            // }
             
-            // Return validation result
-            return totalProducts <= MAX_TOTAL_PRODUCTS && totalMaterials <= MAX_TOTAL_MATERIALS;
+            // Return validation result (removed materials limit check)
+            return totalProducts <= MAX_TOTAL_PRODUCTS;
         }
 
         // Function to show quantity limit warning
