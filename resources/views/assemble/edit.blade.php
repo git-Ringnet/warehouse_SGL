@@ -4592,41 +4592,70 @@
                 input.remove();
             });
             
-            // Populate consolidated serial selects on page load
-            document.querySelectorAll('.consolidated-serial-select').forEach(async function(select) {
-                const materialId = select.getAttribute('data-material-id');
-                const warehouseId = select.getAttribute('data-current-warehouse');
+            // Populate consolidated serial selects with rate limiting to prevent ERR_INSUFFICIENT_RESOURCES
+            // Fetch serials with batching to avoid overwhelming the browser
+            const consolidatedSelects = document.querySelectorAll('.consolidated-serial-select');
+            const MATERIALS_THRESHOLD = 100; // If more than 100 materials, use lazy loading only
+            
+            // For large assemblies, skip automatic loading entirely to prevent ERR_INSUFFICIENT_RESOURCES
+            if (consolidatedSelects.length <= MATERIALS_THRESHOLD) {
+                const BATCH_SIZE = 5; // Fetch 5 at a time
+                const DELAY_BETWEEN_BATCHES = 100; // 100ms delay between batches
                 
-                if (materialId && warehouseId) {
-                    try {
-                        const url = `{{ route('assemblies.material-serials') }}?` + new URLSearchParams({
-                            material_id: materialId,
-                            warehouse_id: warehouseId,
-                            assembly_id: document.getElementById('assembly_id')?.value || ''
-                        });
-                        const resp = await fetch(url);
-                        if (resp.ok) {
-                            const data = await resp.json();
-                            const serials = Array.isArray(data.serials) ? data.serials : [];
-                            
-                            // Clear existing options except the first one
-                            while (select.children.length > 1) {
-                                select.removeChild(select.lastChild);
+                async function fetchSerialsInBatches() {
+                for (let i = 0; i < consolidatedSelects.length; i += BATCH_SIZE) {
+                    const batch = Array.from(consolidatedSelects).slice(i, i + BATCH_SIZE);
+                    
+                    // Process batch in parallel with Promise.allSettled to handle failures gracefully
+                    await Promise.allSettled(batch.map(async function(select) {
+                        const materialId = select.getAttribute('data-material-id');
+                        const warehouseId = select.getAttribute('data-current-warehouse');
+                        
+                        if (materialId && warehouseId) {
+                            try {
+                                const url = `{{ route('assemblies.material-serials') }}?` + new URLSearchParams({
+                                    material_id: materialId,
+                                    warehouse_id: warehouseId,
+                                    assembly_id: document.getElementById('assembly_id')?.value || ''
+                                });
+                                const resp = await fetch(url);
+                                if (resp.ok) {
+                                    const data = await resp.json();
+                                    const serials = Array.isArray(data.serials) ? data.serials : [];
+                                    
+                                    // Clear existing options except the first one
+                                    while (select.children.length > 1) {
+                                        select.removeChild(select.lastChild);
+                                    }
+                                    
+                                    // Add serial options
+                                    serials.forEach(serial => {
+                                        const option = document.createElement('option');
+                                        option.value = serial.serial_number || serial;
+                                        option.textContent = serial.serial_number || serial;
+                                        select.appendChild(option);
+                                    });
+                                }
+                            } catch (e) {
+                                console.error('Error loading serials for consolidated select:', e);
                             }
-                            
-                            // Add serial options
-                            serials.forEach(serial => {
-                                const option = document.createElement('option');
-                                option.value = serial.serial_number || serial;
-                                option.textContent = serial.serial_number || serial;
-                                select.appendChild(option);
-                            });
                         }
-                    } catch (e) {
-                        console.error('Error loading serials for consolidated select:', e);
+                    }));
+                    
+                    // Add delay between batches if there are more batches to process
+                    if (i + BATCH_SIZE < consolidatedSelects.length) {
+                        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
                     }
                 }
-            });
+            }
+            
+                // Run the batched fetching
+                fetchSerialsInBatches();
+            } else {
+                // For large assemblies (>100 materials), skip automatic serial loading to prevent browser overload
+                // Serials will be loaded on-demand when user interacts with the selects
+                console.log(`Large assembly detected (${consolidatedSelects.length} materials). Using lazy loading for serials to prevent ERR_INSUFFICIENT_RESOURCES.`);
+            }
 
             // Update form data periodically for pending assemblies to ensure data consistency
             if (IS_PENDING) {
@@ -5282,14 +5311,51 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('.material-serial-select').forEach(sel => {
-                // Prime immediately
-                primeSelect(sel);
-                // Also lazy-load on first focus if still empty
-                sel.addEventListener('focus', () => {
-                    if (sel.options.length <= 1) primeSelect(sel);
+            const materialSerialSelects = document.querySelectorAll('.material-serial-select');
+            const MATERIALS_THRESHOLD_SERIALS = 100; // If more than 100, skip automatic priming
+            
+            // For large assemblies, skip automatic priming to prevent ERR_INSUFFICIENT_RESOURCES
+            if (materialSerialSelects.length <= MATERIALS_THRESHOLD_SERIALS) {
+                const BATCH_SIZE_SERIALS = 5; // Prime 5 at a time
+                const DELAY_BETWEEN_BATCHES_SERIALS = 100; // 100ms delay between batches
+                
+                // Process serial selects in batches to prevent ERR_INSUFFICIENT_RESOURCES
+                async function primeSelectsInBatches() {
+                for (let i = 0; i < materialSerialSelects.length; i += BATCH_SIZE_SERIALS) {
+                    const batch = Array.from(materialSerialSelects).slice(i, i + BATCH_SIZE_SERIALS);
+                    
+                    // Process batch in parallel
+                    await Promise.allSettled(batch.map(sel => {
+                        // Prime immediately
+                        primeSelect(sel);
+                        // Also lazy-load on first focus if still empty
+                        sel.addEventListener('focus', () => {
+                            if (sel.options.length <= 1) primeSelect(sel);
+                        });
+                        return Promise.resolve();
+                    }));
+                    
+                    // Add delay between batches if there are more batches to process
+                    if (i + BATCH_SIZE_SERIALS < materialSerialSelects.length) {
+                        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES_SERIALS));
+                    }
+                }
+            }
+            
+                // Run the batched priming
+                primeSelectsInBatches();
+            } else {
+                // For large assemblies (>100 materials), skip automatic serial priming
+                // Serials will be loaded on-demand when user interacts with the selects (focus event already attached)
+                console.log(`Large assembly detected (${materialSerialSelects.length} material serial selects). Using lazy loading to prevent ERR_INSUFFICIENT_RESOURCES.`);
+                
+                // Only attach focus listeners without auto-priming
+                materialSerialSelects.forEach(sel => {
+                    sel.addEventListener('focus', () => {
+                        if (sel.options.length <= 1) primeSelect(sel);
+                    });
                 });
-            });
+            }
         });
 
         // Form submit validation
