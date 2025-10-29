@@ -567,6 +567,14 @@ class TestingController extends Controller
         $validator->after(function ($validator) use ($request, $testing) {
             if ($request->has('serial_results')) {
                 foreach ($request->serial_results as $itemId => $serialResults) {
+                    // Bảo vệ: chỉ xử lý khi là mảng hợp lệ
+                    if (!is_array($serialResults)) {
+                        Log::warning('DEBUG: Bỏ qua serial_results không hợp lệ (không phải mảng)', [
+                            'item_id' => $itemId,
+                            'raw_value' => $serialResults
+                        ]);
+                        continue;
+                    }
                     // Bỏ qua các key không hợp lệ (bắt đầu bằng 'unknown_')
                     if (strpos($itemId, 'unknown_') === 0) {
                         continue;
@@ -1011,7 +1019,12 @@ class TestingController extends Controller
                         }
 
                         // Lưu serial results trực tiếp vào database
-                        $item->update(['serial_results' => json_encode($normalizedSerialResults)]);
+                        if (empty($normalizedSerialResults)) {
+                            // Rỗng → lưu NULL để tránh ghi 0 vào cột JSON
+                            $item->update(['serial_results' => null]);
+                        } else {
+                            $item->update(['serial_results' => json_encode($normalizedSerialResults)]);
+                        }
 
                         // Tính toán tự động no_serial_pass_quantity và no_serial_fail_quantity từ serial_results
                         $this->calculateNoSerialQuantities($item, $normalizedSerialResults);
