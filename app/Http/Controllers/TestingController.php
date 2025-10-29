@@ -899,15 +899,22 @@ class TestingController extends Controller
 
             // Update serial results
             if ($request->has('serial_results')) {
-                Log::info('DEBUG: Xử lý serial_results', [
+                // Sanitize: only keep entries that are arrays; drop scalars to avoid writing 0 into JSON column
+                $rawSerialResults = $request->input('serial_results', []);
+                $serialResultsInput = [];
+                foreach ($rawSerialResults as $k => $v) {
+                    if (is_array($v)) { $serialResultsInput[$k] = $v; }
+                }
+
+                Log::debug('DEBUG: Xử lý serial_results', [
                     'testing_id' => $testing->id,
-                    'serial_results_data' => $request->serial_results
+                    'serial_results_keys' => array_keys($serialResultsInput)
                 ]);
                 
-                foreach ($request->serial_results as $itemId => $serialResults) {
-                    Log::info('DEBUG: Xử lý serial_results cho item');
-                    Log::info('item_id: ' . $itemId);
-                    Log::info('serial_results: ' . json_encode($serialResults));
+                foreach ($serialResultsInput as $itemId => $serialResults) {
+                    Log::debug('DEBUG: Xử lý serial_results cho item');
+                    Log::debug('item_id: ' . $itemId);
+                    Log::debug('serial_results: ' . json_encode($serialResults));
                     
                     // PHÂN BIỆT RÕ RÀNG giữa 2 loại:
                     // 1. Thành phẩm: serial_results[item_id][label] - tìm theo item->id
@@ -980,10 +987,8 @@ class TestingController extends Controller
                         }
                         
                         if ($hasConsolidated && $item->item_type === 'material') {
-                            // Xử lý serial gộp - tạo kết quả cho tất cả số lượng
-                            $material = $item->material;
-                            if ($material) {
-                                $quantity = (int)($item->quantity ?? 0);
+                            // Xử lý serial gộp - tạo kết quả cho tất cả số lượng (không phụ thuộc quan hệ material)
+                            $quantity = (int)($item->quantity ?? 0);
                                 
                                 // Lấy giá trị từ consolidated_unit_X (chỉ lấy giá trị đầu tiên tìm thấy)
                                 $consolidatedValue = 'pending';
@@ -993,20 +998,24 @@ class TestingController extends Controller
                                         break; // Chỉ lấy giá trị đầu tiên
                                     }
                                 }
-                                
-                                // Tạo kết quả cho tất cả số lượng với cùng một giá trị
-                                // KHÔNG áp dụng shouldAutoPassPending cho serial gộp
-                                for ($i = 0; $i < $quantity; $i++) {
-                                    $normalizedSerialResults[chr(65 + $i)] = $consolidatedValue;
+                                // Áp dụng auto-pass khi được phép: pending -> pass đối với vật tư/hàng hóa
+                                if ($shouldAutoPassPending && ($consolidatedValue === 'pending' || $consolidatedValue === null || $consolidatedValue === '')) {
+                                    $consolidatedValue = 'pass';
                                 }
                                 
-                                Log::info('DEBUG: Xử lý consolidated_unit', [
+                                // Tạo kết quả cho tất cả số lượng với cùng một giá trị
+                                for ($i = 0; $i < $quantity; $i++) {
+                                    $key = $this->labelFromIndex($i);
+                                    $normalizedSerialResults[$key] = $consolidatedValue;
+                                }
+                                
+                                Log::debug('DEBUG: Xử lý consolidated_unit', [
                                     'item_id' => $item->id,
                                     'quantity' => $quantity,
                                     'consolidated_value' => $consolidatedValue,
                                     'normalized_serial_results' => $normalizedSerialResults
                                 ]);
-                            }
+                            
                         } else {
                             // Xử lý serial thường
                             foreach ($serialResults as $label => $value) {
@@ -3073,7 +3082,7 @@ class TestingController extends Controller
                             $hasResultsMap = true;
                             $selected = [];
                             foreach ($serialArray as $index => $serial) {
-                                $label = chr(65 + $index);
+                                $label = $this->labelFromIndex($index);
                                 $res = $serialResults[$label] ?? null;
                                 if ($type === 'fail') { if ($res === 'fail') { $selected[] = $serial; } }
                                 else { if ($res === 'pass') { $selected[] = $serial; } }
@@ -3210,6 +3219,19 @@ class TestingController extends Controller
                 'import_code' => $inventoryImport->import_code
             ]);
         }
+    }
+
+    // Generate Excel-like labels: 0->A, 25->Z, 26->AA, 27->AB, ...
+    private function labelFromIndex(int $index): string
+    {
+        $label = '';
+        $n = $index;
+        do {
+            $rem = $n % 26;
+            $label = chr(65 + $rem) . $label;
+            $n = intdiv($n, 26) - 1;
+        } while ($n >= 0);
+        return $label;
     }
 
     /**
@@ -4401,7 +4423,7 @@ class TestingController extends Controller
             $newSerialResults = [];
             if ($productQuantity > 0) {
                 for ($i = 0; $i < $productQuantity; $i++) {
-                    $label = chr(65 + $i); // A, B, C, ...
+                    $label = $this->labelFromIndex($i); // A, B, C, ...
                     $unitResult = $unitResults[$i] ?? 'fail'; // Mặc định fail nếu không có kết quả
                     $newSerialResults[$label] = $unitResult;
                 }
@@ -4483,7 +4505,7 @@ class TestingController extends Controller
                         $serialResults = json_decode($item->serial_results, true);
                         if (is_array($serialResults)) {
                             // Convert index to letter (A=0, B=1, ..., Z=25, [=26, etc.)
-                            $resultKey = chr(65 + $index); // A=65, B=66, etc.
+                            $resultKey = $this->labelFromIndex($index); // A, B, ..., AA, AB
                             if (isset($serialResults[$resultKey])) {
                                 $serialResult = $serialResults[$resultKey];
                             }

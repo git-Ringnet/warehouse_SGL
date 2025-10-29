@@ -5326,12 +5326,12 @@
                     
                     // Process batch in parallel
                     await Promise.allSettled(batch.map(sel => {
-                        // Prime immediately
-                        primeSelect(sel);
-                        // Also lazy-load on first focus if still empty
-                        sel.addEventListener('focus', () => {
-                            if (sel.options.length <= 1) primeSelect(sel);
-                        });
+                // Prime immediately
+                primeSelect(sel);
+                // Also lazy-load on first focus if still empty
+                sel.addEventListener('focus', () => {
+                    if (sel.options.length <= 1) primeSelect(sel);
+                });
                         return Promise.resolve();
                     }));
                     

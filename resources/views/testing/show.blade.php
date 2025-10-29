@@ -394,7 +394,7 @@
         $serialsRow = $item->serial_number ? array_values(array_filter(array_map('trim', explode(',', $item->serial_number)))) : [];
         $quantity = (int)($item->quantity ?? 0);
         $serialCount = count($serialsRow);
-        $resultMap = $item->serial_results ? json_decode($item->serial_results, true) : [];
+        $resultMap = is_array($item->serial_results) ? $item->serial_results : ($item->serial_results ? json_decode($item->serial_results, true) : []);
     @endphp
     <div class="mb-4 rounded-lg overflow-hidden border border-green-200">
         <div class="bg-green-50 px-3 py-2 flex items-center justify-between border-b border-green-200">
@@ -541,7 +541,7 @@
                     <div class="inline-flex items-center gap-2 ml-2">
                         @php
                         // Tính pass/fail từ serial_results thay vì pass_quantity/fail_quantity
-                        $serialResults = json_decode($item->serial_results ?? '{}', true);
+                        $serialResults = is_array($item->serial_results) ? $item->serial_results : (json_decode($item->serial_results ?? '[]', true) ?: []);
                         $passQuantity = 0;
                         $failQuantity = 0;
                         if (is_array($serialResults)) {
@@ -672,7 +672,7 @@
         $displayUnitIndex = $globalUnitCounter; // Sử dụng biến đếm toàn cục
     @endphp
     @php
-        $serialResultsForUnits = json_decode($item->serial_results ?? '{}', true) ?: [];
+        $serialResultsForUnits = is_array($item->serial_results) ? $item->serial_results : (json_decode($item->serial_results ?? '[]', true) ?: []);
         // Hàm lấy label theo index đơn vị: 1->A, 2->B, ...
         $makeLabel = function($idx){ return chr(64 + (int)$idx); };
         $unitNumberForLabel = is_numeric($unitIdx) ? ((int)$unitIdx + 1) : $displayUnitIndex; // ưu tiên index theo sản phẩm
@@ -822,7 +822,11 @@
             @if ($shouldConsolidate)
                 {{-- Show consolidated action for size/weight units --}}
                 @php 
-                    $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : [];
+                    $resultMapRow = ($testingItemRow && $testingItemRow->serial_results)
+                        ? (is_array($testingItemRow->serial_results)
+                            ? $testingItemRow->serial_results
+                            : (json_decode($testingItemRow->serial_results, true) ?: []))
+                        : [];
                     // Cho serial gộp, lấy giá trị đầu tiên (A) vì tất cả đều có cùng giá trị
                     $currentValue = $resultMapRow['A'] ?? 'pending';
                 @endphp
@@ -844,7 +848,7 @@
                 $noSerialCount = $quantity - $serialCount;
                 @endphp
                 @if($quantity > 0)
-                @php $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : []; @endphp
+                @php $resultMapRow = ($testingItemRow && $testingItemRow->serial_results) ? (is_array($testingItemRow->serial_results) ? $testingItemRow->serial_results : (json_decode($testingItemRow->serial_results, true) ?: [])) : []; @endphp
                 <div class="space-y-1">
                     @for($i = 0; $i < $quantity; $i++)
                         @php $label=chr(65 + $i); @endphp
@@ -877,7 +881,7 @@
             @php
                 $quantity = (int)($asmMaterial->quantity ?? 0);
                 $serialCount = count($serialsRow);
-                $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : [];
+                $resultMapRow = ($testingItemRow && $testingItemRow->serial_results) ? (is_array($testingItemRow->serial_results) ? $testingItemRow->serial_results : (json_decode($testingItemRow->serial_results, true) ?: [])) : [];
             @endphp
             @if ($shouldConsolidate)
                 @php
@@ -1355,7 +1359,7 @@
                                             @if ($shouldConsolidate)
                                                 {{-- Show consolidated action for size/weight units --}}
                                                 @php 
-                                                    $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : [];
+                                                    $resultMapRow = ($testingItemRow && $testingItemRow->serial_results) ? (is_array($testingItemRow->serial_results) ? $testingItemRow->serial_results : (json_decode($testingItemRow->serial_results, true) ?: [])) : [];
                                                     // Cho serial gộp, lấy giá trị đầu tiên (A) vì tất cả đều có cùng giá trị
                                                     $currentValue = $resultMapRow['A'] ?? 'pending';
                                                 @endphp
@@ -1372,7 +1376,7 @@
                                             @else
                                                 {{-- Show individual actions for other units --}}
                                                 @if(count($serialsRow) > 0)
-                                                @php $resultMapRow = $testingItemRow && $testingItemRow->serial_results ? json_decode($testingItemRow->serial_results, true) : []; @endphp
+                                                @php $resultMapRow = ($testingItemRow && $testingItemRow->serial_results) ? (is_array($testingItemRow->serial_results) ? $testingItemRow->serial_results : (json_decode($testingItemRow->serial_results, true) ?: [])) : []; @endphp
                                                 <div class="space-y-1">
                                                     @foreach($serialsRow as $sIndex => $s)
                                                     @php $label = chr(65 + $sIndex); @endphp
@@ -1478,7 +1482,7 @@
 
             // Thành phẩm có serial_results thì đếm theo serial_results trước
             if ($item->item_type === 'product' && !empty($item->serial_results)) {
-            $sr = json_decode($item->serial_results, true);
+            $sr = is_array($item->serial_results) ? $item->serial_results : json_decode($item->serial_results, true);
             if (is_array($sr)) {
             foreach ($sr as $val) {
             if ($val === 'pass') $passQuantity++;
@@ -1493,7 +1497,7 @@
             if (($passQuantity + $failQuantity) === 0) {
             // Thử đếm từ serial_results (nếu có) — KHÔNG áp dụng cho thành phẩm
             if ($item->item_type !== 'product' && !empty($item->serial_results)) {
-            $sr = json_decode($item->serial_results, true);
+            $sr = is_array($item->serial_results) ? $item->serial_results : json_decode($item->serial_results, true);
             if (is_array($sr)) {
             foreach ($sr as $val) {
             if ($val === 'pass') $passQuantity++;
@@ -1538,7 +1542,7 @@
             $serialPass = 0; $serialFail = 0;
             foreach ($testing->items as $item) {
             if ($item->item_type == 'material' && !empty($item->serial_results)) {
-            $serialResults = json_decode($item->serial_results, true);
+            $serialResults = is_array($item->serial_results) ? $item->serial_results : json_decode($item->serial_results, true);
             if (is_array($serialResults)) {
             foreach ($serialResults as $val) {
             if ($val === 'pass') $serialPass++;
@@ -2333,73 +2337,73 @@
                 });
 
                 function autoSaveTestResults() {
-                    const formData = new FormData();
+                    // const formData = new FormData();
 
-                    // Chỉ gửi dữ liệu cần thiết cho auto-save
-                    formData.append('_token', document.querySelector('input[name="_token"]').value);
-                    formData.append('_method', 'PUT');
+                    // // Chỉ gửi dữ liệu cần thiết cho auto-save
+                    // formData.append('_token', document.querySelector('input[name="_token"]').value);
+                    // formData.append('_method', 'PUT');
 
-                    // Thêm item_pass_quantity và item_fail_quantity (chỉ cho vật tư)
-                    const passQuantityInputs = testItemForm.querySelectorAll('input[name^="item_pass_quantity"]');
-                    passQuantityInputs.forEach(input => {
-                        // Chỉ gửi dữ liệu cho vật tư, không gửi cho thành phẩm
-                        if (!input.name.includes('product')) {
-                            formData.append(input.name, input.value);
-                        }
-                    });
+                    // // Thêm item_pass_quantity và item_fail_quantity (chỉ cho vật tư)
+                    // const passQuantityInputs = testItemForm.querySelectorAll('input[name^="item_pass_quantity"]');
+                    // passQuantityInputs.forEach(input => {
+                    //     // Chỉ gửi dữ liệu cho vật tư, không gửi cho thành phẩm
+                    //     if (!input.name.includes('product')) {
+                    //         formData.append(input.name, input.value);
+                    //     }
+                    // });
 
-                    const failQuantityInputs = testItemForm.querySelectorAll('input[name^="item_fail_quantity"]');
-                    failQuantityInputs.forEach(input => {
-                        // Chỉ gửi dữ liệu cho vật tư, không gửi cho thành phẩm
-                        if (!input.name.includes('product')) {
-                            formData.append(input.name, input.value);
-                        }
-                    });
+                    // const failQuantityInputs = testItemForm.querySelectorAll('input[name^="item_fail_quantity"]');
+                    // failQuantityInputs.forEach(input => {
+                    //     // Chỉ gửi dữ liệu cho vật tư, không gửi cho thành phẩm
+                    //     if (!input.name.includes('product')) {
+                    //         formData.append(input.name, input.value);
+                    //     }
+                    // });
 
-                    // Thêm serial_results
-                    const serialResults = testItemForm.querySelectorAll('select[name^="serial_results"]');
-                    serialResults.forEach(select => {
-                        formData.append(select.name, select.value);
-                    });
+                    // // Thêm serial_results
+                    // const serialResults = testItemForm.querySelectorAll('select[name^="serial_results"]');
+                    // serialResults.forEach(select => {
+                    //     formData.append(select.name, select.value);
+                    // });
 
-                    // Thêm test_pass_quantity và test_fail_quantity
-                    const testPassQuantityInputs = testItemForm.querySelectorAll('input[name^="test_pass_quantity"]');
-                    testPassQuantityInputs.forEach(input => {
-                        formData.append(input.name, input.value);
-                    });
+                    // // Thêm test_pass_quantity và test_fail_quantity
+                    // const testPassQuantityInputs = testItemForm.querySelectorAll('input[name^="test_pass_quantity"]');
+                    // testPassQuantityInputs.forEach(input => {
+                    //     formData.append(input.name, input.value);
+                    // });
 
-                    const testFailQuantityInputs = testItemForm.querySelectorAll('input[name^="test_fail_quantity"]');
-                    testFailQuantityInputs.forEach(input => {
-                        formData.append(input.name, input.value);
-                    });
+                    // const testFailQuantityInputs = testItemForm.querySelectorAll('input[name^="test_fail_quantity"]');
+                    // testFailQuantityInputs.forEach(input => {
+                    //     formData.append(input.name, input.value);
+                    // });
 
-                    // Thêm item_notes
-                    const itemNotesTextareas = testItemForm.querySelectorAll('textarea[name^="item_notes"]');
-                    itemNotesTextareas.forEach(textarea => {
-                        formData.append(textarea.name, textarea.value);
-                    });
+                    // // Thêm item_notes
+                    // const itemNotesTextareas = testItemForm.querySelectorAll('textarea[name^="item_notes"]');
+                    // itemNotesTextareas.forEach(textarea => {
+                    //     formData.append(textarea.name, textarea.value);
+                    // });
 
-                    fetch(testItemForm.action, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                showNotification('Đã lưu kết quả kiểm thử', 'success');
-                                // Tự động cập nhật phần "Chi tiết kết quả kiểm thử"
-                                updateOverallResults();
-                            } else {
-                                showNotification('Có lỗi khi lưu kết quả', 'error');
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            showNotification('Có lỗi khi lưu kết quả', 'error');
-                        });
+                    // fetch(testItemForm.action, {
+                        //     method: 'POST',
+                        //     body: formData,
+                        //     headers: {
+                        //         'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        //     }
+                        // })
+                        // .then(response => response.json())
+                        // .then(data => {
+                        //     if (data.success) {
+                        //         showNotification('Đã lưu kết quả kiểm thử', 'success');
+                        //         // Tự động cập nhật phần "Chi tiết kết quả kiểm thử"
+                        //         updateOverallResults();
+                        //     } else {
+                        //         showNotification('Có lỗi khi lưu kết quả', 'error');
+                        //     }
+                        // })
+                        // .catch(error => {
+                        //     console.error('Error:', error);
+                        //     showNotification('Có lỗi khi lưu kết quả', 'error');
+                        // });
                 }
 
                 function updateOverallResults() {

@@ -30,6 +30,8 @@ class TestingItem extends Model
         'notes',
     ];
 
+    // Note: Keep serial_results as raw JSON string for backward compatibility
+
     /**
      * Get the testing that owns this item.
      */
