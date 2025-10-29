@@ -4424,7 +4424,8 @@ class TestingController extends Controller
             if ($productQuantity > 0) {
                 for ($i = 0; $i < $productQuantity; $i++) {
                     $label = $this->labelFromIndex($i); // A, B, C, ...
-                    $unitResult = $unitResults[$i] ?? 'fail'; // Mặc định fail nếu không có kết quả
+                    // Nếu không có kết quả unit (ví dụ: thiếu nhóm vật tư), coi như pass
+                    $unitResult = $unitResults[$i] ?? 'pass';
                     $newSerialResults[$label] = $unitResult;
                 }
             }
@@ -4434,7 +4435,7 @@ class TestingController extends Controller
                 'pass_quantity' => $totalPass,
                 'fail_quantity' => $totalFail,
                 'serial_results' => json_encode($newSerialResults),
-                'result' => $totalPass > 0 ? 'pass' : 'fail'
+                'result' => ($totalFail > 0) ? 'fail' : 'pass'
             ]);
             
             Log::info('Auto-calculated product result by units', [
