@@ -183,33 +183,44 @@ class DeviceCodeController extends Controller
                     // Lấy serial components từ assembly nếu có
                     $serialComponents = [];
                     if ($item->item_type === 'product') {
-                        // Tìm assembly products có serial
-                        $assemblyProducts = DB::table('assembly_products')
-                            ->where('product_id', $item->item_id)
-                            ->whereNotNull('serials')
-                            ->where('serials', '!=', '')
-                            ->get();
-
-                        foreach ($assemblyProducts as $assemblyProduct) {
-                            if ($assemblyProduct->serials) {
-                                $serialComponents[] = $assemblyProduct->serials;
+                        // Parse assembly_id và product_unit từ dispatch_item
+                        $assemblyIds = is_string($item->assembly_id) ? explode(',', $item->assembly_id) : ($item->assembly_id ? [$item->assembly_id] : []);
+                        $productUnits = [];
+                        if ($item->product_unit) {
+                            if (is_string($item->product_unit)) {
+                                $decoded = json_decode($item->product_unit, true);
+                                $productUnits = is_array($decoded) ? $decoded : [];
+                            } else {
+                                $productUnits = is_array($item->product_unit) ? $item->product_unit : [];
                             }
                         }
-
-                        // Lấy serial vật tư từ assembly_materials
+                        
+                        // Lấy materials theo từng serial, mỗi serial có assembly_id và product_unit riêng
+                        for ($idx = 0; $idx < max(count($serialNumbers), 1); $idx++) {
+                            $serial = $serialNumbers[$idx] ?? '';
+                            $assemblyId = $assemblyIds[$idx] ?? ($assemblyIds[0] ?? null);
+                            $productUnit = isset($productUnits[$idx]) ? $productUnits[$idx] : ($productUnits[0] ?? null);
+                            
+                            // Chỉ lấy materials từ assembly và product_unit cụ thể này
+                            if ($assemblyId !== null && $productUnit !== null) {
                         $assemblyMaterials = DB::table('assembly_materials')
-                            ->join('assemblies', 'assembly_materials.assembly_id', '=', 'assemblies.id')
-                            ->join('assembly_products', function($join) use ($item) {
-                                $join->on('assembly_products.assembly_id', '=', 'assemblies.id')
-                                     ->where('assembly_products.product_id', '=', $item->item_id);
-                            })
+                                    ->where('assembly_materials.assembly_id', $assemblyId)
+                                    ->where('assembly_materials.product_unit', $productUnit)
                             ->where('assembly_materials.target_product_id', $item->item_id)
                             ->whereNotNull('assembly_materials.serial')
                             ->where('assembly_materials.serial', '!=', '')
+                                    ->where('assembly_materials.serial', '!=', 'null')
                             ->pluck('assembly_materials.serial')
                             ->toArray();
 
-                        $serialComponents = array_merge($serialComponents, $assemblyMaterials);
+                                // Tách serial nếu có nhiều serial phân tách bằng dấu phẩy
+                                foreach ($assemblyMaterials as $serialStr) {
+                                    $parts = array_map('trim', explode(',', $serialStr));
+                                    $parts = array_filter($parts, function($s) { return !empty($s) && $s !== 'null'; });
+                                    $serialComponents = array_merge($serialComponents, $parts);
+                                }
+                            }
+                        }
                     }
 
                     return (object) [

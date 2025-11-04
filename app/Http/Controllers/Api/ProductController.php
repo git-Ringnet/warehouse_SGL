@@ -236,23 +236,73 @@ class ProductController extends Controller
      */
     public function getDeviceCodeMaterials(Request $request)
     {
+        // Log ngay đầu method để đảm bảo method được gọi
+        \Illuminate\Support\Facades\Log::info('getDeviceCodeMaterials CALLED', [
+            'request_all' => $request->all(),
+            'dispatch_id' => $request->get('dispatch_id'),
+            'type' => $request->get('type'),
+            'url' => $request->fullUrl(),
+        ]);
+        
         try {
             $dispatchId = $request->get('dispatch_id');
             $type = $request->get('type', 'contract'); // contract, backup, general
             
             if (!$dispatchId) {
+                \Illuminate\Support\Facades\Log::warning('getDeviceCodeMaterials: Missing dispatch_id');
                 return response()->json([
                     'success' => false,
                     'message' => 'dispatch_id là bắt buộc'
                 ], 422);
             }
 
-            // Lấy dispatch items theo type
+            // Lấy dispatch items theo type và category để tránh lẫn lộn giữa contract và backup
             $dispatchItems = DB::table('dispatch_items')
                 ->where('dispatch_id', $dispatchId)
                 ->where('item_type', 'product')
                 ->where('category', $type)
                 ->get();
+
+            // Log để debug - kiểm tra xem có lấy đúng items không
+            \Illuminate\Support\Facades\Log::info('getDeviceCodeMaterials', [
+                'dispatch_id' => $dispatchId,
+                'type' => $type,
+                'items_count' => $dispatchItems->count(),
+                'items' => $dispatchItems->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'item_id' => $item->item_id,
+                        'category' => $item->category,
+                        'serial_numbers' => $item->serial_numbers,
+                        'product_unit' => $item->product_unit,
+                        'product_unit_type' => gettype($item->product_unit),
+                        'assembly_id' => $item->assembly_id,
+                        'quantity' => $item->quantity,
+                    ];
+                })->toArray(),
+                // Kiểm tra xem có items khác category không
+                'all_items_same_product' => DB::table('dispatch_items')
+                    ->where('dispatch_id', $dispatchId)
+                    ->where('item_type', 'product')
+                    ->where(function($q) use ($dispatchItems) {
+                        $productIds = $dispatchItems->pluck('item_id')->unique();
+                        if ($productIds->isNotEmpty()) {
+                            $q->whereIn('item_id', $productIds->toArray());
+                        }
+                    })
+                    ->select('id', 'item_id', 'category', 'serial_numbers', 'product_unit', 'assembly_id')
+                    ->get()
+                    ->map(function($item) {
+                        return [
+                            'id' => $item->id,
+                            'item_id' => $item->item_id,
+                            'category' => $item->category,
+                            'serial_numbers' => $item->serial_numbers,
+                            'product_unit' => $item->product_unit,
+                            'assembly_id' => $item->assembly_id,
+                        ];
+                    })->toArray(),
+            ]);
 
             $materialDetails = [];
             
@@ -262,14 +312,74 @@ class ProductController extends Controller
                 $productUnits = $item->product_unit;
                 $serialNumbers = $item->serial_numbers;
                 
-                // Parse assembly_id (chuỗi) và product_unit (JSON string)
-                $assemblyIdArray = is_string($assemblyIds) ? explode(',', $assemblyIds) : [$assemblyIds];
-                // product_unit lưu dạng JSON string "[0,1,2,3]"
+                // Parse assembly_id (chuỗi) và product_unit (có thể là JSON string hoặc comma-separated string)
+                $assemblyIdArray = is_string($assemblyIds) ? explode(',', $assemblyIds) : ($assemblyIds ? [$assemblyIds] : []);
+                $assemblyIdArray = array_map('trim', array_filter($assemblyIdArray));
+                
+                // Parse product_unit - có thể là JSON string "[0,2]" hoặc comma-separated string "0,2"
+                // Hoặc có thể là double-encoded như "\"1\"" (JSON string chứa string)
+                $productUnitArray = [];
                 if (is_string($productUnits)) {
+                    $trimmed = trim($productUnits);
+                    // Thử parse JSON đầu tiên (xử lý cả trường hợp double-encoded như "\"1\"" hoặc "[1]")
                     $decoded = json_decode($productUnits, true);
-                    $productUnitArray = is_array($decoded) ? $decoded : explode(',', $productUnits);
+                    if ($decoded !== null) {
+                        // Nếu decode được và là array, dùng luôn
+                        if (is_array($decoded)) {
+                            $productUnitArray = array_map('intval', $decoded);
+                        } 
+                        // Nếu decode được và là string, thử parse lại (trường hợp "\"1\"" -> "1")
+                        else if (is_string($decoded)) {
+                            $decodedTrimmed = trim($decoded);
+                            // Kiểm tra xem có phải JSON array không
+                            if (strlen($decodedTrimmed) > 0 && $decodedTrimmed[0] === '[' && substr($decodedTrimmed, -1) === ']') {
+                                $decodedArray = json_decode($decodedTrimmed, true);
+                                if (is_array($decodedArray)) {
+                                    $productUnitArray = array_map('intval', $decodedArray);
                 } else {
-                    $productUnitArray = is_array($productUnits) ? $productUnits : [$productUnits];
+                                    $productUnitArray = [intval($decoded)];
+                                }
+                            }
+                            // Hoặc thử explode nếu là comma-separated
+                            else if (strpos($decodedTrimmed, ',') !== false) {
+                                $parts = explode(',', $decodedTrimmed);
+                                $productUnitArray = array_map('intval', array_map('trim', $parts));
+                            }
+                            // Nếu không, thử parse thành số
+                            else {
+                                $productUnitArray = [intval($decoded)];
+                            }
+                        }
+                        // Nếu decode được và là số, dùng luôn
+                        else if (is_numeric($decoded)) {
+                            $productUnitArray = [intval($decoded)];
+                        }
+                    }
+                    
+                    // Nếu JSON decode không thành công hoặc chưa có kết quả, thử các cách khác
+                    if (empty($productUnitArray)) {
+                        // Thử parse như JSON array nếu bắt đầu bằng [
+                        if (strlen($trimmed) > 0 && $trimmed[0] === '[' && substr($trimmed, -1) === ']') {
+                            $decoded = json_decode($productUnits, true);
+                            if (is_array($decoded)) {
+                                $productUnitArray = array_map('intval', $decoded);
+                            }
+                        }
+                        // Nếu vẫn chưa có, thử explode
+                        if (empty($productUnitArray)) {
+                            $parts = explode(',', $productUnits);
+                            // Loại bỏ dấu ngoặc kép nếu có
+                            $parts = array_map(function($part) {
+                                $cleaned = trim($part, '"\'');
+                                return $cleaned;
+                            }, $parts);
+                            $productUnitArray = array_map('intval', array_map('trim', $parts));
+                        }
+                    }
+                } else if (is_array($productUnits)) {
+                    $productUnitArray = array_map('intval', $productUnits);
+                } else if ($productUnits !== null) {
+                    $productUnitArray = [intval($productUnits)];
                 }
                 
                 // Parse serial_numbers nếu là JSON string
@@ -277,35 +387,157 @@ class ProductController extends Controller
                 if (!is_array($serialNumbersArray)) {
                     $serialNumbersArray = [];
                 }
+                $serialNumbersArray = array_map('trim', $serialNumbersArray);
+                
+                // Log sau khi parse để verify
+                \Illuminate\Support\Facades\Log::info('After parsing product_unit', [
+                    'dispatch_item_id' => $item->id,
+                    'category' => $item->category,
+                    'product_id' => $productId,
+                    'product_unit_raw' => $productUnits,
+                    'product_unit_raw_type' => gettype($productUnits),
+                    'product_unit_parsed' => $productUnitArray,
+                    'serial_numbers_raw' => $serialNumbers,
+                    'serial_numbers_parsed' => $serialNumbersArray,
+                    'assembly_id_raw' => $assemblyIds,
+                    'assembly_id_parsed' => $assemblyIdArray,
+                ]);
                 
                 // Tạo key cho từng vị trí (kể cả khi không có serial) để phân biệt materials
+                // Map đúng theo thứ tự: serial_numbers[i] tương ứng với product_unit[i]
                 $productSerialDetails = [];
                 $byPair = [];
                 $byIndex = [];
                 
-                $maxCount = max(count($assemblyIdArray), count($productUnitArray), max(1, count($serialNumbersArray)));
-                for ($serialIndex = 0; $serialIndex < $maxCount; $serialIndex++) {
+                // Đảm bảo mapping đúng: mỗi serial trong serial_numbers tương ứng với product_unit cùng index
+                // Duyệt theo số lượng thực tế của dòng (quantity), để các dòng N/A (không có serial) vẫn tạo entry rỗng
+                $itemQuantity = (int) ($item->quantity ?? 1);
+                $count = max($itemQuantity, count($serialNumbersArray), 1);
+                
+                \Illuminate\Support\Facades\Log::info('Before mapping loop', [
+                    'dispatch_item_id' => $item->id,
+                    'category' => $item->category,
+                    'product_id' => $productId,
+                    'serial_numbers_array' => $serialNumbersArray,
+                    'product_unit_array' => $productUnitArray,
+                    'assembly_id_array' => $assemblyIdArray,
+                    'count' => $count,
+                ]);
+                
+                for ($serialIndex = 0; $serialIndex < $count; $serialIndex++) {
                     $serial = $serialNumbersArray[$serialIndex] ?? '';
-                    $assemblyId = $assemblyIdArray[$serialIndex] ?? ($assemblyIdArray[0] ?? null);
-                    $productUnit = $productUnitArray[$serialIndex] ?? ($productUnitArray[0] ?? 0);
+                    // Lấy assembly_id và product_unit theo cùng index với serial
+                    // KHÔNG fallback về index 0 cho assembly_id; nếu thiếu ở index hiện tại thì coi như không có
+                    $assemblyId = $assemblyIdArray[$serialIndex] ?? null;
+                    $productUnit = $productUnitArray[$serialIndex] ?? 0;
                     
-                    // Nếu có assembly_id và product_unit, lấy từ assembly_materials
-                    if ($assemblyId && $productUnit !== null) {
-                        $assemblyMaterials = DB::table('assembly_materials')
+                    // Chuyển product_unit về integer để so sánh với database
+                    $productUnit = intval($productUnit);
+                    
+                    // Kiểm tra xem assembly_id có hợp lệ không
+                    $assemblyIdValid = $assemblyId && $assemblyId !== '0' && $assemblyId !== 0 && trim((string)$assemblyId) !== '';
+                    
+                    // Log để debug mapping
+                    \Illuminate\Support\Facades\Log::info('Mapping serial to product_unit', [
+                        'dispatch_item_id' => $item->id,
+                        'category' => $item->category,
+                        'product_id' => $productId,
+                        'serial_index' => $serialIndex,
+                        'serial' => $serial,
+                        'assembly_id' => $assemblyId,
+                        'assembly_id_valid' => $assemblyIdValid,
+                        'assembly_id_type' => gettype($assemblyId),
+                        'product_unit_raw' => $productUnitArray[$serialIndex] ?? null,
+                        'product_unit' => $productUnit,
+                        'product_unit_type' => gettype($productUnit),
+                        'serial_numbers_array' => $serialNumbersArray,
+                        'product_unit_array' => $productUnitArray,
+                        'assembly_id_array' => $assemblyIdArray,
+                        'will_fetch_materials' => $assemblyIdValid && $productUnit !== null,
+                    ]);
+                    
+                    // Nếu có assembly_id và product_unit hợp lệ (không phải 0), lấy từ assembly_materials
+                    // Chỉ lấy materials khi assembly_id > 0 (không phải 0, null, hoặc rỗng)
+                    if ($assemblyIdValid && $productUnit !== null) {
+                        // Đảm bảo product_unit là integer để so sánh đúng với database
+                        $productUnitInt = intval($productUnit);
+                        
+                        // Kiểm tra tất cả assembly_materials với cùng assembly_id và target_product_id để debug
+                        $allMaterials = DB::table('assembly_materials')
+                            ->where('assembly_id', $assemblyId)
+                            ->where('target_product_id', $productId)
+                            ->select('id', 'material_id', 'product_unit', 'serial', 'quantity')
+                            ->get();
+                        
+                        // Log trước khi query
+                        \Illuminate\Support\Facades\Log::info('Querying assembly_materials', [
+                            'assembly_id' => $assemblyId,
+                            'product_unit' => $productUnit,
+                            'product_unit_int' => $productUnitInt,
+                            'target_product_id' => $productId,
+                            'serial' => $serial,
+                            'dispatch_item_id' => $item->id,
+                            'category' => $item->category,
+                            'all_materials_for_assembly' => $allMaterials->map(function($am) {
+                                return [
+                                    'id' => $am->id,
+                                    'material_id' => $am->material_id,
+                                    'product_unit' => $am->product_unit,
+                                    'product_unit_type' => gettype($am->product_unit),
+                                    'serial' => $am->serial,
+                                    'quantity' => $am->quantity,
+                                ];
+                            })->toArray(),
+                        ]);
+                        
+                        // Log SQL query để debug
+                        $query = DB::table('assembly_materials')
                             ->join('materials', 'assembly_materials.material_id', '=', 'materials.id')
                             ->where('assembly_materials.assembly_id', $assemblyId)
-                            ->where('assembly_materials.product_unit', $productUnit)
+                            ->where('assembly_materials.product_unit', $productUnitInt)
                             ->where('assembly_materials.target_product_id', $productId)
                             ->select(
+                                'assembly_materials.id',
                                 'assembly_materials.material_id',
                                 'assembly_materials.quantity',
                                 'assembly_materials.serial',
+                                'assembly_materials.product_unit as am_product_unit',
                                 'materials.code as material_code',
                                 'materials.name as material_name'
-                            )
-                            ->get();
+                            );
                         
-                        // Gộp các dòng cùng material_id và cộng quantity
+                        $sql = $query->toSql();
+                        $bindings = $query->getBindings();
+                        \Illuminate\Support\Facades\Log::info('Assembly materials SQL query', [
+                            'sql' => $sql,
+                            'bindings' => $bindings,
+                            'assembly_id' => $assemblyId,
+                            'product_unit_int' => $productUnitInt,
+                            'target_product_id' => $productId,
+                        ]);
+                        
+                        $assemblyMaterials = $query->get();
+                        
+                        // Log kết quả query
+                        \Illuminate\Support\Facades\Log::info('Assembly materials query result', [
+                            'assembly_id' => $assemblyId,
+                            'product_unit' => $productUnitInt,
+                            'target_product_id' => $productId,
+                            'found_count' => $assemblyMaterials->count(),
+                            'materials' => $assemblyMaterials->map(function($am) {
+                                return [
+                                    'id' => $am->id,
+                                    'material_id' => $am->material_id,
+                                    'material_code' => $am->material_code,
+                                    'quantity' => $am->quantity,
+                                    'serial' => $am->serial,
+                                    'am_product_unit' => $am->am_product_unit,
+                                    'am_product_unit_type' => gettype($am->am_product_unit),
+                                ];
+                            })->toArray(),
+                        ]);
+                        
+                        // Gộp các dòng cùng material_id và cộng quantity, giữ lại tất cả serials
                         $groupedMaterials = [];
                         foreach ($assemblyMaterials as $material) {
                             $key = $material->material_id;
@@ -315,20 +547,23 @@ class ProductController extends Controller
                                     'material_code' => $material->material_code,
                                     'material_name' => $material->material_name,
                                     'quantity' => 0,
-                                    'serial' => $material->serial
+                                    'serials' => [] // Lưu tất cả serials thay vì chỉ một serial
                                 ];
                             }
                             $groupedMaterials[$key]['quantity'] += $material->quantity;
+                            
+                            // Thêm serials từ dòng này vào danh sách
+                            if ($material->serial && $material->serial !== 'null') {
+                                $serialParts = array_map('trim', explode(',', $material->serial));
+                                $serialParts = array_filter($serialParts, function($s) { return !empty($s) && $s !== 'null'; });
+                                $groupedMaterials[$key]['serials'] = array_merge($groupedMaterials[$key]['serials'], $serialParts);
+                            }
                         }
                         
                         $details = [];
                         foreach ($groupedMaterials as $material) {
-                            // Tách serial nếu có nhiều serial phân tách bằng dấu phẩy
-                            $serialParts = [];
-                            if ($material['serial'] && $material['serial'] !== 'null') {
-                                $serialParts = array_map('trim', explode(',', $material['serial']));
-                                $serialParts = array_filter($serialParts, function($s) { return !empty($s); });
-                            }
+                            // Lấy tất cả serials đã gộp
+                            $serialParts = isset($material['serials']) ? array_values($material['serials']) : [];
                             
                             for ($i = 0; $i < $material['quantity']; $i++) {
                                 // Chỉ gán serial cho index tương ứng, nếu không có thì để trống
@@ -346,10 +581,32 @@ class ProductController extends Controller
                         
                         // Map theo serial (có thể rỗng cho N/A)
                         $productSerialDetails[$serial] = $details;
+                        
                         // Map theo cặp assembly:unit để frontend tra cứu chính xác
-                        $byPair['$' . $assemblyId . ':' . $productUnit] = $details;
+                        // Đảm bảo assemblyId và productUnit là string và integer
+                        $assemblyIdStr = (string) $assemblyId;
+                        $productUnitInt = (int) $productUnit;
+                        $pairKey = '$' . $assemblyIdStr . ':' . $productUnitInt;
+                        $byPair[$pairKey] = $details;
+                        
+                        \Illuminate\Support\Facades\Log::info('Mapping materials to pair key', [
+                            'dispatch_item_id' => $item->id,
+                            'category' => $item->category,
+                            'serial' => $serial,
+                            'assembly_id' => $assemblyId,
+                            'assembly_id_str' => $assemblyIdStr,
+                            'product_unit' => $productUnit,
+                            'product_unit_int' => $productUnitInt,
+                            'pair_key' => $pairKey,
+                            'materials_count' => count($details),
+                        ]);
+                        
                         // Map theo index để fallback
                         $byIndex[$serialIndex] = $details;
+                    } else {
+                        // assembly_id không hợp lệ hoặc thiếu: tạo entry rỗng cho index này để frontend không lấy nhầm dữ liệu dòng khác
+                        $productSerialDetails[$serial] = [];
+                        $byIndex[$serialIndex] = [];
                     }
                 }
                 
@@ -384,10 +641,42 @@ class ProductController extends Controller
                 }
                 
                 // Đính kèm cấu trúc phụ để frontend có thể tra theo pair/index
+                // Tạo key duy nhất kết hợp product_id và category để tránh xung đột giữa contract và backup
+                $key = $productId . '_' . $item->category;
+                
+                // Nếu đã có key này (trường hợp hiếm: cùng product_id và category trong nhiều dispatch_items),
+                // merge materials thay vì ghi đè
+                if (isset($materialDetails[$key])) {
+                    // Merge productSerialDetails
+                    foreach ($productSerialDetails as $serial => $details) {
+                        if (!isset($materialDetails[$key][$serial])) {
+                            $materialDetails[$key][$serial] = $details;
+                        }
+                    }
+                    // Merge byPair và byIndex
+                    $materialDetails[$key]['__by_pair__'] = array_merge(
+                        $materialDetails[$key]['__by_pair__'] ?? [],
+                        $byPair
+                    );
+                    $materialDetails[$key]['by_index'] = array_merge(
+                        $materialDetails[$key]['by_index'] ?? [],
+                        $byIndex
+                    );
+                } else {
+                    $materialDetails[$key] = array_merge($productSerialDetails, [
+                        '__by_pair__' => $byPair,
+                        'by_index' => $byIndex,
+                    ]);
+                }
+                
+                // Giữ lại key cũ theo productId để backward compatibility với frontend
+                // Nhưng ưu tiên dữ liệu từ category hiện tại nếu có xung đột
+                if (!isset($materialDetails[$productId]) || $item->category === $type) {
                 $materialDetails[$productId] = array_merge($productSerialDetails, [
                     '__by_pair__' => $byPair,
                     'by_index' => $byIndex,
                 ]);
+                }
             }
 
             return response()->json([

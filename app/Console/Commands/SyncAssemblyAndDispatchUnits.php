@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AssemblyProduct;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -163,29 +164,58 @@ class SyncAssemblyAndDispatchUnits extends Command
                 continue;
             }
 
+            $trimmedSerial = trim($serial);
+
             // Tìm assembly_id cho serial cụ thể này (giống logic trong DispatchController)
-            $row = DB::table('assembly_products')
-                ->where('product_id', $productId)
-                ->where(function($q) use ($serial) {
-                    $s = trim($serial);
-                    $q->where('serials', $s)
-                      ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$s]);
+            // Sử dụng model để có thể parse JSON product_unit đúng cách
+            $assemblyProduct = AssemblyProduct::where('product_id', $productId)
+                ->where(function($q) use ($trimmedSerial) {
+                    $q->where('serials', $trimmedSerial)
+                      ->orWhereRaw('FIND_IN_SET(?, serials) > 0', [$trimmedSerial]);
                 })
                 ->first();
 
-            $assemblyId = $row->assembly_id ?? null;
+            $assemblyId = $assemblyProduct->assembly_id ?? null;
             
             // Lấy product_unit từ assembly_products dựa trên vị trí serial trong serials
+            // Logic giống hệt DispatchController::update (lines 1210-1224)
             $unitValue = 0; // Default
-            if ($row && $row->product_unit) {
-                $productUnitArray = is_string($row->product_unit) ? json_decode($row->product_unit, true) : $row->product_unit;
-                if (is_array($productUnitArray)) {
-                    // Tìm vị trí của serial trong serials string
-                    $serialsArray = explode(',', $row->serials);
-                    $serialIndex = array_search(trim($serial), array_map('trim', $serialsArray));
-                    if ($serialIndex !== false && isset($productUnitArray[$serialIndex])) {
-                        $unitValue = (int) $productUnitArray[$serialIndex];
+            if ($assemblyProduct && $assemblyProduct->product_unit !== null) {
+                $productUnitValue = $assemblyProduct->product_unit;
+                
+                if (is_array($productUnitValue)) {
+                    // Tìm vị trí của serial trong assembly_products.serials
+                    $serialsStr = $assemblyProduct->serials ?? '';
+                    $serialsArray = array_map('trim', explode(',', $serialsStr));
+                    
+                    // Tìm index của serial trong mảng serials của assembly
+                    $serialPositionInAssembly = array_search($trimmedSerial, $serialsArray);
+                    
+                    if ($serialPositionInAssembly !== false && isset($productUnitValue[$serialPositionInAssembly])) {
+                        // Lấy product_unit tại vị trí tương ứng với serial trong assembly
+                        $unitValue = (int) $productUnitValue[$serialPositionInAssembly];
+                    } else {
+                        // Fallback: nếu không tìm thấy, dùng index đầu tiên hoặc 0
+                        $unitValue = isset($productUnitValue[0]) ? (int) $productUnitValue[0] : 0;
                     }
+                } else if (is_string($productUnitValue)) {
+                    // Parse JSON string nếu cần
+                    $decoded = json_decode($productUnitValue, true);
+                    if (is_array($decoded)) {
+                        $serialsStr = $assemblyProduct->serials ?? '';
+                        $serialsArray = array_map('trim', explode(',', $serialsStr));
+                        $serialPositionInAssembly = array_search($trimmedSerial, $serialsArray);
+                        
+                        if ($serialPositionInAssembly !== false && isset($decoded[$serialPositionInAssembly])) {
+                            $unitValue = (int) $decoded[$serialPositionInAssembly];
+                        } else {
+                            $unitValue = isset($decoded[0]) ? (int) $decoded[0] : 0;
+                        }
+                    } else {
+                        $unitValue = (int) $productUnitValue;
+                    }
+                } else {
+                    $unitValue = (int) $productUnitValue;
                 }
             }
 
@@ -196,9 +226,8 @@ class SyncAssemblyAndDispatchUnits extends Command
         // 2) Fill remaining N/A based on available assemblies without serials
         $naQuantity = $quantity - count($assemblyIds);
         if ($naQuantity > 0) {
-            // Available assemblies for this product (no serials)
-            $availableAssemblies = DB::table('assembly_products')
-                ->where('product_id', $productId)
+            // Lấy danh sách assembly cho sản phẩm này KHÔNG có serial
+            $availableAssemblies = AssemblyProduct::where('product_id', $productId)
                 ->where(function ($q) {
                     $q->whereNull('serials')
                       ->orWhere('serials', '=','')
@@ -208,24 +237,95 @@ class SyncAssemblyAndDispatchUnits extends Command
                 ->orderBy('assembly_id')
                 ->get();
 
+            // Tính sức chứa (số slot N/A) cho từng assembly dựa trên product_unit
+            $assemblyCapacity = [];
+            foreach ($availableAssemblies as $a) {
+                $cap = 1;
+                $pu = $a->product_unit;
+                if (is_string($pu)) {
+                    $decoded = json_decode($pu, true);
+                    if (is_array($decoded)) $cap = max(1, count($decoded));
+                    else $cap = 1;
+                } elseif (is_array($pu)) {
+                    $cap = max(1, count($pu));
+                } elseif (is_numeric($pu)) {
+                    $cap = 1; // single slot
+                }
+                $assemblyCapacity[(int)$a->assembly_id] = $cap;
+            }
+
+            // Trừ đi các slot đã sử dụng ở những phiếu đã duyệt (approved)
+            if (!empty($assemblyCapacity)) {
+                $approvedItems = DB::table('dispatch_items')
+                    ->join('dispatches', 'dispatches.id', '=', 'dispatch_items.dispatch_id')
+                    ->where('dispatch_items.item_type', 'product')
+                    ->where('dispatch_items.item_id', $productId)
+                    ->where('dispatches.status', 'approved')
+                    ->whereNotNull('dispatch_items.assembly_id')
+                    ->select('dispatch_items.assembly_id')
+                    ->get();
+
+                foreach ($approvedItems as $it) {
+                    $ids = array_filter(array_map('trim', explode(',', (string)$it->assembly_id)), function($v){return $v !== '';});
+                    foreach ($ids as $idStr) {
+                        $aid = (int)$idStr;
+                        if (isset($assemblyCapacity[$aid]) && $assemblyCapacity[$aid] > 0) {
+                            $assemblyCapacity[$aid] -= 1; // tiêu thụ 1 slot cho mỗi lần xuất
+                        }
+                    }
+                }
+            }
+
+            // Slot còn lại cho từng assembly (không âm)
+            $assemblyRemaining = [];
+            foreach ($assemblyCapacity as $aid => $cap) {
+                $assemblyRemaining[$aid] = max(0, $cap);
+            }
+
             // Tính max product_unit hiện tại để bắt đầu từ đó cho N/A
             $maxUnit = !empty($productUnits) ? max($productUnits) : -1;
             
-            $assemblyIndex = 0;
+            // Lần lượt phân bổ N/A vào các assembly còn slot
+            $assemblyOrder = array_keys($assemblyRemaining);
+            $orderIndex = 0;
             for ($i = 0; $i < $naQuantity; $i++) {
-                if (!isset($availableAssemblies[$assemblyIndex])) {
+                // Tìm assembly còn slot
+                $chosenAid = null;
+                for ($t = 0; $t < count($assemblyOrder); $t++) {
+                    $idx = ($orderIndex + $t) % (count($assemblyOrder) ?: 1);
+                    $aid = $assemblyOrder[$idx] ?? null;
+                    if ($aid !== null && ($assemblyRemaining[$aid] ?? 0) > 0) {
+                        $chosenAid = $aid; $orderIndex = $idx; break;
+                    }
+                }
+
+                if ($chosenAid === null) {
+                    // Không còn slot ở bất kỳ assembly nào
                     $assemblyIds[] = null;
                     $productUnits[] = ++$maxUnit;
                     continue;
                 }
 
-                $assembly = $availableAssemblies[$assemblyIndex];
+                // Lấy product_unit mặc định theo assembly (nếu có mảng, lấy phần tử đầu)
+                $naUnit = ++$maxUnit;
+                $assembly = $availableAssemblies->firstWhere('assembly_id', $chosenAid);
+                if ($assembly && $assembly->product_unit !== null) {
+                    $pu = $assembly->product_unit;
+                    if (is_string($pu)) {
+                        $decoded = json_decode($pu, true);
+                        if (is_array($decoded) && !empty($decoded)) $naUnit = (int)$decoded[0];
+                        else $naUnit = (int)$pu;
+                    } elseif (is_array($pu) && !empty($pu)) {
+                        $naUnit = (int)$pu[0];
+                    } else {
+                        $naUnit = (int)$pu;
+                    }
+                }
 
-                $assemblyIds[] = $assembly->assembly_id;
-                $productUnits[] = ++$maxUnit;
-
-                // advance to next assembly when units consumed
-                $assemblyIndex++;
+                $assemblyIds[] = $chosenAid;
+                $productUnits[] = $naUnit;
+                $assemblyRemaining[$chosenAid] = max(0, ($assemblyRemaining[$chosenAid] ?? 0) - 1);
+                $orderIndex++;
             }
         }
 

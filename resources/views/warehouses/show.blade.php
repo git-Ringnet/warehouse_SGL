@@ -18,7 +18,7 @@
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center sticky top-0 z-40">
             <div class="flex items-center">
                 <h1 class="text-xl font-bold text-gray-800">Chi tiết kho hàng</h1>
-            </div>
+            </div> 
             <div class="flex space-x-2">
                 @if ($warehouse->status !== 'deleted' && !$warehouse->is_hidden)
                     <a href="{{ route('warehouses.edit', $warehouse->id) }}"

@@ -630,7 +630,11 @@ class RepairController extends Controller
                                 'product_unit' => $dispatchInfo['product_unit'],
                                 'dispatch_item_id' => $dispatchItemId
                             ]);
-                            $materials = $this->getDeviceMaterialsFromAssembly($product, $dispatchInfo['assembly_id'], $dispatchInfo['product_unit']);
+                            $materials = $this->getDeviceMaterialsFromAssembly(
+                                $product,
+                                (int) $dispatchInfo['assembly_id'],
+                                isset($dispatchInfo['product_unit']) && is_numeric($dispatchInfo['product_unit']) ? (int) $dispatchInfo['product_unit'] : null
+                            );
                         } else {
                             // Fallback: tìm đơn vị thành phẩm tiếp theo
                             $unitInfo = $this->getNextAvailableProductUnit($product->id, $warrantyCode);
@@ -640,7 +644,11 @@ class RepairController extends Controller
                                     'assembly_id' => $unitInfo['assembly_id'],
                                     'product_unit' => $unitInfo['product_unit']
                                 ]);
-                                $materials = $this->getDeviceMaterialsFromAssembly($product, $unitInfo['assembly_id'], $unitInfo['product_unit']);
+                                $materials = $this->getDeviceMaterialsFromAssembly(
+                                    $product,
+                                    (int) $unitInfo['assembly_id'],
+                                    isset($unitInfo['product_unit']) && is_numeric($unitInfo['product_unit']) ? (int) $unitInfo['product_unit'] : null
+                                );
                             } else {
                                 // Fallback to old logic
                                 $assemblyId = $this->findAssemblyIdForProductSerial($product->id, 'N/A', $warrantyCode);

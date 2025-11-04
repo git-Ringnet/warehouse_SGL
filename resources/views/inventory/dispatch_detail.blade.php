@@ -305,12 +305,17 @@
                                                 @php
                                                     $serialCount = 0;
                                                     if ($item->serial_numbers) {
+                                                        $arr = [];
                                                         if (is_array($item->serial_numbers)) {
-                                                            $serialCount = count($item->serial_numbers);
+                                                            $arr = $item->serial_numbers;
                                                         } elseif (is_string($item->serial_numbers)) {
                                                             $decoded = json_decode($item->serial_numbers, true);
-                                                            $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                            $arr = is_array($decoded) ? $decoded : [];
                                                         }
+                                                        // Đếm chỉ serial thật, bỏ qua virtual N/A-*
+                                                        $serialCount = count(array_values(array_filter($arr, function($s){
+                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                        })));
                                                     }
                                                 @endphp
                                                 @if ($serialCount > 0)
@@ -378,6 +383,9 @@
                                             Đơn vị</th>
                                         <th
                                             class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
+                                            Kho xuất</th>
+                                        <th
+                                            class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
                                             Số lượng xuất</th>
                                         <th
                                             class="px-6 py-3 text-left text-xs font-medium text-orange-600 uppercase tracking-wider">
@@ -421,6 +429,13 @@
                                                     Cái
                                                 @endif
                                             </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                                @if ($item->warehouse)
+                                                    {{ $item->warehouse->name }}
+                                                @else
+                                                    <span class="text-gray-500 font-medium">N/A</span>
+                                                @endif
+                                            </td>
                                             <td
                                                 class="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-700">
                                                 {{ $item->quantity }}</td>
@@ -428,12 +443,16 @@
                                                 @php
                                                     $serialCount = 0;
                                                     if ($item->serial_numbers) {
+                                                        $arr = [];
                                                         if (is_array($item->serial_numbers)) {
-                                                            $serialCount = count($item->serial_numbers);
+                                                            $arr = $item->serial_numbers;
                                                         } elseif (is_string($item->serial_numbers)) {
                                                             $decoded = json_decode($item->serial_numbers, true);
-                                                            $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                            $arr = is_array($decoded) ? $decoded : [];
                                                         }
+                                                        $serialCount = count(array_values(array_filter($arr, function($s){
+                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                        })));
                                                     }
                                                 @endphp
                                                 @if ($serialCount > 0)
@@ -560,12 +579,16 @@
                                                 @php
                                                     $serialCount = 0;
                                                     if ($item->serial_numbers) {
+                                                        $arr = [];
                                                         if (is_array($item->serial_numbers)) {
-                                                            $serialCount = count($item->serial_numbers);
+                                                            $arr = $item->serial_numbers;
                                                         } elseif (is_string($item->serial_numbers)) {
                                                             $decoded = json_decode($item->serial_numbers, true);
-                                                            $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                            $arr = is_array($decoded) ? $decoded : [];
                                                         }
+                                                        $serialCount = count(array_values(array_filter($arr, function($s){
+                                                            return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                        })));
                                                     }
                                                 @endphp
                                                 @if ($serialCount > 0)
@@ -708,12 +731,16 @@
                                             @php
                                                 $serialCount = 0;
                                                 if ($item->serial_numbers) {
+                                                    $arr = [];
                                                     if (is_array($item->serial_numbers)) {
-                                                        $serialCount = count($item->serial_numbers);
+                                                        $arr = $item->serial_numbers;
                                                     } elseif (is_string($item->serial_numbers)) {
                                                         $decoded = json_decode($item->serial_numbers, true);
-                                                        $serialCount = is_array($decoded) ? count($decoded) : 0;
+                                                        $arr = is_array($decoded) ? $decoded : [];
                                                     }
+                                                    $serialCount = count(array_values(array_filter($arr, function($s){
+                                                        return is_string($s) && strpos($s, 'N/A-') !== 0 && trim($s) !== '';
+                                                    })));
                                                 }
                                             @endphp
                                             @if ($serialCount > 0)
