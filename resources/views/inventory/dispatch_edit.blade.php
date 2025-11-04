@@ -4950,7 +4950,21 @@
                             materialsCount: materials ? materials.length : 0,
                             materials: materials,
                         });
-                        if (productInfo.type === 'product' && materials && materials.length > 0) {
+                        // Luôn cố gắng hiển thị form seri vật tư cho thành phẩm
+                        // Kể cả khi materials ở dòng hiện tại rỗng (N/A), sử dụng template đã cache từ dòng trước
+                        window.__materialsTemplateByProduct = window.__materialsTemplateByProduct || {};
+
+                        let templateMaterials = [];
+                        if (Array.isArray(materials) && materials.length > 0) {
+                            templateMaterials = materials;
+                            // Cache lại template cho các dòng tiếp theo của cùng product
+                            window.__materialsTemplateByProduct[productId] = materials;
+                        } else if (Array.isArray(window.__materialsTemplateByProduct[productId])) {
+                            // Không có materials cho dòng này (ví dụ N/A), dùng template của product
+                            templateMaterials = window.__materialsTemplateByProduct[productId];
+                        }
+
+                        if (productInfo.type === 'product' && Array.isArray(templateMaterials) && templateMaterials.length > 0) {
                             // Ưu tiên serial đổi tên từ device_codes nếu có cho đúng index
                             let renamedComponentSerials = [];
                             if (deviceCode && deviceCode.serial_components) {
@@ -4972,20 +4986,23 @@
                                 }
                             }
 
-                            componentSerialsHtml = materials.map((material, j) => {
+                            componentSerialsHtml = templateMaterials.map((material, j) => {
                                 let serialValue = '';
-                                // 1) Dùng serial đổi tên nếu có
-                                if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
-                                    serialValue = renamedComponentSerials[j];
-                                } else {
-                                    // 2) Fallback: tách serial gốc theo nhiều ký tự phân tách
-                                    if (material.serial && material.serial !== 'null') {
-                                        const parts = String(material.serial)
-                                            .split(/[\s,;|\/]+/)
-                                            .map(s => s.trim())
-                                            .filter(Boolean);
-                                        const partIndex = (parseInt(material.index, 10) || (j + 1)) - 1;
-                                        serialValue = parts[partIndex] || parts[0] || '';
+                                const isNAProduct = !originalSerialValue || String(originalSerialValue).trim() === '';
+                                if (!isNAProduct) {
+                                    // 1) Dùng serial đổi tên nếu có
+                                    if (Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) {
+                                        serialValue = renamedComponentSerials[j];
+                                    } else {
+                                        // 2) Fallback: tách serial gốc theo nhiều ký tự phân tách
+                                        if (material.serial && material.serial !== 'null') {
+                                            const parts = String(material.serial)
+                                                .split(/[\s,;|\/]+/)
+                                                .map(s => s.trim())
+                                                .filter(Boolean);
+                                            const partIndex = (parseInt(material.index, 10) || (j + 1)) - 1;
+                                            serialValue = parts[partIndex] || parts[0] || '';
+                                        }
                                     }
                                 }
                                 const prefillAttr = serialValue && !(Array.isArray(renamedComponentSerials) && renamedComponentSerials[j]) ? 'data-prefill="1"' : '';
